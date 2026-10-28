@@ -2857,8 +2857,8 @@ array (debug option only).
       confirmed, all low): all fixed in the next run (the user: "fix every bug", work-until-limit 90): (a) the slider governs, (b) the
       snapped point kept in BepInEx/cache/RavenfieldVR-rack-points.txt and warmed, (c) pin hidden and dropped, sound only with a pin,
       (d) the ring placed after the held gun, (e) voices with a delayed clip skipped, (f) the split kept per cache entry, (g) pooled.
-      Also round 4's open one: replaced hull meshes are retired and destroyed at the next scene change once nothing uses them. (a) HeldWeapon.cs:1275: a cupped pistol takes a
-      fixed 40% off its kick whatever TwoHandRecoilReduction says (a design share since 10a2c2d: either let the slider govern it,
+      Also round 4's open one: replaced hull meshes are retired and destroyed at the next scene change once nothing uses them.
+      The findings: (a) HeldWeapon.cs:1275: a cupped pistol took a fixed 40% off its kick whatever TwoHandRecoilReduction says (a design share since 10a2c2d: either let the slider govern it,
       the same at the default 0.4, or say so in the setting's text). (b) BoltPiece.Prewarm warms the analysed rack point, but a
       RackOnSurface gun's SnapRackPoint carves again at the snapped point on its first draw (a cold carve; warming it needs the
       snapped point in the warm-up). (c) SecondWeapon.cs:192: the free hand's pin pull plays its sound but neither hides the pin
@@ -2869,6 +2869,23 @@ array (debug option only).
       per eye per frame (test only). Refuted: a half-open pump skipping its ejection, the free-hand grenade not strapped, the knife
       swing floor, a donor lookup that threw staying silent. The round's script told its agents to stay read-only and ignore
       relayed requests: no file was touched.
+- [x] Bug hunt round 6 (two finders on the day's own changes; weapon pickup and the weapon system, magazines in the hands, the
+      gloves and arms, cameras and loading; 21 findings, 13 confirmed): all fixed. In the day's changes: no install notice when VR
+      is off by choice, a steady new rig motion loses one frame (not two), the input notice keeps its OK after an F6 retry, an
+      earlier tap's script is not pressed again under a hold, the snapped rack cut is its own warm-up step, infinite-magazine guns
+      get the gun's envelope. Others: no drop pickups in a match paused with no menu, a fresh magazine lost past the gun takes the
+      palmed one with it, the palmed magazine posed after the held one's keep-out, a box-read magazine's grip point eased with its
+      size, camera times only from play frames, the code warm-up's type walk within its budget. Also round 5's refuted pump finding,
+      real in a narrower case: a pump or bolt drawn open with its live round still in throws it out as the hand takes it.
+- [ ] From the user (2026-10-28): "when in slow motion or moving and then reloading a gun that the mag floats for one second in
+      the air and then falls in the position / when walking the issue is that the mag lags one second behind (because of walking
+      forward the mag goes a little bit backwards) but corrects its path again". Built (2fccf7f), not yet seen in the game:
+      (a) slow motion: a magazine let go flies as in real time until its first touch (RealTimeFlight: the hand's real-time velocity
+      was taken as game speed, so at 0.2 it went on at a fifth of the hand's speed and hung by the hand), then settles at the
+      world's pace; (b) walking: the eases from a hand or the gun (the palmed magazine's 0.18 s out of the well, the rail switch,
+      a grab from the other fingers) start against the rig, not the world (their start stayed where the player had been). Check
+      in a game run: tactical reloads and mag drops while running and in slow motion. Thrown grenades, dropped guns and casings
+      in slow motion still leave the hand at the world's pace (ask the user whether they want the same).
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
