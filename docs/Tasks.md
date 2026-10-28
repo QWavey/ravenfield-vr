@@ -2806,6 +2806,11 @@ array (debug option only).
 4. `python -I tools/frame_report.py reports/shots/<run>/game-log.txt` on each: the new frame line (play frames only, the mod's
    sections, the canvases the UI camera draws).
 5. Then the user's headset: Medium with "Hold the frame rate" on and off; their log via `tools/frame_report.py`.
+6. (Added 2026-10-28 afternoon, 1.14.1 installed at 16:19.) The autotest's new checks: the preset switch (Game, Medium, Game)
+   and the frame rate hold's steps on made-up windows. In the headset: a soldier thrown and held in slow motion (flies at the
+   hand's speed, falls as in real time, not hurt more than at full speed), a gun drawn with the off hand then holstered (map and
+   squad back on the main hand's buttons), a launcher holstered loaded then fired (its rocket gone), the VR keyboard with two
+   fields, the wrist's "CPU-bound" on a heavy map, a long session's CPU speed column (100%, 98%, 88% in three minutes at 16:10).
 
 ### 350. A soldier picked up is hurt by barely touching the ground (user, 2026-10-28: "When picking up a soldier they take damage even when only slightly touching the ground, maybe calculate force?")
 - [ ] (Built 2026-10-28: an impact counts at the lesser of its contact speed and its impulse over a 16 kg trunk bone, BodyImpacts.ImpactMass; within 0.15 s a harder blow adds the difference. Check in a game run: lifting and dragging hurt nothing, the soldier check's slam and throw still hurt.) The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
