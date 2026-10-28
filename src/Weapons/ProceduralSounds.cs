@@ -100,11 +100,42 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Until when each voice's delayed clip is still to come or sounding (unscaled time): a later sound takes another voice. Taken
+        /// round the pool, the eighth sound after it reset that voice's level, pitch and place under the click still waiting on it,
+        /// which then sounded at full level, another pitch, where the new sound was (a case tinking during the free hand's slide;
+        /// round-5 scout).
+        /// </summary>
+        private readonly float[] _busyUntil = new float[8]; // (one a voice of _pool)
+
+        /// <summary>The next voice round the pool with nothing delayed on it; with all eight busy, the one free soonest.</summary>
+        private int TakeVoice()
+        {
+            float now = Time.unscaledTime;
+            int soonest = _next;
+            for (int tried = 0; tried < _pool.Length; tried++)
+            {
+                int i = (_next + tried) % _pool.Length;
+                if (_busyUntil[i] <= now)
+                {
+                    _next = (i + 1) % _pool.Length;
+                    return i;
+                }
+                if (_busyUntil[i] < _busyUntil[soonest])
+                {
+                    soonest = i;
+                }
+            }
+            _next = (soonest + 1) % _pool.Length;
+            return soonest;
+        }
+
         // delay: seconds before it sounds (two clicks of one action played in one frame ran into one; sound hunt, 2026-10-20).
         public void Play(MechSound sound, Vector3 position, float volume = 1f, float delay = 0f)
         {
-            AudioSource src = _pool[_next];
-            _next = (_next + 1) % _pool.Length;
+            int voice = TakeVoice();
+            AudioSource src = _pool[voice];
+            _busyUntil[voice] = 0f;
             if (src.outputAudioMixerGroup == null)
             {
                 RouteToMixer();
@@ -117,6 +148,7 @@ namespace RavenfieldVR.Weapons
                 src.clip = _clips[(int)sound];
                 src.volume = volume;
                 src.PlayDelayed(delay);
+                _busyUntil[voice] = Time.unscaledTime + delay + (src.clip != null ? src.clip.length / Mathf.Max(0.5f, src.pitch) : 0f);
                 return;
             }
             src.volume = 1f; // (a delayed sound left its level on the source)

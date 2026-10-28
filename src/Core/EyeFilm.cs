@@ -116,6 +116,13 @@ namespace RavenfieldVR.Core
         internal static int Writing;
 
         private CommandBuffer _copy;
+        /// <summary>
+        /// Picture buffers the writer is done with, for the next readbacks (under the queue's lock): each frame of each eye made a
+        /// new one, about a megabyte, so the collector stopped the frames the film was measuring (round-5 scout). As many as can be
+        /// in flight (the 48 of the writer's backlog, both eyes' pending, the one it is writing).
+        /// </summary>
+        private readonly Stack<byte[]> _spare = new Stack<byte[]>();
+        private const int SpareMax = 56;
         private bool _mono;
         private int _skipFrame = -1;
 
@@ -164,7 +171,17 @@ namespace RavenfieldVR.Core
                 if (!req.hasError)
                 {
                     NativeArray<byte> data = req.GetData<byte>();
-                    var rgba = new byte[w * h * 4];
+                    byte[] rgba = null;
+                    lock (_queue)
+                    {
+                        // (exactly the picture's size: the encoder writes the whole array; one of another size is let go)
+                        while (_spare.Count > 0 && rgba == null)
+                        {
+                            byte[] b = _spare.Pop();
+                            rgba = b.Length == w * h * 4 ? b : null;
+                        }
+                    }
+                    rgba = rgba ?? new byte[w * h * 4];
                     NativeArray<byte>.Copy(data, rgba, rgba.Length); // read back top row first (Direct3D): as the PNG wants it
                     lock (_queue)
                     {
@@ -200,6 +217,13 @@ namespace RavenfieldVR.Core
                 try
                 {
                     byte[] png = ImageConversion.EncodeArrayToPNG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h);
+                    lock (_queue)
+                    {
+                        if (_spare.Count < SpareMax)
+                        {
+                            _spare.Push(item.rgba); // (encoded: free for the next readback)
+                        }
+                    }
                     File.WriteAllBytes(item.path, png);
                 }
                 catch (Exception ex)

@@ -141,12 +141,9 @@ namespace RavenfieldVR.Weapons
             {
                 // Several barrels: this one's systems only (made only for a multi-barrel gun; one barrel's is the cache itself),
                 // split once per muzzle cache: made on every shot, a rotary gun made two lists and two arrays fifty times a second.
-                if (!ReferenceEquals(_barrelsOf, _cachedSystems))
-                {
-                    _barrels.Clear();
-                    _barrelsOf = _cachedSystems;
-                }
-                if (!_barrels.TryGetValue(_pendingMuzzle, out KeyValuePair<ParticleSystem[], ParticleSystem[][]> barrel))
+                // Kept with the cache entry it was split from, swapped with it: kept apart from it, two such guns firing in turn
+                // (the drawn gun and the free hand's) split anew on every shot (round-5 scout).
+                if (!_cachedBarrels.TryGetValue(_pendingMuzzle, out KeyValuePair<ParticleSystem[], ParticleSystem[][]> barrel))
                 {
                     var systems = new List<ParticleSystem>();
                     var trees = new List<ParticleSystem[]>();
@@ -159,7 +156,7 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                     barrel = new KeyValuePair<ParticleSystem[], ParticleSystem[][]>(systems.ToArray(), trees.ToArray());
-                    _barrels[_pendingMuzzle] = barrel;
+                    _cachedBarrels[_pendingMuzzle] = barrel;
                 }
                 _pendingSystems = barrel.Key;
                 _pendingTrees = barrel.Value;
@@ -256,10 +253,10 @@ namespace RavenfieldVR.Weapons
 
         private static readonly ParticleSystem[] NoSystems = new ParticleSystem[0];
         private static readonly ParticleSystem[][] NoTrees = new ParticleSystem[0][];
-        // Each barrel's own systems and trees, split from the muzzle cache they came from (_barrelsOf).
-        private readonly Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>> _barrels =
-            new Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>>();
-        private ParticleSystem[] _barrelsOf;
+        // Each barrel's own systems and trees, split from the muzzle cache entry they belong to (the drawn one, the other one).
+        private Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>> _cachedBarrels =
+            new Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>>(),
+            _otherBarrels = new Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>>();
         // The weapons already told of in the log as flash-less (their message and key were built on every such shot).
         private readonly HashSet<Weapon> _toldNoFlash = new HashSet<Weapon>(), _toldBehind = new HashSet<Weapon>();
         private static readonly System.Predicate<Weapon> IsGone = w => w == null;
@@ -300,8 +297,14 @@ namespace RavenfieldVR.Weapons
                 Swap(ref _cachedSystems, ref _otherSystems);
                 Swap(ref _cachedTrees, ref _otherTrees);
                 Swap(ref _cachedInfo, ref _otherInfo);
+                Swap(ref _cachedBarrels, ref _otherBarrels);
                 return;
             }
+            // The other entry's split goes with it; its dictionary, emptied, is this new entry's (no new one made).
+            Dictionary<Transform, KeyValuePair<ParticleSystem[], ParticleSystem[][]>> spare = _otherBarrels;
+            spare.Clear();
+            _otherBarrels = _cachedBarrels;
+            _cachedBarrels = spare;
             _otherFor = _cachedFor;
             _otherUntil = _cachedUntil;
             _otherSystems = _cachedSystems;
@@ -637,7 +640,8 @@ namespace RavenfieldVR.Weapons
         public void Destroy()
         {
             _fireball.Destroy();
-            _barrels.Clear();
+            _cachedBarrels.Clear();
+            _otherBarrels.Clear();
             _toldNoFlash.Clear();
             _toldBehind.Clear();
             if (Instance == this)
