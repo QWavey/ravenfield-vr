@@ -121,9 +121,44 @@ namespace RavenfieldVR.Weapons
             ShowLoadedRocket(rocketLoaded);
         }
 
-        private readonly HashSet<Renderer> _rocketRenderersOn = new HashSet<Renderer>();
-        private readonly HashSet<GameObject> _rocketObjectsOn = new HashSet<GameObject>();
-        private readonly Dictionary<Transform, Vector3> _rocketScalesRestored = new Dictionary<Transform, Vector3>();
+        private sealed class RocketShown
+        {
+            public readonly HashSet<Renderer> RenderersOn = new HashSet<Renderer>();
+            public readonly HashSet<GameObject> ObjectsOn = new HashSet<GameObject>();
+            public readonly Dictionary<Transform, Vector3> ScalesRestored = new Dictionary<Transform, Vector3>();
+        }
+
+        /// <summary>
+        /// What was switched on per launcher, not per hold: one holstered loaded and drawn again found its rocket already shown,
+        /// recorded nothing, and the rocket stayed on it after the shot (the game hides it only once).
+        /// </summary>
+        private static readonly Dictionary<Weapon, RocketShown> RocketsShown = new Dictionary<Weapon, RocketShown>();
+        private static readonly List<Weapon> GoneLaunchers = new List<Weapon>();
+
+        private RocketShown Shown()
+        {
+            if (RocketsShown.TryGetValue(Weapon, out RocketShown s))
+            {
+                return s;
+            }
+            if (RocketsShown.Count >= 16)
+            {
+                GoneLaunchers.Clear();
+                foreach (Weapon w in RocketsShown.Keys)
+                {
+                    if (w == null)
+                    {
+                        GoneLaunchers.Add(w);
+                    }
+                }
+                foreach (Weapon w in GoneLaunchers)
+                {
+                    RocketsShown.Remove(w);
+                }
+                GoneLaunchers.Clear();
+            }
+            return RocketsShown[Weapon] = new RocketShown();
+        }
 
         /// <summary>
         /// While a launcher is loaded, its rocket as it shows loaded is drawn: parts the game shrank to nothing get their scale
@@ -142,9 +177,10 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
-                    if (!_rocketScalesRestored.ContainsKey(p))
+                    RocketShown shown = Shown();
+                    if (!shown.ScalesRestored.ContainsKey(p))
                     {
-                        _rocketScalesRestored[p] = p.localScale;
+                        shown.ScalesRestored[p] = p.localScale;
                     }
                     p.localScale = Rig.MagazinePartScales[i];
                 }
@@ -157,44 +193,42 @@ namespace RavenfieldVR.Weapons
                     if (!r.gameObject.activeSelf)
                     {
                         r.gameObject.SetActive(true);
-                        _rocketObjectsOn.Add(r.gameObject);
+                        Shown().ObjectsOn.Add(r.gameObject);
                     }
                     if (!r.enabled)
                     {
                         r.enabled = true;
-                        _rocketRenderersOn.Add(r);
+                        Shown().RenderersOn.Add(r);
                     }
                 }
                 return;
             }
-            if (_rocketRenderersOn.Count == 0 && _rocketObjectsOn.Count == 0 && _rocketScalesRestored.Count == 0)
+            if (!RocketsShown.TryGetValue(Weapon, out RocketShown was))
             {
                 return;
             }
-            foreach (Renderer r in _rocketRenderersOn)
+            RocketsShown.Remove(Weapon);
+            foreach (Renderer r in was.RenderersOn)
             {
                 if (r != null)
                 {
                     r.enabled = false;
                 }
             }
-            foreach (GameObject g in _rocketObjectsOn)
+            foreach (GameObject g in was.ObjectsOn)
             {
                 if (g != null)
                 {
                     g.SetActive(false);
                 }
             }
-            foreach (KeyValuePair<Transform, Vector3> kv in _rocketScalesRestored)
+            foreach (KeyValuePair<Transform, Vector3> kv in was.ScalesRestored)
             {
                 if (kv.Key != null)
                 {
                     kv.Key.localScale = kv.Value;
                 }
             }
-            _rocketRenderersOn.Clear();
-            _rocketObjectsOn.Clear();
-            _rocketScalesRestored.Clear();
         }
 
         private bool _slideMoved;

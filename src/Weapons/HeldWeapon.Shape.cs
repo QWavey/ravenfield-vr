@@ -34,7 +34,7 @@ namespace RavenfieldVR.Weapons
         private System.Func<Vector3, bool> _solid;
 
         /// <summary>The gun's solid the hands close on, as posed this frame (grown by a finger's radius); null until measured.</summary>
-        internal System.Func<Vector3, bool> HandsSolid => _solid;
+        internal System.Func<Vector3, bool> HandsSolid => _volume != null ? _solid : null; // (dropped to measure again: none meanwhile)
 
         /// <summary>Whether <see cref="HandsSolid"/> includes the seated magazine now (its shape changes with it).</summary>
         internal bool MagSolidShown => _magSolidShown;
@@ -177,7 +177,7 @@ namespace RavenfieldVR.Weapons
             {
                 Core.PerfProbe.End("hands: magazine line");
             }
-            return _solid ?? (_solid = p => _volume.Solid(p) || _magSolidShown && _magVolume.Solid(p));
+            return _solid ?? (_solid = p => _volume != null && _volume.Solid(p) || _magSolidShown && _magVolume != null && _magVolume.Solid(p));
         }
 
         private GunVolume _slideTipVolume;

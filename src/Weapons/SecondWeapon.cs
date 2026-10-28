@@ -562,6 +562,8 @@ namespace RavenfieldVR.Weapons
 
         private GunVolume _volume;
         private System.Func<Vector3, bool> _solid;
+        private Vector3 _solidAt;
+        private Quaternion _solidInverse = Quaternion.identity;
         private readonly float _heldSince = Time.unscaledTime;
         private float _volumeRetryAt;
         private int _volumeTries;
@@ -598,8 +600,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            _volume.SetPose(Rig.ToWorld(Rig.Data.GripPoint), Rig.GunBody.rotation * frame);
-            model.Solid = _solid ?? (_solid = p => _volume != null && _volume.Ready && _volume.Solid(p));
+            // At its own pose: the volume is shared by every gun of the model (GunVolume.For caches by key), and with both hands on
+            // the same model the main gun's pose, set after this one, was the one the free hand's fingers closed on.
+            _solidAt = Rig.ToWorld(Rig.Data.GripPoint);
+            _solidInverse = Quaternion.Inverse(Rig.GunBody.rotation * frame);
+            _volume.SetPose(_solidAt, Rig.GunBody.rotation * frame);
+            model.Solid = _solid ?? (_solid = p => _volume != null && _volume.Ready && _volume.SolidAt(p, _solidAt, _solidInverse));
             model.SolidAnchor = Rig.GunBody;
             model.SolidVersion = 0;
         }
