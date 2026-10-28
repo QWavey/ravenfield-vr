@@ -121,7 +121,9 @@ namespace RavenfieldVR.Weapons
             "weapons", "match", "contains", "action", "magazine", "slide", "slideTravel", "lockOnEmpty", "gripForward", "gripUp", "pitch", "magKick"
         };
 
-        private static readonly System.Text.RegularExpressions.Regex Key = new System.Text.RegularExpressions.Regex("\"([^\"\\]+)\"\\s*:");
+        // (A verbatim string: the escaped one closed its class with "\]", the regex never compiled, and the class's initializer
+        // threw on first use, every weapon's analysis with it: the user's play of 2026-10-28 16:05.)
+        private static readonly System.Text.RegularExpressions.Regex Key = new System.Text.RegularExpressions.Regex(@"""([^""\\]+)""\s*:");
 
         /// <summary>
         /// Keys the file has that no override field takes, said once each: the reader matches names exactly and skips the rest

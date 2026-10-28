@@ -105,6 +105,57 @@ namespace RavenfieldVR.Tests
             ToolClassTests(mod);
             RackPointFileTests(mod);
             RenderScaleHoldTests(mod);
+            StaticInitTests(mod);
+        }
+
+        /// <summary>
+        /// Every mod class's static initializer runs (a regex that does not compile threw in WeaponOverrides' on first use and
+        /// broke every weapon's analysis: the user's play of 2026-10-28), and the overrides' key pattern finds a file's keys.
+        /// Classes whose initializer needs the running game (Unity objects, BepInEx paths) are skipped by what they throw.
+        /// </summary>
+        private static void StaticInitTests(System.Reflection.Assembly mod)
+        {
+            int run = 0;
+            var broken = new System.Collections.Generic.List<string>();
+            foreach (Type t in mod.GetTypes())
+            {
+                if (t.IsGenericTypeDefinition || t.TypeInitializer == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(t.TypeHandle);
+                    run++;
+                }
+                catch (TypeInitializationException e)
+                {
+                    Exception inner = e.InnerException;
+                    // Only what is wrong in the mod's own code: a pattern, a format, a bad cast, an index (not the engine missing).
+                    if (inner is ArgumentException || inner is FormatException || inner is InvalidCastException || inner is IndexOutOfRangeException
+                        || inner is NullReferenceException && inner.StackTrace != null && !inner.StackTrace.Contains("UnityEngine"))
+                    {
+                        broken.Add(t.FullName + ": " + inner.GetType().Name + " " + inner.Message);
+                    }
+                }
+                catch (Exception)
+                {
+                    // (the engine or BepInEx not there offline)
+                }
+            }
+            Check(broken.Count == 0, $"Static initializers: {run} run, none broken{(broken.Count > 0 ? ": " + string.Join("; ", broken.ToArray()) : "")}");
+            Type overrides = mod.GetType("RavenfieldVR.Weapons.WeaponOverrides");
+            var key = overrides?.GetField("Key", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as System.Text.RegularExpressions.Regex;
+            Check(key != null, "Weapon overrides: the key pattern compiles");
+            if (key != null)
+            {
+                var found = new System.Collections.Generic.List<string>();
+                foreach (System.Text.RegularExpressions.Match m in key.Matches("{\"weapons\": [{\"match\": \"AK-47\", \"slidetravel\" : 0.05}]}"))
+                {
+                    found.Add(m.Groups[1].Value);
+                }
+                Check(string.Join(",", found.ToArray()) == "weapons,match,slidetravel", $"Weapon overrides: the key pattern finds the file's keys ({string.Join(",", found.ToArray())})");
+            }
         }
 
         /// <summary>
