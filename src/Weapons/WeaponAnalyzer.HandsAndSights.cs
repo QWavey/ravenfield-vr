@@ -88,7 +88,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void AlignEyeToScopeModel(WeaponRigData d, Transform root, HashSet<Transform> armRelated, PoseSampler sampler, Weapon w, RigidPose gunIdle)
         {
-            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Action == ActionType.NoAmmo || w.configuration.scopeAimObject == null)
+            // (An infinite-magazine gun is classed NoAmmo too but has its sights: round-4 scout.)
+            if (d.IsTool || w.configuration.scopeAimObject == null)
             {
                 return;
             }
@@ -267,9 +268,9 @@ namespace RavenfieldVR.Weapons
 
         private static void AnalyzeSights(WeaponRigData d, PoseSampler sampler)
         {
-            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Action == ActionType.NoAmmo)
+            if (d.IsTool)
             {
-                return; // nothing to aim down
+                return; // nothing to aim down (an infinite-magazine gun, classed NoAmmo, has: its eye point was never measured)
             }
             if (!sampler.HasAim || !TryEyeInRoot(out Vector3 eyeInRoot))
             {

@@ -31,7 +31,18 @@ namespace RavenfieldVR.Weapons
         /// lists the same ones), so they stayed "warmed" with nothing ready, and their first draw and first drop in the next
         /// match paid it all (bug hunt, 2026-10-22).
         /// </summary>
-        internal static void Forget() => Warmed.Clear();
+        internal static void Forget()
+        {
+            Warmed.Clear();
+            _generation++;
+        }
+
+        /// <summary>
+        /// Counts the reloads <see cref="Forget"/> was told of: a weapon being prepared when one came (between its steps) is not
+        /// marked done, for its first steps' work went with the reload (marked, the next pass skipped it with its analysis gone
+        /// and its first draw in the match did it; round-4 scout).
+        /// </summary>
+        private static int _generation;
 
         public static void Start()
         {
@@ -53,9 +64,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void PrefitShape(Weapon weapon, WeaponRigData data, WeaponManager.WeaponEntry entry)
         {
-            if (data.Action == ActionType.NoAmmo)
+            if (data.Action == ActionType.NoAmmo && !data.InfiniteAmmo)
             {
-                return;
+                return; // (an infinite-magazine gun is classed NoAmmo but drawn as a gun: its shape was fitted at its first draw)
             }
             var rig = new WeaponRig(weapon, data);
             ShapeFit.Bake(GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(data.AimAxis, data.Up), data.GripPoint));
@@ -78,6 +89,8 @@ namespace RavenfieldVR.Weapons
         {
             public bool Done;
             public System.Exception Error;
+            /// <summary>A content reload came part way (see _generation).</summary>
+            public bool Stale;
         }
 
         /// <summary>
@@ -118,11 +131,12 @@ namespace RavenfieldVR.Weapons
                 }
             }
             var watch = new System.Diagnostics.Stopwatch();
+            int generation = _generation;
             foreach (System.Action step in steps)
             {
-                if (InMatch())
+                if (InMatch() || generation != _generation)
                 {
-                    yield break; // a match began: not now
+                    yield break; // a match began, or a content reload cleared what the steps before made: not now
                 }
                 watch.Restart();
                 System.Exception error = null;
@@ -145,7 +159,8 @@ namespace RavenfieldVR.Weapons
                     yield return null;
                 }
             }
-            result.Done = true;
+            result.Done = generation == _generation; // (a reload in the last step's rest: not done either)
+            result.Stale = !result.Done;
         }
 
         /// <summary>
@@ -375,7 +390,11 @@ namespace RavenfieldVR.Weapons
                     }
                     var result = new StepResult();
                     yield return PrepareInSteps(weapon, entry, result);
-                    if (result.Error != null)
+                    if (result.Stale)
+                    {
+                        // A content reload came part way: not marked; the reload asked for another pass, which prepares it anew.
+                    }
+                    else if (result.Error != null)
                     {
                         Warmed.Add(entry); // not tried again every pass
                         Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {result.Error.Message}");

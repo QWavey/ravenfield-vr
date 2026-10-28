@@ -269,6 +269,13 @@ namespace RavenfieldVR.Weapons
         public float LengthFromGrip => Mathf.Max(Vector3.Dot(MuzzlePoint - GripPoint, AimAxis), BarrelFrontAlong - Vector3.Dot(GripPoint, AimAxis));
 
         public ActionType Action;
+        /// <summary>
+        /// An infinite magazine (the game's ammo -1): classed <see cref="ActionType.NoAmmo"/> as a tool is, but a gun with a barrel
+        /// and sights all the same (<see cref="IsTool"/>).
+        /// </summary>
+        public bool InfiniteAmmo;
+        /// <summary>A blade, a throwable or a tool with no ammo: nothing to aim down, no barrel. An infinite-magazine gun is not one.</summary>
+        public bool IsTool => Action == ActionType.Melee || Action == ActionType.Throwable || Action == ActionType.NoAmmo && !InfiniteAmmo;
         public bool LockOnEmpty;
         /// <summary>
         /// Loaded with an en-bloc clip through the open action from the top (the M1 Garand): the clip goes in only while the
