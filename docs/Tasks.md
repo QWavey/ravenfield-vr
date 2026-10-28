@@ -2925,6 +2925,22 @@ array (debug option only).
       timed-out run as partial (exit 1), keeps the weapon sheets in the prune (test), stops the game on Ctrl+C in --hands;
       frame_report takes the newer of the kept and the current session and shows "(own)" steps. Refuted: metric_diff's decimal
       commas (the game sets the invariant culture in GameManager.Awake: the user's log has points), the stand-in's orphan.
+- [x] The user's test of the 16:02 build (2026-10-28): every weapon's analysis failed ("the type initializer for WeaponOverrides
+      threw"): round 7's unknown-key regex closed its class with "\]" and never compiled, so the weapon system threw every frame
+      (the game's own viewmodels, no pouch, the mod at 33 ms a frame; the user saw it after a Try again, which itself worked).
+      Fixed and installed at 16:07 (a verbatim string); OfflineTests now run every mod class's static initializer and check the
+      key pattern. The 1.14.0 Setup (built before round 7) never had it.
+- [x] Bug hunt round 9 (cockpit and comfort rig parts, OpenVR and bindings, squad UI, small weapon parts, core utilities, the
+      day's changes; 12 findings, 7 confirmed, the rest already fixed or not reachable): the buttons go back to the dominant hand's
+      layout once no weapon is out (a weapon drawn with the other hand left them swapped: map and squad on the wrong hand); a
+      soldier thrown in slow motion flies at the hand's real speed and falls as in real time until any bone touches something
+      (RealTimeFlight.BeginGroup), his impacts and the crush let-go at the world's pace, the grab's momentum and the hold's and
+      armed bones' caps in game units at the real-time pace; a magazine caught in flight and let go before a step loses its old
+      scale; the VR keyboard keeps the selection on the field it types for; the game's VSync and frame cap put back when VR
+      stops; the fire selector's dead weapons pruned; the fast test mode's title tokens match whole words; the code warm-up's
+      first step takes only the type list; a VR start begins the hold at step 0. Not done: the autotest's per-section
+      allocations include the eye film's writer thread (autotest only). Open question for the user: thrown grenades, dropped
+      guns and casings in slow motion still leave at the world's pace.
 - [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
       given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
       weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
