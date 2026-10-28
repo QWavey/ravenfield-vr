@@ -120,6 +120,7 @@ try:
     code, out = run(game, steam, '-RemoveConfig')
     check(code == 0 and not exists(game, 'BepInEx'), f'-RemoveConfig, nothing else on BepInEx: BepInEx removed ({out.strip()[-200:]})')
     check(exists(game, 'winhttp.dll') and read(game, 'winhttp.dll') == 'original', "the other tool's winhttp.dll put back and not deleted with BepInEx")
+    check(not exists(game, 'RavenfieldVR-backup'), 'the backup copy put back and its emptied folders removed')
 finally:
     shutil.rmtree(base, ignore_errors=True)
 

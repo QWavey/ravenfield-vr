@@ -56,8 +56,13 @@ $keepBepInEx = (-not $installedBepInEx) -or $otherPlugins -or (-not $RemoveConfi
 # at all. Kept then, as the setup's uninstall keeps it (improve round, 2026-10-22).
 if (-not $SteamDir) { $SteamDir = @(Get-SteamLibraries)[0] }
 $launcherName = 'RavenfieldVR-Launcher.exe'
+# A config that cannot be read (locked) counts as starting it: taken as not, the launcher went while Steam still started it (as the
+# setup's uninstall; round-7 scout).
 $launcherInUse = @(Get-ChildItem -Path (Join-Path $SteamDir 'userdata\*\config\localconfig.vdf') -ErrorAction SilentlyContinue |
-    Where-Object { (Get-Content -LiteralPath $_.FullName -Raw -ErrorAction SilentlyContinue) -match [regex]::Escape($launcherName) }).Count -gt 0
+    Where-Object {
+        try { (Get-Content -LiteralPath $_.FullName -Raw -ErrorAction Stop) -match [regex]::Escape($launcherName) }
+        catch { Write-Warning "Could not read $($_.FullName): whether Steam still starts $launcherName is not known, so it is kept."; $true }
+    }).Count -gt 0
 
 foreach ($line in $entries) {
     if ($line -like 'added=*') {
@@ -76,6 +81,7 @@ foreach ($line in $entries) {
 # its own loader stays (put back, every BepInEx plugin stopped loading); when it goes, the original put back is not then deleted
 # with it (as the setup's uninstall does; round-7 scout).
 $restoredLoader = @{}
+$restoredFrom = New-Object System.Collections.Generic.List[string]
 foreach ($line in $entries) {
     if ($line -like 'replaced=*') {
         $rel = $line -replace '^replaced=', ''
@@ -85,9 +91,16 @@ foreach ($line in $entries) {
             Write-Warning "Kept BepInEx's $rel (BepInEx stays); the file it replaced is in the Ravenfield VR backup folder."
             continue
         }
+        # Removed with its folder below: not put back first (it went with the folder, the original stays in the backup folder).
+        if ($rel -like 'BepInEx\plugins\RavenfieldVR\*' -or $rel -like 'BepInEx/plugins/RavenfieldVR/*' -or
+            (-not $keepBepInEx -and $installedBepInEx -and ($rel -like 'BepInEx\*' -or $rel -like 'BepInEx/*'))) {
+            Write-Step "Left $rel out of the restore: it goes with its folder; the original is in the backup folder."
+            continue
+        }
         $src = if ($backup) { Resolve-Inside $backup $rel } else { $null }
         if ($src -and (Test-Path -LiteralPath $src)) {
             Copy-Item -LiteralPath $src -Destination $dst -Force
+            $restoredFrom.Add($src)
             if ($loaderFiles -contains $rel) { $restoredLoader[$rel] = $true }
         }
         else {
@@ -98,6 +111,24 @@ foreach ($line in $entries) {
 
 $pluginDir = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR'
 if (Test-Path -LiteralPath $pluginDir) { Remove-Item -LiteralPath $pluginDir -Recurse -Force }
+# The record is gone with that folder: the backup copies put back go, then their folders when nothing else is in them (each install
+# and uninstall with a conflicting file left another folder of them; as the setup's uninstall; round-7 scout).
+foreach ($copy in $restoredFrom) {
+    if (Test-Path -LiteralPath $copy) { Remove-Item -LiteralPath $copy -Force -ErrorAction SilentlyContinue }
+}
+if ($backup) {
+    $backupRoot = [System.IO.Path]::GetFullPath($backup).TrimEnd([char]'\', [char]'/')
+    foreach ($folder in @($restoredFrom | ForEach-Object { Split-Path $_ } | Sort-Object -Unique | Sort-Object Length -Descending)) {
+        $d = $folder
+        while ($d -and $d.TrimEnd([char]'\', [char]'/').Length -ge $backupRoot.Length) {
+            if ((Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force)) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }
+            else { break }
+            $d = Split-Path $d
+        }
+    }
+}
+$backupsRoot = Join-Path $GameDir 'RavenfieldVR-backup'
+if ((Test-Path -LiteralPath $backupsRoot) -and -not (Get-ChildItem -LiteralPath $backupsRoot -Force)) { Remove-Item -LiteralPath $backupsRoot -Force -ErrorAction SilentlyContinue }
 $subsystems = Join-Path $GameDir 'ravenfield_Data/UnitySubsystems/XRSDKOpenVR'
 if (Test-Path -LiteralPath $subsystems) { Remove-Item -LiteralPath $subsystems -Recurse -Force }
 $subsystemsRoot = Join-Path $GameDir 'ravenfield_Data/UnitySubsystems'
