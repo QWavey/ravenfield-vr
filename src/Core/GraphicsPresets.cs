@@ -226,14 +226,11 @@ namespace RavenfieldVR.Core
                 AllowHdr = null;
                 RestoreTerrains();
                 // Switched to Game while running: the last preset's quality settings stayed. Once, on the change: restored on
-                // every options save it put back the start-up quality over a Quality level the player had just picked. The game's
-                // own level applied again, not the copy taken when the first preset applied: a Quality level picked and saved on
-                // the main menu since then was put back to the one from VR start (round-4 scout). The game sets nothing of these
-                // but its level (Options.Apply's SetQualityLevel), and the mod never changes the level itself.
-                if (_gameQuality != null)
-                {
-                    QualitySettings.SetQualityLevel(QualitySettings.GetQualityLevel(), applyExpensiveChanges: true);
-                }
+                // every options save it put back the start-up quality over a Quality level the player had just picked. The copy is
+                // of the game's level as it is now: taken again whenever the game applies another level (OnGameOptionsApplied).
+                // (Re-applying the level itself does nothing: Unity's SetQualityLevel with the level already set is no change, and
+                // the Game preset kept Medium's shadows, MSAA and LOD; the user's session of 2026-10-28, 1% of frames on time.)
+                RestoreGameQuality();
                 _gameQuality = null; // the next preset takes the game's quality as it is then
                 return;
             }
@@ -304,8 +301,22 @@ namespace RavenfieldVR.Core
                    + $"LOD bias {QualitySettings.lodBias:0.0#}";
         }
 
-        /// <summary>The game's own quality settings, from before the first preset was applied.</summary>
+        /// <summary>The game's own quality settings, from before the first preset was applied (of the level in <see cref="_gameQualityLevel"/>).</summary>
         private static Profile _gameQuality;
+        private static int _gameQualityLevel = -1;
+
+        /// <summary>
+        /// The game applied its options (the main menu's Save): with another Quality level than the one the copy of its settings is
+        /// of, that level's own settings are what is set now (before a preset goes over them), so the copy is taken again. Kept,
+        /// switching to Game put back the level from VR start over the one the player had saved since (round-4 scout).
+        /// </summary>
+        internal static void OnGameOptionsApplied()
+        {
+            if (_gameQuality != null && QualitySettings.GetQualityLevel() != _gameQualityLevel)
+            {
+                _gameQuality = null; // (taken again by the preset applied next, from the level's settings as they are now)
+            }
+        }
 
         private static void RestoreGameQuality()
         {
@@ -331,6 +342,7 @@ namespace RavenfieldVR.Core
         {
             if (_gameQuality == null)
             {
+                _gameQualityLevel = QualitySettings.GetQualityLevel();
                 _gameQuality = new Profile
                 {
                     Msaa = QualitySettings.antiAliasing, Shadows = QualitySettings.shadows, ShadowDistance = QualitySettings.shadowDistance,
@@ -440,6 +452,7 @@ namespace RavenfieldVR.Core
             }
             else
             {
+                GraphicsPresets.OnGameOptionsApplied(); // (before the preset goes over the level the game just set)
                 GraphicsPresets.Apply();
             }
         }
