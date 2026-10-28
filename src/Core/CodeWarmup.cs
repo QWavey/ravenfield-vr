@@ -43,6 +43,11 @@ namespace RavenfieldVR.Core
             {
                 _types = Types();
                 _pending = new List<RuntimeMethodHandle>();
+                if (budgetMs >= 0f)
+                {
+                    _ms += watch.Elapsed.TotalMilliseconds;
+                    return false; // (the assembly's type list is this step's work, unbudgeted: the walk starts next frame)
+                }
             }
             if (!Collect(watch, budgetMs))
             {

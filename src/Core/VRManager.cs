@@ -67,6 +67,7 @@ namespace RavenfieldVR.Core
                 }
                 yield break;
             }
+            GraphicsPresets.ResetHold(); // (before the eyes are sized from it)
             if (!OpenVRRuntime.Start())
             {
                 Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError);

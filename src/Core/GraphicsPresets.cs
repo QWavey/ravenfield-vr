@@ -154,6 +154,14 @@ namespace RavenfieldVR.Core
         /// at half rate). Taken at 70% of the interval or more, given back under 45% once taken (about 62% at the full scale: no
         /// see-saw). The GPU not timed (-1): it may help, as before.
         /// </summary>
+        /// <summary>A VR start begins with the preset as set: a hold from an earlier VR session kept its steps (and the smaller eyes).</summary>
+        internal static void ResetHold()
+        {
+            HoldLevel = 0;
+            _upWait = 10;
+            _missedWindows = _roomyWindows = 0;
+        }
+
         internal static bool RenderScaleHelps(float gpuMs, float budgetMs, bool taken)
         {
             if (gpuMs < 0f || budgetMs <= 0f)

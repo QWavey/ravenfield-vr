@@ -1157,9 +1157,10 @@ namespace RavenfieldVR.Weapons
             {
                 _instance = null;
             }
-            ReleaseAll();
             // VR stopping, the game going on flat: no Update restores the let-go bodies' pairs from here, so now (those
-            // overlapping just now stay ignored).
+            // overlapping just now stay ignored): the earlier let-goes' first (ReleaseAll forgets them), then those it lets go.
+            RestoreSelfPairs(now: true);
+            ReleaseAll();
             RestoreSelfPairs(now: true);
             foreach (Rigidbody a in _anchors)
             {
