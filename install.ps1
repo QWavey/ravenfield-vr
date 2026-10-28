@@ -114,9 +114,30 @@ function Get-RelativeFiles([string]$folder) {
     }
 }
 
+# --- record ----------------------------------------------------------------------------------------
+# Written however the copy ends: one that stopped part way (a locked file, a full disk) wrote no record, so uninstall could not
+# put back what it had replaced, and the next install took the first run's backups for game files (round-7 scout).
+function Write-Record {
+    $manifest = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'
+    New-Item -ItemType Directory -Force (Split-Path $manifest) | Out-Null
+    $backupRef = if ($previousBackup) { $previousBackup } elseif (Test-Path $backupDir) { $backupDir } else { '' }
+    # Relative to the game folder, as the setup writes it: an absolute path broke the restore of a game folder moved since.
+    $gameRoot = [System.IO.Path]::GetFullPath($GameDir).TrimEnd([char]'\', [char]'/') + [System.IO.Path]::DirectorySeparatorChar
+    if ($backupRef -and [System.IO.Path]::GetFullPath($backupRef).StartsWith($gameRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        $backupRef = [System.IO.Path]::GetFullPath($backupRef).Substring($gameRoot.Length)
+    }
+    $dll = Join-Path $Source 'BepInEx/plugins/RavenfieldVR/RavenfieldVR.dll'
+    $modVersion = if (Test-Path $dll) { (Get-Item $dll).VersionInfo.FileVersion } else { '' }
+    $lines = @("# Ravenfield VR install $stamp", "version=$modVersion", "installedBepInEx=$installedBepInEx", "backup=$backupRef")
+    $lines += $added | ForEach-Object { "added=$_" }
+    $lines += $backedUp | ForEach-Object { "replaced=$_" }
+    Set-Content -Path $manifest -Value $lines -Encoding UTF8
+}
+
 # --- BepInEx ---------------------------------------------------------------------------------------
 $existingBep = Join-Path $GameDir 'BepInEx/core/BepInEx.dll'
 $installedBepInEx = $previousInstalledBepInEx
+try {
 if ((Test-Path $existingBep) -and -not $previousInstalledBepInEx) {
     $ver = (Get-Item $existingBep).VersionInfo.FileVersion
     if ($ver -and $ver.StartsWith('6')) {
@@ -154,14 +175,10 @@ foreach ($old in $ours) {
     }
 }
 
-# --- record ----------------------------------------------------------------------------------------
-$manifest = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'
-$backupRef = if ($previousBackup) { $previousBackup } elseif (Test-Path $backupDir) { $backupDir } else { '' }
-$modVersion = (Get-Item (Join-Path $Source 'BepInEx/plugins/RavenfieldVR/RavenfieldVR.dll')).VersionInfo.FileVersion
-$lines = @("# Ravenfield VR install $stamp", "version=$modVersion", "installedBepInEx=$installedBepInEx", "backup=$backupRef")
-$lines += $added | ForEach-Object { "added=$_" }
-$lines += $backedUp | ForEach-Object { "replaced=$_" }
-Set-Content -Path $manifest -Value $lines -Encoding UTF8
+}
+finally {
+    Write-Record
+}
 
 Write-Step "Done: $($added.Count) files added, $($backedUp.Count) replaced (backed up)."
 Write-Host ''
