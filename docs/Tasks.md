@@ -2794,6 +2794,10 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### 350. A soldier picked up is hurt by barely touching the ground (user, 2026-10-28: "When picking up a soldier they take damage even when only slightly touching the ground, maybe calculate force?")
+- [ ] The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
+      body's mass), not by a light touch while it is lifted or dragged.
+
 ### 349. Work-until-limit 65 of 2026-10-28 (the game not started; all built, committed locally, nothing pushed)
 - 347 and 346 built (see them). 348: the bench measures Medium's parts one at a time. New: "Hold the frame rate" (settings
   panel, HoldFrameRate, off by default): while frames keep missing the headset's rate (two 3 s windows under 85%) the preset
