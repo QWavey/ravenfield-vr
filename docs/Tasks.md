@@ -2790,7 +2790,7 @@ cached colliders); a rail magazine let go dropping with the gun hand's speed onl
 both eyes in multi-pass; a failed lens worker frame leaving the last picture frozen; the glow's occlusion disc sized by
 the brightness-scaled flash; the told-once sets keeping gone weapons; a made stand-in's failed grip measure cached for
 the weapon; MaxDroppedWeapons 0 still building every death's drop; the idle-build queue and the entry numbers kept over a
-content reload; the first input-check line's frame rate. Not done: a held body's own collider pairs stay ignored after
+content reload; the first input-check line's frame rate. Done 2026-10-28 (round 7 run): the knife's blocking test, the rigs of gone weapons pruned, a let-go body's own pairs restored but where they overlap. Not done then: a held body's own collider pairs stay ignored after
 the let-go (re-enabled while its bones overlap it would pop; needs a test of a thrown corpse first); the knife's blocking
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
