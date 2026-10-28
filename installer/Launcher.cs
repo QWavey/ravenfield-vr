@@ -28,13 +28,15 @@ namespace RavenfieldVR.Launcher
                 var settings = LauncherSettings.Load(game.GameDir);
                 bool showAnyway = (Control.ModifierKeys & Keys.Shift) != 0;
                 // Picked in Steam's Play list ("Ravenfield VR" passes -vr): already decided, no need to ask again.
+                // (Started without the form, the preset is left as the mod's config has it: the launcher's own copy, from when the
+                // form last ran, put back a preset picked in the headset since.)
                 if (game.Requested.HasValue && !showAnyway)
                 {
-                    return game.RunChecked(game.Requested.Value, settings.Preset);
+                    return game.RunChecked(game.Requested.Value, null);
                 }
                 if (settings.Remember && !showAnyway)
                 {
-                    return game.RunChecked(settings.Mode, settings.Preset);
+                    return game.RunChecked(settings.Mode, null);
                 }
                 using (var form = new LauncherForm(game, settings))
                 {
@@ -116,10 +118,13 @@ namespace RavenfieldVR.Launcher
             return Run(mode, preset);
         }
 
-        /// <summary>Starts the game and waits for it, so Steam's "playing" state and overlay stay correct.</summary>
+        /// <summary>
+        /// Starts the game and waits for it, so Steam's "playing" state and overlay stay correct. <paramref name="preset"/>: the one
+        /// picked in the form, written to the mod's config for this start; null leaves the config's own.
+        /// </summary>
         public int Run(PlayMode mode, string preset)
         {
-            if (mode == PlayMode.VR)
+            if (mode == PlayMode.VR && preset != null)
             {
                 PluginConfig.SetGraphicsPreset(GameDir, preset);
             }
@@ -198,10 +203,9 @@ namespace RavenfieldVR.Launcher
                         else if (key == "remember") s.Remember = value == "true";
                     }
                 }
-                else
-                {
-                    s.Preset = PluginConfig.GetGraphicsPreset(gameDir) ?? s.Preset;
-                }
+                // The form shows the preset the mod's config has: one picked in the headset since the form last ran is the newer
+                // choice (the launcher's own copy put it back; round-7 scout).
+                s.Preset = PluginConfig.GetGraphicsPreset(gameDir) ?? s.Preset;
             }
             catch (Exception)
             {
@@ -480,6 +484,8 @@ namespace RavenfieldVR.Launcher
         private readonly Label _status;
         private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 1500 };
         private bool _probing;
+        /// <summary>A probe that did not answer within its time (SteamVR hung): no other is started until it ends.</summary>
+        private System.Threading.Tasks.Task<HeadsetCheck.State> _hungProbe;
         private DateTime _steamVRStartedAt = DateTime.MinValue;
         private PlayMode? _choice;
 
@@ -580,7 +586,20 @@ namespace RavenfieldVR.Launcher
                     return;
                 }
                 _probing = true;
-                HeadsetCheck.State state = await System.Threading.Tasks.Task.Run(() => HeadsetCheck.Probe(_gameDir));
+                HeadsetCheck.State state;
+                if (_hungProbe != null && !_hungProbe.IsCompleted)
+                {
+                    state = HeadsetCheck.State.Unknown; // still hung: no answer (its 20 s fallback counts on)
+                }
+                else
+                {
+                    // At most 4 s, as the first probe: one that hung (a SteamVR starting or stuck) kept this window waiting with no
+                    // state shown and its 20 s fallback never reached (round-7 scout).
+                    System.Threading.Tasks.Task<HeadsetCheck.State> probe = System.Threading.Tasks.Task.Run(() => HeadsetCheck.Probe(_gameDir));
+                    bool answered = await System.Threading.Tasks.Task.WhenAny(probe, System.Threading.Tasks.Task.Delay(4000)) == probe;
+                    _hungProbe = answered ? null : probe;
+                    state = answered ? probe.Result : HeadsetCheck.State.Unknown;
+                }
                 _probing = false;
                 if (!IsDisposed && _timer.Enabled)
                 {
