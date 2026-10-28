@@ -73,7 +73,7 @@ The counter on the side of your gun shows its state: `28+1` (28 in the magazine 
 
 1. Press B: the magazine slides out and drops. Or grab the seated magazine with your off hand and pull it out. A dropped magazine keeps the rounds left in it: pick it up again (with either free hand, whatever you are holding) and seat it to use them. Magazines lying around are cleared after a minute (`DroppedMagLifetime`); rounds still in them then go back to your reserve, so nothing is lost.
 2. Grip at your pouch (on your belt at the side of the off-hand hip by default): a fresh magazine is in your hand.
-3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it.
+3. Bring its top to the well. Near it, the magazine locks onto the well's axis and slides with your hand; push it all the way to seat it. Your hand stays on the seated magazine until you open your grip; to pull it out again, let go and grab it once more.
 4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go. Or slam the magazine home: driven in hard, it knocks the slide forward and chambers a round, as in Boneworks (a gentle push leaves it locked).
 
 Tactical reload with one hand: push a fresh magazine hard into the base of the seated one and it knocks the old one out, then slide the new one in. This works where the magazine sticks out of the gun; pistols and guns whose well swallows the magazine (KRISS Vector style) need B or a hand pull.
@@ -90,11 +90,12 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 
 **Grenades:** pull the pin with your other hand (grip the ring at the top and pull it away), or press A to flick it out one-handed. Nothing happens while you keep holding the grenade; hold the trigger, throw with your arm and let go of the trigger at the end of the throw, and the fuse starts as it leaves your hand. Thrown with the pin still in, it is a dud: it bounces and lies there, and picking it up puts it back in your pouch. Put the grenade away with the pin out and the pin goes back in. Smoke grenades work the same; ammo bags, medic bags and charges have no pin. **Melee weapons** hit what you swing them through. So does any gun, anywhere from its butt to its muzzle, and an empty hand closed into a fist (grip pressed, nothing held): punch.
 
-**Soldiers:** reach for a soldier with an empty hand and grip. They go limp and hang from your hand; drag them, slam them into things, or swing and let go to throw them. A hard impact hurts them and any soldier they hit, by the speed squared as in Boneworks (a shove does nothing, a slam a fifth of their health, at most a third in one impact), so it takes a few slams to finish one off. Soldiers of your own team are not hurt. Only an empty hand takes hold: the hand on your gun, a grenade or a magazine never grabs a soldier, the other, empty hand does.
+**Soldiers:** reach for a soldier with an empty hand and grip. They go limp and hang from your hand; drag them, slam them into things, or swing and let go to throw them. A hard impact hurts them and any soldier they hit, by the speed squared as in Boneworks (a shove does nothing, a slam a fifth of their health, at most a third in one impact), so it takes a few slams to finish one off. Your own team's soldiers are hurt like anyone else, as by your bullets and knife. Your hand sits on the body where it took hold (chest, arm, hand, leg), its fingers round it. Only an empty hand takes hold: the hand on your gun, a grenade or a magazine never grabs a soldier, the other, empty hand does.
 
 - **Human shield:** hold a soldier up in front of you; bullets hit him, his own friends' too.
-- **From behind:** reach for an enemy's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again. Your own team's soldiers are grabbed as bodies instead.
-- **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go slowly on his body (walking is fine): it sticks to him. Throw him away before it goes off: he dies in the blast, everyone near takes the grenade's normal explosion damage. Strapped to one of your own team, it is only an ordinary explosion for him.
+- **His gun:** swing a hand into a soldier's gun to knock it aside (his aim goes off and he holds his fire for a moment). Grip under the middle of his gun to pull its magazine out: he has to reload, and the magazine is in your hand. Grip it anywhere else to take it from him: he draws his other weapon (one with no other weapon only has it knocked aside). Gripping his hand or arm takes him, not the gun.
+- **From behind:** reach for an enemy's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again. It works on your own team too.
+- **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go slowly on his body (walking is fine): it sticks to him. Throw him away before it goes off: he dies in the blast, everyone near takes the grenade's normal explosion damage. It kills one of your own team the same way.
 
 Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Fired cases fly out of the ejection port and lie on the ground for a while.
 
@@ -154,7 +155,8 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | --- | --- | --- |
 | `GraphicsPreset` | Medium | Low, Medium, High, Ultra or Game |
 | `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting (a preset sets it) |
-| `StereoMode` | MultiPass | SinglePassInstanced is faster, but some map shaders then draw in one eye only |
+| `StereoMode` | MultiPass | Leave it: the game's own shaders have no single-pass variants, so with SinglePassInstanced the world draws in one eye only |
+| `HoldFrameRate` | off | While frames keep missing the headset's rate, lower the preset's costliest settings a step at a time (shadow distance, shadows, level of detail, grass, per-pixel lights) and bring them back when there is room. The wrist display says how many steps. Also on the panel ("Hold the frame rate") |
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
 | `WristFrameRate` | on | The wrist display also shows the share of frames at the headset's rate and the GPU's time a frame (last few seconds) |
 | `BodyShadow` | off | Your own soldier's shadow on foot and in first-person seats. Its arms and gun move in the game's animation, not yours, so the shadow wanders across your hands |

@@ -158,7 +158,7 @@ namespace RavenfieldVR.Core
             _leftHandedAtStart = DominantHand.Value == Handedness.Left;
 
             Stereo = cfg.Bind("Rendering", "StereoMode", StereoMode.MultiPass,
-                "MultiPass works with every shader. SinglePassInstanced is faster but some map/mod shaders then render in one eye only. Restart required.");
+                "Leave at MultiPass: the game's own shaders have no single-pass variants (no STEREO_INSTANCING_ON in its assets), so with SinglePassInstanced the world renders in one eye only. Restart required.");
             Graphics = cfg.Bind("Rendering", "GraphicsPreset", GraphicsPreset.Medium,
                 "VR graphics preset (Low, Medium, High, Ultra) layered on the game's own options; Game leaves graphics to the game's menu. " +
                 "Picking a preset also sets RenderScale, which you can still adjust.");
