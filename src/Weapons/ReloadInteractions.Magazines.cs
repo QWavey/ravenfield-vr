@@ -301,6 +301,11 @@ namespace RavenfieldVR.Weapons
 
         private void UpdateHeldProp(VRHand off)
         {
+            if (ReferenceEquals(off.Held, SeatedHold))
+            {
+                UpdateSeatedHold(off);
+                return;
+            }
             var prop = off.Held as MagazineProp;
             if (prop == null)
             {
@@ -445,6 +450,7 @@ namespace RavenfieldVR.Weapons
                 {
                     _pullingIn = null;
                     SeatProp(off, prop);
+                    BeginSeatedHold(off, prop); // (pushed home in the hand: the hand stays on it while it holds)
                 }
                 return;
             }
@@ -510,6 +516,7 @@ namespace RavenfieldVR.Weapons
             if (prop.RailDepth >= prop.RailLength * 0.985f)
             {
                 SeatProp(off, prop);
+                BeginSeatedHold(off, prop);
             }
             else if (goingIn && prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
             {
@@ -857,6 +864,74 @@ namespace RavenfieldVR.Weapons
             if (_palmed != null)
             {
                 PromotePalmed(off); // the old magazine stays in the hand
+            }
+        }
+
+        /// <summary>
+        /// The hand that pushed a magazine home is still on it (its grip still closed): the hand stays on the seated magazine until
+        /// it opens (Tasks 347, user: "dont release the hand on the mag till the user lets go"). Let go at the seat before, the
+        /// glove jumped off the magazine to the tracked hand as the gun's own magazine popped in. While it stays, the magazine is
+        /// not pulled out again: that takes a new squeeze, after letting go.
+        /// </summary>
+        internal static readonly object SeatedHold = new object();
+
+        /// <summary>Where the glove was on the magazine as it seated, in the gun body's space (it moves with the gun).</summary>
+        private Runtime.RigidPose _seatedGloveInGun;
+
+        /// <summary>Only from a magazine the hand pushed home (the rail and a pistol well's draw), not from the self-checks' seating.</summary>
+        private void BeginSeatedHold(VRHand off, MagazineProp seated)
+        {
+            if (seated == null || seated.Kind != PropKind.Magazine || off == null || !off.Tracked || !off.GrabHeld || off.Role != HandRole.Free
+                || off.Held != null || off.Model == null || Rig.GunBody == null || !Ammo.MagInserted)
+            {
+                return; // (a palmed magazine promoted into the hand holds that one instead)
+            }
+            off.Role = HandRole.Magazine;
+            off.Held = SeatedHold;
+            _seatedGloveInGun = Rig.GunBodyPose.Inverse().Multiply(Runtime.RigidPose.Of(off.Model.Root));
+        }
+
+        /// <summary>While the hand stays on the seated magazine: let go (or the magazine gone, the hand lost), it is free again.</summary>
+        private void UpdateSeatedHold(VRHand off)
+        {
+            if (!off.GrabHeld || !off.Tracked || !Ammo.MagInserted || Rig.GunBody == null)
+            {
+                EndSeatedHold(off);
+            }
+        }
+
+        /// <summary>Last in the frame (after the gun's own hand poses): the glove on the seated magazine, closing on the gun's model there.</summary>
+        private void PoseSeatedHold(VRHand off)
+        {
+            if (off == null || off.Model == null || !ReferenceEquals(off.Held, SeatedHold) || Rig.GunBody == null)
+            {
+                return;
+            }
+            off.Model.SnapPose = Rig.GunBodyPose.Multiply(_seatedGloveInGun);
+            System.Func<Vector3, bool> solid = _held.HandSolid();
+            if (solid != null)
+            {
+                off.Model.Solid = solid;
+                off.Model.SolidAnchor = Rig.GunBody;
+            }
+        }
+
+        private void EndSeatedHold(VRHand off)
+        {
+            if (off == null || !ReferenceEquals(off.Held, SeatedHold))
+            {
+                return;
+            }
+            off.Held = null;
+            off.Role = HandRole.Free;
+            if (off.Model != null)
+            {
+                off.Model.SnapPose = null;
+                if (off.Model.SolidAnchor == Rig.GunBody)
+                {
+                    off.Model.Solid = null; // (only what the seated hold set)
+                    off.Model.SolidAnchor = null;
+                }
             }
         }
 

@@ -867,6 +867,7 @@ namespace RavenfieldVR.Weapons
             VRHand off = _sys.Rig.Off;
             UpdateGraspAnchor(off);
             UpdateBeltStrip(off);
+            PoseSeatedHold(off);
             if (_palmed != null)
             {
                 if (_palmed.Go == null)
@@ -1274,6 +1275,7 @@ namespace RavenfieldVR.Weapons
         public void Release()
         {
             VRHand off = _sys.Rig.Off;
+            EndSeatedHold(off); // (the gun going away: the hand on its seated magazine is free)
             if (off.Model != null)
             {
                 // First: whatever throws below (HeldWeapon catches it), the off glove is not left pulled toward an anchor on a gun

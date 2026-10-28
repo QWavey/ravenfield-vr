@@ -62,7 +62,7 @@ namespace RavenfieldVR.Weapons
         /// hand racks, with nothing moved between (the volume posed, the seated magazine and slide tip looked at twice; review,
         /// 2026-10-23).
         /// </summary>
-        private System.Func<Vector3, bool> HandSolid()
+        internal System.Func<Vector3, bool> HandSolid()
         {
             if (_handSolidFrame != Time.frameCount)
             {
