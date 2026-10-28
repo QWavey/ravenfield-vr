@@ -95,7 +95,10 @@ namespace RavenfieldVR.Weapons
             // pulled back, half closed and let go, it closed later without feeding and the gun said RACK.
             // (Not with a fired case still in: a bolt left part way open and put away came back drawn fully open, and the case was
             // never thrown out before the next round went in over it; reload hunt, 2026-10-20.)
-            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && !Ammo.SpentInChamber && (Fraction >= 0.8f || !Ammo.Chambered);
+            // (Nor with a live round still in: a pump or bolt pulled part way and put away is drawn fully open, its round not yet
+            // thrown out, and counted as already back it never was; a pull past the line always empties the chamber (RackBack), so
+            // open past it with a round in comes only from that, and the round goes out as the hand takes it; round-5 scout.)
+            _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && !Ammo.SpentInChamber && !Ammo.Chambered;
             _lastTick = _rackBase * StrokeLength;
             _tugStroke = _lastTick;
             off.Role = HandRole.Slide;
