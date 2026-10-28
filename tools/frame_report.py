@@ -29,17 +29,34 @@ def rows(path):
             'UI cam': number(r'VR UI Camera ([\d.,]+) ms', text),
             'mod': number(r"the mod's own work ([\d.,]+) ms", text),
             'cpu': (number(r'CPU speed (\d+)% of', text) + '%') if 'CPU speed' in text else '',
-            'steps': ', '.join(re.findall(r'(\w+ [\d.]+),', number(r'costliest steps:([^;]*)', text))[:3]),
-            'mod sections': ', '.join(re.findall(r'([\w.: ]+? [\d.]+),', number(r"the mod's costliest sections:([^;]*)", text))[:3]),
+            # (a phase's own time is named 'Update (own)': the name is everything up to the number)
+            'steps': ', '.join(s.strip() for s in re.findall(r'([^,]+? \d+(?:\.\d+)?),', number(r'costliest steps:([^;]*)', text))[:3]),
+            'mod sections': ', '.join(s.strip() for s in re.findall(r'([\w.: ]+? [\d.]+),', number(r"the mod's costliest sections:([^;]*)", text))[:3]),
             'awake': number(r'\((\d+) awake\)', text),
             'faded': number(r'(\d+) faded out', text),
             'depth': 'yes' if 'the eyes draw a' in text else '',
         }
 
 
+def newest_session():
+    """The newer of the kept session (vrshots keeps the user's play as LogOutput.player.log before a test run) and the current
+    log, which a session played since has rewritten; a vrshots test log is never the user's session."""
+    found = []
+    for p in (os.path.join(GAME, 'LogOutput.player.log'), os.path.join(GAME, 'LogOutput.log')):
+        if not os.path.exists(p):
+            continue
+        if p.endswith('LogOutput.log'):
+            try:
+                if 'Test run: -rfvr-' in open(p, encoding='utf-8', errors='ignore').read():
+                    continue
+            except OSError:
+                continue
+        found.append(p)
+    return max(found, key=os.path.getmtime, default=None)
+
+
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else next(
-        (p for p in (os.path.join(GAME, 'LogOutput.player.log'), os.path.join(GAME, 'LogOutput.log')) if os.path.exists(p)), None)
+    path = sys.argv[1] if len(sys.argv) > 1 else newest_session()
     if not path or not os.path.exists(path):
         print('no log found (give its path)')
         return 1

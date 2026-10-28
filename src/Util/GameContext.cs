@@ -141,7 +141,9 @@ namespace RavenfieldVR.Util
                 }
                 if (v is AnimationDrivenVehicle adv)
                 {
-                    return adv.IsAircraft() ? VehicleKind.Airplane : VehicleKind.Ground;
+                    // IsAircraft is false for every one of these (only Airplane and Helicopter override it); one that reads the
+                    // airplane input (planeInput) flies on the stick, so the right stick must not turn the view too.
+                    return adv.planeInput || adv.IsAircraft() ? VehicleKind.Airplane : VehicleKind.Ground;
                 }
                 if (v is Car || v is ArcadeCar || v is Tank)
                 {
@@ -158,6 +160,13 @@ namespace RavenfieldVR.Util
             {
                 try
                 {
+                    // After "Quit to menu" the game still points at the destroyed player, and its getter (a ?. test, which a
+                    // destroyed object passes) threw every frame the rig asked: Unity's own test first, with the same fallbacks.
+                    if (LocalPlayer.controller == null && !GameManager.IsSpectating())
+                    {
+                        SpectatorCamera s = SpectatorCamera.instance;
+                        return s != null && s.camera != null && s.camera.enabled ? s.camera : Camera.main;
+                    }
                     return GameManager.GetMainCamera();
                 }
                 catch (Exception)

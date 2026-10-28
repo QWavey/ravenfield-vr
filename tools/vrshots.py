@@ -295,6 +295,8 @@ def keep_player_log(logfile):
 
 
 def run_game(game, args, timeout_min, vr):
+    """'finished' when the game ended by itself, 'timeout' when it was stopped at the time limit (its report partial: the
+    autotest rewrites it every 25 weapons), '' when it never came up in the headset in three tries."""
     exe = os.path.join(game, 'ravenfield.exe')
     logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
     keep_player_log(logfile)
@@ -303,7 +305,7 @@ def run_game(game, args, timeout_min, vr):
         start = time.time()
         log(f'starting Ravenfield (attempt {attempt}): {" ".join(args)}')
         subprocess.Popen([exe] + full, cwd=game)
-        flat = False
+        flat = timed_out = False
         while True:
             time.sleep(4)
             if vr and running('steamvr_room_setup.exe'):
@@ -326,6 +328,7 @@ def run_game(game, args, timeout_min, vr):
             if time.time() - start > timeout_min * 60:
                 log('timeout: stopping the game')
                 kill('ravenfield.exe')
+                timed_out = True
                 break
         if flat:
             log('came up without the headset; trying again')
@@ -336,9 +339,11 @@ def run_game(game, args, timeout_min, vr):
             kill('ravenfield.exe')
             time.sleep(8)
             continue
+        if timed_out:
+            return 'timeout'
         log(f'the game finished after {time.time() - start:.0f} s')
-        return True
-    return False
+        return 'finished'
+    return ''
 
 
 # ---- pictures -----------------------------------------------------------------------------------------------------
@@ -442,7 +447,8 @@ PICTURES = ('.png', '.jpg', '.jpeg', '.gif')
 def prune_pictures(root=None):
     """Earlier runs' pictures go before a new run (the user, 2026-10-19: test pictures are looked at, then deleted, for space;
     36 GB had piled up in reports/shots): every run folder's PNG/JPG/GIF except the newest run's, which is the one looked at
-    next. Text reports (autotest.txt, game-log.txt, sheets/index.json) and videos stay. Returns (files, bytes) removed."""
+    next. Text reports (autotest.txt, game-log.txt, sheets/index.json), the weapon sheets (the deliverable of a run of hours,
+    which index.json points at) and videos stay. Returns (files, bytes) removed."""
     root = root or os.path.join(REPO, 'reports', 'shots')
     runs = {}
     for d in glob.glob(os.path.join(root, '*')):
@@ -455,7 +461,7 @@ def prune_pictures(root=None):
         if d == newest:
             continue
         for p in files:
-            if p.lower().endswith(PICTURES):
+            if p.lower().endswith(PICTURES) and os.path.basename(os.path.dirname(p)).lower() != 'sheets':
                 try:
                     size += os.path.getsize(p)
                     os.remove(p)
@@ -618,13 +624,20 @@ def main():
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 10
         since = time.time()
         if mode == 'hands':
-            ran = run_game(a.game, args, timeout, vr=False)
+            try:
+                ran = run_game(a.game, args, timeout, vr=False)
+            finally:
+                if sys.exc_info()[0] is not None:
+                    kill('ravenfield.exe')  # Ctrl+C left it running, and the next run refused to start (only the null headset stopped it)
         else:
             with NullHeadset((w, h)):
                 ran = run_game(a.game, args, timeout, vr=True)
         if not ran:
             failed = True
             log(f'!!! the game did not come up in the headset after three tries: the {mode} pictures are missing or partial !!!')
+        elif ran == 'timeout':
+            failed = True
+            log(f'!!! the game ran past {timeout} min and was stopped: the {mode} report and pictures are partial !!!')
         dest = collect(a.game, a.out or mode, since)
         log(f'{len(glob.glob(os.path.join(dest, "*.png")))} picture(s) in {os.path.relpath(dest, REPO)}')
         if mode in ('weapons', 'weapon'):

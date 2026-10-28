@@ -52,8 +52,31 @@ namespace RavenfieldVR.Util
             // A copy keeps the serialized properties; those the new shader shares by name (_MainTex, _Color, _BumpMap,
             // _Metallic...) carry over.
             done = new Material(m) { shader = shader, name = m.name + " (repaired)" };
+            if (Fixed.Count >= 128)
+            {
+                PruneGone(); // (sources from mod bundles unloaded since: their entries pinned both materials for good)
+            }
             Fixed[m] = done;
             return done;
+        }
+
+        private static readonly List<Material> GoneSources = new List<Material>();
+
+        private static void PruneGone()
+        {
+            GoneSources.Clear();
+            foreach (KeyValuePair<Material, Material> e in Fixed)
+            {
+                if (e.Key == null || e.Value == null)
+                {
+                    GoneSources.Add(e.Key);
+                }
+            }
+            foreach (Material k in GoneSources)
+            {
+                Fixed.Remove(k);
+            }
+            GoneSources.Clear();
         }
 
         /// <summary>The array with broken entries repaired, or the same array when nothing needed it.</summary>

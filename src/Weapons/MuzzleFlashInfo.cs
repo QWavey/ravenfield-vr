@@ -53,13 +53,14 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     ParticleSystem.MainModule main = p.main;
-                    Vector3 s = p.transform.lossyScale;
-                    float scale = Mathf.Max(Mathf.Abs(s.x), Mathf.Max(Mathf.Abs(s.y), Mathf.Abs(s.z)));
-                    float size = main.startSize.constantMax * (main.scalingMode == ParticleSystemScalingMode.Shape ? 1f : scale);
-                    if (main.startSize3D)
-                    {
-                        size = Mathf.Max(main.startSizeX.constantMax, Mathf.Max(main.startSizeY.constantMax, main.startSizeZ.constantMax)) * scale;
-                    }
+                    // As Unity scales the particles: Hierarchy by the world scale, Local by the system's own scale only (a flash under
+                    // a model imported at 0.01 read a hundred times too small), Shape not at all (3D sizes alike).
+                    Vector3 s = main.scalingMode == ParticleSystemScalingMode.Local ? p.transform.localScale : p.transform.lossyScale;
+                    float scale = main.scalingMode == ParticleSystemScalingMode.Shape ? 1f : Mathf.Max(Mathf.Abs(s.x), Mathf.Max(Mathf.Abs(s.y), Mathf.Abs(s.z)));
+                    float size = main.startSize3D
+                        ? Mathf.Max(main.startSizeX.constantMax, Mathf.Max(main.startSizeY.constantMax, main.startSizeZ.constantMax))
+                        : main.startSize.constantMax;
+                    size *= scale;
                     info.Size = Mathf.Max(info.Size, size);
                     info.Chance = Mathf.Max(info.Chance, EmitChance(p));
                 }
@@ -123,7 +124,7 @@ namespace RavenfieldVR.Weapons
                 ParticleSystem.Burst b = e.GetBurst(i);
                 if (b.count.constantMax > 0f)
                 {
-                    chance = Mathf.Max(chance, b.probability);
+                    chance = 1f - (1f - chance) * (1f - Mathf.Clamp01(b.probability)); // any of the bursts (two at 99%: 99.99%)
                 }
             }
             return chance;

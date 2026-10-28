@@ -2,11 +2,13 @@
 A pump gun's shells going into the port, a break action's chambers and open breech, a magazine gun's magazines; a gun
 with no rack, magazine or shell picture gets no sheet.
 Run: python -I tools/tests/vrshots_sheets_test.py   (exit code 0 when all pass)"""
+import glob
 import json
 import os
 import shutil
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import vrshots  # noqa: E402
@@ -58,8 +60,32 @@ def main():
         check(len(written) == 3 and all(os.path.exists(os.path.join(vrshots.REPO, e['sheet'])) for e in written), 'index.json lists the three sheets written')
     finally:
         shutil.rmtree(shots, ignore_errors=True)
+    prune_test()
     print(f'{passed} passed, {failed} failed')
     return 1 if failed else 0
+
+
+def prune_test():
+    """The prune before a run: an older run's raw pictures go, its sheets and index.json stay, the newest run is untouched."""
+    root = tempfile.mkdtemp(prefix='vrshots-prune-')
+    try:
+        old, new = os.path.join(root, 'weapons'), os.path.join(root, 'hands')
+        os.makedirs(os.path.join(old, 'sheets'))
+        os.makedirs(new)
+        for p in (os.path.join(old, 'weapon-001-AK.png'), os.path.join(old, 'sheets', '001-AK.jpg'), os.path.join(new, 'hand-1.png')):
+            Image.new('RGB', (4, 4)).save(p)
+        with open(os.path.join(old, 'sheets', 'index.json'), 'w', encoding='utf-8') as f:
+            f.write('[]')
+        past = time.time() - 3600
+        for p in glob.glob(os.path.join(old, '**', '*'), recursive=True):
+            os.utime(p, (past, past))
+        count, _ = vrshots.prune_pictures(root)
+        check(count == 1 and not os.path.exists(os.path.join(old, 'weapon-001-AK.png')), f'prune: the older run\'s raw picture removed ({count} removed)')
+        check(os.path.exists(os.path.join(old, 'sheets', '001-AK.jpg')) and os.path.exists(os.path.join(old, 'sheets', 'index.json')),
+              'prune: the older run\'s weapon sheets and index.json kept')
+        check(os.path.exists(os.path.join(new, 'hand-1.png')), 'prune: the newest run\'s pictures kept')
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == '__main__':
