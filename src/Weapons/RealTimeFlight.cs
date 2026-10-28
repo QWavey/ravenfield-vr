@@ -70,6 +70,10 @@ namespace RavenfieldVR.Weapons
                 End();
                 return;
             }
+            if (s < 0.01f)
+            {
+                return; // (the game's time stop, a katana finisher: no rescale by a zero scale, it waits as the world does)
+            }
             if (!Mathf.Approximately(s, _scale))
             {
                 Rescale(s);
