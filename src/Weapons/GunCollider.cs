@@ -809,9 +809,10 @@ namespace RavenfieldVR.Weapons
             float halfWidth = d.Handgun ? 0.035f : 0.07f;
             envMin = new Vector3(-halfWidth, -0.22f, d.Handgun ? -0.07f : -0.45f);
             envMax = new Vector3(halfWidth, 0.16f, Mathf.Max(muzzle, 0.1f) + 0.03f);
-            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Action == ActionType.NoAmmo)
+            if (d.IsTool)
             {
-                // Swords, tools and kits are not built along a barrel: a blade held upright must keep its full length.
+                // Swords, tools and kits are not built along a barrel: a blade held upright must keep its full length. (An
+                // infinite-magazine gun, classed NoAmmo too, is a gun: the gun's envelope; round-6 scout.)
                 envMin = Vector3.one * -1.8f;
                 envMax = Vector3.one * 1.8f;
             }

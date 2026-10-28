@@ -76,7 +76,7 @@ namespace RavenfieldVR.Weapons
             // by its front part, 6 cm out past what goes into the tube: the hand pushes it in up to the mouth and stays out
             // (it slides in with the hand now, and by its middle the glove went 11 cm into an RPG-7's tube).
             float length = Vector3.Distance(BaseLocal, TipLocal);
-            float gripAt = Kind == PropKind.Magazine ? (PistolSized ? 0.12f : 0.15f)
+            float gripAt = Kind == PropKind.Magazine ? Mathf.Lerp(0.15f, 0.12f, PistolBlend)
                            : Kind == PropKind.Rocket && length > 0.05f ? Mathf.Clamp(1f - (RailLength + 0.06f) / length, 0.12f, 0.5f) : 0.5f;
             Vector3 held = Vector3.Lerp(BaseLocal, TipLocal, gripAt);
             Vector3 pos = palm.position - rot * held;
@@ -93,7 +93,7 @@ namespace RavenfieldVR.Weapons
                 // through it (rifle and AK magazines, grip_check.py); here the thumb wraps it and nothing is buried. A
                 // machine gun's box or drum (as wide as the box pose takes) three: its 8 cm side buried the thumb 14 mm
                 // at one (10 of 72 hand points inside it; at three none, every finger and the thumb on it).
-                pos += palm.rotation * Vector3.forward * (BoxSized ? 0.03f : 0.01f);
+                pos += palm.rotation * Vector3.forward * Mathf.Lerp(0.01f, 0.03f, BoxBlend);
             }
             return new RigidPose(pos, rot);
         }

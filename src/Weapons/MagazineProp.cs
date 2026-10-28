@@ -80,6 +80,16 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public bool BoxSized => Kind == PropKind.Magazine && (CrossHalf > 0.055f || _sideHalf > 0.025f);
 
+        /// <summary>
+        /// How far it is held as a box (0 or 1), and as a pistol magazine, eased with its size while that eases in the hand: the hold's
+        /// grip point and nudge took the flags, which switch in one frame where the easing size crosses their line, and the magazine
+        /// jumped by 2 cm in the hand the ease is there to keep from (round-6 scout).
+        /// </summary>
+        internal float BoxBlend => _sectionEasing ? _boxNow : BoxSized ? 1f : 0f;
+        internal float PistolBlend => _sectionEasing ? _pistolNow : PistolSized ? 1f : 0f;
+        private float _boxFrom, _boxNow, _pistolFrom, _pistolNow;
+        private bool _boxTo, _pistolTo;
+
         /// <summary>Self-test: its size across where the hand holds it, and how it is held.</summary>
         internal string SizeText => $"{_frontHalf * 200f:0.0} x {_sideHalf * 200f:0.0} cm across, held as {(BoxSized ? "a box" : PistolSized ? "a pistol magazine" : "a rifle magazine")}";
         private readonly Rigidbody _body;
@@ -475,6 +485,8 @@ namespace RavenfieldVR.Weapons
             bool wasBox = BoxSized, wasPistol = PistolSized;
             if (HeldBy != null)
             {
+                _boxFrom = _boxNow = BoxBlend; // (from where a running ease has it)
+                _pistolFrom = _pistolNow = PistolBlend;
                 _sectionFrom = new Vector3(_frontHalf, _sideHalf, CrossHalf);
                 _sectionGoal = goal;
                 _sectionAt = Time.unscaledTime;
@@ -487,6 +499,8 @@ namespace RavenfieldVR.Weapons
                 CrossHalf = goal.z;
             }
             bool box = goal.z > 0.055f || goal.y > 0.025f, pistol = goal.z < 0.022f || _pistolGun && goal.z < 0.04f;
+            _boxTo = box;
+            _pistolTo = pistol;
             if (Kind == PropKind.Magazine && (wasBox != box || wasPistol != pistol))
             {
                 Log.InfoOnce("magsection:" + WeaponKey, $"Magazine of {WeaponKey}: {goal.x * 200f:0.0} x {goal.y * 200f:0.0} cm where the hand holds it, held as "
@@ -510,6 +524,8 @@ namespace RavenfieldVR.Weapons
             _frontHalf = now.x;
             _sideHalf = now.y;
             CrossHalf = now.z;
+            _boxNow = Mathf.Lerp(_boxFrom, _boxTo ? 1f : 0f, k);
+            _pistolNow = Mathf.Lerp(_pistolFrom, _pistolTo ? 1f : 0f, k);
             _sectionEasing = k < 1f;
         }
 

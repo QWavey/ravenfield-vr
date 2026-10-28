@@ -32,7 +32,9 @@ namespace RavenfieldVR.Weapons
                 LetGoOfOwnDrops();
             }
             _playerWasDead = dead;
-            if (actor == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || _drops.Count == 0)
+            // (Nor in a match paused with no menu, the dashboard's or the headset's: a grip there swapped weapons in the frozen match,
+            // as holsters, grips and props are already kept from; round-6 scout.)
+            if (actor == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || GameManager.IsPaused() || _drops.Count == 0)
             {
                 return;
             }

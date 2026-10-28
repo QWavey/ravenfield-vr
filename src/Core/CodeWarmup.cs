@@ -20,8 +20,14 @@ namespace RavenfieldVR.Core
         private static List<RuntimeMethodHandle> _pending;
         private static int _next, _failed;
         private static double _ms;
+        /// <summary>
+        /// The mod's types, walked for their methods a few a step within the budget (<see cref="Collect"/>): walked whole in the first
+        /// step, before its budget was counted, the reflection over every type took one frame of its own (round-6 scout).
+        /// </summary>
+        private static Type[] _types;
+        private static int _nextType;
 
-        internal static bool Done => _pending != null && _next >= _pending.Count;
+        internal static bool Done => _types != null && _nextType >= _types.Length && _next >= _pending.Count;
 
         /// <summary>What was compiled, for the autotest's results (null before the end).</summary>
         internal static string Summary { get; private set; }
@@ -32,11 +38,17 @@ namespace RavenfieldVR.Core
         /// </summary>
         internal static bool Step(float budgetMs)
         {
-            if (_pending == null)
-            {
-                _pending = Collect();
-            }
             var watch = System.Diagnostics.Stopwatch.StartNew();
+            if (_types == null)
+            {
+                _types = Types();
+                _pending = new List<RuntimeMethodHandle>();
+            }
+            if (!Collect(watch, budgetMs))
+            {
+                _ms += watch.Elapsed.TotalMilliseconds;
+                return false; // (the types' walk took this step's budget)
+            }
             while (_next < _pending.Count)
             {
                 try
@@ -62,35 +74,42 @@ namespace RavenfieldVR.Core
             return Done;
         }
 
-        private static List<RuntimeMethodHandle> Collect()
+        private static Type[] Types()
         {
-            var handles = new List<RuntimeMethodHandle>();
-            Type[] types;
             try
             {
-                types = typeof(CodeWarmup).Assembly.GetTypes();
+                return typeof(CodeWarmup).Assembly.GetTypes();
             }
             catch (ReflectionTypeLoadException e)
             {
-                types = e.Types; // (those that loaded)
+                return e.Types; // (those that loaded)
             }
+        }
+
+        /// <summary>The next types' methods into the list while the step's budget lasts; true once every type is walked.</summary>
+        private static bool Collect(System.Diagnostics.Stopwatch watch, float budgetMs)
+        {
             const BindingFlags declared = BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-            foreach (Type t in types)
+            while (_nextType < _types.Length)
             {
-                if (t == null || t.ContainsGenericParameters || Skipped(t))
+                Type t = _types[_nextType++];
+                if (t != null && !t.ContainsGenericParameters && !Skipped(t))
                 {
-                    continue;
+                    foreach (MethodInfo m in t.GetMethods(declared))
+                    {
+                        Add(_pending, m);
+                    }
+                    foreach (ConstructorInfo c in t.GetConstructors(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        Add(_pending, c);
+                    }
                 }
-                foreach (MethodInfo m in t.GetMethods(declared))
+                if (budgetMs >= 0f && watch.Elapsed.TotalMilliseconds >= budgetMs)
                 {
-                    Add(handles, m);
-                }
-                foreach (ConstructorInfo c in t.GetConstructors(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                {
-                    Add(handles, c);
+                    return _nextType >= _types.Length;
                 }
             }
-            return handles;
+            return true;
         }
 
         private static void Add(List<RuntimeMethodHandle> handles, MethodBase m)

@@ -172,7 +172,8 @@ namespace RavenfieldVR.Core
 
         private static void PostRender(Camera c)
         {
-            if (c == null || !Cameras.TryGetValue(c, out CameraTime t) || t.Start == 0)
+            // (Only in play frames, as PreCull: a menu's or a pause's frames added their whole interval to each camera; round-6 scout.)
+            if (!_counting || c == null || !Cameras.TryGetValue(c, out CameraTime t) || t.Start == 0)
             {
                 return;
             }

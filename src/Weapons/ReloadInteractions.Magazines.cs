@@ -329,9 +329,24 @@ namespace RavenfieldVR.Weapons
             }
             if (prop.LostByHand)
             {
-                // The hand went 45 cm on past the gun it could not pass through: it let go, the magazine falls where it was.
+                // The hand went 45 cm on past the gun it could not pass through: it let go, the magazines fall where they were. The
+                // palmed one too: left, it stayed drawn in the emptied hand, nothing releasing it (round-6 scout). Not promoted into
+                // the hand: still 45 cm past the gun, it was lost again the next frame.
                 prop.LostByHand = false;
                 prop.Drop(Vector3.zero, Vector3.zero); // out of the hand (Drop frees it)
+                MagazineProp palmed = _palmed;
+                _palmed = null;
+                if (palmed != null)
+                {
+                    if (palmed.Go != null)
+                    {
+                        palmed.Drop(Vector3.zero, Vector3.zero);
+                    }
+                    else
+                    {
+                        palmed.Destroy();
+                    }
+                }
                 off.Haptic(0.03f, 90f, 0.4f);
                 return;
             }

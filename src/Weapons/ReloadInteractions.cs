@@ -868,6 +868,19 @@ namespace RavenfieldVR.Weapons
             UpdateGraspAnchor(off);
             UpdateBeltStrip(off);
             PoseSeatedHold(off);
+            if (off.Held is MagazineProp held)
+            {
+                if (held.OnRail)
+                {
+                    held.ShowOnRail(held.RailPose(SeatPose));
+                }
+                else
+                {
+                    held.FollowHand();
+                }
+            }
+            // The palmed one after the held one: it goes with the first's keep-out of this frame (posed before it, it took the last
+            // frame's and parted from it by that frame's change while the first was pressed on the gun; round-6 scout).
             if (_palmed != null)
             {
                 if (_palmed.Go == null)
@@ -896,17 +909,6 @@ namespace RavenfieldVR.Weapons
                     // 255.I1-2); the glove follows it only once it is in the hand and the fresh one is not on its rail.
                     palmedPose = _palmed.KeptOffGun(palmedPose, moveHand: into >= 1f && !(off.Held is MagazineProp onRail && onRail.OnRail));
                     palmedPose.ApplyTo(_palmed.Go.transform);
-                }
-            }
-            if (off.Held is MagazineProp held)
-            {
-                if (held.OnRail)
-                {
-                    held.ShowOnRail(held.RailPose(SeatPose));
-                }
-                else
-                {
-                    held.FollowHand();
                 }
             }
             KeepGloveOutAndRemember(off);
