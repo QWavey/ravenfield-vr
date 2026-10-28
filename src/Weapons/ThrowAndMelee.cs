@@ -835,10 +835,49 @@ namespace RavenfieldVR.Weapons
             return n >= PathHits.Length; // (a full buffer: cast to be sure)
         }
 
+        private static readonly RaycastHit[] WallHits = new RaycastHit[16];
+
+        /// <summary>
+        /// The nearest wall on the blade's path that blocks a blow (<see cref="BlocksBlow"/>), as the game's cast measures it (from its
+        /// backed-off start, only hits within the stroke). The game keeps only the nearest wall of all: when that one blocks nothing
+        /// (a soldier's gear, the player's own body, a magazine in a hand), the real wall behind it was lost and the blade went through
+        /// it to a soldier beyond. Cast again only then.
+        /// </summary>
+        private static RaycastHit NearestBlockingWall(Ray ray, float distance, float radius, RaycastHit nearest)
+        {
+            if (nearest.collider == null || BlocksBlow(nearest.collider))
+            {
+                return nearest;
+            }
+            var best = new RaycastHit { distance = float.MaxValue };
+            float back = radius * 2f;
+            Vector3 onto = ray.direction * distance;
+            float onto2 = Mathf.Max(onto.sqrMagnitude, 1e-8f);
+            int n = Physics.SphereCastNonAlloc(new Ray(ray.origin - ray.direction * back, ray.direction), radius, WallHits, distance + back, GameMeleeMask);
+            for (int i = 0; i < n; i++)
+            {
+                RaycastHit h = WallHits[i];
+                Collider c = h.collider;
+                if (c == null || h.distance >= best.distance)
+                {
+                    continue;
+                }
+                int layer = c.gameObject.layer;
+                float along = Vector3.Dot(h.point - ray.origin, onto) / onto2;
+                if (along < 0f || along > 1f || Hitbox.IsHitboxLayer(layer) || layer == VehicleLayer || layer == 18 || !BlocksBlow(c))
+                {
+                    continue; // (as the game's cast: hitboxes and vehicles are not walls, layer 18 is nothing to it)
+                }
+                best = h;
+            }
+            return best;
+        }
+
         private static bool Cast(MeleeWeapon melee, Ray ray, float distance, float radius, Vector3 direction)
         {
             melee.SphereCast(ray, radius, distance, GameMeleeMask, out RaycastHit hitWall, out MeleeWeapon.RaycastHitHitbox hitEnemy,
                 out MeleeWeapon.RaycastHitHitbox hitAlly, out RaycastHit hitVehicle);
+            hitWall = NearestBlockingWall(ray, distance, radius, hitWall);
             float blocking = Mathf.Min(hitWall.collider == null || BlocksBlow(hitWall.collider) ? hitWall.distance : float.MaxValue, hitVehicle.distance);
             if (hitEnemy.hitInfo.collider != null && hitEnemy.hitInfo.distance < blocking)
             {
