@@ -2916,6 +2916,18 @@ array (debug option only).
       squad hold from a panel, the mod keys list not rebuilt under a press. Autotest: Manual reloading for the run, a failed deploy
       or respawn counted, the header's weapon count, FLOATING and GONE counted, the tremor line by the setting, the bench's GPU
       average without the missing rounds. Also: the knife's blocking wall behind a non-blocking one; Input timed in its parts.
+- [x] Bug hunt round 8 (the gun stand-in, body grabs, the held weapon, the GPU flash, the Python tools, the small utilities):
+      fixed so far - the menu after "Quit to menu" no longer throws in the camera getter every frame (Unity's null test before the
+      game's ?.), plane-input animated vehicles count as aircraft (the right stick no longer turns the view while it flies one),
+      the muzzle flash size by Unity's scaling modes (Local: the system's own scale) and burst chances as a union, the material
+      cache drops unloaded sources, a held soldier's limbs stay ignored when his trunk clears the gun, the 45 cm jump back to the
+      hand lets props pass through as a snap does, no enumerator a frame in the held body's overlap. Tools: vrshots reports a
+      timed-out run as partial (exit 1), keeps the weapon sheets in the prune (test), stops the game on Ctrl+C in --hands;
+      frame_report takes the newer of the kept and the current session and shows "(own)" steps. Refuted: metric_diff's decimal
+      commas (the game sets the invariant culture in GameManager.Awake: the user's log has points), the stand-in's orphan.
+- [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
+      given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
+      weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
