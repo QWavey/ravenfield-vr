@@ -1,8 +1,10 @@
 """The once-a-minute frame rate lines of a session log as a table: per minute the preset, the share of frames on time, the frame
 and GPU medians, the eyes' and the UI camera's render on the main thread, the mod's own work, and the costliest player loop
-steps (FramePhases). Read a headset session's log with it to see where its frames go (Tasks 348).
+steps (FramePhases). Read a headset session's log with it to see where its frames go (Tasks 348). The 'bound' column says what
+held a minute under 85% on time back: GPU when its median is 70% of the refresh interval or more, else CPU (the mod's frame rate
+hold uses the same line: GraphicsPresets.RenderScaleHelps).
 
-Run: python -I tools/frame_report.py [LOG]   (default: the game's BepInEx/LogOutput.player.log, else LogOutput.log)"""
+Run: python -I tools/frame_report.py [LOG]   (default: the newer of the game's BepInEx/LogOutput.player.log and LogOutput.log)"""
 import os
 import re
 import sys
@@ -15,12 +17,26 @@ def number(pattern, text, default=''):
     return m.group(1) if m else default
 
 
+def bound(text):
+    """'CPU' or 'GPU' for a minute under 85% on time, by the GPU's median against the refresh interval; '' when on time or untimed."""
+    try:
+        on_time = int(number(r'^\s*(\d+)% of', text, '100'))
+        interval = float(number(r'Hz \(([\d.]+) ms\)', text, '0'))
+        gpu = float(number(r'GPU median ([\d.]+) ms', text, '-1'))
+    except ValueError:
+        return ''
+    if on_time >= 85 or interval <= 0 or gpu < 0:
+        return ''
+    return 'GPU' if gpu >= 0.7 * interval else 'CPU'
+
+
 def rows(path):
     for line in open(path, encoding='utf-8', errors='replace'):
         if 'Frame rate over the last minute of play:' not in line:
             continue
         text = line.split('of play:', 1)[1]
         yield {
+            'bound': bound(text),
             'on time': number(r'^\s*(\d+)% of', text) + '%',
             'median': number(r'median ([\d.,]+) ms', text),
             'GPU': number(r'GPU median ([\d.,]+) ms', text),
@@ -65,7 +81,7 @@ def main():
         print(f'{path}: no frame rate lines (under a minute of play?)')
         return 1
     print(path)
-    cols = ['on time', 'median', 'GPU', 'preset', 'cpu', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
+    cols = ['on time', 'bound', 'median', 'GPU', 'preset', 'cpu', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
     widths = {c: max(len(c), *(len(r[c]) for r in table)) for c in cols}
     print('min  ' + '  '.join(c.ljust(widths[c]) for c in cols))
     for i, r in enumerate(table, 1):
