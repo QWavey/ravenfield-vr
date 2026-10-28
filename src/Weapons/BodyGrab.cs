@@ -1369,9 +1369,10 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
-    /// On each ragdoll bone of a soldier the player has taken hold of: an impact faster than <see cref="Threshold"/> hurts the
-    /// soldier, and a soldier it hits too (Boneworks' blunt impact damage: a threshold, then more the faster). Armed while held
-    /// and for a few seconds after the throw; a soldier of the player's own team takes no damage.
+    /// On each ragdoll bone of a soldier the player has taken hold of: an impact harder than <see cref="Threshold"/> hurts the
+    /// soldier, and a soldier it hits too (Boneworks' blunt impact damage: a threshold, then more the harder), its speed counted
+    /// no higher than its force allows (<see cref="ImpactMass"/>: a limb brushing the ground while he is lifted is no blow).
+    /// Armed while held and for a few seconds after the throw; friends are hurt as enemies are.
     /// </summary>
     internal sealed class BodyImpacts : MonoBehaviour
     {
