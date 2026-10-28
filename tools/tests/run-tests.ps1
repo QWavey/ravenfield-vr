@@ -57,6 +57,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The fast test mode's mod picking from the weapon-to-mod list (tools/tests/vrshots_fast_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_fast_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# The frame rate report's bound column, steps and default log (tools/tests/frame_report_test.py).
+python -I (Join-Path $PSScriptRoot 'frame_report_test.py')
+
 # Every controller binds every button action, but for the gaps listed on purpose (tools/tests/bindings_coverage_test.py).
 python -I (Join-Path $PSScriptRoot 'bindings_coverage_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
