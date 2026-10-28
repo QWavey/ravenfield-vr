@@ -69,6 +69,65 @@ namespace RavenfieldVR.Rig
         private RigidPose _lastRawLocal;
         private bool _hasLastRaw;
 
+        // The slowed hand (Hands in slow motion: Slowed): where the hand is drawn and acts, in tracking space, its velocity and spin
+        // in game units, and whether it is following (it is not at full speed once it has caught up).
+        private RigidPose _slowPose;
+        private Vector3 _slowVelocity, _slowSpin;
+        private bool _slowActive;
+
+        /// <summary>
+        /// A slowed hand's spring (1/s of game time: a 50 ms lag at full speed, a quarter second at the game's 0.2), top speed (m/s,
+        /// game time) and top turn (rad/s): a body living in the slowed world, which moves no faster in it than a real arm does in
+        /// ours. At the game's slow motion a hand swung at 5 m/s goes at 2: it trails the controller and catches up when it stops.
+        /// </summary>
+        private const float SlowSpring = 20f, SlowTopSpeed = 10f, SlowTopTurn = 30f;
+
+        /// <summary>
+        /// Whether the hand follows the controller slowed (Slowed, in slow motion, or still catching up after it): the controller's
+        /// pose <paramref name="local"/> becomes the slowed hand's, and its velocity and spin (tracking space, game units) are given.
+        /// Not in a pause (time scale 0: the menus and the laser at full speed) nor while catching up from more than 1.5 m away.
+        /// </summary>
+        private bool Slowed(ref RigidPose local, out Vector3 velocity, out Vector3 spin)
+        {
+            velocity = spin = Vector3.zero;
+            float s = Time.timeScale, dt = Time.unscaledDeltaTime;
+            bool caughtUp = (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
+            if (!VRConfig.SlowedHands || s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || dt > 0.25f
+                || _slowActive && (_slowPose.position - local.position).sqrMagnitude > 1.5f * 1.5f)
+            {
+                _slowActive = false;
+                return false;
+            }
+            if (!_slowActive)
+            {
+                _slowActive = true; // from where the hand is: no jump as slow motion starts
+                _slowPose = local;
+                _slowVelocity = _slowSpin = Vector3.zero;
+            }
+            float step = dt * Mathf.Min(s, 1f); // the frame in game time
+            // A critically damped spring toward the controller in game time (its pose taken as still for the step), at most the top speed.
+            float decay = Mathf.Exp(-SlowSpring * step);
+            Vector3 off = _slowPose.position - local.position;
+            Vector3 lead = (_slowVelocity + SlowSpring * off) * step;
+            Vector3 next = local.position + (off + lead) * decay;
+            Vector3 moved = Vector3.ClampMagnitude(next - _slowPose.position, SlowTopSpeed * step);
+            _slowPose.position += moved;
+            _slowVelocity = step > 1e-6f ? moved / step : Vector3.zero;
+            Quaternion before = _slowPose.rotation;
+            float angle = Quaternion.Angle(before, local.rotation);
+            _slowPose.rotation = Quaternion.RotateTowards(before, local.rotation, Mathf.Min(angle * (1f - decay), SlowTopTurn * Mathf.Rad2Deg * step));
+            (_slowPose.rotation * Runtime.RigidPose.Conjugate(before)).ToAngleAxis(out float turned, out Vector3 axis);
+            if (turned > 180f)
+            {
+                turned -= 360f;
+            }
+            _slowSpin = step > 1e-6f && Mathf.Abs(turned) > 1e-4f && !float.IsNaN(axis.x) && !float.IsInfinity(axis.x) ? axis * (turned * Mathf.Deg2Rad / step) : Vector3.zero;
+            local = _slowPose;
+            velocity = _slowVelocity;
+            spin = _slowSpin;
+            return true;
+        }
+
         public bool IsLeft => Side == Hand.Left;
         public float Mirror => IsLeft ? -1f : 1f;
 
@@ -112,12 +171,22 @@ namespace RavenfieldVR.Rig
             }
             HasPose = true;
 
+            // Slowed with the world (Hands in slow motion: Slowed): the hand's pose from here on is the slowed one, the controller's
+            // tip and grip carried on it as they sit on the controller.
+            RigidPose tracked = rawLocal;
+            bool slowed = Slowed(ref rawLocal, out Vector3 slowVelocity, out Vector3 slowSpin);
             RigidPose rig = RigidPose.Of(rigRoot);
             Raw = rig.Multiply(rawLocal);
             Root.SetPositionAndRotation(Raw.position, Raw.rotation);
 
             HandPose tip = raw.valid ? VRInput.GetPose(Side, PoseKind.Tip) : default;
-            if (tip.valid)
+            if (tip.valid && slowed)
+            {
+                _tipOnRaw = tracked.Inverse().Multiply(tip.pose);
+                _tipOnRawKnown = true;
+                Pointer = Raw.Multiply(_tipOnRaw);
+            }
+            else if (tip.valid)
             {
                 Pointer = rig.Multiply(tip.pose);
                 _tipOnRaw = Raw.Inverse().Multiply(Pointer);
@@ -133,7 +202,13 @@ namespace RavenfieldVR.Rig
 
             HandPose grip = raw.valid ? VRInput.GetPose(Side, PoseKind.Grip) : default;
             Vector3 palmPos;
-            if (grip.valid)
+            if (grip.valid && slowed)
+            {
+                _gripOnRaw = new RigidPose(tracked.InverseTransformPoint(grip.pose.position), Quaternion.identity);
+                _gripOnRawKnown = true;
+                palmPos = Raw.TransformPoint(_gripOnRaw.position);
+            }
+            else if (grip.valid)
             {
                 palmPos = rig.TransformPoint(grip.pose.position);
                 _gripOnRaw = new RigidPose(Raw.InverseTransformPoint(palmPos), Quaternion.identity);
@@ -203,13 +278,24 @@ namespace RavenfieldVR.Rig
             _hasLastRig = true;
 
             Vector3 own = raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero;
+            Vector3 ownSpin = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
+            if (slowed)
+            {
+                // In game units, as everything in the slowed world: the slowed hand's own, and the rig's (measured over real time) over
+                // the time scale. What it lets go of then moves at the world's pace with no real-time flight (RealTimeFlight).
+                float pace = 1f / Mathf.Clamp(Time.timeScale, 0.05f, 1f);
+                own = rig.rotation * slowVelocity;
+                ownSpin = rig.rotation * slowSpin;
+                rigVelocity *= pace;
+                rigSpin *= pace;
+            }
             if (TestVelocityNoise > 0f)
             {
                 own += Random.insideUnitSphere * TestVelocityNoise;
             }
             BodyRelativeVelocity = own;
             Velocity = own + rigVelocity;
-            OwnAngularVelocity = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
+            OwnAngularVelocity = ownSpin;
             AngularVelocity = OwnAngularVelocity + rigSpin;
             _velHistory[_historyIndex] = Velocity;
             _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;

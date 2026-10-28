@@ -346,6 +346,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             HandBody.Follow(_rig, canHold);
+            HandBody.PushProps(_rig, canHold);
             RestoreSelfPairs();
         }
 
@@ -1046,8 +1047,11 @@ namespace RavenfieldVR.Weapons
             RealTimeFlight.BeginGroup(bones);
         }
 
-        /// <summary>The game's time scale as a divisor (0.05-1): a real-time velocity over it is that velocity in game units.</summary>
-        internal static float SlowMotion() => Mathf.Clamp(Time.timeScale, 0.05f, 1f);
+        /// <summary>
+        /// What a hand's velocity is divided by to be in game units: the game's time scale (0.05-1) for hands at the real pace, 1 for
+        /// slowed hands (Hands in slow motion: Slowed), whose velocity is in game units already (VRHand).
+        /// </summary>
+        internal static float SlowMotion() => VRConfig.SlowedHands ? 1f : Mathf.Clamp(Time.timeScale, 0.05f, 1f);
 
         /// <summary>Autotest: how many times a held body was carried over a jump of the hand.</summary>
         internal static int Carries;

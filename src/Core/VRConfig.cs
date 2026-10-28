@@ -13,6 +13,7 @@ namespace RavenfieldVR.Core
     public enum MoveReference { Head, OffHand }
     public enum SprintMode { Toggle, Hold }
     public enum ReloadMode { Manual, Assisted }
+    public enum SlowMotionHands { Normal, Slowed }
     public enum PouchLocation { OffHandHip, DominantHip, Chest, OffHandChest }
     public enum GunAngleMode { Auto, Manual }
     public enum TurretAimMode { Head, Hand }
@@ -74,6 +75,7 @@ namespace RavenfieldVR.Core
 
         // Weapons
         public static ConfigEntry<ReloadMode> Reload;
+        public static ConfigEntry<SlowMotionHands> SlowHands;
         public static ConfigEntry<bool> ChamberPlusOne;
         public static ConfigEntry<bool> ReturnRoundsOnMagDrop;
         public static ConfigEntry<bool> LoseRoundOnRack;
@@ -226,6 +228,10 @@ namespace RavenfieldVR.Core
 
             Reload = cfg.Bind("Weapons", "ReloadMode", ReloadMode.Manual,
                 "Manual: eject, grab and insert magazines and rack slides yourself. Assisted: the magazine release button plays the game's normal reload.");
+            SlowHands = cfg.Bind("Weapons", "SlowMotionHands", SlowMotionHands.Normal,
+                "In the game's slow motion. Normal: your hands, and what they hold, move at your real speed, and what you let go of flies "
+                + "as in real time until it touches something. Slowed: your hands are slowed with the world, as in Boneworks: they trail a "
+                + "fast move and catch up when you stop, and what you hold or throw moves at the world's pace. Your head is never slowed.");
             ChamberPlusOne = cfg.Bind("Weapons", "ChamberPlusOne", true,
                 "A chambered round counts on top of a full magazine (30+1).");
             ReturnRoundsOnMagDrop = cfg.Bind("Weapons", "ReturnRoundsOnMagDrop", true,
@@ -463,6 +469,12 @@ namespace RavenfieldVR.Core
 
         /// <summary>Autotest: a reloading mode for a moment without touching the saved setting.</summary>
         internal static ReloadMode? TestReload;
+
+        /// <summary>Whether the hands are slowed with the world in slow motion now: the setting, or the autotest's choice (never saved).</summary>
+        public static bool SlowedHands => (TestSlowHands ?? SlowHands.Value) == SlowMotionHands.Slowed;
+
+        /// <summary>Autotest: the slow-motion hands mode for a moment without touching the saved setting.</summary>
+        internal static SlowMotionHands? TestSlowHands;
 
         /// <summary>Autotest: handedness for a moment without touching the saved setting.</summary>
         internal static bool? TestLeftHanded;

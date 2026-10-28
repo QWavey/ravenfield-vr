@@ -74,6 +74,7 @@ namespace RavenfieldVR.UI
 
             Section("Weapons");
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
+            Choice("Hands in slow motion", VRConfig.SlowHands, new[] { SlowMotionHands.Normal, SlowMotionHands.Slowed }, new[] { "Normal", "Slowed" });
             // Read when a weapon is drawn: the panel said it applied at once (review, 2026-10-20).
             Choice("Hands (next draw)", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
             Choice("Holsters", VRConfig.Holsters, new[] { HolsterLayout.Boneworks, HolsterLayout.Classic }, new[] { "Boneworks", "Classic" });

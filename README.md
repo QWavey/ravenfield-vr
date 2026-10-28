@@ -97,7 +97,7 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 - **From behind:** reach for an enemy's head from behind and grip: he is held still. Turn your wrist hard (a quarter turn) to break his neck; let go and he is free again. It works on your own team too.
 - **Strapped grenade:** holding a soldier, draw a grenade in the other hand, pull the pin (or press A) and let it go slowly on his body (walking is fine): it sticks to him. Throw him away before it goes off: he dies in the blast, everyone near takes the grenade's normal explosion damage. It kills one of your own team the same way.
 
-Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Fired cases fly out of the ejection port and lie on the ground for a while.
+Loose magazines, shells and duds are physical: they bounce off your gun while they fall, lie still once they have landed, and never catch on your own body. Bullets pass through them. Your gun pushes a magazine it meets (lying or falling), never faster than the gun moves; a magazine leaving the well passes out through the gun. An empty hand tapped or swept into a loose magazine pushes it, and a slow reach to take it does not. Fired cases fly out of the ejection port and lie on the ground for a while.
 
 Pistol magazines go in the grip, where your gun hand is: once a magazine is lined up and half way in, it is drawn home the rest of the way, so the two controllers never have to touch.
 
@@ -172,6 +172,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `ExplosionDirt` | on | Dirt on your view from close explosions |
 | `TwoHandRecoilReduction` | 0.4 | How much a second hand on the gun tames recoil |
 | `WeaponWeight` | on | Long guns held in one hand droop and trail the wrist |
+| `SlowMotionHands` | Normal | In slow motion. Normal: your hands move at your real speed and what you let go of flies as in real time until it touches something. Slowed: your hands are slowed with the world, as in Boneworks (they trail a fast move and catch up when you stop; what you hold, throw or drop moves at the world's pace). Your head is never slowed. Also on the panel ("Hands in slow motion") |
 | `FireSelector` | on | Semi/auto switching on automatic weapons |
 | `WeaponsWhileDriving` | on | Draw your weapon from the driver seat of cars |
 | `EnemyWeaponDrops` | on | Fallen soldiers drop their weapon |

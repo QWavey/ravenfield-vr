@@ -307,6 +307,7 @@ namespace RavenfieldVR.Core
             // cover checks returned without a line and every gun "passed" its hand reload untried (round-7 scout). (A run-time
             // override: the saved setting stays.)
             VRConfig.TestReload = ReloadMode.Manual;
+            VRConfig.TestSlowHands = SlowMotionHands.Normal; // (the slow-motion checks measure the real-time hands; the slowed ones have their own)
             _matchAt = Time.realtimeSinceStartup;
             float deadline = Time.realtimeSinceStartup + 120f;
             while (LocalPlayer.actor == null && Time.realtimeSinceStartup < deadline)
@@ -5567,6 +5568,88 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// Hands in slow motion: Slowed (the user, 2026-10-28: "when its on slowed the hands etc are delayed too in slowmo, like boneworks
+        /// does it"). In the game's slow motion (0.2) the free hand, moved 30 cm at once, trails the controller (under half way after a
+        /// tenth of a second) and catches up (over 90% in 1.5 s); a magazine it lets go of at 1 m/s moves at the world's pace (about
+        /// 0.2 m/s in real time, no real-time flight). The saved setting is left as it was.
+        /// </summary>
+        private static IEnumerator SlowedHandsCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            if (held == null || rig == null || off == null || off.Held != null || off.Role != Rig.HandRole.Free || Time.timeScale <= 0f)
+            {
+                report("slowed hands: skipped (no weapon in hand, the free hand busy, or paused)");
+                yield break;
+            }
+            int os = (int)off.Side;
+            Transform root = rig.Root;
+            Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
+            Vector3 aside = Vector3.Cross(Vector3.up, flat) * (off.IsLeft ? -1f : 1f);
+            Runtime.RigidPose from = Runtime.RigidPose.Of(root).Inverse().Multiply(new Runtime.RigidPose(rig.Head.position + flat * 0.35f + aside * 0.15f - Vector3.up * 0.25f,
+                Quaternion.LookRotation(flat, Vector3.up)));
+            Runtime.RigidPose to = new Runtime.RigidPose(from.position + root.InverseTransformDirection(aside) * 0.3f, from.rotation);
+            float scaleBefore = Time.timeScale;
+            SlowMotionHands? modeBefore = VRConfig.TestSlowHands;
+            MagazineProp mag = null;
+            try
+            {
+                VRConfig.TestSlowHands = SlowMotionHands.Slowed;
+                GameManager.SetTimeScale(0.2f);
+                Rig.VRHand.Scripted[os] = Runtime.RigidPose.Of(root).Multiply(from);
+                yield return new WaitForSecondsRealtime(0.5f);
+                Vector3 startLocal = root.InverseTransformPoint(off.Raw.position);
+                Rig.VRHand.Scripted[os] = Runtime.RigidPose.Of(root).Multiply(to);
+                yield return new WaitForSecondsRealtime(0.1f);
+                float early = Vector3.Distance(root.InverseTransformPoint(off.Raw.position), startLocal) / 0.3f;
+                yield return new WaitForSecondsRealtime(1.4f);
+                float late = Vector3.Distance(root.InverseTransformPoint(off.Raw.position), startLocal) / 0.3f;
+                Metric("slowed hands: share of a 30 cm move after 0.1 s in slow motion", early);
+                Metric("slowed hands: share of a 30 cm move after 1.5 s in slow motion", late);
+                bool instant = early > 0.5f, stuck = late < 0.9f;
+                string line = $"slowed hands in slow motion (0.2): a 30 cm move of the controller, {early * 100f:0}% of it after 0.1 s, {late * 100f:0}% after 1.5 s"
+                              + (instant ? " (NOT SLOWED: the hand went with the controller)" : "") + (stuck ? " (NEVER CAUGHT UP with the controller)" : "");
+                // A magazine let go from the slowed hand at 1 m/s: the world's pace, no real-time flight.
+                if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                {
+                    Vector3 start = off.Raw.position + flat * 0.1f;
+                    if (!Physics.Raycast(start, flat, 1.2f, ~0, QueryTriggerInteraction.Ignore) && Physics.Raycast(start, Vector3.down, out RaycastHit floor, 4f, ~0, QueryTriggerInteraction.Ignore)
+                        && floor.distance > 0.6f)
+                    {
+                        mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+                        if (mag != null && mag.Go != null)
+                        {
+                            mag.Go.transform.position = start;
+                            mag.Drop(flat * 1f, Vector3.zero);
+                            float t0 = Time.realtimeSinceStartup;
+                            yield return new WaitForSecondsRealtime(0.25f);
+                            yield return new WaitForEndOfFrame();
+                            float across = Vector3.ProjectOnPlane(mag.Go.transform.position - start, Vector3.up).magnitude / Mathf.Max(1e-3f, Time.realtimeSinceStartup - t0);
+                            Metric("slowed hands: real-time m/s across of a magazine let go at 1", across);
+                            bool realTime = across > 0.6f;
+                            line += $"; a magazine let go at 1 m/s: {across:0.00} m/s across in real time{(realTime ? " (NOT AT THE WORLD'S PACE: the slowed hand's throw was sped up again)" : "")}";
+                            instant |= realTime;
+                        }
+                    }
+                }
+                if (instant || stuck)
+                {
+                    Problem(line);
+                }
+                report(line);
+            }
+            finally
+            {
+                Rig.VRHand.Scripted[os] = null;
+                VRConfig.TestSlowHands = modeBefore;
+                GameManager.SetTimeScale(scaleBefore > 0f ? scaleBefore : 1f);
+                mag?.Destroy();
+            }
+        }
+
+        /// <summary>
         /// Running, a magazine taken into the free hand from beside it (not from the pouch: it eases in from where it was) stays with the
         /// hand through its ease: drawn from a start kept in the world it trailed behind the running player and caught up again (user,
         /// 2026-10-28: "because of walking forward the mag goes a little bit backwards but corrects its path again"). Measured in the
@@ -6253,6 +6336,7 @@ namespace RavenfieldVR.Core
                             // both were skipped in every run.
                             yield return GentleMagazineCheck(lines.Add);
                             yield return SlowMotionMagazineCheck(lines.Add);
+                            yield return SlowedHandsCheck(lines.Add);
                             yield return RunningMagazineEaseCheck(lines.Add);
                             yield return BuriedMagazineCheck(lines.Add);
                             yield return PouchThrowCheck(lines.Add);
