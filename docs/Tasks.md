@@ -2853,8 +2853,11 @@ array (debug option only).
   happen). Also: Tasks 1383 (a finger solve reads the hand's root once) and 1403 (the muzzle flash's lines to the eye stepped
   only where they cross the gun's box) done, 1503 found done; the workflow agents the user's message was relayed to wrote it
   in again as 345 and 351: folded into 350.
-- [ ] Bug hunt round 5 (weapons' fire and reload, vehicles, throws and melee, holsters and sounds, lens and scopes; 11 findings, 7
-      confirmed, all low): NOT fixed yet (the run's 65% ceiling came as it ended). (a) HeldWeapon.cs:1275: a cupped pistol takes a
+- [x] Bug hunt round 5 (weapons' fire and reload, vehicles, throws and melee, holsters and sounds, lens and scopes; 11 findings, 7
+      confirmed, all low): all fixed in the next run (the user: "fix every bug", work-until-limit 90): (a) the slider governs, (b) the
+      snapped point kept in BepInEx/cache/RavenfieldVR-rack-points.txt and warmed, (c) pin hidden and dropped, sound only with a pin,
+      (d) the ring placed after the held gun, (e) voices with a delayed clip skipped, (f) the split kept per cache entry, (g) pooled.
+      Also round 4's open one: replaced hull meshes are retired and destroyed at the next scene change once nothing uses them. (a) HeldWeapon.cs:1275: a cupped pistol takes a
       fixed 40% off its kick whatever TwoHandRecoilReduction says (a design share since 10a2c2d: either let the slider govern it,
       the same at the default 0.4, or say so in the setting's text). (b) BoltPiece.Prewarm warms the analysed rack point, but a
       RackOnSurface gun's SnapRackPoint carves again at the snapped point on its first draw (a cold carve; warming it needs the
