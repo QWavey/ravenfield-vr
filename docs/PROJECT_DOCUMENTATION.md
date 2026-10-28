@@ -1072,3 +1072,15 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    steps each line to the eye only where it crosses the gun's box (`GunVolume.LineInsideModel`); the soldier's-gun reach makes
    one pass over the match's soldiers a frame for both hands; the match bar's canvas group is written only when it changes.
    `tools/tests/harmony_targets_test.py` checks every Harmony patch named by a string against the decompiled game.
+9. **Magazines in slow motion and on the move** (the user's report): a magazine let go in slow motion flies as in real time
+   until its first touch (`Weapons/RealTimeFlight.cs`: the hand's real-time velocity divided by the time scale, gravity g/s²,
+   given back to the world's pace at the touch); eases that start from a hand or the gun keep their start against the rig
+   (`MagazineProp.ToRigSpace`), so a magazine no longer trails a walking player. The autotest checks both.
+10. **1.14.0** (built, not published): rounds 5-7 of bug hunts fixed (the free hand's grenade pin, sound voices, multi-barrel
+   splits, the rack carve warmed at its snapped point (`BepInEx/cache/RavenfieldVR-rack-points.txt`), replaced hull meshes
+   destroyed, the installer's keep/restore/record paths and its tests, the launcher's preset kept from the headset, the
+   weapon overrides' broken saves and unknown keys, the analysis's geometric muzzle and next magazine name, the autotest's
+   silent passes). The user's session showed the Game preset keeping Medium's settings (Unity ignores re-applying the current
+   Quality level: fixed with a level-aware copy) and every phase slowing 2-6x over ten minutes with a steady scene; the frame
+   rate line now times a fixed sum against the first minute, to tell a slowing CPU from growing work, and splits Input into its
+   parts.
