@@ -16,6 +16,7 @@ namespace RavenfieldVR.Weapons
 
         // A grabbed prop eases into the hand over a few frames instead of jumping there.
         private RigidPose _attachFrom;
+        private bool _attachInRig;
         private bool _fresh = true;
 
         /// <summary>An ejected magazine on its way out: caught, it eases into the hand like any other (not as a pouch's fresh one).</summary>
@@ -29,7 +30,11 @@ namespace RavenfieldVR.Weapons
             // caught or moved from the other fingers eases in from where it was.
             if (Go != null && !_fresh)
             {
-                _attachFrom = RigidPose.Of(Go.transform);
+                // From another hand's fingers, the rail or the gun: against the rig, as the player carries it; off the ground or out
+                // of the air (its body free): in the world, where it was.
+                _attachInRig = _body != null && _body.isKinematic;
+                RigidPose at = RigidPose.Of(Go.transform);
+                _attachFrom = _attachInRig ? ToRigSpace(at) : at;
                 _attachAt = Time.unscaledTime;
             }
             _fresh = false;
@@ -452,7 +457,8 @@ namespace RavenfieldVR.Weapons
                 if (t < 1f)
                 {
                     float k = t * t * (3f - 2f * t);
-                    target = new RigidPose(Vector3.Lerp(_attachFrom.position, target.position, k), Quaternion.Slerp(_attachFrom.rotation, target.rotation, k));
+                    RigidPose from = _attachInRig ? FromRigSpace(_attachFrom) : _attachFrom;
+                    target = new RigidPose(Vector3.Lerp(from.position, target.position, k), Quaternion.Slerp(from.rotation, target.rotation, k));
                 }
                 else
                 {

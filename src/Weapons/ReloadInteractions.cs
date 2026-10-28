@@ -885,7 +885,8 @@ namespace RavenfieldVR.Weapons
                     if (into < 1f)
                     {
                         float e = into * into * (3f - 2f * into);
-                        palmedPose = new RigidPose(Vector3.Lerp(_palmedFrom.position, palmedPose.position, e), Quaternion.Slerp(_palmedFrom.rotation, palmedPose.rotation, e));
+                        RigidPose from = MagazineProp.FromRigSpace(_palmedFrom);
+                        palmedPose = new RigidPose(Vector3.Lerp(from.position, palmedPose.position, e), Quaternion.Slerp(from.rotation, palmedPose.rotation, e));
                     }
                     else
                     {

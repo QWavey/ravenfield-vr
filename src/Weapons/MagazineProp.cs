@@ -113,7 +113,7 @@ namespace RavenfieldVR.Weapons
                 {
                     // Onto the rail or off it again: eased over a moment from where it is drawn. Lining up at the edge of the
                     // window it jumped up to 3.5 cm and 35 degrees in one frame (and back to the hand when pulled off).
-                    _switchFrom = RigidPose.Of(Go.transform);
+                    _switchFrom = ToRigSpace(RigidPose.Of(Go.transform));
                     _switchAt = Time.unscaledTime;
                 }
                 _onRail = value;
@@ -121,7 +121,27 @@ namespace RavenfieldVR.Weapons
         }
 
         private bool _onRail;
+        /// <summary>Where it was drawn as it went onto or off the rail, against the rig (<see cref="ToRigSpace"/>).</summary>
         private RigidPose _switchFrom;
+
+        /// <summary>
+        /// A pose against the rig (the player's own space, carried by walking, a vehicle, a turn), for an ease that starts from a hand
+        /// or the gun: kept in the world, its start stayed where the player had been and the magazine trailed behind while walking
+        /// until the ease ended ("because of walking forward the mag goes a little bit backwards but corrects its path again"; user,
+        /// 2026-10-28). Without a rig, the world.
+        /// </summary>
+        internal static RigidPose ToRigSpace(RigidPose world)
+        {
+            Transform root = VRRig.Instance != null ? VRRig.Instance.Root : null;
+            return root != null ? RigidPose.Of(root).Inverse().Multiply(world) : world;
+        }
+
+        /// <summary>A pose kept by <see cref="ToRigSpace"/>, where it is in the world now.</summary>
+        internal static RigidPose FromRigSpace(RigidPose local)
+        {
+            Transform root = VRRig.Instance != null ? VRRig.Instance.Root : null;
+            return root != null ? RigidPose.Of(root).Multiply(local) : local;
+        }
         private float _switchAt = -1f;
         private const float SwitchBlend = 0.08f;
 
@@ -150,7 +170,8 @@ namespace RavenfieldVR.Weapons
             if (t < 1f)
             {
                 float k = t * t * (3f - 2f * t);
-                target = new RigidPose(Vector3.Lerp(_switchFrom.position, target.position, k), Quaternion.Slerp(_switchFrom.rotation, target.rotation, k));
+                RigidPose from = FromRigSpace(_switchFrom);
+                target = new RigidPose(Vector3.Lerp(from.position, target.position, k), Quaternion.Slerp(from.rotation, target.rotation, k));
             }
             else
             {
@@ -177,7 +198,8 @@ namespace RavenfieldVR.Weapons
             if (_routeFor != key)
             {
                 _routeFor = key;
-                Vector3 tip0 = _switchFrom.position + _switchFrom.rotation * TipLocal;
+                RigidPose switchFrom = FromRigSpace(_switchFrom);
+                Vector3 tip0 = switchFrom.position + switchFrom.rotation * TipLocal;
                 Vector3 tipTarget = target.position + target.rotation * TipLocal;
                 float far;
                 if (_onRail)
@@ -185,7 +207,7 @@ namespace RavenfieldVR.Weapons
                     // Onto the line: the start kept against the rail's pose.
                     Vector3 lineIn = target.rotation * InsertDirLocal;
                     Vector3 mouthNow = tipTarget - lineIn * RailDepth;
-                    _routeFrom = target.Inverse().Multiply(_switchFrom);
+                    _routeFrom = target.Inverse().Multiply(switchFrom);
                     far = Vector3.ProjectOnPlane(tip0 - mouthNow, lineIn).magnitude;
                     _routed = far > WellPlay * 0.75f;
                 }
@@ -196,8 +218,8 @@ namespace RavenfieldVR.Weapons
                     _routeGun = _drawnFor != null && _drawnFor.Rig != null ? _drawnFor.Rig.GunBody : null;
                     RigidPose anchor = _routeGun != null ? RigidPose.Of(_routeGun) : RigidPose.Identity;
                     RigidPose inv = anchor.Inverse();
-                    _routeFrom = inv.Multiply(_switchFrom);
-                    _routeLine = inv.Multiply(new RigidPose(tip0 - (_switchFrom.rotation * InsertDirLocal) * RailDepth, _switchFrom.rotation));
+                    _routeFrom = inv.Multiply(switchFrom);
+                    _routeLine = inv.Multiply(new RigidPose(tip0 - (switchFrom.rotation * InsertDirLocal) * RailDepth, switchFrom.rotation));
                     far = Vector3.Distance(tip0, tipTarget);
                     _routed = RailDepth > 0.005f;
                 }
@@ -657,6 +679,8 @@ namespace RavenfieldVR.Weapons
             _body.isKinematic = false;
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
+            // In slow motion it flies as in real time until it touches something (it hung by the hand: RealTimeFlight).
+            velocity *= RealTimeFlight.Begin(_body);
             _dropTime = Time.time;
             _dropSpeed = velocity.magnitude;
             _dropAcross = new Vector2(velocity.x, velocity.z).magnitude;

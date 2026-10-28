@@ -60,7 +60,8 @@ namespace RavenfieldVR.Weapons
             prop.AttachPalmed(off);
             _palmed = prop;
             // From the well into the hand over a moment (it was beside the fresh one the next frame).
-            _palmedFrom = prop.Go != null ? RigidPose.Of(prop.Go.transform) : default;
+            // (Against the rig: kept in the world, it trailed behind the walking player for its 0.18 s; MagazineProp.ToRigSpace.)
+            _palmedFrom = prop.Go != null ? MagazineProp.ToRigSpace(RigidPose.Of(prop.Go.transform)) : default;
             _palmedAt = prop.Go != null ? Time.unscaledTime : -1f;
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             _sys.Rig.Dominant.Haptic(0.05f, 90f, 0.6f);
