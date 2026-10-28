@@ -376,7 +376,29 @@ namespace RavenfieldVR.Weapons
                     _rigs.Remove(w);
                 }
             }
+            // Rigs with no ammo state (a soldier's gun a hand took the magazine of, a sub-weapon looked at) were dropped only at the
+            // scene change: their weapons, gone with their soldiers, stayed as keys for the whole match. Every few seconds.
+            if (Time.unscaledTime >= _nextRigPrune)
+            {
+                _nextRigPrune = Time.unscaledTime + 5f;
+                _goneRigs.Clear();
+                foreach (Weapon w in _rigs.Keys)
+                {
+                    if (w == null)
+                    {
+                        _goneRigs.Add(w);
+                    }
+                }
+                foreach (Weapon w in _goneRigs)
+                {
+                    _rigs.Remove(w);
+                }
+                _goneRigs.Clear();
+            }
         }
+
+        private float _nextRigPrune;
+        private readonly List<Weapon> _goneRigs = new List<Weapon>();
 
         public void BeforeRender()
         {
