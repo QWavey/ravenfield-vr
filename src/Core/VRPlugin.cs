@@ -25,6 +25,12 @@ namespace RavenfieldVR.Core
             Log.Init(Logger);
             VRConfig.Bind(Config);
             Log.Info($"{PluginInfo.Name} {PluginInfo.Version} loading (Unity {Application.unityVersion}).");
+            // A test run says so at once (vrshots keeps the player's own last session log, not a test's, even one killed early).
+            string[] testArgs = System.Environment.GetCommandLineArgs().Where(a => a.StartsWith("-rfvr-", System.StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (testArgs.Length > 0)
+            {
+                Log.Info("Test run: " + string.Join(" ", testArgs));
+            }
 
             string installProblem = InstallCheck.Run(Paths.GameRootPath);
             bool wantVR = VRConfig.EnableVR.Value;

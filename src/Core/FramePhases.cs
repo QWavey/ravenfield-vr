@@ -27,6 +27,12 @@ namespace RavenfieldVR.Core
         private static long _lastStamp;
         private static int _frames;
         private static bool _installed;
+        /// <summary>
+        /// This frame is play, as the frame rate line counts it (in a match, no menu, not paused): only such frames are timed, the
+        /// loading screen's and the menus' would have mixed into the averages (round-3 scout, 2026-10-28).
+        /// </summary>
+        private static bool _counting;
+        private static int _reports;
 
         private sealed class CameraTime
         {
@@ -53,9 +59,9 @@ namespace RavenfieldVR.Core
 
         internal static void SectionBegin(string name)
         {
-            if (_mainThread < 0 || System.Threading.Thread.CurrentThread.ManagedThreadId != _mainThread)
+            if (_mainThread < 0 || !_counting || System.Threading.Thread.CurrentThread.ManagedThreadId != _mainThread)
             {
-                return; // (not installed yet, or a worker's)
+                return; // (not installed yet, a worker's, or not a play frame)
             }
             if (!Sections.TryGetValue(name, out SectionTime s))
             {
@@ -134,13 +140,17 @@ namespace RavenfieldVR.Core
         private static void Stamp(int slot, bool frameStart)
         {
             long now = Stopwatch.GetTimestamp();
-            if (_last >= 0)
+            if (_last >= 0 && _counting)
             {
                 _ticks[_last] += now - _lastStamp;
             }
             if (frameStart)
             {
-                _frames++;
+                _counting = Util.GameContext.InGame && !Util.GameContext.GameMenuOpen && Time.timeScale > 0f;
+                if (_counting)
+                {
+                    _frames++;
+                }
             }
             _last = slot;
             _lastStamp = now;
@@ -148,7 +158,7 @@ namespace RavenfieldVR.Core
 
         private static void PreCull(Camera c)
         {
-            if (c == null)
+            if (c == null || !_counting)
             {
                 return;
             }
@@ -176,6 +186,11 @@ namespace RavenfieldVR.Core
         {
             if (_frames == 0)
             {
+                // (The markers dropped by a later SetPlayerLoop, or no play: what was gathered is let go all the same, or the camera
+                // table grew with every camera of every map.)
+                Cameras.Clear();
+                Sections.Clear();
+                System.Array.Clear(_ticks, 0, _ticks.Length);
                 return "phases not timed";
             }
             double perMs = 1000.0 / Stopwatch.Frequency / _frames;
@@ -238,25 +253,29 @@ namespace RavenfieldVR.Core
             // What the scene holds (a scan once a minute): a session whose frames grew slower minute by minute (a 70-gun autotest,
             // 7.8 to 25.5 ms, every phase two to four times dearer, physics most; 2026-10-27) tells here whether bodies, renderers
             // or cameras piled up, or the same scene simply ran slower (a hot laptop).
-            try
+            // The scene's counts every fifth report only: walking every renderer (5000 in the user's session) was a frame of its own.
+            if (_reports++ % 5 == 0)
             {
-                Rigidbody[] bodies = Object.FindObjectsOfType<Rigidbody>();
-                int awake = 0;
-                foreach (Rigidbody b in bodies)
+                try
                 {
-                    awake += b != null && !b.isKinematic && !b.IsSleeping() ? 1 : 0;
+                    Rigidbody[] bodies = Object.FindObjectsOfType<Rigidbody>();
+                    int awake = 0;
+                    foreach (Rigidbody b in bodies)
+                    {
+                        awake += b != null && !b.isKinematic && !b.IsSleeping() ? 1 : 0;
+                    }
+                    s.Append($"; scene: {bodies.Length} bodies ({awake} awake), {Object.FindObjectsOfType<Renderer>().Length} renderers, "
+                             + $"{Camera.allCamerasCount} cameras on, {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB managed");
+                    UI.CanvasManager canvases = UI.UISystem.Instance != null ? UI.UISystem.Instance.Canvases : null;
+                    if (canvases != null)
+                    {
+                        s.Append(", ").Append(canvases.Counts()); // (what the UI camera draws: its time is in the cameras above)
+                    }
                 }
-                s.Append($"; scene: {bodies.Length} bodies ({awake} awake), {Object.FindObjectsOfType<Renderer>().Length} renderers, "
-                         + $"{Camera.allCamerasCount} cameras on, {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB managed");
-                UI.CanvasManager canvases = UI.UISystem.Instance != null ? UI.UISystem.Instance.Canvases : null;
-                if (canvases != null)
+                catch (System.Exception)
                 {
-                    s.Append(", ").Append(canvases.Counts()); // (what the UI camera draws: its time is in the cameras above)
+                    // (counted next time)
                 }
-            }
-            catch (System.Exception)
-            {
-                // (counted next time)
             }
             Cameras.Clear(); // (cameras of an old map forgotten with the window)
             _frames = 0;

@@ -285,7 +285,7 @@ def keep_player_log(logfile):
             text = f.read()
     except OSError:
         return
-    if 'RavenfieldVR-shots' in text or 'Autotest finished' in text or 'Frame rate over the last minute' not in text:
+    if 'Test run: -rfvr-' in text or 'RavenfieldVR-shots' in text or 'Autotest finished' in text or 'Frame rate over the last minute' not in text:
         return  # (a test run's, or a session too short to say anything about the frame rate)
     try:
         shutil.copy2(logfile, os.path.join(os.path.dirname(logfile), 'LogOutput.player.log'))
