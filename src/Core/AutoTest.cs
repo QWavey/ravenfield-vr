@@ -5384,6 +5384,181 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// A magazine let go at 1 m/s in slow motion (the game's 0.2) flies as in real time until it touches something (RealTimeFlight):
+        /// about 1 m/s across and a real-time fall in its first quarter second, not a fifth of the speed and hanging in the air (user,
+        /// 2026-10-28: "the mag floats for one second in the air"); and slow motion ended in its flight, it goes on at the same speed
+        /// (no five-fold jump).
+        /// </summary>
+        private static IEnumerator SlowMotionMagazineCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            if (held == null || rig == null || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag || Time.timeScale <= 0f)
+            {
+                report("magazine let go in slow motion: skipped (no magazine-fed weapon in hand, or paused)");
+                yield break;
+            }
+            Transform head = rig.Head;
+            Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+            Vector3 start = head.position + fwd * 0.5f - Vector3.up * 0.2f;
+            if (Physics.Raycast(start, fwd, 1.2f, ~0, QueryTriggerInteraction.Ignore) || !Physics.Raycast(start, Vector3.down, out RaycastHit floor, 4f, ~0, QueryTriggerInteraction.Ignore)
+                || floor.distance < 0.8f)
+            {
+                report("magazine let go in slow motion: skipped (no clear room in front)");
+                yield break;
+            }
+            MagazineProp mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+            if (mag == null || mag.Go == null)
+            {
+                yield break;
+            }
+            float scaleBefore = Time.timeScale;
+            try
+            {
+                GameManager.SetTimeScale(0.2f);
+                yield return null;
+                mag.Go.transform.position = start;
+                mag.Drop(fwd * 1f, Vector3.zero);
+                float t0 = Time.realtimeSinceStartup;
+                yield return new WaitForSecondsRealtime(0.25f);
+                yield return new WaitForEndOfFrame();
+                float dt = Mathf.Max(1e-3f, Time.realtimeSinceStartup - t0);
+                Vector3 p1 = mag.Go.transform.position;
+                float across = Vector3.ProjectOnPlane(p1 - start, Vector3.up).magnitude / dt, fell = start.y - p1.y, realFall = 0.5f * 9.81f * dt * dt;
+                // Slow motion ends in its flight: the same real-time speed on.
+                GameManager.SetTimeScale(1f);
+                yield return new WaitForSecondsRealtime(0.04f);
+                yield return new WaitForEndOfFrame();
+                Vector3 p2 = mag.Go.transform.position;
+                float t2 = Time.realtimeSinceStartup;
+                yield return new WaitForSecondsRealtime(0.08f);
+                yield return new WaitForEndOfFrame();
+                float after = Vector3.ProjectOnPlane(mag.Go.transform.position - p2, Vector3.up).magnitude / Mathf.Max(1e-3f, Time.realtimeSinceStartup - t2);
+                Metric("magazine let go in slow motion: real-time m/s across (let go at 1)", across);
+                Metric("magazine let go in slow motion: share of a real-time fall in 0.25 s", realFall > 0f ? fell / realFall : 0f);
+                Metric("magazine let go in slow motion: real-time m/s across after slow motion ended", after);
+                bool hung = across < 0.6f || fell < realFall * 0.5f, jumped = after > 1.6f;
+                string line = $"magazine let go at 1 m/s in slow motion (0.2): {across:0.00} m/s across and fell {fell * 100f:0} cm in its first {dt:0.00} s "
+                              + $"(real time: 1 m/s, {realFall * 100f:0} cm){(hung ? " (HUNG IN THE AIR: the slowed world took the hand's speed as its own)" : "")}; "
+                              + $"slow motion ended in its flight: {after:0.00} m/s on{(jumped ? " (JUMPED: its speed made out for slow motion was kept)" : "")}";
+                if (hung || jumped)
+                {
+                    Problem(line);
+                }
+                report(line);
+            }
+            finally
+            {
+                GameManager.SetTimeScale(scaleBefore > 0f ? scaleBefore : 1f);
+                mag.Destroy();
+            }
+        }
+
+        /// <summary>
+        /// Running, a magazine taken into the free hand from beside it (not from the pouch: it eases in from where it was) stays with the
+        /// hand through its ease: drawn from a start kept in the world it trailed behind the running player and caught up again (user,
+        /// 2026-10-28: "because of walking forward the mag goes a little bit backwards but corrects its path again"). Measured in the
+        /// hand's own frame against where the magazine sits once the ease is over.
+        /// </summary>
+        private static IEnumerator RunningMagazineEaseCheck(Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            Rig.VRHand off = rig != null ? rig.Off : null;
+            if (held == null || rig == null || rig.Mode != Rig.RigMode.OnFoot || held.ActiveAmmo == null || !held.ActiveAmmo.UsesDetachableMag
+                || off == null || off.Held != null || off.Role != Rig.HandRole.Free)
+            {
+                report("magazine taken while running: skipped (no magazine-fed weapon in hand, not on foot, or the free hand is busy)");
+                yield break;
+            }
+            Actor player = LocalPlayer.actor;
+            Transform root = rig.Root;
+            int os = (int)off.Side;
+            // The free hand out to its side, away from the gun, held still against the player while he runs.
+            Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
+            Vector3 aside = Vector3.Cross(Vector3.up, flat) * (off.IsLeft ? -1f : 1f);
+            Runtime.RigidPose handInRig = Runtime.RigidPose.Of(root).Inverse().Multiply(new Runtime.RigidPose(rig.Head.position + flat * 0.35f + aside * 0.3f - Vector3.up * 0.25f,
+                Quaternion.LookRotation(flat, Vector3.up)));
+            void HoldHand() => Rig.VRHand.Scripted[os] = Runtime.RigidPose.Of(root).Multiply(handInRig);
+            Vector3 walkFrom = player != null ? player.transform.position : Vector3.zero;
+            MagazineProp mag = null;
+            try
+            {
+                HoldHand();
+                Input.VRInput.SimulatedMove = new Vector2(0f, 1f);
+                Input.VRGameInput.TestSprint = true;
+                for (float until = Time.realtimeSinceStartup + 0.8f; Time.realtimeSinceStartup < until;)
+                {
+                    HoldHand();
+                    yield return null;
+                }
+                mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+                if (mag == null || mag.Go == null)
+                {
+                    yield break;
+                }
+                mag.NotFresh(); // (as one caught or picked up: it eases into the hand)
+                // 15 cm beside the palm, in the hand's own frame.
+                Vector3 offsetInHand = new Vector3(0f, 0.15f, 0f);
+                mag.Go.transform.SetPositionAndRotation(off.Palm.position + off.Palm.rotation * offsetInHand, off.Palm.rotation);
+                Input.VRInput.SimulatedGrab[os] = true;
+                mag.Attach(off);
+                float speed = 0f;
+                Vector3 lastAt = player != null ? player.transform.position : Vector3.zero;
+                float lastT = Time.realtimeSinceStartup;
+                var rel = new List<Vector3>();
+                for (float until = Time.realtimeSinceStartup + 0.3f; Time.realtimeSinceStartup < until;)
+                {
+                    HoldHand();
+                    yield return new WaitForEndOfFrame();
+                    Runtime.RigidPose palm = off.Palm;
+                    rel.Add(Quaternion.Inverse(palm.rotation) * (mag.Go.transform.position - palm.position));
+                    if (player != null)
+                    {
+                        float now = Time.realtimeSinceStartup;
+                        speed = Mathf.Max(speed, Vector3.ProjectOnPlane(player.transform.position - lastAt, Vector3.up).magnitude / Mathf.Max(1e-3f, now - lastT));
+                        lastAt = player.transform.position;
+                        lastT = now;
+                    }
+                    yield return null;
+                }
+                Vector3 settled = rel.Count > 0 ? rel[rel.Count - 1] : Vector3.zero;
+                float start = (offsetInHand - settled).magnitude, worst = 0f;
+                foreach (Vector3 r in rel)
+                {
+                    worst = Mathf.Max(worst, (r - settled).magnitude);
+                }
+                float trailed = Mathf.Max(0f, worst - start);
+                Metric("magazine taken while running: cm it trailed past its start in the hand", trailed * 100f);
+                string line = $"magazine taken into the free hand while running ({speed:0.0} m/s): at most {worst * 100f:0} cm from its place in the hand against "
+                              + $"{start * 100f:0} cm at the start{(trailed > 0.04f ? $" (TRAILED {trailed * 100f:0} cm behind the running player)" : "")}";
+                if (speed < 1f)
+                {
+                    line += " (NOT RUN: the stick moved nothing; not measured)";
+                }
+                else if (trailed > 0.04f)
+                {
+                    Problem(line);
+                }
+                report(line);
+            }
+            finally
+            {
+                Input.VRInput.SimulatedMove = Vector2.zero;
+                Input.VRGameInput.TestSprint = false;
+                Input.VRInput.SimulatedGrab[os] = false;
+                Rig.VRHand.Scripted[os] = null;
+                mag?.Destroy();
+                if (player != null)
+                {
+                    player.SetPositionAndRotation(walkFrom, player.transform.rotation); // (back where it began: the checks after it are placed from there)
+                }
+            }
+        }
+
+        /// <summary>
         /// A magazine let go with the hand pushed into the ground, 15 cm and 40 cm deep: it must come out on top and lie still,
         /// not be flung by PhysX pushing it out (a push over 25 cm was skipped; prop physics hunt, 2026-10-21).
         /// </summary>
@@ -5965,6 +6140,8 @@ namespace RavenfieldVR.Core
                             // The two magazine checks need the gun in the hand: after the drop checks it is in its holster, and
                             // both were skipped in every run.
                             yield return GentleMagazineCheck(lines.Add);
+                            yield return SlowMotionMagazineCheck(lines.Add);
+                            yield return RunningMagazineEaseCheck(lines.Add);
                             yield return BuriedMagazineCheck(lines.Add);
                             yield return PouchThrowCheck(lines.Add);
                             yield return DropCheck(lines.Add);
@@ -6362,7 +6539,7 @@ namespace RavenfieldVR.Core
         /// written into the weapon lines but never counted as problems (every report since 2026-10-17: the HK416s' "through the gun"
         /// was in the lines, not in the problems; improve round, 2026-10-22). tools/tests/failure_phrases_test.py keeps it in step.
         /// </summary>
-        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP|LEFT ON THE HAND|DIED BEFORE THE SHOTS|INSIDE THE BODY|DRAWS LESS THAN AN EMPTY");
+        private static readonly Regex Failure = new Regex(@"\b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|HUNG IN THE AIR|\(JUMPED:|\(TRAILED |FROM THE BACK|FROM THE SIDE|SEAT WRONG|BESIDE THE WELL|PASSES THROUGH|AHEAD OF THE HAND|STILL SHOWS|DRAWS NOTHING|FLOATS BESIDE|\(SHAKES\)|RAN FORWARD ON ITS OWN|STAYED BACK after|MOVES NOTHING|THE GRIP ALONE WORKS|THE HAND LET GO OF THE RACK|HANDED BACK|AN EMPTY MAGAZINE FROM|CLIP TAKEN WITH THE BOLT SHUT|WENT THROUGH|WENT INTO THE GUN|LOST ROUNDS|OUT OF THE GRAB|THROUGH THE GRIP|HIDDEN IN THE GUN|GLOVES OVERLAP|ONTO THE RAIL BESIDE THE GRIP|WAS PUT AWAY|STILL IN THE HAND|STILL IN THE LOADOUT|TAKEN BY TOUCH|INSIDE THE WALL|\bTHE SCREEN\b|SHOWING \(|WITH THE GUN IN THE HAND|THE PLAYER WAS HIT|BLEW UP|LEFT ON THE HAND|DIED BEFORE THE SHOTS|INSIDE THE BODY|DRAWS LESS THAN AN EMPTY");
 
         private static string FirstFrames(Exception e)
         {
