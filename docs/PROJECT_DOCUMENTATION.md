@@ -1084,3 +1084,12 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    Quality level: fixed with a level-aware copy) and every phase slowing 2-6x over ten minutes with a steady scene; the frame
    rate line now times a fixed sum against the first minute, to tell a slowing CPU from growing work, and splits Input into its
    parts.
+11. **The frame rate hold and a CPU-bound PC** (after 1.14.0): the hold's last step lowers the render scale only when the GPU
+   is the cause (`GraphicsPresets.RenderScaleHelps`: its time at 70% of the refresh interval or more, given back under 45%),
+   and weighs the window just measured. The user's Medium had the GPU at 3.3 of 11.1 ms with frames at half rate: the step
+   only blurred the view. The wrist says "CPU-bound" in that case, and `tools/frame_report.py` has a matching 'bound' column.
+12. **Bug hunt round 8**: the menu's camera getter after "Quit to menu" (a caught exception every frame), the muzzle flash
+   size under Unity's scaling modes, the gun stand-in's ignore lists (a held soldier's limbs freed with his trunk) and its
+   45 cm jump, a let-go body's bone pairs retried until they part, a launcher's shown rocket kept per launcher, the
+   material repair cache cleared on a content reload, and vrshots/frame_report fixes (a timed-out run reported as partial,
+   weapon sheets kept by the prune, the newest session read).
