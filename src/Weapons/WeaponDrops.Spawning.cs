@@ -16,6 +16,23 @@ namespace RavenfieldVR.Weapons
     {
         // ---- spawning ---------------------------------------------------------------------------------
 
+        /// <summary>
+        /// A dropped copy of a living soldier's gun where his hand holds it, with its rounds (a hand wrested it from him: SoldierGuns).
+        /// Null when it could not be made. Kept (never culled before the hand takes it), as the player's own swapped weapon is.
+        /// </summary>
+        internal DroppedWeapon DropFromHands(Actor actor, Weapon w, Vector3 velocity)
+        {
+            if (actor == null || w == null || w.weaponEntry == null || w.weaponEntry.prefab == null || w.IsMountedWeapon() || w.thirdPersonTransform == null)
+            {
+                return null;
+            }
+            Transform tp = w.thirdPersonTransform;
+            Transform hold = tp.parent != null ? tp.parent : tp; // (as a death's drop: the model at the game's own offset under the pivot)
+            Vector3 holdScale = DropScale(tp.parent != null ? tp.parent.lossyScale : Vector3.one);
+            int spare = w.configuration.spareAmmo >= 0 ? Mathf.RoundToInt(w.configuration.spareAmmo * VRConfig.DroppedWeaponAmmo.Value) : -1;
+            return Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, keep: true);
+        }
+
         /// <summary>Called just before a soldier dies (its weapons are destroyed right after).</summary>
         public void OnActorDying(Actor actor, DamageInfo info)
         {

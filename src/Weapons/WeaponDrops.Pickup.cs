@@ -353,6 +353,16 @@ namespace RavenfieldVR.Weapons
             return best;
         }
 
+        /// <summary>A drop taken into a hand as a squeeze on it takes it (a gun wrested from a soldier: SoldierGuns).</summary>
+        internal void TakeInto(DroppedWeapon drop, VRHand hand)
+        {
+            Actor actor = GameContext.PlayerActor;
+            if (drop != null && hand != null && actor != null && !actor.dead)
+            {
+                PickUp(drop, hand, actor);
+            }
+        }
+
         private void PickUp(DroppedWeapon drop, VRHand hand, Actor actor)
         {
             if (!actor.CanUnholsterWeapon())

@@ -4888,6 +4888,71 @@ namespace RavenfieldVR.Core
                     }
                     report($"friends ({friends.Count} on the player's side): grab: {takenNote}; fist: {punchNote}; neck ({necked.name}): {neckNote}");
                 }
+
+                // 13. A soldier's gun (Tasks 346): a hand swung through it knocks it aside, a squeeze under its middle pulls its magazine
+                // (he must reload), a squeeze toward its end wrests it from him (a second soldier: the first one's gun is empty).
+                Actor gunman = Next(true);
+                yield return Bring(gunman, 0.9f, false, there);
+                Weapon hisGun = gunman != null ? gunman.activeWeapon : null;
+                if (!there[0] || off.Role != Rig.HandRole.Free || hisGun == null)
+                {
+                    report($"soldier's gun: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : hisGun == null ? "he has no gun out" : $"the free hand is {off.Role}")})");
+                }
+                else
+                {
+                    string knockNote = "no point on his gun";
+                    if (SoldierGuns.GunPoint(gunman, false, out Vector3 swingAt))
+                    {
+                        bool knocked = false;
+                        Vector3 swingFrom = swingAt - sideAxis * 0.35f;
+                        for (float d = 0f; d < 0.7f && !knocked;)
+                        {
+                            d += 3f * Mathf.Max(Time.unscaledDeltaTime, 0.011f);
+                            OffAt(swingFrom + sideAxis * d, Quaternion.LookRotation(flat, Vector3.up), sideAxis * 3f);
+                            yield return null;
+                            knocked = SoldierGuns.Knocked(gunman, out _, out _);
+                        }
+                        knockNote = knocked ? "knocked aside" : "NOT KNOCKED ASIDE by a 3 m/s swing through it";
+                        OffAt(offRaw.position + offPalmFromRaw);
+                        yield return new WaitForSecondsRealtime(0.9f); // (the knock eased back)
+                    }
+                    string magNote = "no point under it";
+                    int roundsBefore = hisGun != null ? hisGun.ammo : 0;
+                    if (hisGun != null && SoldierGuns.GunPoint(gunman, true, out Vector3 magAt))
+                    {
+                        OffAt(magAt, Quaternion.LookRotation(flat, Vector3.up));
+                        yield return null;
+                        yield return null;
+                        Input.VRInput.SimulateGrabPress(off.Side);
+                        yield return new WaitForSecondsRealtime(0.25f);
+                        bool emptied = hisGun != null && hisGun.ammo == 0;
+                        bool inHand = off.Held is MagazineProp;
+                        magNote = emptied ? $"magazine pulled ({roundsBefore} rounds), {(inHand ? "in the hand" : "none in the hand (his gun's kind not analysed)")}"
+                            : $"NO MAGAZINE PULLED ({(BodyGrab.IsHeld(gunman) ? "took hold of him instead" : "nothing taken")})";
+                        yield return LetGo();
+                        if (BodyGrab.IsHeld(gunman))
+                        {
+                            yield return new WaitForSecondsRealtime(0.2f);
+                        }
+                    }
+                    Actor disarmed = Next(true);
+                    string wrestNote = "skipped";
+                    yield return Bring(disarmed, 0.9f, false, there);
+                    Weapon taken = disarmed != null ? disarmed.activeWeapon : null;
+                    if (there[0] && taken != null && off.Role == Rig.HandRole.Free && SoldierGuns.GunPoint(disarmed, false, out Vector3 wrestAt))
+                    {
+                        OffAt(wrestAt, Quaternion.LookRotation(flat, Vector3.up));
+                        yield return null;
+                        yield return null;
+                        Input.VRInput.SimulateGrabPress(off.Side);
+                        yield return new WaitForSecondsRealtime(0.4f);
+                        bool gone = taken == null || disarmed.activeWeapon != taken;
+                        wrestNote = gone ? $"wrested from {disarmed.name}, who drew his {(disarmed.activeWeapon != null ? disarmed.activeWeapon.name : "NOTHING")}"
+                            : $"NOT WRESTED from {disarmed.name} ({(SoldierGuns.Knocked(disarmed, out _, out _) ? "knocked aside instead: no other weapon" : BodyGrab.IsHeld(disarmed) ? "took hold of him instead" : "nothing")})";
+                        yield return LetGo();
+                    }
+                    report($"soldier's gun ({gunman.name}'s {(hisGun != null ? hisGun.name : "gun")}): {knockNote}; {magNote}; {wrestNote}");
+                }
             }
             finally
             {

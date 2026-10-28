@@ -23,6 +23,7 @@ namespace RavenfieldVR.Weapons
         internal ThrowableHandler Throwables => _throwables;
         private readonly MeleeHandler _melee;
         private readonly BodyGrab _bodyGrab; // a soldier held in an empty hand (dragged, swung, thrown)
+        private readonly SoldierGuns _soldierGuns; // a hand on a soldier's gun (knocked aside, its magazine pulled, wrested)
         public readonly WeaponDrops Drops;
         private readonly PouchDisplay _pouch;
 
@@ -55,6 +56,7 @@ namespace RavenfieldVR.Weapons
                 _throwables = new ThrowableHandler(this);
                 _melee = new MeleeHandler(this);
                 _bodyGrab = new BodyGrab(rig);
+                _soldierGuns = new SoldierGuns(this, rig);
                 Drops = new WeaponDrops(this);
                 _pouch = new PouchDisplay(this);
                 _holsters = new HolsterDisplay(this);
@@ -183,7 +185,16 @@ namespace RavenfieldVR.Weapons
             UpdateDrivingWeapons();
             UpdateHolsters();
             UpdateGripToHold();
-            // Last: every other grab (a gun, a magazine, a holster, a drop) has had the press first.
+            // Last: every other grab (a gun, a magazine, a holster, a drop) has had the press first. A soldier's gun before the
+            // soldier: a squeeze on it takes the gun or its magazine, not him.
+            try
+            {
+                _soldierGuns?.Update();
+            }
+            catch (Exception e)
+            {
+                Log.ExceptionOnce("SoldierGuns.Update", e);
+            }
             try
             {
                 _bodyGrab?.Update();
@@ -1124,6 +1135,7 @@ namespace RavenfieldVR.Weapons
         {
             _bodyGrab?.ReleaseAll();
             BodyImpacts.Clear();
+            SoldierGuns.Clear();
             GunVolume.OnSceneLoaded();
             HandBody.OnSceneLoaded();
             if (Held != null)
