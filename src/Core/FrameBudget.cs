@@ -156,11 +156,47 @@ namespace RavenfieldVR.Core
                      $"MSAA {QualitySettings.antiAliasing}x, shadows " +
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
                      $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame; "
+                     + CpuSpeed() + "; "
                      + FramePhases.TakeReport());
             System.Array.Clear(Buckets, 0, Buckets.Length);
             System.Array.Clear(GpuBuckets, 0, GpuBuckets.Length);
             _frames = _within = _gpuFrames = 0;
             _seconds = _budgetMs = 0f;
+        }
+
+        private static double _firstCpuMs = -1;
+        private static uint _cpuSink; // (the sum's result kept, so the loop is not optimised away)
+
+        /// <summary>
+        /// How fast the CPU runs now: the time a fixed sum takes (the least of three runs, about a quarter of a millisecond each),
+        /// against the session's first minute. The user's play of 1.14.0 (2026-10-28) grew 2-6 times slower in every phase over ten
+        /// minutes, the engine's own steps too, with no more bodies, renderers or memory: a CPU slowing down (heat, the power plan)
+        /// looks like that, more work does not. This tells the two apart.
+        /// </summary>
+        private static string CpuSpeed()
+        {
+            double best = double.MaxValue;
+            var watch = new System.Diagnostics.Stopwatch();
+            for (int run = 0; run < 3; run++)
+            {
+                watch.Restart();
+                uint x = 2463534242u + (uint)run;
+                float f = 1f;
+                for (int i = 0; i < 100000; i++)
+                {
+                    x ^= x << 13;
+                    x ^= x >> 17;
+                    x ^= x << 5;
+                    f = f * 0.999f + (x & 1023) * 1e-3f;
+                }
+                _cpuSink += x + (uint)f;
+                best = System.Math.Min(best, watch.Elapsed.TotalMilliseconds);
+            }
+            if (_firstCpuMs < 0 && best > 0)
+            {
+                _firstCpuMs = best;
+            }
+            return $"CPU speed {100.0 * _firstCpuMs / System.Math.Max(best, 1e-6):0}% of the session's first minute ({best:0.00} ms for a fixed sum)";
         }
 
         /// <summary>

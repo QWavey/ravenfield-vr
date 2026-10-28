@@ -28,6 +28,7 @@ def rows(path):
             'eyes': number(r'VR Head ([\d.,]+) ms', text),
             'UI cam': number(r'VR UI Camera ([\d.,]+) ms', text),
             'mod': number(r"the mod's own work ([\d.,]+) ms", text),
+            'cpu': (number(r'CPU speed (\d+)% of', text) + '%') if 'CPU speed' in text else '',
             'steps': ', '.join(re.findall(r'(\w+ [\d.]+),', number(r'costliest steps:([^;]*)', text))[:3]),
             'mod sections': ', '.join(re.findall(r'([\w.: ]+? [\d.]+),', number(r"the mod's costliest sections:([^;]*)", text))[:3]),
             'awake': number(r'\((\d+) awake\)', text),
@@ -47,7 +48,7 @@ def main():
         print(f'{path}: no frame rate lines (under a minute of play?)')
         return 1
     print(path)
-    cols = ['on time', 'median', 'GPU', 'preset', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
+    cols = ['on time', 'median', 'GPU', 'preset', 'cpu', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
     widths = {c: max(len(c), *(len(r[c]) for r in table)) for c in cols}
     print('min  ' + '  '.join(c.ljust(widths[c]) for c in cols))
     for i, r in enumerate(table, 1):
