@@ -156,7 +156,7 @@ namespace RavenfieldVR.UI
             // With the GPU's time beside it: over the refresh interval the preset is too heavy, under it the CPU is the limit.
             int gpu = rate < 0 ? -1 : FrameBudget.RecentGpuTenths;
             // And how far the frame rate hold has lowered the preset (HoldFrameRate): settings changed under the player are said.
-            int holdSteps = rate < 0 ? 0 : GraphicsPresets.HoldLevel;
+            int holdSteps = GraphicsPresets.HoldLevel; // (also with the frame rate line off: the hold's own line is apart from it)
             // Rebuilt only when what it shows changes: no string garbage every frame.
             if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu || holdSteps != _shownHeld)
             {

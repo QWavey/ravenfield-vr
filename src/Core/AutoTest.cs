@@ -5080,10 +5080,11 @@ namespace RavenfieldVR.Core
                         yield return new WaitForSecondsRealtime(0.25f);
                         bool emptied = roundsBefore > 0 && hisGun != null && hisGun.ammo == 0;
                         bool inHand = off.Held is MagazineProp;
-                        // (A tube, a break action or a launcher has no magazine to pull: the squeeze wrests the gun instead, as meant.)
+                        // (A tube, a break action or a launcher has no magazine to pull, nor a gun whose kind is not analysed yet: the squeeze
+                        // wrests the gun instead, as meant. A magazine pulled always comes into the hand now.)
                         bool wrestedInstead = hisGun == null || gunman.activeWeapon != hisGun;
-                        magNote = emptied ? $"magazine pulled ({roundsBefore} rounds), {(inHand ? "in the hand" : "none in the hand (his gun's kind not analysed)")}"
-                            : wrestedInstead ? "his gun has no magazine to pull: wrested instead"
+                        magNote = emptied ? $"magazine pulled ({roundsBefore} rounds), {(inHand ? "in the hand" : "NO MAGAZINE IN THE HAND")}"
+                            : wrestedInstead ? "his gun has no magazine to pull (or its kind not analysed yet): wrested instead"
                             : $"NO MAGAZINE PULLED ({(BodyGrab.IsHeld(gunman) ? "took hold of him instead" : "nothing taken")})";
                         yield return LetGo();
                         if (BodyGrab.IsHeld(gunman))

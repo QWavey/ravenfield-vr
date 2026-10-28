@@ -68,7 +68,7 @@ namespace RavenfieldVR.UI
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
             Stepper("View shake on shots", () => VRConfig.ViewShake.Value <= 0f ? "off" : $"{VRConfig.ViewShake.Value * 100f:0}%",
                 d => VRConfig.ViewShake.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ViewShake.Value + d * 0.1f) * 10f) / 10f));
-            Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01(Mathf.Round((VRConfig.Vignette.Value + d * 0.1f) * 10f) / 10f));
+            Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01((d > 0 ? Mathf.Floor(VRConfig.Vignette.Value * 10f + 1e-4f) + 1f : Mathf.Ceil(VRConfig.Vignette.Value * 10f - 1e-4f) - 1f) / 10f));
             TogglePair("Physical crouch", VRConfig.PhysicalCrouch, "Seated play", VRConfig.SeatedMode);
             ActionRow("Eye height", () => VRConfig.EyeHeight.Value > 0.3f ? $"{VRConfig.EyeHeight.Value:0.00} m" : "auto", "Calibrate now", () => _rig.CalibrateHeightNow());
 
@@ -83,7 +83,7 @@ namespace RavenfieldVR.UI
             TogglePair("MG belts by hand", VRConfig.BeltByHand, "Magazine palming", VRConfig.MagazinePalming);
             TogglePair("Gun stops at walls", VRConfig.WorldCollision, "Weapon weight", VRConfig.WeaponWeight);
             TogglePair("Show pouch", VRConfig.ShowPouch, "Reduce flashing", VRConfig.ReduceFlashing);
-            Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0;-0;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
+            Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0.#;-0.#;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
             Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
             Stepper("Scope steadying", () => VRConfig.ScopeSteadying.Value <= 0f ? "off" : $"{VRConfig.ScopeSteadying.Value * 100f:0}%",
                 d => VRConfig.ScopeSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ScopeSteadying.Value + d * 0.25f) * 4f) / 4f));
@@ -96,7 +96,7 @@ namespace RavenfieldVR.UI
             Choice("Graphics", VRConfig.Graphics, new[] { GraphicsPreset.Low, GraphicsPreset.Medium, GraphicsPreset.High, GraphicsPreset.Ultra, GraphicsPreset.Game },
                 new[] { "Low", "Medium", "High", "Ultra", "Game" });
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
-            Choice("Hold the frame rate", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower settings as needed" });
+            Choice("Hold the frame rate", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
             Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
             TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);

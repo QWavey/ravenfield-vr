@@ -278,9 +278,10 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// The magazine pulled out of his gun: the gun empty (his AI reloads it), the magazine in the hand with its rounds when his gun's
-        /// kind is analysed (a magazine of that kind is made from it), else only taken out. False for a gun with no magazine to pull (a
-        /// tube, a break action, a launcher, a blade, already empty or reloading).
+        /// The magazine pulled out of his gun: the gun empty (his AI reloads it), the magazine in the hand with its rounds (a magazine of
+        /// the gun's analysed kind is made from it). False for a gun with no magazine to pull (a tube, a break action, a launcher, a
+        /// blade, already empty or reloading), and for one whose kind is not analysed yet (whether it has one is not known: a tube
+        /// shotgun was emptied with nothing in the hand; the squeeze wrests the gun instead).
         /// </summary>
         private bool TakeMagazine(VRHand hand, Actor soldier, Weapon gun)
         {
@@ -290,37 +291,34 @@ namespace RavenfieldVR.Weapons
             }
             // (Only an analysis already made: made now, it is tens to hundreds of milliseconds on this frame.)
             WeaponRig rig = WeaponAnalyzer.IsCached(gun, gun.weaponEntry) ? _sys.RigFor(gun) : null;
-            if (rig != null && !(rig.Data.Action == ActionType.SelfLoading || rig.Data.Action == ActionType.Manual && rig.Data.MagazinePath != null))
+            if (rig == null || !(rig.Data.Action == ActionType.SelfLoading || rig.Data.Action == ActionType.Manual && rig.Data.MagazinePath != null))
             {
-                return false; // a tube, a break action, a single shot: nothing comes out under it
+                return false; // a tube, a break action, a single shot: nothing comes out under it (or not known yet)
             }
             int rounds = gun.ammo;
             gun.ammo = 0;
             // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
             // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
             gun.OnAmmoChanged();
-            if (rig != null)
+            try
             {
-                try
-                {
-                    MagazineProp prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
-                    prop.Attach(hand);
-                    prop.FollowHand();
-                }
-                catch (System.Exception e)
-                {
-                    Log.ExceptionOnce("SoldierGuns.TakeMagazine", e);
-                }
+                MagazineProp prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
+                prop.Attach(hand);
+                prop.FollowHand();
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("SoldierGuns.TakeMagazine", e);
             }
             _sys.Sounds.Play(MechSound.MagOut, hand.PalmCentre, 0.8f);
             hand.Haptic(0.06f, 120f, 0.7f);
-            Log.InfoOnce("soldiermag:" + gun.name, $"Pulled the magazine ({rounds} rounds) out of {soldier.name}'s {gun.name}: he reloads.{(rig == null ? " (His gun's kind not analysed yet: no magazine in the hand.)" : "")}");
+            Log.InfoOnce("soldiermag:" + gun.name, $"Pulled the magazine ({rounds} rounds) out of {soldier.name}'s {gun.name}: he reloads.");
             return true;
         }
 
         /// <summary>
         /// His gun wrested from him: a dropped copy made where it was and taken into the hand as a dropped weapon is, and he draws his
-        /// other weapon. False (knocked aside instead) when he has no other weapon to draw, or the copy could not be made.
+        /// other weapon. Knocked aside and held pushed off instead when he has no other weapon to draw, or the copy could not be made.
         /// </summary>
         private bool Wrest(int i, VRHand hand, Actor soldier, Weapon gun)
         {
@@ -336,22 +334,30 @@ namespace RavenfieldVR.Weapons
             }
             if (slot < 0 || other < 0 || !soldier.CanUnholsterWeapon() || _sys.Drops == null)
             {
-                // Held pushed off instead, for as long as the hand keeps its grip on it (HoldGunOff): "or grabbing the gun" (Tasks 346)
-                // where it cannot be taken from him.
-                KnockAside(soldier, gun, hand.BodyRelativeVelocity.sqrMagnitude > 0.01f ? hand.BodyRelativeVelocity : -soldier.transform.right, hand);
-                _holdingGunOf[i] = soldier;
-                return true; // (the squeeze is still his gun's: it moved it, it did not take him)
+                return KnockAndHold(i, hand, soldier, gun);
             }
             DroppedWeapon drop = _sys.Drops.DropFromHands(soldier, gun, hand.Velocity * 0.3f);
             if (drop == null)
             {
-                return false;
+                // (No copy of it can be made (a kind with no model): returned false, the squeeze went on to take the soldier himself.)
+                return KnockAndHold(i, hand, soldier, gun);
             }
             soldier.DropWeapon(slot); // (the game destroys it)
             soldier.SwitchWeapon(other); // armed again at once (Unholster sets his active weapon in the call)
             _sys.Drops.TakeInto(drop, hand);
             hand.Haptic(0.08f, 90f, 0.9f);
             Log.InfoOnce("soldierwrest", $"Wrested {gun.name} from {soldier.name}: he draws his {(soldier.activeWeapon != null ? soldier.activeWeapon.name : "nothing")}.");
+            return true;
+        }
+
+        /// <summary>
+        /// Held pushed off instead, for as long as the hand keeps its grip on it (HoldGunOff): "or grabbing the gun" (Tasks 346) where it
+        /// cannot be taken from him. True: the squeeze is still his gun's (it moved it, it did not take him).
+        /// </summary>
+        private bool KnockAndHold(int i, VRHand hand, Actor soldier, Weapon gun)
+        {
+            KnockAside(soldier, gun, hand.BodyRelativeVelocity.sqrMagnitude > 0.01f ? hand.BodyRelativeVelocity : -soldier.transform.right, hand);
+            _holdingGunOf[i] = soldier;
             return true;
         }
 
