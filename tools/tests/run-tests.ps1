@@ -63,6 +63,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every failure a self-check writes in capitals counts as a problem in the autotest (tools/tests/failure_phrases_test.py).
 python -I (Join-Path $PSScriptRoot 'failure_phrases_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# Every setting in the README's table exists with the default it gives (tools/tests/readme_settings_test.py).
+python -I (Join-Path $PSScriptRoot 'readme_settings_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # uninstall.ps1 on a made-up install in a temporary folder (tools/tests/uninstall_ps1_test.py).
 python -I (Join-Path $PSScriptRoot 'uninstall_ps1_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }

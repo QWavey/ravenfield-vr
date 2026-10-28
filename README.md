@@ -168,7 +168,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `WeaponWorldCollision` | on | The gun in your hand is stopped by walls, crates and the ground |
 | `GloveSize` | 0.88 | Size of the tactical glove (applies at the next start) |
 | `ExplosionDirt` | on | Dirt on your view from close explosions |
-| `TwoHandRecoilReduction` | 0.6 | How much a second hand on the gun tames recoil |
+| `TwoHandRecoilReduction` | 0.4 | How much a second hand on the gun tames recoil |
 | `WeaponWeight` | on | Long guns held in one hand droop and trail the wrist |
 | `FireSelector` | on | Semi/auto switching on automatic weapons |
 | `WeaponsWhileDriving` | on | Draw your weapon from the driver seat of cars |
