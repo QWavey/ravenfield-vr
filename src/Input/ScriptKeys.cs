@@ -50,6 +50,8 @@ namespace RavenfieldVR.Input
             public bool WasDown;
             /// <summary>A tap cut into a hold (Shift while sprinting): the hold is still on under the tap (see Tap).</summary>
             public bool HeldUnderTap;
+            /// <summary>A hold begun while the tap ran (a sprint started within its 80 ms): it takes over when the tap runs out.</summary>
+            public bool PressAfterTap;
             /// <summary>Script instance id -> the frame it first saw the edge in.</summary>
             public readonly Dictionary<int, int> DownDelivered = new Dictionary<int, int>();
             public readonly Dictionary<int, int> UpDelivered = new Dictionary<int, int>();
@@ -94,6 +96,7 @@ namespace RavenfieldVR.Input
             if (v.ReleaseAt == float.MaxValue)
             {
                 v.HeldUnderTap = v.Down;
+                v.PressAfterTap = false;
             }
             v.Down = true;
             v.WasDown = true;
@@ -128,6 +131,11 @@ namespace RavenfieldVR.Input
                 if (!held)
                 {
                     v.HeldUnderTap = false;
+                    v.PressAfterTap = false;
+                }
+                else if (!v.HeldUnderTap)
+                {
+                    v.PressAfterTap = true; // (see Update: pressed then for all but the tap's own script)
                 }
                 return;
             }
@@ -168,6 +176,27 @@ namespace RavenfieldVR.Input
                         v.Targeted = false;
                         v.ReleaseAt = float.MaxValue;
                         v.ChangeFrame = Time.frameCount - EdgeFrames - 1;
+                        continue;
+                    }
+                    if (v.PressAfterTap)
+                    {
+                        // A hold begun under the tap takes over with no release between. The tap's own script had its press:
+                        // released here and pressed again by SetHeld, it saw a second press and toggled twice (a fire mode on
+                        // Left Shift; round-4 scout). The others see the hold's press now; after a tap for every script, none
+                        // does (they had theirs).
+                        v.PressAfterTap = false;
+                        int tapFor = v.Targeted && !ReferenceEquals(v.Target, null) ? v.Target.GetInstanceID() : 0;
+                        bool targeted = v.Targeted;
+                        v.Target = null;
+                        v.Targeted = false;
+                        v.ReleaseAt = float.MaxValue;
+                        v.ChangeFrame = targeted ? Time.frameCount : Time.frameCount - EdgeFrames - 1;
+                        v.DownDelivered.Clear();
+                        v.UpDelivered.Clear();
+                        if (tapFor != 0)
+                        {
+                            v.DownDelivered[tapFor] = -1; // (delivered in no frame: Deliver answers false for it)
+                        }
                         continue;
                     }
                     v.Down = false;
