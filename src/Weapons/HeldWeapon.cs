@@ -2273,11 +2273,15 @@ namespace RavenfieldVR.Weapons
             if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off))
             {
                 // Not a hand holding the second weapon: its shape and grip class are that weapon's (wiped by a switch of the gun,
-                // a pistol in the free hand was then held as a rifle; second-weapon hunt, 2026-10-21).
+                // a pistol in the free hand was then held as a rifle; second-weapon hunt, 2026-10-21). Nor the glove and fingers of a
+                // hand holding a soldier: the body grab's (round-3 scout, 2026-10-28).
                 _system.Rig.Off.Model.WeaponSupportCurls = null;
-                _system.Rig.Off.Model.SnapPose = null;
-                _system.Rig.Off.Model.Solid = null;
                 _system.Rig.Off.Model.WeaponClass = WeaponClass.None;
+                if (_system.Rig.Off.Role != HandRole.Body)
+                {
+                    _system.Rig.Off.Model.SnapPose = null;
+                    _system.Rig.Off.Model.Solid = null;
+                }
             }
             foreach (Renderer r in Rig.ArmRenderers)
             {

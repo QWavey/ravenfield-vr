@@ -4924,7 +4924,17 @@ namespace RavenfieldVR.Core
 
                 // 13. A soldier's gun (Tasks 346): a hand swung through it knocks it aside, a squeeze under its middle pulls its magazine
                 // (he must reload), a squeeze toward its end wrests it from him (a second soldier: the first one's gun is empty).
+                // A soldier whose gun has rounds in a magazine to pull (not a blade, a grenade, an empty or single-round gun).
+                bool MagazineGun(Actor a)
+                {
+                    Weapon w = a != null ? a.activeWeapon : null;
+                    return w != null && w.configuration != null && w.configuration.ammo > 1 && w.ammo > 0 && !(w is MeleeWeapon) && !(w is ThrowableWeapon);
+                }
                 Actor gunman = Next(true);
+                for (int tries = 0; tries < 4 && gunman != null && !MagazineGun(gunman); tries++)
+                {
+                    gunman = Next(true);
+                }
                 yield return Bring(gunman, 0.9f, false, there);
                 Weapon hisGun = gunman != null ? gunman.activeWeapon : null;
                 if (!there[0] || off.Role != Rig.HandRole.Free || hisGun == null)
@@ -4958,7 +4968,7 @@ namespace RavenfieldVR.Core
                         yield return null;
                         Input.VRInput.SimulateGrabPress(off.Side);
                         yield return new WaitForSecondsRealtime(0.25f);
-                        bool emptied = hisGun != null && hisGun.ammo == 0;
+                        bool emptied = roundsBefore > 0 && hisGun != null && hisGun.ammo == 0;
                         bool inHand = off.Held is MagazineProp;
                         // (A tube, a break action or a launcher has no magazine to pull: the squeeze wrests the gun instead, as meant.)
                         bool wrestedInstead = hisGun == null || gunman.activeWeapon != hisGun;

@@ -380,8 +380,10 @@ namespace RavenfieldVR.Weapons
 
         private void TryTake(int i, VRHand hand, Actor player)
         {
-            // A fist swung at punching speed punches (MeleeHandler's blows), even with its grip just closed: a grab is a reach.
-            float punch = Mathf.Max(MeleeHandler.BlowSpeed, GrabMaxSpeed);
+            // A fist swung at punching speed punches (MeleeHandler's blows), even with its grip just closed: a grab is a reach. The
+            // punch's speed is the squeeze's own measure here as in the blows (SwungSpeed, Reaching): a reach squeezed at 3 m/s and
+            // kept at it was too fast to take and, a reach, no blow either (round-3 scout, 2026-10-28).
+            float punch = Mathf.Max(Mathf.Max(MeleeHandler.BlowSpeed, GrabMaxSpeed), SwungSpeed(i));
             if (hand.BodyRelativeVelocity.sqrMagnitude > punch * punch)
             {
                 WhyNot = $"too fast {hand.BodyRelativeVelocity.magnitude:0.0}";
@@ -852,11 +854,17 @@ namespace RavenfieldVR.Weapons
             {
                 _anchors[1 - i].GetComponent<GrabAnchor>().Bones = hold.Actor.ragdoll.rigidbodies; // the other hand carries him now
             }
-            if (hand != null && hand.Model != null && hold != null && hold.Bone != null && hand.Model.SolidAnchor == hold.Bone.transform)
+            if (hand != null && hand.Model != null && hold != null && !hold.Neck)
             {
-                hand.Model.Solid = null; // (its fingers off the bone it held, the glove back on the tracked hand: only what this hold set)
-                hand.Model.SolidAnchor = null;
+                // The glove back on the tracked hand, and its fingers off the bone it held (only what this hold set). Also with the bone
+                // already gone (a scene change: the soldiers went with the old level), when the glove stayed snapped where he had been
+                // in the next level (round-3 scout, 2026-10-28): a destroyed anchor reads as null.
                 hand.Model.SnapPose = null;
+                if (hand.Model.SolidAnchor == null || hold.Bone != null && hand.Model.SolidAnchor == hold.Bone.transform)
+                {
+                    hand.Model.Solid = null;
+                    hand.Model.SolidAnchor = null;
+                }
             }
             if (hand != null && hold != null && ReferenceEquals(hand.Held, hold.Actor))
             {
