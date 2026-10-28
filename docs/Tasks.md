@@ -2946,6 +2946,12 @@ array (debug option only).
       first step takes only the type list; a VR start begins the hold at step 0. Not done: the autotest's per-section
       allocations include the eye film's writer thread (autotest only). Open question for the user: thrown grenades, dropped
       guns and casings in slow motion still leave at the world's pace.
+- [x] Bug hunt round 10 (the hand model, the settings panel and wrist, drops/holsters/pouch, arm IK and body zones; 12 findings,
+      6 confirmed): a soldier's gun that cannot be copied is knocked aside and held off (the squeeze took the soldier), a gun whose
+      kind is not analysed yet is wrested and not emptied (a tube shotgun lost its rounds), the wrist shows the hold's steps with
+      the frame rate line off, the vignette stepper keeps its 10% grid from 35%, the gun pitch shows 2.5 degree steps, the hold's
+      button reads "Lower if slow" (the long label overflowed). Also: a CPU under 75% of its first minute's speed is said once in
+      the headset. Setup 1.14.1 rebuilt with all of it and installed (work-until-limit 70 reached at 71%).
 - [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
       given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
       weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
