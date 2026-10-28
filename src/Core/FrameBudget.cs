@@ -197,8 +197,23 @@ namespace RavenfieldVR.Core
             {
                 _firstCpuMs = best;
             }
-            return $"CPU speed {100.0 * _firstCpuMs / System.Math.Max(best, 1e-6):0}% of the session's first minute ({best:0.00} ms for a fixed sum)";
+            double percent = 100.0 * _firstCpuMs / System.Math.Max(best, 1e-6);
+            if (percent < SlowCpuPercent && !_slowCpuSaid)
+            {
+                // Said once in the headset too: the log alone was read only after the session (the user's frame rate fell to half
+                // over ten minutes of play, and nothing in the game said why).
+                _slowCpuSaid = true;
+                string why = $"Your processor runs at {percent:0}% of its speed at the start of the session: the frame rate falls with it. "
+                             + "Usually heat or a power-saving plan: set Windows to High performance and check the PC's cooling.";
+                Log.Info("Frame rate: " + why);
+                Log.Guard("CPU notice", () => VRManager.Instance?.UI?.Notice?.Show(why, 12f));
+            }
+            return $"CPU speed {percent:0}% of the session's first minute ({best:0.00} ms for a fixed sum)";
         }
+
+        /// <summary>Under this share of the first minute's speed, the slowing is said once in the headset.</summary>
+        private const double SlowCpuPercent = 75.0;
+        private static bool _slowCpuSaid;
 
         /// <summary>
         /// The game's collector: incremental in slices of up to 3 ms a frame (its boot.config gc-max-time-slice=3), a third of a
