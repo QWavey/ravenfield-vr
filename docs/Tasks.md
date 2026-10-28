@@ -2811,6 +2811,7 @@ array (debug option only).
 - [ ] (Built 2026-10-28: an impact counts at the lesser of its contact speed and its impulse over a 16 kg trunk bone, BodyImpacts.ImpactMass; within 0.15 s a harder blow adds the difference. Check in a game run: lifting and dragging hurt nothing, the soldier check's slam and throw still hurt.) The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
       body's mass), not by a light touch while it is lifted or dragged.
       ("troung" read as ground; if it meant the trunk, the same rule covers it: the hand's light touch on the lifted trunk is no blow.)
+      Sent again on 2026-10-28 (the same words, "touching the troung", the trunk reading): still this task, nothing new added.
       Check it first in the game run: lift a soldier, put his feet on the ground, and see whether he is hurt.
 
 ### 349. Work-until-limit 65 of 2026-10-28 (the game not started; all built, committed locally, nothing pushed)
@@ -2837,6 +2838,20 @@ array (debug option only).
   now log "Test run:"); a pulled magazine not telling the gun (a soldier with no rounds stood on his empty gun), goggles taken
   as the weapon to draw after a wrest, a squeeze just before the gun not counting; the seated hold's glove pinned after a
   let-go during tracking loss, the weapon arms not following the pinned glove. Refuted or stale: the rest.
+- Bug hunt round 4 (6 Haiku finders on areas the recent rounds left: input, rig and hands, UI, analysis, props and drops, core;
+  a skeptic each; 13 findings, 11 confirmed): fixed - the dashboard or headset pause lost to a level load (put back once in the
+  match); install and patch failures flat with no word on the screen (said now, OK only), dead controller input with no word
+  in the headset (HeadNotice, and on the monitor); the on-foot yaw taken from an untracked head (worked out again at the first
+  pose); a rig jump dropping the frame after it too (and, by the scout's own fix, every frame after it in a fast vehicle: one
+  frame now); the Game preset putting back the quality from VR start over one saved since; infinite-magazine guns (classed
+  NoAmmo) without their sights' eye point or a warm-up shape fit; a weapon in the warm-up when a content reload came marked
+  done with its analysis gone; left-handed binding texts naming the unmirrored hands; a sprint begun under a targeted Shift tap
+  pressing the tap's script twice. Open: hull meshes of cached shape pieces not destroyed on a content reload (already noted
+  under 251; the scout's one-frame-deferred Destroy would pull them from live colliders and drops). Refuted: a glove jump
+  between snap poses (no animation shown to cross the 12 cm test), a pickup into a slot whose weapon has no prefab (cannot
+  happen). Also: Tasks 1383 (a finger solve reads the hand's root once) and 1403 (the muzzle flash's lines to the eye stepped
+  only where they cross the gun's box) done, 1503 found done; the workflow agents the user's message was relayed to wrote it
+  in again as 345 and 351: folded into 350.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
