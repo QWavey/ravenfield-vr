@@ -2940,6 +2940,15 @@ array (debug option only).
       shadows from a few big casters only, or a shorter distance/cascade) and what is LOD bias 0.7 (more renderers drawn); measure
       each with the frame rate line in a headset session or the bench at 1508x1664. Also the 27 garbage collections in the first
       minute (loading?).
+- [ ] (2026-10-28, from the user's 15:14 log) The game's own screen cameras still cost about 0.7 ms of main thread a frame in VR
+      though they draw nothing (CameraSuppressor: culling mask 0 and no shadows while they render; they must stay enabled, the
+      game's logic reads camera.enabled): "Camera 0.33 ms (0.8x), FP Camera 0.12, Global Post-processing 0.11, First Person Model
+      Camera 0.10". What is left is per camera: the clear, image effects (OnRenderImage) and post-processing on a full-size target.
+      Try in a game run: their pixelRect shrunk to 1x1 for the render only (set in onPreCull, put back in onPostRender, as the
+      mask is), checked that the desktop mirror and the game's aim (ScreenPointToRay in Update) are unchanged, and measure those
+      cameras in the frame rate line before and after.
+- [x] (2026-10-28) The wrist says "CPU-bound" when frames are late with the GPU well inside the interval, and the hold no longer
+      lowers the render scale then (Tasks 349).
 
 ### 347. A magazine pushed in stays in the hand until the user lets go (user, 2026-10-27 night; built 2026-10-28, b220e4b: check in a game run)
 - [ ] When a magazine is inserted and seats, the hand stays on it (the glove on the seated magazine) until the user opens the
