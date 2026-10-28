@@ -399,7 +399,9 @@ namespace RavenfieldVR.Weapons
         {
             if (root != null && _ignoredBodies.Remove(root))
             {
-                SetIgnored(root, false);
+                // Not his limbs, which IgnoreColliders keeps ignored for the whole hold (StopIgnoringUnder frees them at the
+                // let-go): the trunk clear of the gun freed them too, and a leg swung into it was flung at the speed cap.
+                SetIgnored(root, false, _ignoredColliders);
             }
         }
 
@@ -501,8 +503,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The same against a body's colliders already in hand (a held body's, each frame it still touches the gun).</summary>
         internal bool Overlaps(IList<Collider> colliders)
         {
-            foreach (Collider c in colliders)
+            for (int i = 0; i < colliders.Count; i++) // (an index: foreach over the interface made an enumerator each frame)
             {
+                Collider c = colliders[i];
                 if (c == null || !c.enabled)
                 {
                     continue;
@@ -519,10 +522,14 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
-        private void SetIgnored(GameObject root, bool ignore)
+        private void SetIgnored(GameObject root, bool ignore, List<Collider> except = null)
         {
             foreach (Collider c in root.GetComponentsInChildren<Collider>())
             {
+                if (except != null && except.Contains(c))
+                {
+                    continue;
+                }
                 foreach (Collider b in _boxes)
                 {
                     // (Unity refuses a pair unless both are enabled and active.)
@@ -1081,6 +1088,13 @@ namespace RavenfieldVR.Weapons
                 _lastRigTurn = rigTurn;
                 _hasRigTurn = true;
             }
+            if (_driver.Jumped)
+            {
+                // The body jumped back onto the hand (held back 45 cm by a wall): what it landed in passes through as after a snap.
+                _driver.Jumped = false;
+                _placed = false;
+                _snapJumped = true;
+            }
             if (!_placed)
             {
                 // First frame: start on the gun instead of sweeping there through the world.
@@ -1304,6 +1318,9 @@ namespace RavenfieldVR.Weapons
         public Quaternion TargetRot = Quaternion.identity;
         public bool HasTarget;
 
+        /// <summary>Set when the body jumped back onto its target (held back past 45 cm); the collider takes it in its next Update.</summary>
+        public bool Jumped;
+
         /// <summary>Touching something solid that does not give way (the level, a vehicle, a body) in the last moment.</summary>
         public bool TouchingWorld => Time.time < _worldContactUntil;
         private float _worldContactUntil;
@@ -1358,6 +1375,7 @@ namespace RavenfieldVR.Weapons
                 Body.rotation = TargetRot;
                 Body.velocity = Vector3.zero;
                 Body.angularVelocity = Vector3.zero;
+                Jumped = true;
                 return;
             }
             Body.velocity = Vector3.ClampMagnitude(delta / dt, Time.time < _softUntil ? PressSpeed : MaxSpeed);
