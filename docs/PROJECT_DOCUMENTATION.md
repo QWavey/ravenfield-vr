@@ -1093,3 +1093,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    45 cm jump, a let-go body's bone pairs retried until they part, a launcher's shown rocket kept per launcher, the
    material repair cache cleared on a content reload, and vrshots/frame_report fixes (a timed-out run reported as partial,
    weapon sheets kept by the prune, the newest session read).
+13. **1.14.1** (built and installed, not published): the user's test of a 16:02 build found every weapon's analysis failing,
+   from round 7's weapon-overrides key regex ("\]" closed its class; the class's initializer threw on first use). Fixed within
+   minutes; OfflineTests now run every mod class's static initializer. Round 9: the buttons back to the main hand's layout
+   once no weapon is out, a soldier thrown in slow motion flying in real time (`RealTimeFlight.BeginGroup`, his bones as one;
+   impacts, the crush let-go and the armed caps at the world's pace), the VR keyboard's field, VSync and the frame cap put back
+   when VR stops. Open question for the user: grenades, dropped guns and casings in slow motion.
