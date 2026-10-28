@@ -179,6 +179,13 @@ namespace RavenfieldVR.Weapons
             {
                 _throwables.ForgetPulledPins(); // a new life's grenades come with their pins in
             }
+            // No weapon out at all (holstered, dropped, died): the buttons go back to the dominant hand's layout. A weapon drawn
+            // with the other hand swapped them, and they stayed swapped after it was put away: the map and squad buttons answered
+            // on the wrong hand (round 9 hunt). (Not while one is passed between hands: it stays the active weapon meanwhile.)
+            if (VRInput.GunHandSwapped && Held == null && (GameContext.PlayerActor == null || GameContext.PlayerActor.activeWeapon == null))
+            {
+                VRInput.SetGunHand(VRInput.Dominant);
+            }
             UpdateLooseProps();
             Drops.Update();
             FireSelector.Update();

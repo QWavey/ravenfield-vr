@@ -540,6 +540,7 @@ namespace RavenfieldVR.Input
             _lastActionStateError = EVRInputError.None;
             Move = Vector2.zero;
             TurnStick = Vector2.zero;
+            ResetGunHand();
         }
 
         /// <summary>
@@ -890,6 +891,9 @@ namespace RavenfieldVR.Input
             _ = GunHand; // settle the handedness first
             _gunHand = h;
         }
+
+        /// <summary>A new VR session starts with the weapon's buttons on the dominant hand.</summary>
+        private static void ResetGunHand() => _gunHand = _gunHandSetFor = Dominant;
 
         /// <summary>The weapon is in the hand that is not the dominant one: its buttons trade places (see <see cref="Slot"/>).</summary>
         public static bool GunHandSwapped => GunHand != Dominant;
