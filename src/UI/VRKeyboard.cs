@@ -42,6 +42,16 @@ namespace RavenfieldVR.UI
             }
             EventSystem es = EventSystem.current;
             GameObject selected = es != null ? es.currentSelectedGameObject : null;
+            // Another text field selected while the keyboard types for one: the selection goes back to that one, where Done writes
+            // the text (it wrote into the first field while the second showed selected, and the second's text was lost; round 9).
+            // The other field gets its own keyboard once this one closes. (Not hidden and reopened here: SteamVR's closed event for
+            // the old keyboard would arrive after the new one opened.)
+            if (_open && selected != null && _target != null && selected != _target
+                && (selected.GetComponent<InputField>() != null || selected.GetComponent<TMP_InputField>() != null))
+            {
+                es.SetSelectedGameObject(_target);
+                return;
+            }
             // The same field again only after a retry time: a field not yet editable, or a keyboard SteamVR could not show,
             // stayed latched and never got one (a shown keyboard latches for good, so closing it does not reopen it).
             if (_open || selected == null || selected == _target && Time.unscaledTime < _retryAt)
