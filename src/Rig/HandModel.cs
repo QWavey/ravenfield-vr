@@ -311,6 +311,7 @@ namespace RavenfieldVR.Rig
             buried = 0;
             samples = 0;
             fingersTouching = 0;
+            _chainRoot = _root.localToWorldMatrix;
             for (int f = 0; f < 5; f++)
             {
                 Chain(f, _joint[f, 0], _joint[f, 1], _joint[f, 2]);
@@ -1155,11 +1156,12 @@ namespace RavenfieldVR.Rig
         /// <summary>How far along the palm's normal the palm has to move to just touch the model (negative: out of it).</summary>
         private float PalmOffset(Vector3 n)
         {
-            if (PalmTouches(n, 0f))
+            Matrix4x4 m = _root.localToWorldMatrix; // (read once: up to 21 tests at this one root pose)
+            if (PalmTouches(m, n, 0f))
             {
                 for (float o = -0.002f; o >= -0.04f; o -= 0.002f)
                 {
-                    if (!PalmTouches(n, o))
+                    if (!PalmTouches(m, n, o))
                     {
                         return o;
                     }
@@ -1168,7 +1170,7 @@ namespace RavenfieldVR.Rig
             }
             for (float o = 0.002f; o <= 0.0201f; o += 0.002f)
             {
-                if (PalmTouches(n, o))
+                if (PalmTouches(m, n, o))
                 {
                     return o - 0.002f;
                 }
@@ -1252,9 +1254,8 @@ namespace RavenfieldVR.Rig
             return moved;
         }
 
-        private bool PalmTouches(Vector3 normal, float offset)
+        private bool PalmTouches(Matrix4x4 m, Vector3 normal, float offset)
         {
-            Matrix4x4 m = _root.localToWorldMatrix;
             Vector3 shift = normal * offset;
             foreach (Vector3 p in PalmSkin)
             {
@@ -1275,6 +1276,7 @@ namespace RavenfieldVR.Rig
         private void SolveFinger(int f, float goal, float lockedKnuckle = -1f)
         {
             const int Steps = 10;
+            _chainRoot = _root.localToWorldMatrix; // (the root stays put through the solve: some 20-30 chains read it once)
             // A thumb (or a support hand's finger) that starts inside what the hand holds is first opened out of it, a
             // little past straight, and closes from there: otherwise it stayed inside (the support thumb stood up through a
             // handguard) because segments that start inside never stop a finger.
@@ -1366,10 +1368,13 @@ namespace RavenfieldVR.Rig
             return -1;
         }
 
+        /// <summary>The root's pose for <see cref="Chain"/>, read at the start of each solve (<see cref="SolveFinger"/>, <see cref="Measure"/>).</summary>
+        private Matrix4x4 _chainRoot;
+
         /// <summary>Joint and tip positions of finger <paramref name="f"/> (world) for these curls, into <see cref="_chain"/>.</summary>
         private void Chain(int f, float c0, float c1, float c2)
         {
-            Matrix4x4 m = _root.localToWorldMatrix;
+            Matrix4x4 m = _chainRoot;
             Vector3 p = _knuckle[f];
             Quaternion r = Quaternion.identity;
             _chain[0] = m.MultiplyPoint3x4(p);
