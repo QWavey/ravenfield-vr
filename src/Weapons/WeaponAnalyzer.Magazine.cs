@@ -268,12 +268,23 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (firstByName != null)
                 {
-                    // Measured before it is changed (unswept-areas hunt, 2026-10-24): the first name match was dropped and the
-                    // next one is never tried; named here so a run shows which guns would get a magazine that way.
+                    // The first name match dropped (on the slide, hidden at rest, a casing's size), the next one that passes is taken:
+                    // only the first was ever tried, and a visible magazine further on gave way to an invisible well (round-7 scout;
+                    // logged since 2026-10-24). Near the grip only: a gun with no reload has no seat correction after this, so a part
+                    // far off would be seated where it rests.
                     Transform next = NextMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot, beltFed, firstByName, slide, sampler);
                     if (next != null)
                     {
-                        d.Notes += $"(the name search dropped '{firstByName.name}'; '{next.name}' is named like a magazine too and would pass) ";
+                        Vector3 atGun = sampler.Idle(gunBody).Inverse().TransformPoint(sampler.Idle(next).position);
+                        if ((atGun - d.GripPoint).magnitude <= 0.45f)
+                        {
+                            mag = next;
+                            d.MagMethod = $"name '{next.name}' (the first named, '{firstByName.name}', did not pass)";
+                        }
+                        else
+                        {
+                            d.Notes += $"(the name search dropped '{firstByName.name}'; '{next.name}' is named like a magazine too but lies {(atGun - d.GripPoint).magnitude:0.00} m from the grip) ";
+                        }
                     }
                 }
             }

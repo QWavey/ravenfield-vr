@@ -81,6 +81,13 @@ namespace RavenfieldVR.Weapons
         private static bool HasRendererInSubtree(Transform t) =>
             t.GetComponentInChildren<MeshRenderer>(true) != null || t.GetComponentInChildren<SkinnedMeshRenderer>(true) != null;
 
+        /// <summary>
+        /// The weapon being analysed has no muzzle of its own: its largest mesh stands in (GeometricMuzzleHost). That mesh is the
+        /// receiver, not a flash or a barrel tip, so the parts under it (slide, bolt, magazine) are not left out with it: they were,
+        /// and such a gun had no moving part and an invisible magazine well (round-7 scout). Set in Analyze, put back after each.
+        /// </summary>
+        [ThreadStatic] private static bool _muzzleIsGeometric;
+
         private static bool IsPartCandidate(Transform t, Transform root, Transform gunBody, Transform muzzle,
             HashSet<Transform> armRelated, HashSet<Transform> gunBones)
         {
@@ -88,7 +95,7 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            if (muzzle != null && muzzle != gunBody && (t == muzzle || t.IsChildOf(muzzle)))
+            if (muzzle != null && muzzle != gunBody && (t == muzzle || !_muzzleIsGeometric && t.IsChildOf(muzzle)))
             {
                 return false;
             }
@@ -735,7 +742,9 @@ namespace RavenfieldVR.Weapons
                 warnings.Add("barrel direction: no mesh to measure, the weapon's forward axis is used");
                 return forwardGun.normalized;
             }
-            Vector3 size = Vector3.Scale(mf.sharedMesh.bounds.size, host.lossyScale);
+            // (Unsigned: a mirrored host's negative scale on its longest axis left that axis out, and the barrel ran across the gun;
+            // round-7 scout. The sign comes back from the check against the weapon's forward below.)
+            Vector3 size = Abs(Vector3.Scale(mf.sharedMesh.bounds.size, host.lossyScale));
             Vector3 local = size.x >= size.y && size.x >= size.z ? Vector3.right : size.y >= size.z ? Vector3.up : Vector3.forward;
             Vector3 axis = gunIdle.InverseTransformDirection(sampler.Idle(host).TransformDirection(local)).normalized;
             return Vector3.Dot(axis, forwardGun) < 0f ? -axis : axis;

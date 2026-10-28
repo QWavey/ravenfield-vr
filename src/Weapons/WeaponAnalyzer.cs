@@ -174,18 +174,21 @@ namespace RavenfieldVR.Weapons
             // the entry knows it.
             int slot = w.slot >= 0 ? w.slot : entry != null ? (int)entry.slot : -1;
             WeaponRigData data;
+            bool geometricBefore = _muzzleIsGeometric;
             try
             {
                 data = Analyze(w, key, slot);
             }
             catch (Exception e)
             {
+                _muzzleIsGeometric = false; // (the fallback's searches as any weapon's)
                 Log.Exception($"Weapon analysis failed for {key}; using geometric fallback", e);
                 data = Fallback(w, key, slot);
                 data.Warnings.Add("analysis threw " + e.GetType().Name + ": " + e.Message);
                 Failed.Add(key);
                 FailCounts[key] = (FailCounts.TryGetValue(key, out int tries) ? tries : 0) + 1;
             }
+            _muzzleIsGeometric = geometricBefore; // (an analysis within another's leaves the outer one's as it was)
             WeaponOverrides.Apply(w, data);
             if (data.ExportGlb != null)
             {
@@ -577,6 +580,7 @@ namespace RavenfieldVR.Weapons
 
             // --- muzzle and gun body: topmost non-arm transform above the muzzle --------------------
             Transform muzzle = FindMuzzle(w, armRelated, out string muzzleMethod);
+            _muzzleIsGeometric = false;
             if (muzzleMethod == "root")
             {
                 Transform geometric = GeometricMuzzleHost(root, armRelated);
@@ -584,6 +588,7 @@ namespace RavenfieldVR.Weapons
                 {
                     muzzle = geometric;
                     muzzleMethod = "geometry";
+                    _muzzleIsGeometric = true; // (the parts under the receiver mesh stay candidates: IsPartCandidate)
                 }
                 d.Warnings.Add("no muzzle configured; barrel direction estimated from the mesh");
             }
