@@ -349,12 +349,20 @@ namespace RavenfieldVR.Weapons
             RestoreSelfPairs();
         }
 
-        private struct SelfPairs
+        private sealed class SelfPairs
         {
             public Actor Actor;
             public Collider[] Colliders;
             public float At;
+
+            /// <summary>The pairs still ignored (x &lt;&lt; 8 | y; null before the first pass), each tried again until they part.</summary>
+            public List<int> Pending;
+
+            public float Next;
         }
+
+        /// <summary>How long after its time a body's pairs still overlapping are tried again (then left ignored: a joint's pair).</summary>
+        private const float SelfPairsRetry = 2f;
 
         /// <summary>
         /// Bodies let go whose bones still ignore one another (they do while held: <see cref="TryTake"/>), and from when they collide
@@ -367,43 +375,65 @@ namespace RavenfieldVR.Weapons
         /// pairs overlapping just then (made to collide while inside each other, PhysX would push them apart at once: a jolt). A body
         /// taken again meanwhile keeps them ignored (that hold's own). Bones joined by a joint still do not meet: their joint says so.
         /// </summary>
-        private void RestoreSelfPairs()
+        private void RestoreSelfPairs(bool now = false)
         {
             for (int n = _selfPairs.Count - 1; n >= 0; n--)
             {
                 SelfPairs s = _selfPairs[n];
-                if (s.Actor != null && Time.time < s.At)
+                if (!now && s.Actor != null && (Time.time < s.At || Time.time < s.Next))
                 {
                     continue;
                 }
-                _selfPairs.RemoveAt(n);
                 if (s.Actor == null || s.Actor.ragdoll == null || !s.Actor.ragdoll.IsRagdoll() || IsHeld(s.Actor))
                 {
+                    _selfPairs.RemoveAt(n);
                     continue; // (gone, stood up (the pairs went with it), or held again)
                 }
-                Collider[] own = s.Colliders;
-                for (int x = 0; x < own.Length; x++)
+                // Pairs overlapping just then are tried again every 0.1 s until they part (restored once only, a limb resting in
+                // its own trunk at that moment stayed through it for as long as he lay there), for two seconds at most.
+                s.Next = Time.time + 0.1f;
+                if (TryPairs(s) || now || Time.time > s.At + SelfPairsRetry)
                 {
-                    Collider a = own[x];
-                    if (a == null || !a.enabled || !a.gameObject.activeInHierarchy)
+                    _selfPairs.RemoveAt(n);
+                }
+            }
+        }
+
+        /// <summary>Collides again each pending pair not overlapping now; true when none is left.</summary>
+        private static bool TryPairs(SelfPairs s)
+        {
+            Collider[] own = s.Colliders;
+            if (s.Pending == null)
+            {
+                s.Pending = new List<int>(own.Length * own.Length / 2);
+                for (int x = 0; x < own.Length && x < 256; x++)
+                {
+                    for (int y = x + 1; y < own.Length && y < 256; y++)
                     {
-                        continue;
-                    }
-                    for (int y = x + 1; y < own.Length; y++)
-                    {
-                        Collider b = own[y];
-                        if (b == null || !b.enabled || !b.gameObject.activeInHierarchy)
-                        {
-                            continue;
-                        }
-                        Transform ta = a.transform, tb = b.transform;
-                        if (!Physics.ComputePenetration(a, ta.position, ta.rotation, b, tb.position, tb.rotation, out _, out _))
-                        {
-                            Physics.IgnoreCollision(a, b, false);
-                        }
+                        s.Pending.Add(x << 8 | y);
                     }
                 }
             }
+            for (int k = s.Pending.Count - 1; k >= 0; k--)
+            {
+                Collider a = own[s.Pending[k] >> 8], b = own[s.Pending[k] & 0xFF];
+                if (a == null || b == null)
+                {
+                    s.Pending.RemoveAt(k); // (gone with its bone)
+                    continue;
+                }
+                if (!a.enabled || !b.enabled || !a.gameObject.activeInHierarchy || !b.gameObject.activeInHierarchy)
+                {
+                    continue; // (Unity refuses the pair while either is off: kept for a later pass)
+                }
+                Transform ta = a.transform, tb = b.transform;
+                if (!a.bounds.Intersects(b.bounds) || !Physics.ComputePenetration(a, ta.position, ta.rotation, b, tb.position, tb.rotation, out _, out _))
+                {
+                    Physics.IgnoreCollision(a, b, false);
+                    s.Pending.RemoveAt(k);
+                }
+            }
+            return s.Pending.Count == 0;
         }
 
         /// <summary>
@@ -937,6 +967,11 @@ namespace RavenfieldVR.Weapons
             {
                 if (hold.Joint != null)
                 {
+                    // Freed before it goes (Destroy waits for the frame's end: a let-go from a physics callback, a crush, kept
+                    // pulling the bone to the palm for the steps still to run).
+                    hold.Joint.xMotion = hold.Joint.yMotion = hold.Joint.zMotion = ConfigurableJointMotion.Free;
+                    hold.Joint.slerpDrive = default;
+                    hold.Joint.projectionMode = JointProjectionMode.None;
                     Object.Destroy(hold.Joint);
                 }
                 // Still held by the other hand: stays armed (not for 3 s only) and down; the other hand's let-go throws.
@@ -953,6 +988,15 @@ namespace RavenfieldVR.Weapons
                     {
                         if (hold.Colliders != null)
                         {
+                            // Only this let-go's time counts: an earlier one's falling due restored his pairs while this throw
+                            // still had him armed (taken again and thrown within the 3 s).
+                            for (int k = _selfPairs.Count - 1; k >= 0; k--)
+                            {
+                                if (_selfPairs[k].Actor == a)
+                                {
+                                    _selfPairs.RemoveAt(k);
+                                }
+                            }
                             _selfPairs.Add(new SelfPairs { Actor = a, Colliders = hold.Colliders, At = Time.time + ImpactsAfterThrow });
                         }
                         BodyImpacts.Arm(a, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
@@ -1106,6 +1150,9 @@ namespace RavenfieldVR.Weapons
                 _instance = null;
             }
             ReleaseAll();
+            // VR stopping, the game going on flat: no Update restores the let-go bodies' pairs from here, so now (those
+            // overlapping just now stay ignored).
+            RestoreSelfPairs(now: true);
             foreach (Rigidbody a in _anchors)
             {
                 if (a != null)
