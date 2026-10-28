@@ -124,12 +124,24 @@ namespace RavenfieldVR.Weapons
         {
             foreach (Transform t in all)
             {
-                if (IsMagName(t.name, launcher) && !(beltFed && IsBeltPiece(t.name)) && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                if (IsMagName(t.name, launcher) && !(beltFed && IsBeltPiece(t.name)) && !OfAnotherWeapon(t, root, gunBody)
+                    && IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     return t;
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// A part of an under-barrel weapon (its own Weapon below this one's root) that does not hold this gun's body: the searches by
+        /// name took its "Slide" or "Magazine" for this gun's, and the gun racked a part of the launcher under its barrel (round-7
+        /// scout). Each such weapon is analysed with its own root. (Motion still finds a part of this gun's that hangs under one.)
+        /// </summary>
+        private static bool OfAnotherWeapon(Transform t, Transform root, Transform gunBody)
+        {
+            Weapon owner = t.GetComponentInParent<Weapon>();
+            return owner != null && owner.transform != root && !gunBody.IsChildOf(owner.transform);
         }
 
         /// <summary>Named like a slide but not one: a catch, release, stop, button, selector, safety, carry handle, sling.</summary>
@@ -149,7 +161,8 @@ namespace RavenfieldVR.Weapons
             Transform weak = null, charging = null;
             foreach (Transform t in all)
             {
-                if (!SlideName.IsMatch(t.name) || NotSlideName.IsMatch(t.name) || MagName.IsMatch(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
+                if (!SlideName.IsMatch(t.name) || NotSlideName.IsMatch(t.name) || MagName.IsMatch(t.name) || OfAnotherWeapon(t, root, gunBody)
+                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones))
                 {
                     continue;
                 }
@@ -282,7 +295,8 @@ namespace RavenfieldVR.Weapons
                     past = true;
                     continue;
                 }
-                if (!past || !IsMagName(t.name, launcher) || beltFed && IsBeltPiece(t.name) || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones)
+                if (!past || !IsMagName(t.name, launcher) || beltFed && IsBeltPiece(t.name) || OfAnotherWeapon(t, root, gunBody)
+                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones)
                     || slide != null && (t == slide || t.IsChildOf(slide)) || !ShownAtIdle(t, sampler))
                 {
                     continue;

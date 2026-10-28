@@ -84,7 +84,9 @@ namespace RavenfieldVR.Weapons
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
         {
             // Belt-fed by its size (the feed cover is found after this): a box of 40 rounds or more on an automatic gun.
-            bool beltFed = w.configuration != null && w.configuration.ammo >= 40 && w.configuration.auto;
+            // (As authored, not the live fire mode: analysed while the player had it on semi, its belt was taken for its magazine and
+            // kept for the session, as the rest of the analysis reads it since 251.12; round-7 scout.)
+            bool beltFed = w.configuration != null && w.configuration.ammo >= 40 && AuthoredAuto(w);
             Transform mag = null;
             bool toggles = false;
             if (sampler.HasReload)
