@@ -78,6 +78,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            GatherClose(player);
             for (int i = 0; i < 2; i++)
             {
                 VRHand hand = _rig.Hands[i];
@@ -92,7 +93,7 @@ namespace RavenfieldVR.Weapons
                     HoldGunOff(i, hand, palm);
                     continue;
                 }
-                if (!NearestGun(palm, player, out Actor soldier, out Weapon gun, out float distance) || distance > Reach)
+                if (!NearestGun(palm, out Actor soldier, out Weapon gun, out float distance) || distance > Reach)
                 {
                     continue;
                 }
@@ -124,20 +125,55 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The soldier's gun nearest a point, on his feet with it out: its distance from the point (m, 0 inside it).</summary>
-        private static bool NearestGun(Vector3 point, Actor player, out Actor soldier, out Weapon gun, out float distance)
+        /// <summary>The soldiers on their feet near either hand this frame, with their positions (<see cref="GatherClose"/>).</summary>
+        private static readonly List<Actor> Close = new List<Actor>();
+        private static readonly List<Vector3> CloseAt = new List<Vector3>();
+
+        /// <summary>
+        /// One pass over the match's soldiers a frame for both hands: those within <see cref="LookWithin"/> of either palm (taken
+        /// from the palms' midpoint, out to the reach plus half the palms' distance apart: no soldier near a palm is left out).
+        /// Each hand went over every soldier itself, two native position reads each a frame with a hundred bots and more.
+        /// </summary>
+        private void GatherClose(Actor player)
+        {
+            Close.Clear();
+            CloseAt.Clear();
+            VRHand left = _rig.Hands[0], right = _rig.Hands[1];
+            bool l = left != null && left.Tracked && _holdingGunOf[0] == null, r = right != null && right.Tracked && _holdingGunOf[1] == null;
+            if (!l && !r)
+            {
+                return;
+            }
+            Vector3 a0 = l ? left.PalmCentre : right.PalmCentre, a1 = r ? right.PalmCentre : left.PalmCentre;
+            Vector3 mid = (a0 + a1) * 0.5f;
+            float within = LookWithin + (a1 - a0).magnitude * 0.5f;
+            foreach (Actor a in ActorManager.instance.actors)
+            {
+                if (a == null || a == player || a.dead || !a.aiControlled || a.IsSeated())
+                {
+                    continue;
+                }
+                Vector3 at = a.transform.position;
+                if ((at - mid).sqrMagnitude > within * within || a.ragdoll != null && a.ragdoll.IsRagdoll())
+                {
+                    continue; // (down: the gun is not in his hands)
+                }
+                Close.Add(a);
+                CloseAt.Add(at);
+            }
+        }
+
+        private static bool NearestGun(Vector3 point, out Actor soldier, out Weapon gun, out float distance)
         {
             soldier = null;
             gun = null;
             distance = float.MaxValue;
-            foreach (Actor a in ActorManager.instance.actors)
+            for (int n = 0; n < Close.Count; n++)
             {
-                if (a == null || a == player || a.dead || !a.aiControlled || a.IsSeated() || (a.transform.position - point).sqrMagnitude > LookWithin * LookWithin)
+                Actor a = Close[n];
+                if ((CloseAt[n] - point).sqrMagnitude > LookWithin * LookWithin)
                 {
                     continue;
-                }
-                if (a.ragdoll != null && a.ragdoll.IsRagdoll())
-                {
-                    continue; // down: the gun is not in his hands
                 }
                 Weapon w = a.activeWeapon;
                 if (w == null || w.thirdPersonTransform == null || !ShapeOf(w, out Bounds local))
@@ -450,6 +486,8 @@ namespace RavenfieldVR.Weapons
         {
             Shapes.Clear();
             Knocks.Clear();
+            Close.Clear(); // (no soldier of the old scene held)
+            CloseAt.Clear();
         }
     }
 
