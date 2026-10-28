@@ -82,9 +82,10 @@ namespace RavenfieldVR.Core
             if (_shortSeconds >= ShortWindow)
             {
                 RecentPercent = Mathf.RoundToInt(100f * _shortWithin / _shortFrames);
-                GraphicsPresets.OnRecentFrames(RecentPercent);
                 RecentHz = Mathf.RoundToInt(1000f / _budgetMs);
                 RecentGpuTenths = _shortGpuFrames > 0 ? Mathf.RoundToInt(10f * _shortGpuMs / _shortGpuFrames) : -1;
+                // (after this window's GPU time: the hold weighed the window before's)
+                GraphicsPresets.OnRecentFrames(RecentPercent, RecentGpuTenths >= 0 ? RecentGpuTenths / 10f : -1f, _budgetMs);
                 _shortFrames = _shortWithin = _shortGpuFrames = 0;
                 _shortSeconds = _shortGpuMs = 0f;
             }

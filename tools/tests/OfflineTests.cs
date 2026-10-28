@@ -104,6 +104,28 @@ namespace RavenfieldVR.Tests
             NoticeWrapTests(mod);
             ToolClassTests(mod);
             RackPointFileTests(mod);
+            RenderScaleHoldTests(mod);
+        }
+
+        /// <summary>
+        /// The frame rate hold's last step, the render scale, only when the GPU is the cause (GraphicsPresets.RenderScaleHelps): the
+        /// user's CPU-bound Medium (GPU 3.3 ms of 11.1) kept its full scale, a GPU near the budget lowers it, hysteresis between.
+        /// </summary>
+        private static void RenderScaleHoldTests(System.Reflection.Assembly mod)
+        {
+            Type presets = mod.GetType("RavenfieldVR.Core.GraphicsPresets");
+            System.Reflection.MethodInfo helps = presets?.GetMethod("RenderScaleHelps", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(helps != null, "Render scale hold: RenderScaleHelps found");
+            if (helps == null)
+            {
+                return;
+            }
+            bool H(float gpu, float budget, bool taken) => (bool)helps.Invoke(null, new object[] { gpu, budget, taken });
+            Check(!H(3.3f, 11.1f, false), "Render scale hold: GPU 3.3 of 11.1 ms (the user's Medium) is CPU-bound, the scale kept");
+            Check(H(9.5f, 11.1f, false), "Render scale hold: GPU 9.5 of 11.1 ms lowers the scale");
+            Check(H(6f, 11.1f, true) && !H(6f, 11.1f, false), "Render scale hold: 6 of 11.1 ms keeps a lowered scale but does not lower it (hysteresis)");
+            Check(!H(4.5f, 11.1f, true), "Render scale hold: 4.5 of 11.1 ms gives a lowered scale back");
+            Check(H(-1f, 11.1f, false) && H(3f, 0f, false), "Render scale hold: the GPU not timed (or no budget yet) lowers it as before");
         }
 
         /// <summary>

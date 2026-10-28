@@ -148,7 +148,22 @@ namespace RavenfieldVR.Core
         /// Thirty seconds at 98% or more: a step back up, and if that step is taken back within 15 s, the next waits twice as long (up
         /// to two minutes), so it does not see-saw on the edge.
         /// </summary>
-        internal static void OnRecentFrames(int percentOnTime)
+        /// <summary>
+        /// Whether the last step (the render scale, the GPU's lever) helps: with the GPU timed well inside the refresh interval the
+        /// frames are late for the CPU, and fewer pixels only blur the view (the user's Medium: the GPU at 3.3 ms of 11.1 ms, frames
+        /// at half rate). Taken at 70% of the interval or more, given back under 45% once taken (about 62% at the full scale: no
+        /// see-saw). The GPU not timed (-1): it may help, as before.
+        /// </summary>
+        internal static bool RenderScaleHelps(float gpuMs, float budgetMs, bool taken)
+        {
+            if (gpuMs < 0f || budgetMs <= 0f)
+            {
+                return true;
+            }
+            return gpuMs >= budgetMs * (taken ? 0.45f : 0.7f);
+        }
+
+        internal static void OnRecentFrames(int percentOnTime, float gpuMs = -1f, float budgetMs = 0f)
         {
             bool on = VRConfig.HoldFrameRate.Value && Profiles.ContainsKey(VRConfig.Graphics.Value);
             if (!on)
@@ -166,7 +181,18 @@ namespace RavenfieldVR.Core
             float now = Time.unscaledTime;
             _missedWindows = percentOnTime < 85 ? _missedWindows + 1 : 0;
             _roomyWindows = percentOnTime >= 98 ? _roomyWindows + 1 : 0;
-            if (_missedWindows >= 2 && HoldLevel < HoldSteps)
+            if (HoldLevel == HoldSteps && !RenderScaleHelps(gpuMs, budgetMs, true))
+            {
+                HoldLevel--;
+                _lastStepUp = now;
+                ApplyRenderScaleIfHeld();
+                _missedWindows = _roomyWindows = 0;
+                Log.Info($"Frame rate: the GPU at {gpuMs:0.0} ms of {budgetMs:0.0} ms, the frames late for the CPU: the render scale back (step {HoldLevel} of {HoldSteps}).");
+                Apply();
+                return;
+            }
+            int deepest = HoldLevel == HoldSteps - 1 && !RenderScaleHelps(gpuMs, budgetMs, false) ? HoldSteps - 1 : HoldSteps;
+            if (_missedWindows >= 2 && HoldLevel < deepest)
             {
                 if (now - _lastStepUp < 15f)
                 {
