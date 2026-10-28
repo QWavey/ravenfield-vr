@@ -338,6 +338,7 @@ namespace RavenfieldVR.Core
                 if (VRManager.Active)
                 {
                     yield return PresetSwitchCheck();
+                    yield return HoldStepCheck();
                 }
                 if (VRManager.Active && !VRConfig.BodyShadow.Value && LocalPlayer.controller != null && LocalPlayer.controller.thirdpersonRenderers != null)
                 {
@@ -641,6 +642,58 @@ namespace RavenfieldVR.Core
             {
                 VRConfig.Graphics.Value = savedPreset;
                 VRConfig.RenderScale.Value = savedScale; // (a preset picked sets its own scale: the player's kept)
+            }
+        }
+
+        /// <summary>
+        /// The frame rate hold's steps on made-up windows (Medium, the hold on): late frames with the GPU at 3.3 of 11.1 ms (the
+        /// user's CPU-bound Medium) hold the preset down to step 5 and never lower the render scale; with the GPU at 10 ms the last
+        /// step lowers it; the GPU back at 4 ms gives it back. The hold, the preset and the scale are put back after.
+        /// </summary>
+        private static IEnumerator HoldStepCheck()
+        {
+            GraphicsPreset savedPreset = VRConfig.Graphics.Value;
+            float savedScale = VRConfig.RenderScale.Value;
+            bool savedHold = VRConfig.HoldFrameRate.Value;
+            try
+            {
+                VRConfig.Graphics.Value = GraphicsPreset.Medium;
+                VRConfig.HoldFrameRate.Value = true;
+                yield return null;
+                float full = UnityEngine.XR.XRSettings.eyeTextureResolutionScale;
+                for (int i = 0; i < 16; i++)
+                {
+                    GraphicsPresets.OnRecentFrames(40, 3.3f, 11.1f);
+                }
+                int cpuLevel = GraphicsPresets.HoldLevel;
+                float cpuScale = UnityEngine.XR.XRSettings.eyeTextureResolutionScale;
+                for (int i = 0; i < 4; i++)
+                {
+                    GraphicsPresets.OnRecentFrames(40, 10f, 11.1f);
+                }
+                int gpuLevel = GraphicsPresets.HoldLevel;
+                float gpuScale = UnityEngine.XR.XRSettings.eyeTextureResolutionScale;
+                GraphicsPresets.OnRecentFrames(40, 4f, 11.1f);
+                int backLevel = GraphicsPresets.HoldLevel;
+                float backScale = UnityEngine.XR.XRSettings.eyeTextureResolutionScale;
+                bool ok = cpuLevel == 5 && Mathf.Approximately(cpuScale, full) && gpuLevel == 6 && gpuScale < full - 0.01f
+                          && backLevel == 5 && Mathf.Approximately(backScale, full);
+                string line = string.Format(CultureInfo.InvariantCulture,
+                    "frame rate hold: CPU-bound windows held it to step {0} at scale {1:0.00} (of {2:0.00}), GPU-bound to step {3} at {4:0.00}, the GPU back under the line to step {5} at {6:0.00}{7}",
+                    cpuLevel, cpuScale, full, gpuLevel, gpuScale, backLevel, backScale, ok ? "" : " (NOT HELD RIGHT: the render scale lowered for the CPU, or not for the GPU)");
+                Results.Add(line);
+                if (!ok)
+                {
+                    Problem("[presets] " + line);
+                }
+            }
+            finally
+            {
+                VRConfig.HoldFrameRate.Value = false;
+                GraphicsPresets.OnRecentFrames(100); // (off: the hold back to step 0, the scale as set)
+                VRConfig.HoldFrameRate.Value = savedHold;
+                VRConfig.Graphics.Value = savedPreset;
+                VRConfig.RenderScale.Value = savedScale;
             }
         }
 
