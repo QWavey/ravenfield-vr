@@ -335,6 +335,10 @@ namespace RavenfieldVR.Core
                         Problem($"[spawn] the player spawned holding {inHand.name} (SpawnEmptyHanded is on)");
                     }
                 }
+                if (VRManager.Active)
+                {
+                    yield return PresetSwitchCheck();
+                }
                 if (VRManager.Active && !VRConfig.BodyShadow.Value && LocalPlayer.controller != null && LocalPlayer.controller.thirdpersonRenderers != null)
                 {
                     // The player's own body and its shadow hidden on foot (its shadow crossed the hands; task 336).
@@ -600,6 +604,44 @@ namespace RavenfieldVR.Core
                 Metric("magazine solid: longest main-thread frame ms", shown.Volume.RenderFrameMs);
             }
             report($"{name}: magazine hand {magHand}");
+        }
+
+        /// <summary>
+        /// Switched from a preset back to Game in play, the game's own quality comes back: the user's play of 2026-10-28 kept Medium's
+        /// shadows, MSAA and LOD under the Game preset (Unity ignores re-applying the Quality level already set). Game, Medium, Game
+        /// again, through the setting as the panel changes it; the saved preset and render scale are put back after.
+        /// </summary>
+        private static IEnumerator PresetSwitchCheck()
+        {
+            GraphicsPreset savedPreset = VRConfig.Graphics.Value;
+            float savedScale = VRConfig.RenderScale.Value;
+            string Quality() => string.Format(CultureInfo.InvariantCulture, "shadows {0} {1:0} m, MSAA {2}x, LOD {3:0.0#}, lights {4}",
+                QualitySettings.shadows, QualitySettings.shadowDistance, QualitySettings.antiAliasing, QualitySettings.lodBias, QualitySettings.pixelLightCount);
+            try
+            {
+                VRConfig.Graphics.Value = GraphicsPreset.Game; // (the change applies it: GraphicsPresets.OnPresetChanged)
+                yield return null;
+                string game = Quality();
+                VRConfig.Graphics.Value = GraphicsPreset.Medium;
+                yield return null;
+                string medium = Quality();
+                VRConfig.Graphics.Value = GraphicsPreset.Game;
+                yield return null;
+                string back = Quality();
+                bool kept = back != game;
+                string line = $"preset switch in play: Game ({game}), Medium ({medium}), Game again ({back}){(kept ? " (NOT PUT BACK: the game's own quality was lost)" : "")}"
+                              + (medium == game ? " (Medium changed nothing: not measured)" : "");
+                Results.Add(line);
+                if (kept)
+                {
+                    Problem("[presets] " + line);
+                }
+            }
+            finally
+            {
+                VRConfig.Graphics.Value = savedPreset;
+                VRConfig.RenderScale.Value = savedScale; // (a preset picked sets its own scale: the player's kept)
+            }
         }
 
         /// <summary>
