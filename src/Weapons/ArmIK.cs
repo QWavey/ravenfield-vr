@@ -98,6 +98,13 @@ namespace RavenfieldVR.Weapons
                     // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
                     // was not (bug hunt 251.7).
                     off.Model.PlacedFromTracked(out RigidPose tracked, out RigidPose placed);
+                    if (off.Role == HandRole.Magazine && off.Model.SnapPose.HasValue)
+                    {
+                        // The glove pinned on a magazine it pushed home (ReloadInteractions' seated hold): the arm goes where the glove
+                        // is drawn, not to the controller (round-3 scout, 2026-10-28).
+                        placed = off.Model.SnapPose.Value;
+                        tracked = off.Model.TrackedGlovePose;
+                    }
                     Quaternion turn = placed.rotation * Runtime.RigidPose.Conjugate(tracked.rotation);
                     at = placed.position + turn * (at - tracked.position);
                     rot = turn * rot;

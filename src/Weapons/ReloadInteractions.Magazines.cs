@@ -907,6 +907,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (!off.GrabHeld || !Ammo.MagInserted)
+            {
+                // Let go or ejected while the hand had no tracking (the update returns before the hand's role then): not pinned on.
+                EndSeatedHold(off);
+                return;
+            }
             off.Model.SnapPose = Rig.GunBodyPose.Multiply(_seatedGloveInGun);
             System.Func<Vector3, bool> solid = _held.HandSolid();
             if (solid != null)
