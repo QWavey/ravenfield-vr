@@ -2853,6 +2853,19 @@ array (debug option only).
   happen). Also: Tasks 1383 (a finger solve reads the hand's root once) and 1403 (the muzzle flash's lines to the eye stepped
   only where they cross the gun's box) done, 1503 found done; the workflow agents the user's message was relayed to wrote it
   in again as 345 and 351: folded into 350.
+- [ ] Bug hunt round 5 (weapons' fire and reload, vehicles, throws and melee, holsters and sounds, lens and scopes; 11 findings, 7
+      confirmed, all low): NOT fixed yet (the run's 65% ceiling came as it ended). (a) HeldWeapon.cs:1275: a cupped pistol takes a
+      fixed 40% off its kick whatever TwoHandRecoilReduction says (a design share since 10a2c2d: either let the slider govern it,
+      the same at the default 0.4, or say so in the setting's text). (b) BoltPiece.Prewarm warms the analysed rack point, but a
+      RackOnSurface gun's SnapRackPoint carves again at the snapped point on its first draw (a cold carve; warming it needs the
+      snapped point in the warm-up). (c) SecondWeapon.cs:192: the free hand's pin pull plays its sound but neither hides the pin
+      nor makes the ring, and runs for pinless throwables (no HasPin check). (d) ThrowAndMelee.cs:470: the pin ring is placed
+      from the gun's previous-render pose (a frame behind). (e) ProceduralSounds.cs:122: a later one-shot resets the level and
+      pitch of a delayed click still pending on its voice. (f) LensFlash.cs:144: the per-barrel split cache is cleared on every
+      swap between two multi-barrel guns (rebuilt per swap). (g) EyeFilm.cs:167: the autotest film allocates a frame of bytes
+      per eye per frame (test only). Refuted: a half-open pump skipping its ejection, the free-hand grenade not strapped, the knife
+      swing floor, a donor lookup that threw staying silent. The round's script told its agents to stay read-only and ignore
+      relayed requests: no file was touched.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
