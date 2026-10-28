@@ -52,6 +52,11 @@ namespace RavenfieldVR.Input
             public bool HeldUnderTap;
             /// <summary>A hold begun while the tap ran (a sprint started within its 80 ms): it takes over when the tap runs out.</summary>
             public bool PressAfterTap;
+            /// <summary>
+            /// The scripts that already had their press in this tap's run, an earlier tap's target among them (a second tap in the
+            /// window retargets it): none of them is pressed again when a hold takes over (round-6 scout).
+            /// </summary>
+            public readonly List<int> PressedIds = new List<int>();
             /// <summary>Script instance id -> the frame it first saw the edge in.</summary>
             public readonly Dictionary<int, int> DownDelivered = new Dictionary<int, int>();
             public readonly Dictionary<int, int> UpDelivered = new Dictionary<int, int>();
@@ -97,6 +102,17 @@ namespace RavenfieldVR.Input
             {
                 v.HeldUnderTap = v.Down;
                 v.PressAfterTap = false;
+                v.PressedIds.Clear();
+            }
+            else
+            {
+                foreach (KeyValuePair<int, int> kv in v.DownDelivered)
+                {
+                    if (kv.Value >= 0 && !v.PressedIds.Contains(kv.Key))
+                    {
+                        v.PressedIds.Add(kv.Key); // (had its press from the tap this one cuts into)
+                    }
+                }
             }
             v.Down = true;
             v.WasDown = true;
@@ -197,6 +213,11 @@ namespace RavenfieldVR.Input
                         {
                             v.DownDelivered[tapFor] = -1; // (delivered in no frame: Deliver answers false for it)
                         }
+                        foreach (int id in v.PressedIds)
+                        {
+                            v.DownDelivered[id] = -1;
+                        }
+                        v.PressedIds.Clear();
                         continue;
                     }
                     v.Down = false;

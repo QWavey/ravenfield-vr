@@ -62,11 +62,12 @@ namespace RavenfieldVR.Weapons
         /// The held weapon's physics shape is fitted from its meshes (tens of thousands of vertices on detailed models): done
         /// here too, so drawing the weapon in a match finds it ready.
         /// </summary>
-        private static void PrefitShape(Weapon weapon, WeaponRigData data, WeaponManager.WeaponEntry entry)
+        /// <returns>The rig its handle is cut on (for <see cref="BoltPiece.PrewarmSnapped"/>), or null.</returns>
+        private static WeaponRig PrefitShape(Weapon weapon, WeaponRigData data, WeaponManager.WeaponEntry entry)
         {
             if (data.Action == ActionType.NoAmmo && !data.InfiniteAmmo)
             {
-                return; // (an infinite-magazine gun is classed NoAmmo but drawn as a gun: its shape was fitted at its first draw)
+                return null; // a tool with no ammo (an infinite-magazine gun is classed NoAmmo too, but it is drawn as a gun: fitted here as any)
             }
             var rig = new WeaponRig(weapon, data);
             ShapeFit.Bake(GunCollider.Fit(rig, Runtime.OpenVRMath.SafeLookRotation(data.AimAxis, data.Up), data.GripPoint));
@@ -80,7 +81,9 @@ namespace RavenfieldVR.Weapons
                     || data.CarveHandle && data.HandlePath == null))
             {
                 BoltPiece.Prewarm(rig); // the handle cut out of the receiver, as the draw makes it (HeldWeapon)
+                return rig;
             }
+            return null;
         }
 
         private static int _fitted;
@@ -108,10 +111,12 @@ namespace RavenfieldVR.Weapons
                 yield break;
             }
             WeaponRigData data = null;
+            WeaponRig cut = null;
             var steps = new List<System.Action>
             {
                 () => data = WeaponAnalyzer.Get(weapon, entry),
-                () => PrefitShape(weapon, data, entry)
+                () => cut = PrefitShape(weapon, data, entry),
+                () => BoltPiece.PrewarmSnapped(cut) // (null: nothing to cut)
             };
             if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
             {
@@ -176,7 +181,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
-            PrefitShape(weapon, data, entry);
+            BoltPiece.PrewarmSnapped(PrefitShape(weapon, data, entry));
             if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
             {
                 WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)

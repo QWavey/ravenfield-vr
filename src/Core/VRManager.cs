@@ -74,6 +74,7 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             _flatNotice = null;
+            _retrying = false; // (left set by an F6 retry, the input notice below came with no OK to put it away; round-6 scout)
 
             bool inputReady;
             try

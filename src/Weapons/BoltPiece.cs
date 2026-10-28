@@ -140,12 +140,16 @@ namespace RavenfieldVR.Weapons
         /// Warm-up: the receiver's cut worked out ahead (on the weapon's prefab, from the menu) and kept, so the first draw in a
         /// match finds it (it copied and walked the whole receiver mesh in that frame; 255.P6-5). Nothing is made or changed.
         /// </summary>
-        internal static void Prewarm(WeaponRig rig)
+        internal static void Prewarm(WeaponRig rig) => Build(new BoltPiece(), rig, rig.Data.RackPoint, prewarm: true);
+
+        /// <summary>
+        /// And where a draw's snap onto the model puts it (SnappedRackPoints): cut there again on the first draw, cold. A step of its own
+        /// in the warm-up (each cut copies the whole receiver: two in one step doubled its frame; round-6 scout).
+        /// </summary>
+        internal static void PrewarmSnapped(WeaponRig rig)
         {
-            Build(new BoltPiece(), rig, rig.Data.RackPoint, prewarm: true);
-            if (rig.Data.RackOnSurface && SnappedRackPoints.TryGet(rig.Data, out Vector3 snapped))
+            if (rig != null && rig.Data.RackOnSurface && SnappedRackPoints.TryGet(rig.Data, out Vector3 snapped))
             {
-                // And where a draw's snap onto the model puts it (SnappedRackPoints): cut there again on the first draw, cold.
                 Build(new BoltPiece(), rig, snapped, prewarm: true);
             }
         }

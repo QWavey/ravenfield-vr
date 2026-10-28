@@ -38,8 +38,8 @@ namespace RavenfieldVR.Core
             if (installProblem != null)
             {
                 Log.Error(installProblem);
+                startProblem = wantVR ? installProblem : null; // (VR off by the player's own choice: no notice; round-6 scout)
                 wantVR = false;
-                startProblem = installProblem;
             }
 
             _harmony = new Harmony(PluginInfo.Guid);

@@ -179,16 +179,13 @@ namespace RavenfieldVR.Rig
                 // The jump is not kept as the one to compare with (kept, the frame after it read as a jump back and was dropped too:
                 // after a snap turn in a car at 25 m/s, two frames without the car's motion; round-4 scout): the frame before it
                 // stays, for one frame. A second change as large in a row is the rig's new motion, kept from then on.
+                // (The second is kept, not zeroed and then kept: two frames of a steady new motion were lost; round-6 scout.)
                 Vector3 measured = rigVelocity;
-                if ((measured - _lastRigMeasured).sqrMagnitude > 400f)
+                if ((measured - _lastRigMeasured).sqrMagnitude > 400f && !_lastRigJumped)
                 {
                     rigVelocity = Vector3.zero;
                     rigSpin = Vector3.zero;
-                    if (_lastRigJumped)
-                    {
-                        _lastRigMeasured = measured;
-                    }
-                    _lastRigJumped = !_lastRigJumped;
+                    _lastRigJumped = true;
                 }
                 else
                 {
