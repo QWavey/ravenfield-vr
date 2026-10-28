@@ -2794,6 +2794,19 @@ the let-go (re-enabled while its bones overlap it would pop; needs a test of a t
 test sees only the nearest non-hitbox hit; rigs of inspected-only weapons not pruned in a scene; the grab-zone debug
 array (debug option only).
 
+### 349. Work-until-limit 65 of 2026-10-28 (the game not started; all built, committed locally, nothing pushed)
+- 347 and 346 built (see them). 348: the bench measures Medium's parts one at a time. New: "Hold the frame rate" (settings
+  panel, HoldFrameRate, off by default): while frames keep missing the headset's rate (two 3 s windows under 85%) the preset
+  steps down (shadow distance, shadows, LOD bias, grass, pixel lights), back up after 30 s at 98% (twice as long after a failed
+  step up, at most 2 min); the wrist readout says how many steps. The frame rate line also counts the game canvases the UI
+  camera draws (the UI camera was 0.5-1.0 ms of main thread in the user's session) - faded-out ones are still batched: if
+  many, switch their Canvas off while faded (next).
+- Garbage: the mod's own allocations are 24-49 bytes a frame (the autotest's sections); the user's 15-27 collections a minute
+  (3 ms slices a frame while each runs) come from the game and the 34 mods (the fast test: 3-4 a minute). A shorter slice
+  needs measuring (a collection that falls behind stops the world).
+- [ ] Check in a game run: the soldier check's step 13 (soldier's gun), the seated magazine hold on a rifle and a pistol, the
+      hold-the-frame-rate steps on Medium, the bench's Medium variants.
+
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
   thread. Ultra (scale 1.2, MSAA 4x, shadows 100 m, LOD 1.5): 19%, 22 ms, GPU 11. Medium (scale 0.9, MSAA 2x, shadows 30 m, LOD
