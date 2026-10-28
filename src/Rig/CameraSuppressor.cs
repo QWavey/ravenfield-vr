@@ -113,12 +113,37 @@ namespace RavenfieldVR.Rig
 
         private void OnPreCull(Camera c)
         {
-            if (c == _vrCamera || !_suppressed.Contains(c) || c.targetTexture != null)
+            if (c == _vrCamera)
+            {
+                RestoreShadows(); // (the eyes always with the real distance: a suppressed render whose post-render never came left it at 0)
+                return;
+            }
+            if (!_suppressed.Contains(c) || c.targetTexture != null)
             {
                 return;
             }
             _maskDuringRender[c] = c.cullingMask;
             c.cullingMask = 0;
+            // And no shadows for it: a camera drawing nothing still rendered the light's shadow maps (the user's Medium, 2026-10-27:
+            // the game's FP camera 0.38 ms of main thread a frame against 0.13 with the Game preset's shadows off, its first-person
+            // model and post-processing cameras likewise). Put back after its render, as the scope lens does (VRScope).
+            if (_shadowDistance < 0f)
+            {
+                _shadowDistance = QualitySettings.shadowDistance;
+                QualitySettings.shadowDistance = 0f;
+            }
+        }
+
+        /// <summary>The shadow distance while a suppressed camera renders (put back after it), or -1.</summary>
+        private float _shadowDistance = -1f;
+
+        private void RestoreShadows()
+        {
+            if (_shadowDistance >= 0f)
+            {
+                QualitySettings.shadowDistance = _shadowDistance;
+                _shadowDistance = -1f;
+            }
         }
 
         private void OnPostRender(Camera c)
@@ -127,11 +152,16 @@ namespace RavenfieldVR.Rig
             {
                 c.cullingMask = mask;
                 _maskDuringRender.Remove(c);
+                if (_maskDuringRender.Count == 0)
+                {
+                    RestoreShadows();
+                }
             }
         }
 
         public void Dispose()
         {
+            RestoreShadows();
             Camera.onPreCull -= OnPreCull;
             Camera.onPostRender -= OnPostRender;
             foreach (KeyValuePair<Camera, int> kv in _maskDuringRender)
