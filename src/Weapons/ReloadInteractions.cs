@@ -1272,10 +1272,13 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Weapon is going away: finish what is in progress so no ammo is lost or duplicated.</summary>
-        public void Release()
+        public void Release(bool keepSeatedHold = false)
         {
             VRHand off = _sys.Rig.Off;
-            EndSeatedHold(off); // (the gun going away: the hand on its seated magazine is free)
+            if (!keepSeatedHold)
+            {
+                EndSeatedHold(off); // (the gun going away: the hand on its seated magazine is free)
+            }
             if (off.Model != null)
             {
                 // First: whatever throws below (HeldWeapon catches it), the off glove is not left pulled toward an anchor on a gun

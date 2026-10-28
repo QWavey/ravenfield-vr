@@ -960,10 +960,14 @@ namespace RavenfieldVR.Weapons
             Weapon active = Weapon.GetActiveSubWeapon() ?? Weapon;
             if (active != ActiveWeapon)
             {
-                Reload.Release();
+                WeaponRig nextRig = active == Weapon ? Rig : SubWeaponRig(active);
+                // A fire-mode variant on this model shares its magazine and gun body: the hand on the seated magazine stays on it
+                // through the switch (let go there, the glove left the magazine with the grip still closed; round-3 scout). A
+                // launcher's own rig lets it go.
+                Reload.Release(keepSeatedHold: ReferenceEquals(nextRig, Rig));
                 _magnifierFlip.Release();
                 ActiveWeapon = active;
-                ActiveRig = active == Weapon ? Rig : SubWeaponRig(active);
+                ActiveRig = nextRig;
                 ActiveAmmo = active == Weapon ? Ammo : _system.StateFor(active, create: true);
                 if (active != Weapon && ReferenceEquals(ActiveRig, Rig) && ActiveAmmo != null && !ReferenceEquals(ActiveAmmo, Ammo))
                 {
