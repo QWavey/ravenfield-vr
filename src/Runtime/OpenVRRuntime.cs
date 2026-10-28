@@ -161,10 +161,18 @@ namespace RavenfieldVR.Runtime
         {
             if (QualitySettings.vSyncCount != 0)
             {
+                if (_gameVSync < 0)
+                {
+                    _gameVSync = QualitySettings.vSyncCount;
+                }
                 QualitySettings.vSyncCount = 0;
             }
             if (Application.targetFrameRate != -1)
             {
+                if (_gameFrameRate == int.MinValue)
+                {
+                    _gameFrameRate = Application.targetFrameRate;
+                }
                 Application.targetFrameRate = -1;
             }
             if (Time.maximumDeltaTime > MaxCatchUp + 1e-4f)
@@ -186,10 +194,22 @@ namespace RavenfieldVR.Runtime
         /// </summary>
         private const float MaxCatchUp = 0.1f;
         private static float _gameMaxCatchUp = -1f;
+        /// <summary>The game's VSync and frame cap before VR took them over (put back when VR stops: a start failed part way ran flat uncapped).</summary>
+        private static int _gameVSync = -1, _gameFrameRate = int.MinValue;
 
         // Also after a start that failed part way: its subsystems exist with Running still false.
         public static void Stop()
         {
+            if (_gameVSync >= 0)
+            {
+                QualitySettings.vSyncCount = _gameVSync;
+                _gameVSync = -1;
+            }
+            if (_gameFrameRate != int.MinValue)
+            {
+                Application.targetFrameRate = _gameFrameRate;
+                _gameFrameRate = int.MinValue;
+            }
             if (!Running && Display == null && InputSubsystem == null)
             {
                 return;

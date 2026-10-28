@@ -32,6 +32,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static void RestoreSemi(Weapon w)
         {
+            SemiByPlayer.RemoveWhere(IsGone); // (the dropped instance this one replaces: one dead weapon a drop or swap, kept to a toggle)
             if (w == null || w.configuration == null || !w.configuration.auto)
             {
                 return;
@@ -40,13 +41,15 @@ namespace RavenfieldVR.Weapons
             SemiByPlayer.Add(w);
         }
 
+        private static readonly System.Predicate<Weapon> IsGone = x => x == null;
+
         /// <summary>True when the weapon has both modes (it was authored automatic).</summary>
         public static bool HasModes(Weapon w) => w != null && (w.configuration.auto || SemiByPlayer.Contains(w));
 
         /// <returns>The new mode ("SEMI" / "AUTO"), or null when the weapon only has one mode.</returns>
         public static string Toggle(Weapon w)
         {
-            SemiByPlayer.RemoveWhere(x => x == null);
+            SemiByPlayer.RemoveWhere(IsGone);
             if (w == null)
             {
                 return null;
