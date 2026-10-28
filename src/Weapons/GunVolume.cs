@@ -330,6 +330,59 @@ namespace RavenfieldVR.Weapons
         /// <summary>Inside the model itself, not grown (self-test: how deep a hand sinks into the gun).</summary>
         public bool InsideModel(Vector3 world) => _ready && Test(_inv * (world - _pos), false);
 
+        /// <summary>
+        /// Any of the points at i / <paramref name="steps"/> (0 &lt; i &lt; steps) on the line from <paramref name="from"/> to
+        /// <paramref name="to"/> (world) inside the model itself: <see cref="InsideModel"/> point by point, with the line taken
+        /// into the frame once (the frame is rigid: the points stay on it) and only the points within the box tested. A flash's
+        /// seven lines to each eye were some 67 points each, most of them off the gun, each turned into the frame on its own
+        /// (Tasks 1403).
+        /// </summary>
+        public bool LineInsideModel(Vector3 from, Vector3 to, int steps)
+        {
+            if (!_ready || steps < 2)
+            {
+                return false;
+            }
+            Vector3 a = _inv * (from - _pos), d = _inv * (to - _pos) - a;
+            // The part of the line within the box, as a share of it (slabs).
+            float t0 = 0f, t1 = 1f;
+            for (int k = 0; k < 3; k++)
+            {
+                float o = a[k], dk = d[k], lo = _boxMin[k], hi = _boxMax[k];
+                if (dk > -1e-9f && dk < 1e-9f)
+                {
+                    if (o < lo || o > hi)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                float ta = (lo - o) / dk, tb = (hi - o) / dk;
+                if (ta > tb)
+                {
+                    float s = ta;
+                    ta = tb;
+                    tb = s;
+                }
+                t0 = Mathf.Max(t0, ta);
+                t1 = Mathf.Min(t1, tb);
+                if (t0 > t1)
+                {
+                    return false;
+                }
+            }
+            // A point a rounding off the box's face is still tested (one step either side): it answers as the box would.
+            int first = Mathf.Max(1, (int)(t0 * steps)), last = Mathf.Min(steps - 1, (int)(t1 * steps) + 1);
+            for (int i = first; i <= last; i++)
+            {
+                if (Test(a + d * (i / (float)steps), false))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Like <see cref="Solid"/> for one of several objects sharing this volume, at its own pose.</summary>
         public bool SolidAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(inverseRotation * (world - position), true);
 

@@ -54,6 +54,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The point is inside the drawn gun (its measured shape, not grown): what hides a muzzle flash from an eye.</summary>
         internal bool InsideDrawnGun(Vector3 world) => _volume != null && _volume.Ready && _volume.InsideModel(world);
 
+        /// <summary>One of the points at i / <paramref name="steps"/> on the line between the two is inside the drawn gun (<see cref="GunVolume.LineInsideModel"/>).</summary>
+        internal bool LineThroughDrawnGun(Vector3 from, Vector3 to, int steps) => _volume != null && _volume.Ready && _volume.LineInsideModel(from, to, steps);
+
         private int _handSolidFrame = -1;
         private System.Func<Vector3, bool> _handSolidNow;
 

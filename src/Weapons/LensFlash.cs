@@ -392,16 +392,8 @@ namespace RavenfieldVR.Weapons
 
         private static bool Blocked(HeldWeapon held, Vector3 from, Vector3 to)
         {
-            Vector3 v = to - from;
-            int steps = Mathf.Clamp(Mathf.CeilToInt(v.magnitude / 0.006f), 1, 160);
-            for (int i = 1; i < steps; i++)
-            {
-                if (held.InsideDrawnGun(from + v * (i / (float)steps)))
-                {
-                    return true;
-                }
-            }
-            return false;
+            int steps = Mathf.Clamp(Mathf.CeilToInt((to - from).magnitude / 0.006f), 1, 160);
+            return held.LineThroughDrawnGun(from, to, steps); // (every 6 mm, only where the line crosses the gun's box)
         }
 
         // ---- a shot ------------------------------------------------------------------------------------------------
