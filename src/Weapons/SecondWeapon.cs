@@ -473,6 +473,7 @@ namespace RavenfieldVR.Weapons
             {
                 Weapon.Show(); // the game hid it as a weapon not in use: it is in the hand
             }
+            GateScopeCamera();
             if (IsThrowable)
             {
                 HeldWeapon.CentreGrenadeGrip(Rig, Weapon); // once shown (hidden when taken, its middle could not be measured yet)
@@ -627,9 +628,52 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Its own scope camera (a game render-texture camera) draws only while the eye is at the scope (the head within 30 cm of it:
+        /// the free hand's weapon has no lens state of its own), and without shadows unless the scope shadows setting asks: drawn
+        /// every frame with its shadow cascades, as the gun hand's was (HeldWeapon.GateScopeCamera; round-3 scout, 2026-10-28).
+        /// Away from the eye the lens keeps its last picture.
+        /// </summary>
+        private void GateScopeCamera()
+        {
+            Camera cam = Weapon != null ? Weapon.renderTextureCamera : null;
+            if (cam == null || _sys.Rig.Head == null)
+            {
+                return;
+            }
+            bool atEye = (cam.transform.position - _sys.Rig.Head.position).sqrMagnitude < 0.3f * 0.3f;
+            if (cam.enabled != atEye)
+            {
+                cam.enabled = atEye;
+                _scopeCameraGated = cam;
+            }
+            if (_scopeNoShadows == null || _scopeNoShadows.gameObject != cam.gameObject)
+            {
+                _scopeNoShadows = cam.GetComponent<VRScope.ScopeNoShadows>() ?? cam.gameObject.AddComponent<VRScope.ScopeNoShadows>();
+            }
+            bool noShadows = !VRConfig.ScopeShadows.Value;
+            if (_scopeNoShadows.enabled != noShadows)
+            {
+                _scopeNoShadows.enabled = noShadows;
+            }
+        }
+
+        private Camera _scopeCameraGated;
+        private VRScope.ScopeNoShadows _scopeNoShadows;
+
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
         private void FreeHand()
         {
+            // Its scope camera as the game had it (the gate switched it off away from the eye).
+            if (_scopeCameraGated != null)
+            {
+                _scopeCameraGated.enabled = true;
+                _scopeCameraGated = null;
+            }
+            if (_scopeNoShadows != null)
+            {
+                _scopeNoShadows.enabled = false;
+            }
             if (Hand.Role == HandRole.Weapon || Hand.Role == HandRole.Throwable)
             {
                 Hand.Role = HandRole.Free;

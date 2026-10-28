@@ -2177,9 +2177,11 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Dominant.Model.SnapPose = null;
                 _system.Rig.Dominant.Model.HiddenByHeld = false;
             }
-            if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off))
+            // (Not the second weapon's hand: its glove is on that weapon. Nor a hand holding a soldier: its glove and fingers are on him,
+            // set by the body grab once at the take; cleared here, the fingers stopped closing on the bone while he was still held.)
+            if (_system.Rig.Off.Model != null && (_system.Second == null || _system.Second.Hand != _system.Rig.Off) && _system.Rig.Off.Role != HandRole.Body)
             {
-                _system.Rig.Off.Model.Solid = null; // (not the second weapon's hand: its glove is on that weapon)
+                _system.Rig.Off.Model.Solid = null;
                 _system.Rig.Off.Model.SnapPose = null;
             }
             _magnifierFlip.Release();
