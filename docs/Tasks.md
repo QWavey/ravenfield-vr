@@ -2894,6 +2894,14 @@ array (debug option only).
       ms a frame); the mod's costliest section was Input (0.16-0.24 ms): now timed in its three parts for the next session. M4A1
       magazines seated at 0.4-0.8 m/s left its bolt locked (as on the rifle; the slap release is at 0.9 m/s, a P220 at 1.01 slammed).
       Autotest gained the slow-motion magazine and the running-ease checks (a161b9e).
+      The whole session (11 minutes, read after the game closed): it slowed from 70% of frames on time to 0%, on every preset
+      (Low at render scale 0.6 too, GPU 4-5 ms): every phase grew 2-6x (physics 0.8 -> 5 ms, the game's scripts 2.5 -> 6, the
+      engine's own TimeUpdate 0.07 -> 0.45) while the scene did not (425 bodies, 97 awake, at its start; 275, 86 awake, at its end;
+      renderers and memory steady). Physics on fixed 1/60 s steps runs more steps a frame as frames slow (0.7 at 11 ms, 1.7 at
+      28 ms), which feeds itself; per step it still cost 2.5x more. Likeliest: the CPU slowing (heat, the power plan), not the mod
+      (its own work 0.6 -> 1.8 ms, with the rest). The frame rate line now gives the CPU's speed against the first minute (a fixed
+      sum timed once a minute, 32d6678): if it falls over a session, it is the PC (cooling, power plan "High performance"); if it
+      holds while frames slow, something grows that the scan does not count.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
