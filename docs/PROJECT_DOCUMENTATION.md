@@ -1062,3 +1062,13 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
 6. **Tests**: the soldier check gained friends, the soldier's gun, the quick reach and the slowing fist out of reach;
    `tools/tests/readme_settings_test.py` keeps the README's settings table true to `VRConfig.cs`; vrshots keeps the user's own
    last session log (`LogOutput.player.log`).
+7. **Saying why at start-up** (bug hunt round 4): an install-check or Harmony failure shows its reason on the screen with only OK
+   (`VRManager.StartProblem`; F6 cannot mend those), and controller input that did not start says so in the headset
+   (`UI/HeadNotice.cs`, a wrapped text plate ahead of the eyes) and on the monitor (`VRInput.InitError`). A level load no longer
+   drops the dashboard or headset pause (`VRManager.PauseAfterLoad`, once when the player is in the match); the on-foot yaw is
+   worked out again at the headset's first pose; the Game preset re-applies the game's current quality level; infinite-magazine
+   guns (classed NoAmmo) are measured as guns (`WeaponRigData.IsTool`); left-handed binding texts mirror the hand words.
+8. **Hot paths trimmed**: a finger solve reads the hand's root pose once (`HandModel._chainRoot`); the muzzle flash's visibility
+   steps each line to the eye only where it crosses the gun's box (`GunVolume.LineInsideModel`); the soldier's-gun reach makes
+   one pass over the match's soldiers a frame for both hands; the match bar's canvas group is written only when it changes.
+   `tools/tests/harmony_targets_test.py` checks every Harmony patch named by a string against the decompiled game.
