@@ -2812,6 +2812,26 @@ array (debug option only).
    squad back on the main hand's buttons), a launcher holstered loaded then fired (its rocket gone), the VR keyboard with two
    fields, the wrist's "CPU-bound" on a heavy map, a long session's CPU speed column (100%, 98%, 88% in three minutes at 16:10).
 
+### 352. Hands in slow motion: Normal or Slowed (user, 2026-10-28 evening; built 7b4824a, check in a game run)
+- [ ] "lets do a mode in settings, Normal and slowed (regarding hands, hands holding mags, hands holding guns, guns etc almost
+      everything when its on slowed the hands etc are delayed too in slowmo (everything) like boneworks does it". Built: the
+      setting SlowMotionHands (panel: "Hands in slow motion"). Slowed: in slow motion each hand follows its controller in game
+      time (VRHand.Slowed: a critically damped spring of 20/s, 10 m/s and 30 rad/s at most, all in game time), so everything
+      that follows the hand (glove, held gun and magazine, arms, the gun's stand-in, the fist, a held soldier) is slowed with it;
+      the head is not. Its velocities are in game units, so RealTimeFlight and the slow-motion factors are off and what it lets go
+      of moves at the world's pace. No technical write-up of Boneworks' slow motion was found online; built from how it plays
+      (its physical body runs in game time, the camera does not). Autotest: SlowedHandsCheck. To feel in the headset: the
+      spring and the top speed (SlowSpring, SlowTopSpeed in VRHand) may want tuning.
+
+### 351. Loose magazines collide with the held gun and with empty hands (user, 2026-10-28 evening; built 925c1d4, check in a game run)
+- [ ] "mags (empty and full) still glitch through guns and dont collide with them. also they also not collide with hands when
+      not grabbed". The gun's stand-in ignored magazines on purpose since 2026-10-20 (it flung them at the hand's speed). Now it
+      meets them, a pushed light prop capped at the gun's speed + 1 m/s and 15 rad/s (GunProxyBody.Touch), magazines pushed out
+      of things at 2 m/s at most; a magazine leaving the well still passes out until clear. Empty hands push loose magazines
+      they move into faster than 0.5 m/s (HandBody.PushProps; a slow reach to take one passes through). Check: a magazine lying
+      on a crate pushed by the gun and by a hand, one dropped onto the gun, a reload's ejected magazine falling clear, and that
+      reaching for a magazine still takes it.
+
 ### 350. A soldier picked up is hurt by barely touching the ground (user, 2026-10-28: "When picking up a soldier they take damage even when only slightly touching the ground, maybe calculate force?")
 - [ ] (Built 2026-10-28: an impact counts at the lesser of its contact speed and its impulse over a 16 kg trunk bone, BodyImpacts.ImpactMass; within 0.15 s a harder blow adds the difference. Check in a game run: lifting and dragging hurt nothing, the soldier check's slam and throw still hurt.) The held or picked-up body's impacts should hurt only by a real blow: by the force of the impact (its impulse against the
       body's mass), not by a light touch while it is lifted or dragged.
