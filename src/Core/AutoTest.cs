@@ -3613,6 +3613,23 @@ namespace RavenfieldVR.Core
 
             string Health(Actor a) => a.dead ? "dead" : a.health.ToString("0");
 
+            // Whether a soldier carries another weapon than his gun out (not a grenade): one he can draw when it is wrested.
+            bool HasOtherWeapon(Actor a)
+            {
+                if (a == null || a.weapons == null || a.activeWeapon == null)
+                {
+                    return false;
+                }
+                foreach (Weapon w in a.weapons)
+                {
+                    if (w != null && w != a.activeWeapon && !(w is ThrowableWeapon))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             // Whether a collider of soldier a lies within radius of point (his arms and rifle as well as his body).
             bool HisWithin(Actor a, Vector3 point, float radius)
             {
@@ -4648,8 +4665,9 @@ namespace RavenfieldVR.Core
                 {
                     // Squeezed where none of him is in the hand's reach (18 cm) but some is near (35 cm): a squeeze in reach of his arm,
                     // held out with his rifle, rightly takes hold at once. Searched back from 45 cm along the line to him.
+                    // (No further than 75 cm: he stands 80 cm ahead, and past that the fist was in or behind the player himself.)
                     float pushBack = 0.45f;
-                    for (float back = 0.45f; back <= 1.0f; back += 0.05f)
+                    for (float back = 0.45f; back <= 0.75f; back += 0.05f)
                     {
                         pushBack = back;
                         if (!HisWithin(pushedAt, pushedAt.CenterPosition() - flat * back, 0.2f))
@@ -4678,6 +4696,10 @@ namespace RavenfieldVR.Core
                     Input.VRInput.SimulatedGrip[os] = 0f;
                     yield return LetGo();
                     report($"squeezed fist slowing on him (squeezed {pushBack * 100f:0} cm before his middle, out of reach of him, 3.5 then 1 m/s): {(pushTook ? "NOT A PUNCH: took hold of him" : "not taken hold of")}");
+                }
+                else
+                {
+                    report($"squeezed fist slowing on him: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
                 }
                 // And the other way round: a quick reach squeezed on the way, at 3 m/s, slowing to him (a reach for a soldier: it takes
                 // hold; spent by speed alone, it grabbed the air: "my hand grabs the air many times", user, 2026-10-25).
@@ -4712,6 +4734,10 @@ namespace RavenfieldVR.Core
                     report($"quick reach squeezed on the way (3 m/s, slowing to him): {(reachTook ? "took hold of him" : "NOT TAKEN: the reach grabbed the air")}"
                            + (reachTook ? "" : $" [{BodyGrab.WhyNot}; {(reachedFor.health < reachHp - 0.5f ? "a blow landed on the way" : "no blow")}, "
                                                + $"{Time.time - MeleeHandler.LastHandBlow[os]:0.00} s since the hand's last blow; {(reachedFor.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm]"));
+                }
+                else
+                {
+                    report($"quick reach squeezed on the way: skipped ({(!there[0] ? $"the soldier could not be brought: {broughtNote}" : $"the free hand is {off.Role}")})");
                 }
 
                 // The gun back in the gun hand for the walks (carried as a player carries it) and the gun's sweep through a soldier.
@@ -4934,7 +4960,10 @@ namespace RavenfieldVR.Core
                         yield return new WaitForSecondsRealtime(0.25f);
                         bool emptied = hisGun != null && hisGun.ammo == 0;
                         bool inHand = off.Held is MagazineProp;
+                        // (A tube, a break action or a launcher has no magazine to pull: the squeeze wrests the gun instead, as meant.)
+                        bool wrestedInstead = hisGun == null || gunman.activeWeapon != hisGun;
                         magNote = emptied ? $"magazine pulled ({roundsBefore} rounds), {(inHand ? "in the hand" : "none in the hand (his gun's kind not analysed)")}"
+                            : wrestedInstead ? "his gun has no magazine to pull: wrested instead"
                             : $"NO MAGAZINE PULLED ({(BodyGrab.IsHeld(gunman) ? "took hold of him instead" : "nothing taken")})";
                         yield return LetGo();
                         if (BodyGrab.IsHeld(gunman))
@@ -4942,7 +4971,13 @@ namespace RavenfieldVR.Core
                             yield return new WaitForSecondsRealtime(0.2f);
                         }
                     }
+                    // A soldier with another weapon to draw (one with none only has his gun knocked aside: the game's AI needs one).
                     Actor disarmed = Next(true);
+                    for (int tries = 0; tries < 4 && disarmed != null && !HasOtherWeapon(disarmed); tries++)
+                    {
+                        disarmed = Next(true);
+                    }
+                    bool canWrest = disarmed != null && HasOtherWeapon(disarmed);
                     string wrestNote = "skipped";
                     yield return Bring(disarmed, 0.9f, false, there);
                     Weapon taken = disarmed != null ? disarmed.activeWeapon : null;
@@ -4954,8 +4989,10 @@ namespace RavenfieldVR.Core
                         Input.VRInput.SimulateGrabPress(off.Side);
                         yield return new WaitForSecondsRealtime(0.4f);
                         bool gone = taken == null || disarmed.activeWeapon != taken;
+                        bool knocked = SoldierGuns.Knocked(disarmed, out _, out _);
                         wrestNote = gone ? $"wrested from {disarmed.name}, who drew his {(disarmed.activeWeapon != null ? disarmed.activeWeapon.name : "NOTHING")}"
-                            : $"NOT WRESTED from {disarmed.name} ({(SoldierGuns.Knocked(disarmed, out _, out _) ? "knocked aside instead: no other weapon" : BodyGrab.IsHeld(disarmed) ? "took hold of him instead" : "nothing")})";
+                            : !canWrest ? (knocked ? $"{disarmed.name} has no other weapon: his gun knocked aside instead" : $"NOT KNOCKED ASIDE ({disarmed.name} has no other weapon)")
+                            : $"NOT WRESTED from {disarmed.name} ({(knocked ? "knocked aside instead" : BodyGrab.IsHeld(disarmed) ? "took hold of him instead" : "nothing")})";
                         yield return LetGo();
                     }
                     report($"soldier's gun ({gunman.name}'s {(hisGun != null ? hisGun.name : "gun")}): {knockNote}; {magNote}; {wrestNote}");
