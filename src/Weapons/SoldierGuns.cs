@@ -40,6 +40,8 @@ namespace RavenfieldVR.Weapons
         private readonly WeaponSystem _sys;
         private readonly VRRig _rig;
         private readonly float[] _lastKnock = { -10f, -10f };
+        /// <summary>The soldier whose gun each hand holds pushed off (one with no other weapon to draw: see <see cref="Wrest"/>), or null.</summary>
+        private readonly Actor[] _holdingGunOf = new Actor[2];
 
         private sealed class Knock
         {
@@ -80,9 +82,15 @@ namespace RavenfieldVR.Weapons
                 VRHand hand = _rig.Hands[i];
                 if (hand == null || !hand.Tracked)
                 {
+                    _holdingGunOf[i] = null;
                     continue;
                 }
                 Vector3 palm = hand.PalmCentre;
+                if (_holdingGunOf[i] != null)
+                {
+                    HoldGunOff(i, hand, palm);
+                    continue;
+                }
                 if (!NearestGun(palm, player, out Actor soldier, out Weapon gun, out float distance) || distance > Reach)
                 {
                     continue;
@@ -95,7 +103,7 @@ namespace RavenfieldVR.Weapons
                 if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
                     && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(soldier, palm))
                 {
-                    bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(hand, soldier, gun) : Wrest(hand, soldier, gun);
+                    bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(i, hand, soldier, gun) : Wrest(i, hand, soldier, gun);
                     if (done)
                     {
                         VRInput.Consume(DigitalAction.Grab, hand.Side); // his gun took the squeeze: not him (BodyGrab) nor anything else
@@ -274,7 +282,7 @@ namespace RavenfieldVR.Weapons
         /// His gun wrested from him: a dropped copy made where it was and taken into the hand as a dropped weapon is, and he draws his
         /// other weapon. False (knocked aside instead) when he has no other weapon to draw, or the copy could not be made.
         /// </summary>
-        private bool Wrest(VRHand hand, Actor soldier, Weapon gun)
+        private bool Wrest(int i, VRHand hand, Actor soldier, Weapon gun)
         {
             int slot = System.Array.IndexOf(soldier.weapons, gun);
             int other = -1;
@@ -288,7 +296,10 @@ namespace RavenfieldVR.Weapons
             }
             if (slot < 0 || other < 0 || !soldier.CanUnholsterWeapon() || _sys.Drops == null)
             {
+                // Held pushed off instead, for as long as the hand keeps its grip on it (HoldGunOff): "or grabbing the gun" (Tasks 346)
+                // where it cannot be taken from him.
                 KnockAside(soldier, gun, hand.BodyRelativeVelocity.sqrMagnitude > 0.01f ? hand.BodyRelativeVelocity : -soldier.transform.right, hand);
+                _holdingGunOf[i] = soldier;
                 return true; // (the squeeze is still his gun's: it moved it, it did not take him)
             }
             DroppedWeapon drop = _sys.Drops.DropFromHands(soldier, gun, hand.Velocity * 0.3f);
@@ -302,6 +313,36 @@ namespace RavenfieldVR.Weapons
             hand.Haptic(0.08f, 90f, 0.9f);
             Log.InfoOnce("soldierwrest", $"Wrested {gun.name} from {soldier.name}: he draws his {(soldier.activeWeapon != null ? soldier.activeWeapon.name : "nothing")}.");
             return true;
+        }
+
+        /// <summary>
+        /// A hand holding a soldier's gun pushed off: while its grip stays closed and it stays on the gun (20 cm), his aim is kept
+        /// thrown off as at the knock and he does not fire; let go (or he goes down, or the gun leaves his hands) and his aim eases
+        /// back as after a knock.
+        /// </summary>
+        private void HoldGunOff(int i, VRHand hand, Vector3 palm)
+        {
+            Actor soldier = _holdingGunOf[i];
+            Weapon gun = soldier != null ? soldier.activeWeapon : null;
+            Bounds local = default;
+            bool still = hand.GrabHeld && soldier != null && !soldier.dead && gun != null && gun.thirdPersonTransform != null
+                         && !(soldier.ragdoll != null && soldier.ragdoll.IsRagdoll());
+            still = still && ShapeOf(gun, out local);
+            if (still)
+            {
+                Transform tp = gun.thirdPersonTransform;
+                Vector3 closest = tp.TransformPoint(local.ClosestPoint(tp.InverseTransformPoint(palm)));
+                still = (closest - palm).sqrMagnitude < 0.2f * 0.2f;
+            }
+            if (!still)
+            {
+                _holdingGunOf[i] = null;
+                return;
+            }
+            if (Knocks.TryGetValue(soldier, out Knock k))
+            {
+                k.At = Time.time; // (the knock kept at its start: full throw, fire held)
+            }
         }
 
         /// <summary>His aim thrown off the way the hand went (its part across his aim), and his fire held a moment.</summary>
