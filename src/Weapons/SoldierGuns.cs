@@ -198,10 +198,13 @@ namespace RavenfieldVR.Weapons
             RendererScratch.Clear();
             if (!any)
             {
+                // Not kept: a soldier not drawn has his gun hidden (Actor: isRendered), and an empty box kept from then left his gun
+                // untouchable once he came into view.
                 local = new Bounds();
+                return false;
             }
             Shapes[w] = local;
-            return any;
+            return true;
         }
 
         /// <summary>
