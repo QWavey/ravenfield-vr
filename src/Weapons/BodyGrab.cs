@@ -346,6 +346,64 @@ namespace RavenfieldVR.Weapons
                 }
             }
             HandBody.Follow(_rig, canHold);
+            RestoreSelfPairs();
+        }
+
+        private struct SelfPairs
+        {
+            public Actor Actor;
+            public Collider[] Colliders;
+            public float At;
+        }
+
+        /// <summary>
+        /// Bodies let go whose bones still ignore one another (they do while held: <see cref="TryTake"/>), and from when they collide
+        /// again: kept ignored after the let-go, a thrown body's limbs passed through its own trunk for as long as it lay there.
+        /// </summary>
+        private readonly List<SelfPairs> _selfPairs = new List<SelfPairs>();
+
+        /// <summary>
+        /// Once a let-go body's time armed after the throw is over, its bones collide with one another again, pair by pair, but for
+        /// pairs overlapping just then (made to collide while inside each other, PhysX would push them apart at once: a jolt). A body
+        /// taken again meanwhile keeps them ignored (that hold's own). Bones joined by a joint still do not meet: their joint says so.
+        /// </summary>
+        private void RestoreSelfPairs()
+        {
+            for (int n = _selfPairs.Count - 1; n >= 0; n--)
+            {
+                SelfPairs s = _selfPairs[n];
+                if (s.Actor != null && Time.time < s.At)
+                {
+                    continue;
+                }
+                _selfPairs.RemoveAt(n);
+                if (s.Actor == null || s.Actor.ragdoll == null || !s.Actor.ragdoll.IsRagdoll() || IsHeld(s.Actor))
+                {
+                    continue; // (gone, stood up (the pairs went with it), or held again)
+                }
+                Collider[] own = s.Colliders;
+                for (int x = 0; x < own.Length; x++)
+                {
+                    Collider a = own[x];
+                    if (a == null || !a.enabled || !a.gameObject.activeInHierarchy)
+                    {
+                        continue;
+                    }
+                    for (int y = x + 1; y < own.Length; y++)
+                    {
+                        Collider b = own[y];
+                        if (b == null || !b.enabled || !b.gameObject.activeInHierarchy)
+                        {
+                            continue;
+                        }
+                        Transform ta = a.transform, tb = b.transform;
+                        if (!Physics.ComputePenetration(a, ta.position, ta.rotation, b, tb.position, tb.rotation, out _, out _))
+                        {
+                            Physics.IgnoreCollision(a, b, false);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -893,6 +951,10 @@ namespace RavenfieldVR.Weapons
                     }
                     else
                     {
+                        if (hold.Colliders != null)
+                        {
+                            _selfPairs.Add(new SelfPairs { Actor = a, Colliders = hold.Colliders, At = Time.time + ImpactsAfterThrow });
+                        }
                         BodyImpacts.Arm(a, Time.time + ImpactsAfterThrow, GameContext.PlayerActor);
                         if (thrown && hand != null)
                         {
@@ -1029,6 +1091,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Lets go of everything (scene change, VR stopping).</summary>
         public void ReleaseAll()
         {
+            _selfPairs.Clear(); // (a scene change: their soldiers went with it)
             for (int i = 0; i < 2; i++)
             {
                 Release(i, _rig.Hands[i], thrown: false);
