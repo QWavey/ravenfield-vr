@@ -103,6 +103,50 @@ namespace RavenfieldVR.Tests
             VolumeRotationTests(mod);
             NoticeWrapTests(mod);
             ToolClassTests(mod);
+            RackPointFileTests(mod);
+        }
+
+        /// <summary>
+        /// The snapped rack points' cache file (BoltPiece.SnappedRackPoints): a point written and read back is the same to the bit,
+        /// on a German Windows too (a comma for the decimal point broke such files before: the frames file of tools/flashfilm.py).
+        /// </summary>
+        private static void RackPointFileTests(System.Reflection.Assembly mod)
+        {
+            Type points = mod.GetType("RavenfieldVR.Weapons.SnappedRackPoints");
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo format = points?.GetMethod("Format", any), parse = points?.GetMethod("Parse", any);
+            Check(format != null && parse != null, "Rack points file: Format and Parse found");
+            if (format == null || parse == null)
+            {
+                return;
+            }
+            System.Globalization.CultureInfo before = System.Threading.Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+                var rng = new Random(7);
+                bool same = true;
+                string seen = "";
+                for (int i = 0; i < 200 && same; i++)
+                {
+                    var v = new UnityEngine.Vector3((float)(rng.NextDouble() - 0.5) * 0.7f, (float)(rng.NextDouble() - 0.5) * 0.3f, (float)rng.NextDouble() * 1e-3f);
+                    string text = (string)format.Invoke(null, new object[] { v });
+                    object[] args = { text, null };
+                    bool ok = (bool)parse.Invoke(null, args);
+                    var back = (UnityEngine.Vector3)args[1];
+                    same = ok && BitConverter.ToInt32(BitConverter.GetBytes(back.x), 0) == BitConverter.ToInt32(BitConverter.GetBytes(v.x), 0)
+                           && BitConverter.ToInt32(BitConverter.GetBytes(back.y), 0) == BitConverter.ToInt32(BitConverter.GetBytes(v.y), 0)
+                           && BitConverter.ToInt32(BitConverter.GetBytes(back.z), 0) == BitConverter.ToInt32(BitConverter.GetBytes(v.z), 0);
+                    seen = text;
+                }
+                Check(same && !seen.Contains(","), $"Rack points file: 200 points read back to the bit under de-DE, written with points not commas (last '{seen}')");
+                object[] bad = { "0.1 0.2", null };
+                Check(!(bool)parse.Invoke(null, bad), "Rack points file: a line with two numbers is no point");
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = before;
+            }
         }
 
         /// <summary>
