@@ -1031,3 +1031,34 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    files at their own sections (pure moves, verified by line multiset; see the file table in 4).
 7. **Measured before changed**: two analysis rules a fix would change for every gun (arm-named groups, the first magazine
    name match) now write notes; a `-rfvr-selftest` run lists the guns they affect.
+
+## 17. Work Log (2026-10-25 to 28)
+
+1. **Held soldiers** (`Weapons/BodyGrab.cs`, Tasks 341-345): the spin and fling came from a kinematic grab anchor moved by
+   `MovePosition`, which PhysX solved as standing still; the anchor is now a 10 000 kg dynamic body driven by its velocity each
+   step (`GrabAnchor`), at the hand's place at the step's own time. The hold is locked at the bone's centre of mass with a
+   slerp drive for its turn (held at the touched point instead, the body's weight levered it into 15-68 m/s spins). The drawn
+   glove goes on the body where the palm met the bone's surface (`SurfaceAt`, `Hold.SeatAt`, the hand model's snap pose and
+   solid), a hand inside several bones takes the heaviest, and held bones are drawn extrapolated (a jump carries their physics
+   poses, not the drawn ones). Impacts hurt by force: the contact speed capped by the impulse over a 16 kg trunk bone
+   (`BodyImpacts.ImpactMass`), the hardest blow in 0.15 s counted. Friends are treated as enemies (neck, blows, thrown bodies,
+   strapped grenades), as the game's own guns and knife treat them.
+2. **A soldier's gun** (`Weapons/SoldierGuns.cs`, Tasks 346): a hand swung into it knocks his aim aside and holds his fire
+   (Harmony postfixes on `AiActorController.FacingDirection` and `WantsToFire`); a squeeze under its middle empties it (his AI
+   reloads an empty weapon) and gives a magazine of its kind; elsewhere it is wrested into the hand as a dropped weapon, and he
+   draws his other weapon. Never from a soldier with no other weapon: the game's AI reads `activeWeapon` without a null check.
+3. **A seated magazine stays in the hand** until the grip opens (`ReloadInteractions.Magazines.cs`, the `SeatedHold` marker,
+   Tasks 347), only from the two real insert paths (the self-checks seat through `SeatProp` directly).
+4. **Where the frame goes** (`Core/FramePhases.cs`): every player-loop step and every camera's render on the main thread, the
+   scene's bodies, renderers and cameras, the game canvases the UI camera draws, and the mod's costliest guarded sections, in
+   the once-a-minute frame rate line of every session. The user's headset session (Tasks 348) showed the Game preset at 90 Hz
+   and Medium/Ultra at SteamVR's half rate with the GPU at 7-11 ms: the eyes' render on the CPU (shadows, LOD; paid per eye in
+   multi-pass) put the frame past the budget. Single-pass instanced is not possible: the game's shaders have no
+   `STEREO_INSTANCING_ON` variants.
+5. **Cheaper frames**: the game's scope cameras draw only while a lens of theirs is shown, without shadows; the background camera
+   is off in VR; suppressed game cameras and the mod's UI camera render without shadow maps (a camera drawing nothing still
+   rendered them); the low-health lens edge is painted 30 times a second; weapon builds in the dead view wait a second after a
+   slow step. "Hold the frame rate" (`GraphicsPresets.HoldLevel`, opt-in) steps a preset down while frames miss the rate.
+6. **Tests**: the soldier check gained friends, the soldier's gun, the quick reach and the slowing fist out of reach;
+   `tools/tests/readme_settings_test.py` keeps the README's settings table true to `VRConfig.cs`; vrshots keeps the user's own
+   last session log (`LogOutput.player.log`).
