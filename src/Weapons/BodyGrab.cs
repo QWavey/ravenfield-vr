@@ -1141,6 +1141,13 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 float d = BoneDistanceSq(rb, palm);
+                // Inside more than one bone (a hand reached into his middle: the hands have no collision on the way), the heaviest
+                // of them: the first one counted took a thigh as often as the hips, and a soldier held by a leg was flung while the
+                // player ran (21-68 m/s bones in the soldier check, 2026-10-27). A hand on a limb from outside still takes the limb.
+                if (d < 1e-8f)
+                {
+                    d = -rb.mass;
+                }
                 if (d < bestDistance)
                 {
                     bestDistance = d;
