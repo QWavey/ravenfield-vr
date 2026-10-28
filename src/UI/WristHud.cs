@@ -170,6 +170,9 @@ namespace RavenfieldVR.UI
                 _text.text = (a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve")
                              + (rate < 0 ? "" : "\n" + FrameBudget.RecentHz + " Hz  \u00b7  " + FrameBudget.RecentPercent + "% on time")
                              + (gpu < 0 ? "" : "  \u00b7  GPU " + (gpu / 10) + "." + (gpu % 10) + " ms")
+                             // Frames late with the GPU well inside the interval: said in words (fewer bots helps, a lower preset hardly).
+                             + (gpu >= 0 && FrameBudget.RecentPercent < 85 && FrameBudget.RecentHz > 0
+                                && !GraphicsPresets.RenderScaleHelps(gpu / 10f, 1000f / FrameBudget.RecentHz, false) ? "  \u00b7  CPU-bound" : "")
                              + (holdSteps > 0 ? "\nGraphics held down " + holdSteps + " step" + (holdSteps > 1 ? "s" : "") + " for the frame rate" : "");
                 _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
