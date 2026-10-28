@@ -311,20 +311,16 @@ namespace RavenfieldVR.Core
         private Action[] _handApply;
         private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame;
 
+        // Input's parts timed apart (the frame rate line's mod sections): the whole was the mod's costliest section in the user's play
+        // of 2026-10-28 (0.16-0.24 ms a frame) with nothing to say which part. Each guarded on its own, so one that throws leaves the
+        // others running: a throwing game-input step left a weapon script's key tap held down for good (input hunt, 2026-10-21).
+        private static readonly Action SteamVRInput = VRInput.Update, GameInput = VRGameInput.Compute, ScriptKeysStep = ScriptKeys.Update;
+
         private static void UpdateInput()
         {
-            VRInput.Update();
-            try
-            {
-                VRGameInput.Compute();
-            }
-            catch (Exception e)
-            {
-                // Caught here so the script keys below still run: thrown each frame, it left a weapon script's key tap held down
-                // for good (input hunt, 2026-10-21).
-                Log.ExceptionOnce("VRGameInput.Compute", e);
-            }
-            ScriptKeys.Update();
+            Log.Guard("Input: SteamVR reads", SteamVRInput);
+            Log.Guard("Input: to the game", GameInput);
+            Log.Guard("Input: script keys", ScriptKeysStep);
             // Mod scripts that read Shift for sprinting (tactical sprint animations) see the VR sprint.
             ScriptKeys.SetHeld("left shift", VRGameInput.SprintActive && Util.GameContext.PlayerOnFoot);
         }
