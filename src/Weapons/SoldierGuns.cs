@@ -32,6 +32,8 @@ namespace RavenfieldVR.Weapons
         private const float SwingSpeed = 2f;
         /// <summary>How long the knocked aim takes to come back, and how long he holds his fire (s); the aim's greatest throw (deg).</summary>
         private const float KnockTime = 0.8f, HoldFireTime = 0.5f, KnockAngle = 55f;
+        /// <summary>A squeeze this recent still takes the gun the hand arrives at (s), as a body grab's (BodyGrab.GrabWindow).</summary>
+        private const float GrabWindow = 0.4f;
         /// <summary>Soldiers farther than this from the hand are not looked at (m).</summary>
         private const float LookWithin = 2.5f;
 
@@ -88,8 +90,10 @@ namespace RavenfieldVR.Weapons
                 // A squeeze on his gun, not on him: his hands hold it, and a hand closed on his wrist or arm takes him (BodyGrab: "grab
                 // them on the hand or arm", user, 2026-10-27). The gun only where it is clearly nearer than any of him (its box is a
                 // little bigger than the gun).
-                if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked && VRInput.GetPressed(DigitalAction.Grab, hand.Side)
-                    && distance + 0.02f < BodyDistance(soldier, palm))
+                // (A squeeze made a moment before the hand got there counts, as for every other reach: GetPressedRecently is unclaimed
+                // presses only, so one the gun took is not taken again.)
+                if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
+                    && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(soldier, palm))
                 {
                     bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(hand, soldier, gun) : Wrest(hand, soldier, gun);
                     if (done)
@@ -244,6 +248,9 @@ namespace RavenfieldVR.Weapons
             }
             int rounds = gun.ammo;
             gun.ammo = 0;
+            // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
+            // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
+            gun.OnAmmoChanged();
             if (rig != null)
             {
                 try
@@ -273,7 +280,8 @@ namespace RavenfieldVR.Weapons
             int other = -1;
             for (int s = 0; s < soldier.weapons.Length && other < 0; s++)
             {
-                if (s != slot && soldier.weapons[s] != null && !(soldier.weapons[s] is ThrowableWeapon))
+                // (Not a grenade, nor a toggled item such as goggles: switched to, it only toggles, and he was left with no gun out.)
+                if (s != slot && soldier.weapons[s] != null && !(soldier.weapons[s] is ThrowableWeapon) && !soldier.weapons[s].IsToggleable())
                 {
                     other = s;
                 }
