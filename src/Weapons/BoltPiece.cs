@@ -1,4 +1,8 @@
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using BepInEx;
 using RavenfieldVR.Core;
 using UnityEngine;
 
@@ -136,7 +140,15 @@ namespace RavenfieldVR.Weapons
         /// Warm-up: the receiver's cut worked out ahead (on the weapon's prefab, from the menu) and kept, so the first draw in a
         /// match finds it (it copied and walked the whole receiver mesh in that frame; 255.P6-5). Nothing is made or changed.
         /// </summary>
-        internal static void Prewarm(WeaponRig rig) => Build(new BoltPiece(), rig, rig.Data.RackPoint, prewarm: true);
+        internal static void Prewarm(WeaponRig rig)
+        {
+            Build(new BoltPiece(), rig, rig.Data.RackPoint, prewarm: true);
+            if (rig.Data.RackOnSurface && SnappedRackPoints.TryGet(rig.Data, out Vector3 snapped))
+            {
+                // And where a draw's snap onto the model puts it (SnappedRackPoints): cut there again on the first draw, cold.
+                Build(new BoltPiece(), rig, snapped, prewarm: true);
+            }
+        }
 
         private static void Build(BoltPiece piece, WeaponRig rig, Vector3 rackGun, bool prewarm = false)
         {
@@ -545,6 +557,125 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _pieces.Clear();
+        }
+    }
+
+    /// <summary>
+    /// The rack points a draw snapped onto the measured model (HeldWeapon.SnapRackPoint), by weapon, kept on disk with the analysed
+    /// point each came from: the warm-up cuts the handle there too (<see cref="BoltPiece.Prewarm"/>). It warmed only the analysed
+    /// point, and a draw whose point the snap moved cut the receiver again, cold, in the frame the model was measured (round-5
+    /// scout). An entry whose analysed point has changed since (a mod update, a new analysis) is not used.
+    /// </summary>
+    internal static class SnappedRackPoints
+    {
+        private const string Header = "# RavenfieldVR snapped rack points v1";
+        private static Dictionary<string, KeyValuePair<Vector3, Vector3>> _points;
+
+        private static string FilePath => Path.Combine(Paths.CachePath, "RavenfieldVR-rack-points.txt");
+
+        internal static bool TryGet(WeaponRigData d, out Vector3 snapped)
+        {
+            snapped = default;
+            if (d?.Key == null || !Load().TryGetValue(d.Key, out KeyValuePair<Vector3, Vector3> kv) || (kv.Key - d.RackPoint).sqrMagnitude > 1e-6f)
+            {
+                return false;
+            }
+            snapped = kv.Value;
+            return true;
+        }
+
+        /// <summary>Keeps where this weapon's rack point was snapped to (written at once when it changed: once a weapon a session at most).</summary>
+        internal static void Put(WeaponRigData d, Vector3 snapped)
+        {
+            if (d?.Key == null || d.Key.IndexOf('\t') >= 0 || d.Key.IndexOf('\n') >= 0)
+            {
+                return;
+            }
+            Dictionary<string, KeyValuePair<Vector3, Vector3>> points = Load();
+            if (points.TryGetValue(d.Key, out KeyValuePair<Vector3, Vector3> old) && (old.Key - d.RackPoint).sqrMagnitude <= 1e-6f
+                && (old.Value - snapped).sqrMagnitude <= 1e-6f)
+            {
+                return;
+            }
+            points[d.Key] = new KeyValuePair<Vector3, Vector3>(d.RackPoint, snapped);
+            Write(points);
+        }
+
+        private static Dictionary<string, KeyValuePair<Vector3, Vector3>> Load()
+        {
+            if (_points != null)
+            {
+                return _points;
+            }
+            _points = new Dictionary<string, KeyValuePair<Vector3, Vector3>>();
+            try
+            {
+                string path = FilePath;
+                if (!File.Exists(path))
+                {
+                    return _points;
+                }
+                string[] lines = File.ReadAllLines(path);
+                if (lines.Length == 0 || lines[0] != Header)
+                {
+                    return _points; // (another version's: rebuilt as draws snap)
+                }
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] cols = lines[i].Split('\t');
+                    if (cols.Length == 3 && Parse(cols[1], out Vector3 analysed) && Parse(cols[2], out Vector3 snapped))
+                    {
+                        _points[cols[0]] = new KeyValuePair<Vector3, Vector3>(analysed, snapped);
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.Debug("Snapped rack points not read: " + e.Message);
+            }
+            return _points;
+        }
+
+        private static bool Parse(string s, out Vector3 v)
+        {
+            v = default;
+            string[] c = s.Split(' ');
+            if (c.Length != 3 || !float.TryParse(c[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x)
+                || !float.TryParse(c[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y)
+                || !float.TryParse(c[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float z))
+            {
+                return false;
+            }
+            v = new Vector3(x, y, z);
+            return true;
+        }
+
+        private static string Format(Vector3 v) =>
+            v.x.ToString("R", CultureInfo.InvariantCulture) + " " + v.y.ToString("R", CultureInfo.InvariantCulture) + " " + v.z.ToString("R", CultureInfo.InvariantCulture);
+
+        private static void Write(Dictionary<string, KeyValuePair<Vector3, Vector3>> points)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.Append(Header).Append('\n');
+                foreach (KeyValuePair<string, KeyValuePair<Vector3, Vector3>> kv in points)
+                {
+                    sb.Append(kv.Key).Append('\t').Append(Format(kv.Value.Key)).Append('\t').Append(Format(kv.Value.Value)).Append('\n');
+                }
+                Directory.CreateDirectory(Paths.CachePath);
+                string path = FilePath, tmp = path + ".tmp";
+                File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+                File.Move(tmp, path); // (whole or not at all: a write cut short is never read as the file)
+            }
+            catch (System.Exception e)
+            {
+                Log.WarnOnce("rackpoints-write", "Snapped rack points not written: " + e.Message);
+            }
         }
     }
 }

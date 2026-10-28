@@ -734,6 +734,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             RackPointGun = snapped;
+            SnappedRackPoints.Put(d, snapped); // (the warm-up cuts the handle here next time: BoltPiece.Prewarm)
             Log.InfoOnce("racksnap:" + d.Key, $"{d.Key}: rack point put on the model's surface ({moved * 100f:0.0} cm, {how}).");
             if (_boltPiece != null)
             {
