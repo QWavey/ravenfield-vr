@@ -598,7 +598,8 @@ namespace RavenfieldVR.Weapons
             // soldier with his speed in every bone (Actor.FallOver: Ragdoll(cachedVelocity)); the hold stopped the bone it took at
             // once, and the rest of him (80 kg at 6 m/s) pulled his joints apart and flung him: "all the npcs i grabbed were walking
             // or running and then flinged around in my hand and formed themselves long bodys" (user, 2026-10-25).
-            Vector3 handVelocity = hand.Velocity;
+            // (in game units: in slow motion the real-time hand's velocity is so much faster in the slowed world)
+            Vector3 handVelocity = hand.Velocity / SlowMotion();
             foreach (Rigidbody rb in best.ragdoll.rigidbodies)
             {
                 if (rb != null)
@@ -910,7 +911,7 @@ namespace RavenfieldVR.Weapons
             MeetGun(hold);
             // No bone faster than the hand by more than MaxOverHand: a body caught in the ground or a wall was shot out by the
             // physics before (see MaxOverHand).
-            float limit = hand.Velocity.magnitude + MaxOverHand;
+            float limit = hand.Velocity.magnitude / SlowMotion() + MaxOverHand; // (the hand's real-time speed in game units)
             Rigidbody[] bones = a.ragdoll.rigidbodies;
             if (bones != null)
             {
@@ -1039,7 +1040,14 @@ namespace RavenfieldVR.Weapons
                     rb.angularVelocity *= 0.25f;
                 }
             }
+            // In slow motion he flies at the hand's real speed and falls as in real time until he first touches something, as a
+            // magazine let go does: the hand's real-time velocity taken as game speed left him hanging by the hand, sinking at a
+            // twenty-fifth of gravity (round 9 hunt, after the user's floating magazine).
+            RealTimeFlight.BeginGroup(bones);
         }
+
+        /// <summary>The game's time scale as a divisor (0.05-1): a real-time velocity over it is that velocity in game units.</summary>
+        internal static float SlowMotion() => Mathf.Clamp(Time.timeScale, 0.05f, 1f);
 
         /// <summary>Autotest: how many times a held body was carried over a jump of the hand.</summary>
         internal static int Carries;
@@ -1599,13 +1607,22 @@ namespace RavenfieldVR.Weapons
                         _body.solverIterations = Mathf.Max(_iterations, ArmedIterations);
                         _body.solverVelocityIterations = Mathf.Max(_velocityIterations, ArmedVelocityIterations);
                     }
-                    if (_body.velocity.sqrMagnitude > ArmedMaxSpeed * ArmedMaxSpeed)
+                    // The caps in game units at the real-time pace: in slow motion a held body follows the real-time hand (and a
+                    // thrown one flies in real time), so many times faster in the slowed world; capped as at full speed, a body held
+                    // at slow motion lagged the hand past a fifth of the cap.
+                    float k = 1f / BodyGrab.SlowMotion();
+                    float maxSpeed = ArmedMaxSpeed * k, maxSpin = ArmedMaxSpin * k;
+                    if (!Mathf.Approximately(_body.maxAngularVelocity, maxSpin))
                     {
-                        _body.velocity = _body.velocity.normalized * ArmedMaxSpeed;
+                        _body.maxAngularVelocity = maxSpin;
                     }
-                    if (_body.angularVelocity.sqrMagnitude > ArmedMaxSpin * ArmedMaxSpin)
+                    if (_body.velocity.sqrMagnitude > maxSpeed * maxSpeed)
                     {
-                        _body.angularVelocity = _body.angularVelocity.normalized * ArmedMaxSpin;
+                        _body.velocity = _body.velocity.normalized * maxSpeed;
+                    }
+                    if (_body.angularVelocity.sqrMagnitude > maxSpin * maxSpin)
+                    {
+                        _body.angularVelocity = _body.angularVelocity.normalized * maxSpin;
                     }
                     return;
                 }
@@ -1843,9 +1860,20 @@ namespace RavenfieldVR.Weapons
         private void OnCollisionStay(Collision c) => Crushed(c);
 
         /// <summary>Crushed against something that does not give while a hand holds him (see BodyGrab.CrushImpulse): let go.</summary>
+        /// <summary>
+        /// What a contact's speed and impulse are multiplied by for the world's pace: a bone flying in real time (a throw in slow
+        /// motion) by its flight's scale, a held one (it follows the real-time hand) by the time scale; else 1.
+        /// </summary>
+        private float WorldPace(float until)
+        {
+            float scale = RealTimeFlight.ScaleAtTouch(_body);
+            return scale < 0.999f ? scale : float.IsPositiveInfinity(until) ? BodyGrab.SlowMotion() : 1f;
+        }
+
         private void Crushed(Collision c)
         {
-            if (_gone || _owner == null || c.impulse.sqrMagnitude < BodyGrab.CrushImpulse * BodyGrab.CrushImpulse || c.collider == null)
+            float pace = _owner != null && ArmedUntil.TryGetValue(_owner, out float held) ? WorldPace(held) : 1f;
+            if (_gone || _owner == null || c.impulse.sqrMagnitude * pace * pace < BodyGrab.CrushImpulse * BodyGrab.CrushImpulse || c.collider == null)
             {
                 return;
             }
@@ -1854,7 +1882,7 @@ namespace RavenfieldVR.Weapons
             {
                 return; // (a loose thing gives way)
             }
-            BodyGrab.LetGoCrushed(_owner, c.collider, c.impulse.magnitude);
+            BodyGrab.LetGoCrushed(_owner, c.collider, c.impulse.magnitude * pace);
         }
 
         private void OnCollisionEnter(Collision c)
@@ -1874,14 +1902,17 @@ namespace RavenfieldVR.Weapons
             {
                 return; // its own bones, the player's body and hands, the held gun's stand-in
             }
-            float speed = c.relativeVelocity.magnitude;
-            float damage = ImpactDamage(Mathf.Min(speed, c.impulse.magnitude / ImpactMass));
+            // At the world's pace: in slow motion a thrown or held body's speed in game units is its real-time one over the time
+            // scale, and a throw in slow motion hurt five times a throw at full speed.
+            float pace = WorldPace(until);
+            float speed = c.relativeVelocity.magnitude * pace;
+            float damage = ImpactDamage(Mathf.Min(speed, c.impulse.magnitude * pace / ImpactMass));
             if (damage <= 0f)
             {
                 return;
             }
             Vector3 point = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
-            Vector3 dir = speed > 1e-3f ? -c.relativeVelocity / speed : Vector3.down;
+            Vector3 dir = speed > 1e-3f ? -c.relativeVelocity.normalized : Vector3.down;
             Hurt(_owner, damage, speed, point, dir, other);
             BodyGrab.FeelImpact(_owner, damage);
             // A soldier it hits is hurt and knocked over as well (thrown into a squad).

@@ -692,6 +692,7 @@ namespace RavenfieldVR.Weapons
             Physics.SyncTransforms();
             SetCollidersEnabled(true);
             OutOfTheLevel();
+            RealTimeFlight.Stop(_body); // (caught in flight and let go before a physics step: its old slow-motion scale went with it)
             _body.isKinematic = false;
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
