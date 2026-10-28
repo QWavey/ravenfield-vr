@@ -2902,6 +2902,20 @@ array (debug option only).
       (its own work 0.6 -> 1.8 ms, with the rest). The frame rate line now gives the CPU's speed against the first minute (a fixed
       sum timed once a minute, 32d6678): if it falls over a session, it is the PC (cooling, power plan "High performance"); if it
       holds while frames slow, something grows that the scan does not count.
+- [x] Bug hunt round 7 (work-until-limit 70; the installer, the launcher and install scripts, overrides and tables, the deeper
+      analysis, the small UI and input, the test harness; 31 findings, 25 confirmed): all fixed. Installer: Keep my settings keeps
+      BepInEx with no config yet, an unreadable Steam config keeps the launcher, files removed with their folder not restored
+      first, backup copies put back deleted, the final record inside the try and whole or not at all (tests: the old setup fails
+      the three new cases). Launcher: a Steam or remembered start leaves the mod's preset (the launcher's old copy put back one
+      picked in the headset), the form shows the config's, later headset probes wait at most 4 s. install.ps1: the record however
+      the copy ends, its backup path relative. uninstall.ps1: patchers keep BepInEx, its loader kept while it stays, a restored
+      original not deleted, an unreadable Steam config keeps the launcher, backup copies deleted (tests). Overrides: a broken save
+      keeps the last good ones and is said each time, unknown keys named, contains without "(Clone)". Analysis: a geometric muzzle
+      keeps its parts as candidates, the barrel axis unsigned, the next magazine name near the grip taken, sub-weapon parts kept
+      out of the name searches, belt-fed as authored. Input/UI: no hand signs in a pause, no next weapon/kick/countermeasures or
+      squad hold from a panel, the mod keys list not rebuilt under a press. Autotest: Manual reloading for the run, a failed deploy
+      or respawn counted, the header's weapon count, FLOATING and GONE counted, the tremor line by the setting, the bench's GPU
+      average without the missing rounds. Also: the knife's blocking wall behind a non-blocking one; Input timed in its parts.
 
 ### 348. The user's headset session (2026-10-27 22:30, log kept in reports/shots/user-1027/game-log.txt): presets past Game halve the frame rate
 - Game preset (shadows off, LOD 0.3, 1508x1664): 97% of frames at 90 Hz, median 11.3 ms, GPU 2.0, eyes' render 0.97 ms of main
