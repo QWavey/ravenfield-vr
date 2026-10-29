@@ -2815,6 +2815,9 @@ array (debug option only).
    cameras' remaining cost; Tasks 348), the autotest's SlowedHandsCheck, and in the headset: Hands in slow motion = Slowed
    (the lag and catch-up feel, the laser and walking direction not lagging, a switch back to Normal mid slow motion), loose
    magazines pushed by the gun and by a tapping hand (Tasks 351-352).
+   Also: a sustained fast swing with Slowed hands (dragged at 1.5 m, no jump), a free-hand grenade with the hand out of view
+   (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
+   (SteamVR back on the user's settings).
 
 ### 352. Hands in slow motion: Normal or Slowed (user, 2026-10-28 evening; built 7b4824a, check in a game run)
 - [ ] "lets do a mode in settings, Normal and slowed (regarding hands, hands holding mags, hands holding guns, guns etc almost
