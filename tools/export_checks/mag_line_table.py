@@ -34,9 +34,10 @@ MANUAL = {'PPSh-41_PPSH_Stick': (6.5, 0.0)}
 EDGE_OK = {'P320_p320_1', 'P320s_p320_1_s'}
 # --both: where the least lies on the edge unchecked, the earlier scan's line, inside it and through less wall than the
 # analysed line by mag_line_body.py (the Vectors and the Glock 19 at -16.5: 224 -> 84 and 174 -> 35).
+EDGE_INSIDE = ('vector_vector', 'vector_rds_vector_rds', 'mw-vector_No_script__vector_originalshaking',
+               'mw-vector_rds_No_script__vector_rds_originalshaking', 'ARS_Glock_19_G19')
 if len(sys.argv) > 1 and sys.argv[1] == '--both':
-    MANUAL.update({f: (-16.5, 0.0) for f in ('vector_vector', 'vector_rds_vector_rds', 'mw-vector_No_script__vector_originalshaking',
-                                            'mw-vector_rds_No_script__vector_rds_originalshaking', 'ARS_Glock_19_G19')})
+    MANUAL.update({f: (-16.5, 0.0) for f in EDGE_INSIDE})
 
 rows = {}
 BOTH = re.compile(r'^(\S+): analysed wall (\d+) out (\d+); least ([+-][\d.]+)/([+-][\d.]+) wall (\d+) out (\d+)')
@@ -130,7 +131,9 @@ lines = [
 for key in sorted(rows):
     fore, side, analysed, best, folder = rows[key]
     v = corrected(folder, fore, side)
-    how = ('set by hand from a picture' if folder in MANUAL
+    # (Only the PPSh-41's was checked in a picture: the others are the scan's line one step inside its edge, said so; sweep.)
+    how = ('one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)' if folder in EDGE_INSIDE and folder in MANUAL
+           else 'set by hand from a picture' if folder in MANUAL
            else f'{analysed} -> {best} points in the walls or out of the well' if sys.argv[1] == '--both'
            else f'{analysed} -> {best} points out of place')
     # Back into Unity's space: the export writes glTF's right-handed vectors (SandboxExport's Vec: x, y, -z). Written as they were,

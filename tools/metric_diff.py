@@ -25,6 +25,11 @@ def problem_key(text):
     return ' '.join(NUMBER.sub('#', text).split())
 
 
+# Lines of a measurement or section table that did not parse, per report (said in the output: dropped silently, a report
+# format change made the comparison quietly smaller; sweep).
+UNREAD = {}
+
+
 def read(path):
     measurements, sections, frames, problems = {}, {}, '', {}
     where = None
@@ -52,7 +57,7 @@ def read(path):
                     try:
                         measurements[parts[0].strip()] = (float(parts[1]), int(float(parts[2])), float(parts[3]), float(parts[4]))
                     except ValueError:
-                        pass
+                        UNREAD[path] = UNREAD.get(path, 0) + 1
             elif where == 's':
                 head = text.split('slowest at')[0].rstrip()
                 parts = head.rsplit(None, 5)
@@ -60,7 +65,7 @@ def read(path):
                     try:
                         sections[parts[0].strip()] = (float(parts[1]), float(parts[2]), int(parts[3]))
                     except ValueError:
-                        pass
+                        UNREAD[path] = UNREAD.get(path, 0) + 1
     return measurements, sections, frames, problems
 
 
@@ -85,6 +90,8 @@ def main():
 
     print(f'new: {new_path}\nold: {old_path}\n')
     came, went = [new_p[k] for k in new_p if k not in old_p], [old_p[k] for k in old_p if k not in new_p]
+    for path, count in UNREAD.items():
+        print(f'(!) {count} table line(s) of {path} could not be read and are left out')
     print(f'Problems: {len(new_p)} now, {len(old_p)} before; {len(came)} new, {len(went)} gone, {len(new_p) - len(came)} in both')
     for text in came:
         print(f'  new  {text[:200]}')

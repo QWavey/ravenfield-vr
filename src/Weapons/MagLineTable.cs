@@ -11,7 +11,7 @@ namespace RavenfieldVR.Weapons
         {
             { "1911 10R#1911 10R", new Vector3(-0.00061f, 0.25383f, -0.96725f) }, // 1911_10R_1911_10R: -4.5 fore/aft, +0.0 sideways from the export's line; 47 -> 0 points in the walls or out of the well
             { "<color=Cyan>MP9 PDW</color>#MP9 无托", new Vector3(0.00000f, -0.01987f, -0.99980f) }, // color_Cyan_MP9_PDW__color__MP9_无托: -10.5 fore/aft, +0.0 sideways from the export's line; 1524 -> 126 points in the walls or out of the well
-            { "ARS Glock 19#G19", new Vector3(0.28402f, 0.00000f, 0.95882f) }, // ARS_Glock_19_G19: -16.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
+            { "ARS Glock 19#G19", new Vector3(0.28402f, 0.00000f, 0.95882f) }, // ARS_Glock_19_G19: -16.5 fore/aft, +0.0 sideways from the export's line; one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)
             { "BRN180 EO L#BRN180 EO", new Vector3(0.00466f, 0.01853f, -0.99982f) }, // BRN180_EO_L_BRN180_EO: -6.0 fore/aft, +0.0 sideways from the export's line; 925 -> 203 points in the walls or out of the well
             { "BRN180 EO S#BRN180 EO S", new Vector3(0.00466f, 0.01853f, -0.99982f) }, // BRN180_EO_S_BRN180_EO_S: -6.0 fore/aft, +0.0 sideways from the export's line; 925 -> 203 points in the walls or out of the well
             { "BRN180 L S#BRN180 L S", new Vector3(0.00466f, 0.01853f, -0.99982f) }, // BRN180_L_S_BRN180_L_S: -6.0 fore/aft, +0.0 sideways from the export's line; 1093 -> 283 points in the walls or out of the well
@@ -101,15 +101,15 @@ namespace RavenfieldVR.Weapons
             { "asvalokp7#asvalokp7-squad", new Vector3(-0.00000f, -0.23345f, -0.97237f) }, // asvalokp7_asvalokp7-squad: +13.5 fore/aft, +0.0 sideways from the export's line; 443 -> 193 points in the walls or out of the well
             { "asvalpkas#asvalpkas-squad", new Vector3(-0.00000f, -0.23345f, -0.97237f) }, // asvalpkas_asvalpkas-squad: +13.5 fore/aft, +0.0 sideways from the export's line; 448 -> 196 points in the walls or out of the well
             { "asvalpso#asvalpso-squad", new Vector3(-0.00000f, -0.23345f, -0.97237f) }, // asvalpso_asvalpso-squad: +13.5 fore/aft, +0.0 sideways from the export's line; 448 -> 196 points in the walls or out of the well
-            { "mw-vector rds(No script)#vector rds(originalshaking)", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // mw-vector_rds_No_script__vector_rds_originalshaking: -16.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
-            { "mw-vector(No script)#vector(originalshaking)", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // mw-vector_No_script__vector_originalshaking: -16.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
+            { "mw-vector rds(No script)#vector rds(originalshaking)", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // mw-vector_rds_No_script__vector_rds_originalshaking: -16.5 fore/aft, +0.0 sideways from the export's line; one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)
+            { "mw-vector(No script)#vector(originalshaking)", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // mw-vector_No_script__vector_originalshaking: -16.5 fore/aft, +0.0 sideways from the export's line; one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)
             { "mwii-g17 rmr s#g17 (1)", new Vector3(0.01242f, 0.35562f, -0.93455f) }, // mwii-g17_rmr_s_g17__1: +4.5 fore/aft, +0.0 sideways from the export's line; 615 -> 144 points in the walls or out of the well
             { "mwii-g17 s#g17 (2)", new Vector3(0.01242f, 0.35562f, -0.93455f) }, // mwii-g17_s_g17__2: +4.5 fore/aft, +0.0 sideways from the export's line; 615 -> 144 points in the walls or out of the well
             { "mwii-g17#g17 1", new Vector3(0.01242f, 0.35562f, -0.93455f) }, // mwii-g17_g17_1: +4.5 fore/aft, +0.0 sideways from the export's line; 615 -> 144 points in the walls or out of the well
             { "mwii-g17(No script)#g17(originalshaking)", new Vector3(0.01242f, 0.35562f, -0.93455f) }, // mwii-g17_No_script__g17_originalshaking: +4.5 fore/aft, +0.0 sideways from the export's line; 615 -> 144 points in the walls or out of the well
             { "mwii-g17rmr s(No script)#g17 1(originalshaking)", new Vector3(0.01242f, 0.35562f, -0.93455f) }, // mwii-g17rmr_s_No_script__g17_1_originalshaking: +4.5 fore/aft, +0.0 sideways from the export's line; 615 -> 144 points in the walls or out of the well
-            { "vector rds#vector rds", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // vector_rds_vector_rds: -16.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
-            { "vector#vector", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // vector_vector: -16.5 fore/aft, +0.0 sideways from the export's line; set by hand from a picture
+            { "vector rds#vector rds", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // vector_rds_vector_rds: -16.5 fore/aft, +0.0 sideways from the export's line; one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)
+            { "vector#vector", new Vector3(0.00000f, 0.28402f, -0.95882f) }, // vector_vector: -16.5 fore/aft, +0.0 sideways from the export's line; one step inside the search edge (the edge unchecked; counts in reports/maglines/body_both.txt)
         };
     }
 }
