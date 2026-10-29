@@ -2976,6 +2976,23 @@ array (debug option only).
       the frame rate line off, the vignette stepper keeps its 10% grid from 35%, the gun pitch shows 2.5 degree steps, the hold's
       button reads "Lower if slow" (the long label overflowed). Also: a CPU under 75% of its first minute's speed is said once in
       the headset. Setup 1.14.1 rebuilt with all of it and installed (work-until-limit 70 reached at 71%).
+- [x] Work-until-limit 45 of 2026-10-29 (bug hunt round 11 and the other skills; nothing pushed, the game not started).
+      Round 11 (the slowed hands and magazine contacts, shape fitting and volumes, ammo and bolts, the second weapon and throws,
+      magazine looks and holding, reload parts): gestures read the controller's own real-time motion with slowed hands (in game
+      units every flick, slap, swing and reach fired at a fifth of its speed); a slowed hand behind a sustained fast swing keeps
+      following (it snapped at 1.5 m) and a long frame no longer drops it to the controller; the hand's push threshold in the
+      velocity's units; the flick and the cover slap not in a pause; the free hand's grenade resynced after a tracking gap and at
+      the pick-up (a trigger let go out of view threw it); the gun hand's grenade not thrown from a hand out of view; the pairing
+      rule checked every frame; no spoon for a free-hand molotov; the surface sample's stride odd (the model's far side was never
+      scored); hull meshes retired with evicted and cleared volumes and magazine looks, made-again hulls cooked again; the vertex
+      cap rounded up; a refill with the slide locked back adds to the magazine; a palmed magazine easing in refreshes the grip;
+      a soldier's magazine that cannot be made gives his rounds back. Left: the free hand keeps its weapon with Grip to hold off
+      only once a holster can take it from that hand (design: the free hand has no holster path yet).
+      Also this run: the slowed hand's spring overshot by 4% (caught by new offline tests: SpringStep and the hand push are pure
+      and tested), the laser and walking direction follow the controller (TrackedPointer), a switch to Normal mid slow motion
+      catches up, the bench's 1 px cameras, the warm-up log counts failures, the autotest's allocations without the film writer,
+      the README's night-vision limitation corrected, three stacked doc comments fixed. Placeholder sweeps: clean. The sandbox
+      self-test: 105 PASS, 3 SKIP (a revolver), 0 FAIL.
 - [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
       given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
       weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
