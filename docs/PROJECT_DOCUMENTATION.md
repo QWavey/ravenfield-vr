@@ -1111,3 +1111,10 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `HandBody.Pushed`), so a slow reach still takes one.
 16. **Bench: the game's cameras into 1 px** (`CameraSuppressor.TinyRect`, bench only): what the suppressed cameras still cost
    (about 0.7 ms) is measured before it goes into play.
+17. **Work-until-limit 45 of 2026-10-29** (rounds 11-12 and the other skills): a slowed hand's gestures read the controller
+   (`BodyRelativeVelocity` and `OwnAngularVelocity` are the controller's real-time ones in both modes; `Velocity` and
+   `AngularVelocity` are the hand's world motion), a slowed hand on a 1.5 m leash (`VRHand.SlowLeash`) and a long frame clamped
+   rather than dropped, grenade safety across tracking gaps, the free hand's own holster path with Grip to hold off
+   (`WeaponSystem.PutBackSecond`), volumes and magazine looks retiring their hull meshes, the surface sample's odd stride,
+   stalled measurings released (`GunVolume.ReleaseStalled`), the Drive backup's worktree and empty-bundle cases, and the
+   sandbox putting SteamVR back when it is closed during a game test.
