@@ -2819,6 +2819,16 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
+- [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
+      each weapon": off the gun the weapon's left hand moves its fingers with the controller (ArmFingers); on the foregrip and on
+      its magazine the animation's and the reload's poses stay ("the gun held and support hand held weapon positions need to
+      stay (plus mag being held)"). Check: open hand, trigger, fist off the gun; taking the handguard eases into the grip.
+- [ ] "i wanna have the arms the whole time": the last held gun's arms are copied as it is put away (EmptyArms) and follow
+      both controllers while the hands are empty, gloves hidden. Check: holster a gun with Weapon's arms, both arms on the
+      controllers, fingers move, shoulders sit right; draw again, the gun's own arms take over with no glove flash; a soldier
+      grabbed, a pistol in the free hand, a vehicle seat; the log line "Empty-hand arms: ...".
+
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
 inserted"; "shotguns ... pullback shotguns ... handling is ass and reloading shells goes in the wrong magfeeder sometimes";
