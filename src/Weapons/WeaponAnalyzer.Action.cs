@@ -525,7 +525,7 @@ namespace RavenfieldVR.Weapons
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));
         }
 
-        private static readonly Regex[] FingerPatterns =
+        internal static readonly Regex[] FingerPatterns =
         {
             new Regex(@"thumb|daumen|拇指", RegexOptions.IgnoreCase),
             new Regex(@"index|pointer|zeige|食指", RegexOptions.IgnoreCase),
