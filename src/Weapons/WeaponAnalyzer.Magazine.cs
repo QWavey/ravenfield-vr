@@ -558,42 +558,6 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            // The groups: parts that touch within 2 cm, through each other.
-            int[] group = new int[parts.Count];
-            for (int k = 0; k < parts.Count; k++)
-            {
-                group[k] = k;
-            }
-            int Find(int k)
-            {
-                while (group[k] != k)
-                {
-                    k = group[k] = group[group[k]];
-                }
-                return k;
-            }
-            for (int k = 0; k < parts.Count; k++)
-            {
-                Bounds near = boxes[k];
-                near.Expand(0.04f); // within 2 cm
-                for (int j = k + 1; j < parts.Count; j++)
-                {
-                    if (near.Intersects(boxes[j]))
-                    {
-                        group[Find(j)] = Find(k);
-                    }
-                }
-            }
-            // The gun: the group of the part at (or nearest) the grip.
-            int seed = 0;
-            for (int k = 1; k < boxes.Count; k++)
-            {
-                if (boxes[k].SqrDistance(d.GripPoint) < boxes[seed].SqrDistance(d.GripPoint))
-                {
-                    seed = k;
-                }
-            }
-            int gun = Find(seed);
             // What is already chosen (the magazine and what goes with it, the belt, the moving parts, the spares).
             var chosen = new List<Transform>();
             var paths = new List<int[]> { d.MagazinePath, d.SlidePath, d.HandlePath, d.HingePath };
@@ -626,6 +590,76 @@ namespace RavenfieldVR.Weapons
             float[] magDims = { magSize.x, magSize.y, magSize.z };
             System.Array.Sort(magDims);
             bool single = d.Action == ActionType.SingleShot;
+            // A copy of the magazine (named as one, its size within 12%, a magazine's length or more from the seat) is grouped only
+            // with its own parts: the K13's "416f mag.001" waits 1.4 cm behind the stock, so it joined the gun's group through the
+            // stock and was never judged; it was drawn floating behind the gun (user, 2026-10-29: "a 2nd mag behind the gun"). A
+            // break action's second shell, 4 cm from the first, is no copy by the distance.
+            var twinOf = new int[parts.Count];
+            for (int k = 0; k < parts.Count; k++)
+            {
+                twinOf[k] = -1;
+            }
+            if (magDims[2] > 0.03f)
+            {
+                for (int k = 0; k < parts.Count; k++)
+                {
+                    Transform t = parts[k];
+                    Vector3 sz = boxes[k].size;
+                    float[] dims = { sz.x, sz.y, sz.z };
+                    System.Array.Sort(dims);
+                    bool copy = Mathf.Abs(dims[0] - magDims[0]) <= magDims[0] * 0.12f + 0.004f && Mathf.Abs(dims[1] - magDims[1]) <= magDims[1] * 0.12f + 0.004f
+                                && Mathf.Abs(dims[2] - magDims[2]) <= magDims[2] * 0.12f + 0.004f;
+                    if (!copy || !IsMagName(t.name, single) || NotParkedName.IsMatch(t.name) || OpticName.IsMatch(t.name)
+                        || chosen.Exists(c => t == c || t.IsChildOf(c) || c.IsChildOf(t))
+                        || hasSeat && (seated.Intersects(boxes[k]) || Vector3.Distance(boxes[k].center, seated.center) < Mathf.Max(magDims[2], 0.1f)))
+                    {
+                        continue;
+                    }
+                    for (int j = 0; j < parts.Count; j++)
+                    {
+                        if (j == k || parts[j].IsChildOf(t))
+                        {
+                            twinOf[j] = k;
+                        }
+                    }
+                }
+            }
+            // The groups: parts that touch within 2 cm, through each other.
+            int[] group = new int[parts.Count];
+            for (int k = 0; k < parts.Count; k++)
+            {
+                group[k] = k;
+            }
+            int Find(int k)
+            {
+                while (group[k] != k)
+                {
+                    k = group[k] = group[group[k]];
+                }
+                return k;
+            }
+            for (int k = 0; k < parts.Count; k++)
+            {
+                Bounds near = boxes[k];
+                near.Expand(0.04f); // within 2 cm
+                for (int j = k + 1; j < parts.Count; j++)
+                {
+                    if (twinOf[k] == twinOf[j] && near.Intersects(boxes[j]))
+                    {
+                        group[Find(j)] = Find(k);
+                    }
+                }
+            }
+            // The gun: the group of the part at (or nearest) the grip.
+            int seed = 0;
+            for (int k = 1; k < boxes.Count; k++)
+            {
+                if (boxes[k].SqrDistance(d.GripPoint) < boxes[seed].SqrDistance(d.GripPoint))
+                {
+                    seed = k;
+                }
+            }
+            int gun = Find(seed);
             // Each part: the gun's (spoils its group), ammunition, or neither.
             var gunPart = new bool[parts.Count];
             var ammo = new bool[parts.Count];
