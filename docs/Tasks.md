@@ -2986,8 +2986,8 @@ array (debug option only).
       rule checked every frame; no spoon for a free-hand molotov; the surface sample's stride odd (the model's far side was never
       scored); hull meshes retired with evicted and cleared volumes and magazine looks, made-again hulls cooked again; the vertex
       cap rounded up; a refill with the slide locked back adds to the magazine; a palmed magazine easing in refreshes the grip;
-      a soldier's magazine that cannot be made gives his rounds back. Left: the free hand keeps its weapon with Grip to hold off
-      only once a holster can take it from that hand (design: the free hand has no holster path yet).
+      a soldier's magazine that cannot be made gives his rounds back; with Grip to hold off the free hand keeps its second
+      weapon and puts it back with a grip press at its own holster (WeaponSystem.PutBackSecond).
       Also this run: the slowed hand's spring overshot by 4% (caught by new offline tests: SpringStep and the hand push are pure
       and tested), the laser and walking direction follow the controller (TrackedPointer), a switch to Normal mid slow motion
       catches up, the bench's 1 px cameras, the warm-up log counts failures, the autotest's allocations without the film writer,
