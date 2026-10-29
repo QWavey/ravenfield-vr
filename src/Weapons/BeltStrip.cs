@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal sealed class BeltStrip
     {
-        private const int MaxRounds = 32; // enough for the whole length the belt comes out of the box
+        private const int MaxRounds = 36; // enough for the whole length the belt comes out of the box (38 cm held, at 1.15 cm)
         private const float Pitch = 0.0115f; // link spacing of a rifle-calibre belt
 
         private static Mesh _round;
@@ -25,6 +25,7 @@ namespace RavenfieldVR.Weapons
         // The last placement, so a still belt (hanging or laid) is not rebuilt and re-uploaded every frame.
         private Vector3 _lastFrom, _lastTo, _lastBarrel;
         private int _lastRounds = -1, _lastCount;
+        private bool _lastFromMouth;
         private bool _built;
 
         public BeltStrip()
@@ -75,14 +76,15 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// Lays the rounds along a slightly sagging curve from <paramref name="from"/> to <paramref name="to"/>, at most
-        /// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box.
+        /// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box, or with
+        /// <paramref name="fromMouth"/> (hanging or laid, no hand at its end) starts at the box and ends short of the far end.
         /// </summary>
-        public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds)
+        public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false)
         {
             // A belt whose shape has not changed keeps its last geometry: it is built round the box mouth, so a gun carried
             // along (walking, or held still) only moves it there. Within a millimetre and half a degree: compared exactly, any
             // move of the gun in the hand rebuilt and re-uploaded the whole strip every frame (255.P1.6).
-            if (_built && rounds == _lastRounds && ((to - from) - (_lastTo - _lastFrom)).sqrMagnitude < 1e-6f
+            if (_built && rounds == _lastRounds && fromMouth == _lastFromMouth && ((to - from) - (_lastTo - _lastFrom)).sqrMagnitude < 1e-6f
                 && Vector3.Dot(barrel.normalized, _lastBarrel.normalized) > 0.99996f)
             {
                 if (!Same(from, _lastFrom))
@@ -100,6 +102,7 @@ namespace RavenfieldVR.Weapons
             _lastTo = to;
             _lastBarrel = barrel;
             _lastRounds = rounds;
+            _lastFromMouth = fromMouth;
             Vector3 span = to - from;
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
@@ -112,8 +115,10 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < count; i++)
             {
                 int b = i * n;
-                // Count from the hand back toward the box, so the end in the hand is always a whole round.
-                float t = 1f - i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
+                // Count from the hand back toward the box, so the end in the hand is always a whole round (from the box out when
+                // nothing holds the end).
+                float along = i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
+                float t = fromMouth ? along : 1f - along;
                 Vector3 p = span * t + sag * (4f * t * (1f - t));
                 for (int k = 0; k < n; k++)
                 {

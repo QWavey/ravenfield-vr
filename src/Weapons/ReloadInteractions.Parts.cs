@@ -331,6 +331,18 @@ namespace RavenfieldVR.Weapons
         /// <summary>How far the belt end comes out of the box (about 28 rounds).</summary>
         private const float BeltReach = 0.32f;
 
+        /// <summary>
+        /// How far from the box mouth the belt stays in the hand, and the held strip is drawn to: the same length, so the strip
+        /// always reaches the fingers until it slips (it was drawn to 32 cm and held to 38 cm: for the last 6 cm the hand held
+        /// nothing visible and the strip's end hung in the air; sweep round 2).
+        /// </summary>
+        private const float BeltHeldReach = BeltReach + 0.06f;
+
+        /// <summary>Where the held strip's end was (in the gun's frame) when it was laid, eased onto the tray from there.</summary>
+        private Vector3 _beltLaidFrom;
+        /// <summary>When the belt was laid (Time.time), for that ease; -1 for none.</summary>
+        private float _beltLaidAt = -1f;
+
         /// <summary>Where the end of a belt hanging from the box mouth is.</summary>
         private Vector3 BeltHangEnd => BeltStartWorld + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
 
@@ -405,7 +417,7 @@ namespace RavenfieldVR.Weapons
                 LetBeltHang(off);
                 return;
             }
-            if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)
+            if (Vector3.Distance(off.Palm.position + off.Palm.Forward * 0.02f, BeltStartWorld) > BeltHeldReach)
             {
                 // Pulled out to its length: it slips from the fingers and hangs from the box, still there to take again.
                 LetBeltHang(off);
@@ -437,6 +449,9 @@ namespace RavenfieldVR.Weapons
             if (Ammo.LayBelt())
             {
                 _beltLaidThisLift = true;
+                // The end eases onto the tray from where it was drawn (taken from 7 cm, it jumped there in one frame).
+                _beltLaidFrom = Rig.ToGun(BeltStartWorld + Vector3.ClampMagnitude(off.Palm.position + off.Palm.Forward * 0.02f - BeltStartWorld, BeltHeldReach));
+                _beltLaidAt = Time.time;
                 _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -541,7 +556,7 @@ namespace RavenfieldVR.Weapons
             if (_beltHeld)
             {
                 to = off.Palm.position + off.Palm.Forward * 0.02f;
-                to = from + Vector3.ClampMagnitude(to - from, BeltReach);
+                to = from + Vector3.ClampMagnitude(to - from, BeltHeldReach);
             }
             else if (_beltHanging)
             {
@@ -550,8 +565,15 @@ namespace RavenfieldVR.Weapons
             else
             {
                 to = FeedTrayWorld;
+                float eased = _beltLaidAt < 0f ? 1f : (Time.time - _beltLaidAt) / 0.12f;
+                if (eased < 1f)
+                {
+                    to = Vector3.Lerp(Rig.ToWorld(_beltLaidFrom), to, Mathf.SmoothStep(0f, 1f, eased));
+                }
             }
-            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds); // a nearly empty box has only a few rounds of belt
+            // A nearly empty box has only a few rounds of belt: held, they end in the hand; hanging or laid, they start at the
+            // box mouth (counted from the hand, they began in the air, 22 cm off the box for ten rounds; sweep round 2).
+            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld);
         }
     }
 }

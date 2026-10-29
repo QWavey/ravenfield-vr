@@ -161,12 +161,13 @@ namespace RavenfieldVR.Rig
                         {
                             return HandPoseId.Rocket;
                         }
-                        // By its size across: a pistol magazine is slim, a machine gun's box or drum is wide.
-                        if (magazine.BoxSized)
+                        // By its size across: a pistol magazine is slim, a machine gun's box or drum is wide. From the eased blend the hold
+                        // takes (the flag switched on another frame than the hold, mid-grab; sweep round 2).
+                        if (magazine.BoxBlend >= 0.5f)
                         {
                             return HandPoseId.BoxMagazine;
                         }
-                        if (magazine.PistolSized)
+                        if (magazine.PistolBlend >= 0.5f)
                         {
                             return HandPoseId.PistolMagazine;
                         }
