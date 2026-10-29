@@ -174,12 +174,22 @@ namespace RavenfieldVR.Weapons
             }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
-            // Past the stroke's ends the part stops and the hand pulls on alone: far enough on, it has let go.
+            // Past the stroke's ends the part stops and the hand pulls on alone: far enough on, it has let go. A pump lets go a
+            // stroke past its stops (6 cm at least), and the hand holds the gun by the pump again: at the slides' 30 cm the glove
+            // stayed stuck on the pump's stop while the hand went on for 30 cm more (the R870's stroke is 9 cm; Tasks 181, "the
+            // hand on the pump slides much too far along it"; sweep round 2).
             float unclamped = _rackBase + pull / StrokeLength;
             float past = Mathf.Max(0f, Mathf.Max(unclamped - 1f, -unclamped)) * StrokeLength;
-            if (!off.GrabHeld || drift > RackDrift || past > RackOvershoot)
+            float overshoot = IsPump ? Mathf.Max(0.06f, StrokeLength) : RackOvershoot;
+            if (!off.GrabHeld || drift > RackDrift || past > overshoot)
             {
+                bool backOnPump = IsPump && off.GrabHeld && drift <= RackDrift;
                 EndRack(off, chamber: true);
+                if (backOnPump)
+                {
+                    off.Role = HandRole.Foregrip;
+                    _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                }
             }
         }
 

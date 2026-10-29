@@ -253,6 +253,38 @@ namespace RavenfieldVR.Weapons
         }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
         private bool _rackFromBoltLock;
+
+        /// <summary>Where the support hand took the pump in this hold (the gun's frame), for <see cref="PumpCue"/>; tracked or not.</summary>
+        private Vector3 _pumpHoldFrom;
+        private bool _pumpHoldTracked, _pumpCueGiven;
+
+        /// <summary>
+        /// A pump pulled back with the grip alone (3 cm along its stroke, the trigger up) says once per hold that the trigger
+        /// works it, with a tick: it is the user's rule (only with the trigger, 2026-10-16), and the pull moved nothing and said
+        /// nothing, so the pump read as stuck (Tasks 181, "the pump sometimes does not move at all"; sweep round 2).
+        /// </summary>
+        private void PumpCue(VRHand off)
+        {
+            if (!IsPump || !Manual || !Ammo.UsesChamber || !off.GrabHeld)
+            {
+                _pumpHoldTracked = false;
+                return;
+            }
+            Vector3 palm = Rig.ToGun(off.Palm.position);
+            if (!_pumpHoldTracked)
+            {
+                _pumpHoldTracked = true;
+                _pumpCueGiven = false;
+                _pumpHoldFrom = palm;
+                return;
+            }
+            if (!_pumpCueGiven && !VRInput.GetHeld(DigitalAction.Use, off.Side) && Vector3.Dot(palm - _pumpHoldFrom, StrokeDir) > 0.03f)
+            {
+                _pumpCueGiven = true;
+                _sys.FlashMessage("TRIGGER TO PUMP");
+                off.Haptic(0.02f, 90f, 0.3f);
+            }
+        }
         private bool _returning;
         private float _lastTick;
 
@@ -484,6 +516,10 @@ namespace RavenfieldVR.Weapons
             {
                 _supportRest = -1f; // the next hold measures its own grab
             }
+            if (off.Role != HandRole.Foregrip)
+            {
+                _pumpHoldTracked = false; // (a hold of the pump measures its pull from its own grab)
+            }
             switch (off.Role)
             {
                 case HandRole.Foregrip:
@@ -499,6 +535,7 @@ namespace RavenfieldVR.Weapons
                         _rackByTrigger = true;
                         break;
                     }
+                    PumpCue(off);
                     if (Manual && Ammo.UsesChamber && !IsPump && !GripData.IsPistol)
                     {
                         // Slid back along the gun onto the charging handle with the grip still closed: the hand takes the handle. It
