@@ -1099,3 +1099,15 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    once no weapon is out, a soldier thrown in slow motion flying in real time (`RealTimeFlight.BeginGroup`, his bones as one;
    impacts, the crush let-go and the armed caps at the world's pace), the VR keyboard's field, VSync and the frame cap put back
    when VR stops. Open question for the user: grenades, dropped guns and casings in slow motion.
+14. **Hands in slow motion** (`SlowMotionHands`, Normal or Slowed; Tasks 352): with Slowed, each hand follows its controller
+   in game time during slow motion (`VRHand.Slowed` and `VRHand.SpringStep`: a critically damped spring of 20/s, 10 m/s and
+   30 rad/s at most, all in game time), so everything that follows the hand is slowed with it; the head is not, nor the menu
+   laser and the walking direction (`VRHand.TrackedPointer`, the controller's own pointer). A slowed hand's velocities are in
+   game units, so `RealTimeFlight` and `BodyGrab.SlowMotion()` (the divisor that turns a hand's velocity into game units) step
+   aside. The spring's first version fed the step's average velocity back and overshot by 4%: the offline tests caught it.
+15. **Loose magazines against the gun and the hands** (Tasks 351): the gun's stand-in meets magazines again (it ignored them
+   since 2026-10-20 because it flung them) and pushes a light prop no faster than the gun moves plus 1 m/s
+   (`GunProxyBody.Touch`); empty hands push loose magazines they move into faster than 0.5 m/s (`HandBody.PushProps`,
+   `HandBody.Pushed`), so a slow reach still takes one.
+16. **Bench: the game's cameras into 1 px** (`CameraSuppressor.TinyRect`, bench only): what the suppressed cameras still cost
+   (about 0.7 ms) is measured before it goes into play.
