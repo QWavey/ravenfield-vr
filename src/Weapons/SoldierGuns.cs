@@ -124,7 +124,6 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>The soldier's gun nearest a point, on his feet with it out: its distance from the point (m, 0 inside it).</summary>
         /// <summary>The soldiers on their feet near either hand this frame, with their positions (<see cref="GatherClose"/>).</summary>
         private static readonly List<Actor> Close = new List<Actor>();
         private static readonly List<Vector3> CloseAt = new List<Vector3>();
@@ -163,6 +162,7 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The soldier's gun nearest a point, on his feet with it out: its distance from the point (m, 0 inside it).</summary>
         private static bool NearestGun(Vector3 point, out Actor soldier, out Weapon gun, out float distance)
         {
             soldier = null;

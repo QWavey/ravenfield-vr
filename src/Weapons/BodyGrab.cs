@@ -1864,7 +1864,6 @@ namespace RavenfieldVR.Weapons
 
         private void OnCollisionStay(Collision c) => Crushed(c);
 
-        /// <summary>Crushed against something that does not give while a hand holds him (see BodyGrab.CrushImpulse): let go.</summary>
         /// <summary>
         /// What a contact's speed and impulse are multiplied by for the world's pace: a bone flying in real time (a throw in slow
         /// motion) by its flight's scale, a held one (it follows the real-time hand) by the time scale; else 1.
@@ -1875,6 +1874,7 @@ namespace RavenfieldVR.Weapons
             return scale < 0.999f ? scale : float.IsPositiveInfinity(until) ? BodyGrab.SlowMotion() : 1f;
         }
 
+        /// <summary>Crushed against something that does not give while a hand holds him (see BodyGrab.CrushImpulse): let go.</summary>
         private void Crushed(Collision c)
         {
             float crush = BodyGrab.CrushImpulse * BodyGrab.CrushImpulse;
