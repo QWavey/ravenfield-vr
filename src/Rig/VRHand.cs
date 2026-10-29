@@ -125,9 +125,10 @@ namespace RavenfieldVR.Rig
         private bool Slowed(ref RigidPose local, out Vector3 velocity, out Vector3 spin)
         {
             velocity = spin = Vector3.zero;
-            float s = Time.timeScale, dt = Time.unscaledDeltaTime;
+            // (Switched to Normal mid slow motion: caught up at full speed, as when slow motion ends, not snapped to the controller.)
+            float s = Time.timeScale > 0f && !VRConfig.SlowedHands ? 1f : Time.timeScale, dt = Time.unscaledDeltaTime;
             bool caughtUp = (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
-            if (!VRConfig.SlowedHands || s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || dt > 0.25f
+            if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || dt > 0.25f
                 || _slowActive && (_slowPose.position - local.position).sqrMagnitude > 1.5f * 1.5f)
             {
                 _slowActive = false;
