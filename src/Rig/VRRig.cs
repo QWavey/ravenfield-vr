@@ -803,7 +803,7 @@ namespace RavenfieldVR.Rig
             float yaw;
             if (VRConfig.MoveDirection.Value == MoveReference.OffHand && SetOff.Tracked)
             {
-                Vector3 f = SetOff.Pointer.Forward; // the hand with the move stick, wherever the weapon is
+                Vector3 f = SetOff.TrackedPointer.Forward; // the hand with the move stick, wherever the weapon is (its controller: input, never slowed)
                 f.y = 0f;
                 yaw = f.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(f).eulerAngles.y : Head.eulerAngles.y;
             }

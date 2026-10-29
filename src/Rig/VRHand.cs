@@ -29,6 +29,12 @@ namespace RavenfieldVR.Rig
         public RigidPose Palm { get; private set; }
         public RigidPose Pointer { get; private set; }
 
+        /// <summary>
+        /// The controller's own pointer, never slowed (Hands in slow motion: Slowed): what is input rather than the body, the menu
+        /// laser and the walking direction, follows the controller at once. <see cref="Pointer"/> otherwise.
+        /// </summary>
+        public RigidPose TrackedPointer { get; private set; }
+
         /// <summary>World-space linear velocity including the rig's own motion.</summary>
         public Vector3 Velocity { get; private set; }
 
@@ -199,6 +205,7 @@ namespace RavenfieldVR.Rig
                     : Raw.Multiply(new RigidPose(Vector3.zero, Quaternion.Euler(MirrorEuler(VRConfig.ParseVector(VRConfig.LaserRotationOffset, new Vector3(40, 0, 0))))));
             }
             _hasTip = tip.valid || _tipOnRawKnown;
+            TrackedPointer = slowed ? rig.Multiply(tracked).Multiply(Raw.Inverse().Multiply(Pointer)) : Pointer;
 
             HandPose grip = raw.valid ? VRInput.GetPose(Side, PoseKind.Grip) : default;
             Vector3 palmPos;

@@ -49,7 +49,7 @@ namespace RavenfieldVR.UI
 
         private Vector3 SteadyPointerDirection(VRHand pointer, bool live)
         {
-            Vector3 raw = _rig.Root.InverseTransformDirection(pointer.Pointer.Forward);
+            Vector3 raw = _rig.Root.InverseTransformDirection(pointer.TrackedPointer.Forward);
             float dt = Time.unscaledDeltaTime;
             if (!live || !_laserSteady || _laserHand != pointer.Side || dt <= 1e-5f || dt > 0.25f)
             {
@@ -58,7 +58,7 @@ namespace RavenfieldVR.UI
                 _laserDirVelocity = Vector3.zero;
                 _laserHand = pointer.Side;
                 _laserSteady = live;
-                return pointer.Pointer.Forward;
+                return pointer.TrackedPointer.Forward;
             }
             _laserDirVelocity = Vector3.Lerp(_laserDirVelocity, (raw - _laserDir) / dt, SmoothingAlpha(1f, dt));
             float cutoff = LaserMinCutoff + LaserBeta * _laserDirVelocity.magnitude * Mathf.Rad2Deg;
@@ -197,7 +197,8 @@ namespace RavenfieldVR.UI
                 _module.Targets = _targets;
                 _module.PointerActive = MenuMode && pointer.Tracked;
                 _module.PointerHand = _pointerHand;
-                _module.PointerRay = new Ray(pointer.Pointer.position, SteadyPointerDirection(pointer, MenuMode && pointer.Tracked));
+                // (The controller's own pointer: with slowed hands in slow motion the laser is input, not the body, and does not lag.)
+                _module.PointerRay = new Ray(pointer.TrackedPointer.position, SteadyPointerDirection(pointer, MenuMode && pointer.Tracked));
             }
             if (!MenuMode)
             {
@@ -271,14 +272,14 @@ namespace RavenfieldVR.UI
                 // Drawn from this frame's hand against this frame's panels; the input pass ran earlier in the frame
                 // from the previous pose, and mixing the two bent the line whenever the view moved.
                 // The input pass's steadied direction (kept in rig space, so it turns with you), from where the hand is now.
-                var ray = new Ray(pointer.Pointer.position, _laserSteady ? _rig.Root.TransformDirection(_laserDir) : pointer.Pointer.Forward);
+                var ray = new Ray(pointer.TrackedPointer.position, _laserSteady ? _rig.Root.TransformDirection(_laserDir) : pointer.TrackedPointer.Forward);
                 hit = _module.TryHit(ray, out end);
                 if (!hit)
                 {
                     end = ray.origin + ray.direction * 3f;
                 }
             }
-            _laser.Update(show, pointer.Pointer.position, end, hit, _module != null && _module.HoveredObject != null);
+            _laser.Update(show, pointer.TrackedPointer.position, end, hit, _module != null && _module.HoveredObject != null);
             _wrist.BeforeRender();
             _squad.BeforeRender();
         }
