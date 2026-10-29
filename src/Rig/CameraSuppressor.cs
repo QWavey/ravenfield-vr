@@ -23,6 +23,16 @@ namespace RavenfieldVR.Rig
         private Camera[] _buffer = new Camera[32];
         private readonly HashSet<Camera> _ignored = new HashSet<Camera>();
 
+        /// <summary>
+        /// Bench only (AutoTest.PerfBench, "game cameras 1 px"): a suppressed camera also renders into one pixel, its viewport put
+        /// back after, as its mask is. What they still cost with nothing to draw (the user's log, 2026-10-28: "Camera" 0.33 ms, FP
+        /// Camera 0.12, post-processing 0.11, first-person model 0.10) is the clear, image effects and post-processing over a
+        /// full-size target; whether a 1 px viewport takes that away, and leaves the mirror and the game's aim alone, is what the
+        /// bench measures before it goes into play (Tasks 348).
+        /// </summary>
+        internal static bool TinyRect;
+        private readonly Dictionary<Camera, Rect> _rectDuringRender = new Dictionary<Camera, Rect>();
+
         public CameraSuppressor(Camera vrCamera)
         {
             _vrCamera = vrCamera;
@@ -116,6 +126,7 @@ namespace RavenfieldVR.Rig
             if (c == _vrCamera)
             {
                 RestoreShadows(); // (the eyes always with the real distance: a suppressed render whose post-render never came left it at 0)
+                RestoreRects();
                 return;
             }
             if (!_suppressed.Contains(c) || c.targetTexture != null)
@@ -124,6 +135,11 @@ namespace RavenfieldVR.Rig
             }
             _maskDuringRender[c] = c.cullingMask;
             c.cullingMask = 0;
+            if (TinyRect && !_rectDuringRender.ContainsKey(c))
+            {
+                _rectDuringRender[c] = c.rect;
+                c.pixelRect = new Rect(0f, 0f, 1f, 1f);
+            }
             // And no shadows for it: a camera drawing nothing still rendered the light's shadow maps (the user's Medium, 2026-10-27:
             // the game's FP camera 0.38 ms of main thread a frame against 0.13 with the Game preset's shadows off, its first-person
             // model and post-processing cameras likewise). Put back after its render, as the scope lens does (VRScope).
@@ -148,6 +164,11 @@ namespace RavenfieldVR.Rig
 
         private void OnPostRender(Camera c)
         {
+            if (_rectDuringRender.TryGetValue(c, out Rect rect))
+            {
+                c.rect = rect;
+                _rectDuringRender.Remove(c);
+            }
             if (_maskDuringRender.TryGetValue(c, out int mask))
             {
                 c.cullingMask = mask;
@@ -159,9 +180,27 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>Viewports whose post-render never came (a camera switched off in its render) put back.</summary>
+        private void RestoreRects()
+        {
+            if (_rectDuringRender.Count == 0)
+            {
+                return;
+            }
+            foreach (KeyValuePair<Camera, Rect> kv in _rectDuringRender)
+            {
+                if (kv.Key != null)
+                {
+                    kv.Key.rect = kv.Value;
+                }
+            }
+            _rectDuringRender.Clear();
+        }
+
         public void Dispose()
         {
             RestoreShadows();
+            RestoreRects();
             Camera.onPreCull -= OnPreCull;
             Camera.onPostRender -= OnPostRender;
             foreach (KeyValuePair<Camera, int> kv in _maskDuringRender)

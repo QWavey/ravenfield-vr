@@ -753,6 +753,15 @@ namespace RavenfieldVR.Core
                     }
                     return d + ", UI camera off";
                 }),
+                // The game's own screen cameras (drawing nothing in VR, kept on for the game's logic) rendering into one pixel instead
+                // of the whole target: their clears, image effects and post-processing (about 0.7 ms of main thread in the user's
+                // log of 2026-10-28; Tasks 348). Only the bench sets it: in play once measured.
+                new KeyValuePair<string, Func<string>>("Game, game cameras 1 px", () =>
+                {
+                    string d = GraphicsPresets.ApplyGameForBench(1f);
+                    Rig.CameraSuppressor.TinyRect = true;
+                    return d + ", the game's suppressed cameras into 1 px";
+                }),
                 new KeyValuePair<string, Func<string>>("Low again", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Low)),
             };
             // The world held still for it (the game's own pause: drawing goes on, nothing moves), so every setting draws the same
@@ -781,6 +790,7 @@ namespace RavenfieldVR.Core
                         {
                             ui.UiCamera.enabled = true;
                         }
+                        Rig.CameraSuppressor.TinyRect = false; // (only its own run sets it)
                         string applied = run.Value();
                         yield return new WaitForSecondsRealtime(1.5f);
                         PerfProbe.Reset();
@@ -806,6 +816,7 @@ namespace RavenfieldVR.Core
                 {
                     ui.UiCamera.enabled = true;
                 }
+                Rig.CameraSuppressor.TinyRect = false;
                 GraphicsPresets.Apply();
                 Runtime.OpenVRRuntime.ApplyLiveSettings();
             }

@@ -2994,6 +2994,8 @@ array (debug option only).
       Try in a game run: their pixelRect shrunk to 1x1 for the render only (set in onPreCull, put back in onPostRender, as the
       mask is), checked that the desktop mirror and the game's aim (ScreenPointToRay in Update) are unchanged, and measure those
       cameras in the frame rate line before and after.
+      (2026-10-29: built for the bench only, CameraSuppressor.TinyRect: the bench's "Game, game cameras 1 px" against "Game (own
+      quality)" says what it saves; into play once measured and the mirror checked.)
 - [x] (2026-10-28) The wrist says "CPU-bound" when frames are late with the GPU well inside the interval, and the hold no longer
       lowers the render scale then (Tasks 349).
 
