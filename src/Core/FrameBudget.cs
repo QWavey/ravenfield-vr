@@ -115,7 +115,13 @@ namespace RavenfieldVR.Core
             {
                 // no OpenVR system (flat mode): Unity's below
             }
-            return XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f;
+            if (XRDevice.refreshRate > 1f)
+            {
+                return XRDevice.refreshRate;
+            }
+            // Said once: the budget, the on-time share and the frame rate hold all take it (sweep round 2).
+            Log.InfoOnce("framebudget-90", "The headset's refresh rate could not be read (SteamVR or Unity): the frame budget takes 90 Hz.");
+            return 90f;
         }
 
         private static void SampleGpu()

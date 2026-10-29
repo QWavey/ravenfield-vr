@@ -1,0 +1,136 @@
+BUG HUNT round 2, read-only sweep: magazine insertion place (Ravenfield VR, Haiku sweeper)
+Repo root: C:/Users/Flo/Downloads/NewApps/Ravenfield-VR
+Read at HEAD 92a2694 (committed 2026-10-29 16:25:30). That commit (spare magazine grouping: the K13 "416f mag.001") changed src/Weapons/WeaponAnalyzer.Magazine.cs at lines 560-625 while this sweep ran. Line numbers for that file are the current ones after line 560; before 560 they are unchanged.
+Excluded, not reported: the floating spare magazine behind the M4, shotgun shells, machine-gun belts and boxes.
+
+Method note: the seat, the axis and the offline table are consistent in their frames (the table tool negates z back to game space, tools/export_checks/mag_line_table.py, and the K13 numbers match the logged 6.0 deg). The defects are in what the hand copy is built from, in the parked-away seat, and in the variant gate.
+
+----------------------------------------------------------------------
+
+1. Skill: BUG HUNT - the hand copy of a magazine is measured wider than the analysed well box; the capture rail and the keep-out use different boxes
+Complaint: general (the place where the magazine is caught and lined up does not match where it seats; ARS HK416 / MP9 / Glock 19 most visible in the logs)
+File: src/Weapons/MagazineProp.Look.cs:162, 216, 638, 716; src/Weapons/MagazineProp.cs:334, 365; src/Weapons/MagazineProp.Holding.cs:624; src/Weapons/HeldWeapon.Shape.cs:282, 440; src/Weapons/ReloadInteractions.Magazines.cs:877
+Quote:
+  MagazineProp.Look.cs:216:  "            bounds = RenderedBounds(go, d.MagBounds, d.Key);"
+  MagazineProp.Look.cs:638:  "            if (!any || size < 0.02f || size > 1.5f || expected > 0.02f && (size > expected * 3f || size < expected / 3f))"
+  MagazineProp.Look.cs:716:  "                    if ((r.transform.position - source.position).sqrMagnitude > ParkedAway * ParkedAway)"
+  MagazineProp.cs:334:      "            float extent = Mathf.Abs(Vector3.Dot(bounds.extents, Abs(InsertDirLocal)));"
+  MagazineProp.cs:365:      "                    RailLength = machineGun ? ... : Mathf.Clamp(extent * 0.9f, 0.03f, 0.09f);"
+  MagazineProp.Holding.cs:624: "                Bounds well = wellRig.Data.MagBounds;"
+  HeldWeapon.Shape.cs:282:  "            Bounds mb = d.MagBounds;"
+  HeldWeapon.Shape.cs:440:  "                float rail = Mathf.Clamp(half * 0.9f, 0.03f, 0.09f); // as MagazineProp's rail"
+  ReloadInteractions.Magazines.cs:877: "            prop.Destroy();"
+What is wrong: The magazine in the hand, and its rail length and tip, are built from the copy's rendered bounds (RenderedBounds). Those bounds take every renderer of the magazine parts within 1.5 m (Look.cs:670, 716). A copy within 3x of the analysed size is accepted with no centre check (Look.cs:638; the centre gate exists only in KeepLoadedMagazine, Look.cs:287). The keep-out opening (Holding.cs:624) and the in-game line fit (HeldWeapon.Shape.cs:282, 440) use the analysed MagBounds instead. The fit's comment says its rail is "as MagazineProp's rail", but it is computed from the analysed extents. At the seat the held copy is destroyed (ReloadInteractions.Magazines.cs:877) and the gun's own part, built from the analysed geometry, is drawn at the same seat (HeldWeapon.Parts.cs:109). So the magazine visibly changes shape and place at the moment it seats.
+Evidence (game logs; the "size" figures are the box diagonal, not the length):
+  - ARS HK416, reports/shots/check-1017g/game-log.txt:674, 676, 677: copy centre (-9.6, 0.0, -1.8) cm, diagonal 23.4 cm against 13.6 cm analysed; in the hand 21 x 3 x 9 cm; "rail 9.0 cm" (the clamp maximum). The analysed rail would be at most about 6.1 cm (0.9 of half of 13.6 cm), so the copy's rail is at least about 2.9 cm longer than the analysed box allows.
+  - ARS MP9, reports/shots/check-1017e/game-log.txt:899, 901, 902: centre -10.0 cm, diagonal 21.1 cm against 13.6 cm; in the hand 21 x 2 x 4 cm; rail 9.0 cm.
+  - ARS Glock 19, reports/shots/weapons/game-log.txt:1358: centre (-5.7, 0, 0) cm, diagonal 17.7 cm against 13.6 cm.
+  - CZ Bren 2 BR Assault, reports/shots/play-1021-night/game-log.txt:668: centre (0.0, -4.4, 0.2) cm against (0.0, -0.4, 0.0) cm; diagonal 27.3 cm against 22.5 cm.
+  - M1 GARRET, reports/shots/check-1017f/game-log.txt:314: diagonal 9.6 cm against 7.0 cm, centre 1.8 cm off.
+Trigger / what the player sees: Take a loaded ARS HK416 or MP9 magazine out and bring it back. The magazine in the hand is about 21 cm long on a 9 cm rail, but the well it has to enter is cut for the 13.6 cm analysed box. The magazine is blocked, or starts to slide, at points a few centimetres off the well's real mouth, and when it seats the drawn magazine changes shape. Not confirmed in a headset, and I did not check which end of the copy carries the extra length.
+Proposed change: Use one box for the prop's geometry, rail, keep-out and fit.
+  (a) In CheckedCopy (Look.cs:211-216) apply the same gate KeepLoadedMagazine uses (Look.cs:287: centre within 3 cm and size between half and double). On failure, fall back to the analysed MagBounds, not the rendered one.
+  (b) Keep the bounds the prop was built with (the `bounds` from CreateNow, Look.cs:48-63) on the prop, and pass them to KeepOffGun (Holding.cs:624) and to the fit's mb and rail (HeldWeapon.Shape.cs:282, 439-440).
+  (c) Keep pieces that sit inside the magazine's own envelope (rounds, followers) out of the rail length, so the rail does not grow with them.
+Confidence: medium-high that the two boxes differ on the logged guns and that the code reads as described (every line above was read). Medium on the player-visible effect, which needs a headset check on ARS HK416 and MP9.
+
+----------------------------------------------------------------------
+
+2. Skill: BUG HUNT - the first magazine after a dry draw is built on the analysed line, before the in-game fit tilts it
+Complaint: general (a magazine goes in on a wrong line on some guns; the first insert after a dry draw)
+File: src/Weapons/HeldWeapon.Shape.cs:269, 276, 510; src/Weapons/MagazineProp.cs:75, 330; src/Weapons/MagazineProp.Look.cs:38-40, 633; src/Weapons/ReloadInteractions.Magazines.cs:259
+Quote:
+  HeldWeapon.Shape.cs:269:  "                || !_magSolidShown || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || d.Action == ActionType.SingleShot"
+  HeldWeapon.Shape.cs:510:  "                d.MagEjectAxis = -(Quaternion.AngleAxis(bestAngle, right) * in0).normalized;"
+  MagazineProp.cs:75:       "        public readonly Vector3 InsertDirLocal;"
+  MagazineProp.Look.cs:38:  "            Axes(d, kind, out Vector3 insertGun, out Vector3 frontGun);"
+  MagazineProp.Look.cs:633: "            insertGun = -d.MagEjectAxis;"
+  ReloadInteractions.Magazines.cs:259: "            MagazineProp prop = MagazineProp.Create(Rig, kind, rounds);"
+What is wrong: FitMagazineLine runs only with a magazine seated (MagInserted, and a seated volume that needs the part shown). A gun drawn dry therefore has no fitted line. The magazine taken from the pouch (TakeFromPouch, line 259) is built from the analysed d.MagEjectAxis, and InsertDirLocal is readonly, so that prop keeps the un-tilted line for its whole insertion. The fit runs only after seating and rewrites d.MagEjectAxis (line 510) for props made later. Only the first insertion after a dry draw is affected, and only on guns that are not in the offline table and whose fit tilts them. The logs show tilts on: SL-DEFENDER#sniper (-3 and -6 deg; reports/shots/auto1/game-log.txt:916, reports/shots/ab1/game-log.txt:50), AUTOMATICO AKIMBO (12 deg; reports/shots/auto1/game-log.txt:293), RIPCORD#PP90 (12 deg; reports/shots/auto1/game-log.txt:784), and M1 GARRET (15 deg, same fit log family).
+Trigger / what the player sees: Draw an SL-DEFENDER (or AKIMBO, RIPCORD) with no magazine in it, take one from the pouch and push it in. It slides along the untilted line, which is the line the fit was built to move away from the gun's walls. Later reloads use the tilted line. The seated place is the same; the approach is what differs.
+Proposed change: Make the live prop follow the rig's line. Drop `readonly` on InsertDirLocal, FrontLocal, TipLocal and BaseLocal (MagazineProp.cs:75-76, 330-336) and recompute them from d.MagEjectAxis when FitMagazineLine changes it, updating a held prop if there is one. Alternatively, let the fit's volume measure run with the seated part hidden, so the first insertion already has the fitted line.
+Confidence: medium. The gates and the readonly field were read directly, and the tilts are in the logs. I did not run a dry draw, so the first-insert effect is inferred from the gates.
+
+----------------------------------------------------------------------
+
+3. Skill: BUG HUNT - a parked magazine's seat keeps the rest rotation, while the reload's own rotation at that point is discarded
+Complaint: general (a magazine seated on the gun in a pose that is not where its reload puts it; M1 GARRET-type en-bloc clips; the .357 CONDOR revolver shows the same path in the export)
+File: src/Weapons/WeaponAnalyzer.Magazine.cs:365-380 (magazine), 341-352 (launcher), 1702 (shape axis); 1514 (the loading-port branch, for comparison)
+Quote:
+  365: "                Vector3[] path = sampler.ReloadTrajectory[mi];"
+  366: "                Vector3 end = d.MagSeat.position;"
+  371: "                        if (!float.IsNaN(p.x) && OffBore(p) < OffBore(end))"
+  380: "                    d.MagSeat = new RigidPose(end, d.MagSeat.rotation);"
+  1514: "                Quaternion rot = turn != null && best < turn.Length && turn[best].w * turn[best].w + ..." (the loading-port branch reads the reload's turn)
+  1702: "            Vector3 axis = (d.MagSeat.rotation * axisLocal).normalized;"
+What is wrong: For a magazine parked away at rest, the seat's position becomes the reload sample nearest the bore (loop at 369-375), but its rotation stays the rest pose (RelIdle). The sample's index is dropped in that foreach, so the reload's rotation at that step, sampler.ReloadRotation[mi][k] (recorded in gun space at PoseSampler.cs:550), is never read on this path. The seated part is then drawn in the rest rotation (HeldWeapon.Parts.cs:109), the shape axis that becomes the insertion line is taken in it (line 1702), and the rail's turn limit is measured against it (MagazineProp.Holding.cs:560). The loading-port branch of the same file reads the turn (line 1514), so the magazine branch is the inconsistent one.
+Evidence: sandbox/data/weapons/M1_GARRET_Garand/rig.json: note "magazine parked 61 cm off the bore at rest: seated where its reload brings it into the gun"; "magSeatRot":[0,0,0,1]; "magRestPos":[0.498063,1.022815,0.300832]; "magSeatPos":[-0.000619,0.142307,-0.050773]. sandbox/data/weapons/.357_CONDOR_Revolver/rig.json carries the same note (the dot-named folder, which a plain */ glob skips). The reload rotation at the seat sample is not exported for either, so the size of any error is unknown.
+Trigger / what the player sees: A clip or revolver whose reload turns it at the point it seats: the seated part and the next magazine's line sit off by the reload's rotation.
+Proposed change: Keep the index k of the chosen sample in the loop at 369-375 and set the seat to `new RigidPose(end, rotAtK)`, where rotAtK is sampler.ReloadRotation[mi][k] when it has a unit norm (the test used at line 1498), otherwise RelIdle's rotation. Use the same rotation for MagAxisFromShape (line 1702). Log the angle between the rest and chosen rotations so the next headset run shows whether it matters.
+Confidence: medium that the rest rotation is used where the reload's is available (read in the code). Low on the size of the visible error: no reload rotation for these guns is in any export or log.
+
+----------------------------------------------------------------------
+
+4. Skill: BUG HUNT - a fire-mode or attachment variant with its own rig never gets its seated magazine posed
+Complaint: general (the brief's "fire-mode variants sharing a parent's setup with a different model offset")
+File: src/Weapons/HeldWeapon.Parts.cs:103-104, 109; src/Weapons/HeldWeapon.cs:715-730, 966, 973; src/Weapons/ReloadInteractions.cs:284; src/Weapons/MagazineProp.Holding.cs:599
+Quote:
+  HeldWeapon.Parts.cs:104: "                && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading))"
+  HeldWeapon.Parts.cs:109: "                Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);"
+  HeldWeapon.cs:966:       "                WeaponRig nextRig = active == Weapon ? Rig : SubWeaponRig(active);"
+  HeldWeapon.cs:724:       "            if ((noMagazine || sharesParts) && sameAction && Rig.Data.MagazinePath != null)" (returns Rig); otherwise "return own;" at line 729
+What is wrong: The seated magazine is posed at its seat only while the main rig is the active one. When a sub weapon's own rig is active (SubWeaponRig returns `own` when the actions differ, when the variant has its own magazine part not shared with the parent, or when the parent has no magazine path), the capture, the keep-out and the seated volume all use own.Data.MagSeat through ActiveRig (ReloadInteractions.cs:284; MagazineProp.Holding.cs:599). Nothing poses that rig's magazine part at its seat, and the main rig's part is left to the game's animation too. The comment at HeldWeapon.Parts.cs:106-108 records that the animation's poses moved a seated magazine 4 cm (M1911) to 4.4 cm (P220) against the gun on this very path, which is why the pin exists.
+Trigger / what the player sees: Hold a variant whose analysis kept its own magazine. A magazine seated while it is held is shown where the game's animation leaves it, and the next magazine is caught at the variant's analysed seat.
+Caveat: the exports contain only five sub-weapon keys, all launchers (see finding 5). I could not find a real weapon that returns `own` with a visible magazine.
+Proposed change: Take the seat from the same rig the insertion uses. Test ActiveRig instead of Rig at HeldWeapon.Parts.cs:104 and pose ActiveRig.Magazine at ActiveRig.GunBodyPose.Multiply(ActiveRig.Data.MagSeat), or have SubWeaponRig return Rig when the variant's magazine seat is within about 3 cm of the parent's. Check with one such variant in the headset.
+Confidence: low-medium. The gate is read directly. Whether any real variant reaches `own` with a visible magazine is not in the data here.
+
+----------------------------------------------------------------------
+
+5. Skill: BUG HUNT - sub-weapon keys carry a path suffix, so the offline magazine table never matches them
+Complaint: general (the offline table is applied on one path but not the other)
+File: src/Weapons/WeaponAnalyzer.cs:145-153, 198; src/Weapons/MagLineTableApply.cs:27; src/Weapons/MagLineTable.cs:10-112 (the keys)
+Quote:
+  WeaponAnalyzer.cs:152:       "                key += path.ToString();"
+  MagLineTableApply.cs:27:     "            if (d == null || d.Key == null || !Lines.TryGetValue(d.Key, out Vector3 line) || line.sqrMagnitude < 0.5f)"
+What is wrong: KeyOf appends the sibling path for any weapon with a Weapon ancestor, so a sub weapon's d.Key carries a suffix, for example "HK416-D#M320身子/1/0/19". The table is keyed on the plain "entry#prefab" form (MagLineTable.cs:10-112), so a sub weapon never receives its measured line. It gets the in-game fit instead (HeldWeapon.Shape.cs:277, From(d) is false).
+Evidence: five suffixed keys in sandbox/data/weapons/*/rig.json: "HK416-D#M320身子/1/0/19", "HK416-D/S#M320身子/1/0/19", "QBZ192-D#QLG榴弹发射器/1/0/21", "QBZ192-D/S#QLG榴弹发射器/1/0/21", "PATRIOT GL#AR-15 Nade Launcher/0/8". All five are launchers, so the export shows no magazine effect.
+Trigger / what the player sees: A magazine-fed sub weapon whose plain key is in the table gets the in-game fit instead of its measured line.
+Proposed change: In MagLineTable.Apply and From, strip a trailing run of "/<digits>" from the key before the lookup (the table's keys never carry one), so sub weapons get the measured line as top-level guns do. Keep the MaxTurn guard.
+Confidence: high that the lookup misses suffixed keys (KeyOf and Apply read directly). Low on player impact: only launchers appear in the exports, and no magazine-fed sub weapon is confirmed.
+
+----------------------------------------------------------------------
+
+Not reported (checked): KeepLoadedLook writes MagSeat at runtime (MagazineProp.Look.cs:360), but it is called only for single-shot launchers (ReloadInteractions.cs:309-311), so it is not a magazine path. The seated volume is posed on the first MagazineParts entry, which is always Rig.Magazine when it exists (WeaponRig.cs:441-466), so the volume and the drawn part share a frame.
+
+Swept:
+- docs/Tasks.md 1-60, 76-100; grep for magazine items
+- src/Weapons/MagLineTable.cs 1-115; src/Weapons/MagLineTableApply.cs 1-48
+- src/Weapons/WeaponAnalyzer.cs 120-240
+- src/Weapons/WeaponAnalyzer.Magazine.cs 59-70, 290-440, 1405-1525 (pre-commit numbering; after line 560 the current numbers were re-checked at 1498, 1514, 1532, 1702, 1741), 1600-1720 (pre-commit numbering)
+- src/Weapons/HeldWeapon.Shape.cs 150-180, 240-276, 255-530, 540-575, 840-880, 1012-1085
+- src/Weapons/HeldWeapon.Parts.cs 85-135
+- src/Weapons/HeldWeapon.cs 140-160, 710-730, 930-1000, 1995-2030, 2080-2110
+- src/Weapons/MagazineProp.cs 160-310, 300-445 (partial), 600-672; lines 75, 330-336, 365
+- src/Weapons/MagazineProp.Look.cs 1-125, 145-260, 260-406, 572-760
+- src/Weapons/MagazineProp.Holding.cs 20-130, 539-561, 600-730
+- src/Weapons/ReloadInteractions.Magazines.cs 120-260, 352-660, 828-885
+- src/Weapons/ReloadInteractions.cs 300-320
+- src/Weapons/WeaponRig.cs 262-273, 425-506
+- src/Weapons/PoseSampler.cs 490-600
+- src/Weapons/SandboxExport.cs 525-540, 605-630
+- tools/export_checks/mag_line_scan.py 1-157 (1-59 by grep); mag_line_table.py 139-142 (by grep)
+- reports/sandbox/data/weapons: M1_GARRET_Garand, .357_CONDOR_Revolver, K13 rig.json; magazine and sub-key greps
+- reports/shots logs: check-1017e, check-1017f, check-1017g, weapons, play-1021-night, auto1, ab1 (grep)
+- reports/maglines/scan/M1_GARRET_Garand.txt (scan failed); agents/gun-review-2026-10-15/017-M1_GARRET.txt (grep)
+- git, read-only: log -3, show --stat HEAD, diff HEAD~1 HEAD -U0 on WeaponAnalyzer.Magazine.cs
+
+OUTCOME (verified by the main session, 2026-10-29; nothing pushed)
+1. Partly: the copy-against-analysis log fires at 1 cm, and the latest full autotest (final-345) has only four guns with a
+   difference: PKP (fixed by the detached-pieces change: the analysis was the inflated one), G BRN180 EO SS (the analysis is
+   the inflated one there too, 50 against 28 cm), M1 GARRET and THUMPER (2-5 cm). So using the analysed box for the held
+   magazine would make the BRN180 worse. Open (docs/Tasks.md 355) until the user names the guns that insert in the wrong place.
+2. Open: the first magazine after a dry draw uses the un-fitted line (only guns outside the offline table whose fit tilts).
+3. Open: a parked magazine's seat keeps the rest rotation (M1 GARRET, .357 CONDOR); the size is unknown.
+4. Declined for now: no real variant reaching it with a visible magazine was found.
+5. Declined: only launcher sub weapons carry the suffix; no magazine effect.

@@ -606,9 +606,14 @@ namespace RavenfieldVR.Weapons
                 {
                     underAnother |= o != t && t.IsChildOf(o);
                 }
-                if (underAnother || d.SparePartPaths.Count >= 4)
+                if (underAnother)
                 {
                     continue;
+                }
+                if (d.SparePartPaths.Count >= 4)
+                {
+                    d.Warnings.Add($"more spare magazines than hidden: '{t.name}' and later ones stay drawn"); // (said, as the other caps are; sweep)
+                    break;
                 }
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
@@ -1657,17 +1662,20 @@ namespace RavenfieldVR.Weapons
             Quaternion along = Quaternion.FromToRotation(longGun, d.AimAxis) * lying;
             d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
             d.MagEjectAxis = -d.AimAxis;
-            d.Warnings.Add("loading port estimated (the reload's shell never comes under the bore by the grip): half way to the forend, 3 cm under the bore");
+            d.Warnings.Add($"loading port estimated (the reload's shell never comes under the bore by the grip): {Vector3.Dot(port - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
+                           + $"3 cm under the bore{(d.HasSupportPoint ? "" : " (no forend found: taken 35 cm ahead of the grip)")}");
         }
 
         /// <summary>
-        /// A tube's loading port when no reload shows it: half way from the grip to the forend, 3 cm under the bore (the ports
-        /// measured from the reloads of 2026-10-22: 17-30 cm ahead of the grip, 1.4-4.7 cm under the bore).
+        /// A tube's loading port when no reload shows it: 0.6 of the way from the grip to the forend, 3 cm under the bore (the
+        /// ports measured from the reloads of 2026-10-22: 17-30 cm ahead of the grip, 1.4-4.7 cm under the bore; the R870's 20 cm
+        /// is 0.6 of its 31-35 cm to the pump). Half way, and a forend made 30 cm ahead, put it 15 cm ahead: outside every
+        /// measured port, and on the R870's geometry beyond its 3.5 cm capture (sweep round 2).
         /// </summary>
         private static Vector3 EstimatedPort(WeaponRigData d)
         {
-            Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.3f;
-            Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.5f);
+            Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.35f;
+            Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.6f);
             return d.MuzzlePoint + d.AimAxis * Vector3.Dot(mid - d.MuzzlePoint, d.AimAxis) - d.Up * 0.03f;
         }
 

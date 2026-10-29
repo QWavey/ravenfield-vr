@@ -1013,6 +1013,11 @@ namespace RavenfieldVR.Weapons
                 d.RackPoint = d.MuzzlePoint + d.AimAxis * (rear + 0.012f) + d.Up * 0.03f;
                 d.Notes += $"AR charging handle at the upper receiver's back end, {(Vector3.Dot(d.GripPoint - d.MuzzlePoint, d.AimAxis) - rear) * 100f:0.0} cm behind the grip point ";
             }
+            else
+            {
+                // Said, as the other guesses are (the dump read "at the back of the receiver" for a point 5 cm behind the grip; sweep).
+                d.Notes += "AR charging handle guessed 5 cm behind the grip point, 3 cm over the bore (the receiver's mesh cannot be read) ";
+            }
             d.RackOnSurface = true; // onto the top of the receiver once the model is measured
             d.CarveHandle = true;
             if (d.SlidePath == null)

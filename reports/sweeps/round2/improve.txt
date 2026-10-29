@@ -1,0 +1,118 @@
+IMPROVE sweep, round 2: machine-gun magazine hold, box pull and belt strip (read-only, no game, no build)
+
+Evidence note: the PKM numbers below come from reports/sandbox/data/weapons/PKM_PKM/rig.json and model.glb (the sandbox export of 2026-10-19 19:04). PoseSampler.cs changed on 2026-10-22 and 2026-10-24 after that export (commits 39680ba, 23bfe62), so the export must be re-made in the game before the numbers are trusted. The code paths are read from the current tree.
+
+1. Skill: IMPROVE - The PKM's analysed box includes its 21-link belt tail, so the pull grab point sits about 20 cm off the real box
+Complaint: "some MGs still cant be reloaded nicely"; "on the PKM the mag is floating around and not really in the hand"; "the magbelt is floating on another position"
+File: src/Weapons/PoseSampler.cs:706-719 ; src/Weapons/WeaponAnalyzer.Magazine.cs:393-396 ; src/Weapons/ReloadInteractions.Magazines.cs:180-185 ; src/Weapons/ReloadInteractions.cs:646-651 ; src/Weapons/MagazineProp.Look.cs:716-718 ; src/Core/VRConfig.cs:335-336
+Quote: PoseSampler.cs:712 "Func<Transform, bool> near = t => selfInv.TransformPoint(Idle(t).position).sqrMagnitude < ParkedAway * ParkedAway;"
+Quote: PoseSampler.cs:713 "Bounds shown = MeshBounds(live, toSpace, t => IdleVisible(t) && near(t));"
+Quote: WeaponAnalyzer.Magazine.cs:396 "d.MagBounds = mb;"
+Quote: ReloadInteractions.Magazines.cs:184 "return SeatPose.TransformPoint(b.center - insertLocal * extent);"
+Quote: ReloadInteractions.cs:649 "if (d < radius * 1.1f)"
+Quote: VRConfig.cs:335 "GrabRadius = cfg.Bind("Weapons", "GrabRadius", 0.09f,"
+What is wrong: The box's bounds are taken from every mesh under the magazine transform that is visible at idle and whose pivot is within 1.5 m. On the PKM the box's subtree also holds the belt tail (the node "AMMO.001" with children "L P.011" to "L P.021" and "L.011" to "L.012" in model.glb, nodes 1-11). The export shows the tail inside the box: magBoundsSize [0.391814, 0.095099, 0.542435] (rig.json) against the box's own mesh (glb nodes 0, 12, 13) of 0.316 x 0.095 x 0.172 m. In gun space the tail starts 16 cm beyond the box's back face (z 0.338 against the box's 0.18) and reaches z 0.546; its x reaches -0.211 against the box's -0.137. The 1.5 m test in the code only removes links that the code believes are parked 25 m away (PoseSampler.cs:710-711); in the 2026-10-19 export they were not parked. The inflated box then feeds the pull grab point (ReloadInteractions.Magazines.cs:180-184, base = centre minus insert times half-length). From rig.json (magSeatPos, magBoundsCenter, magEject) that point is about (-0.260, -0.133, 0.332) gun space, roughly 0.195 m from the nearest point of the real box mesh. The seated-box grab accepts a palm within 0.09 x 1.1 = 0.099 m of that point (ReloadInteractions.cs:646-651), so the real box cannot be taken at its base.
+Trigger / what the player sees: Reaching for the PKM box's base finds nothing; the palm must go out past the back of the box into the belt tail. The same inflated box also (a) sets the belt mouth and tray clamp (see finding 3), (b) enlarges the keep-out "well" used against the receiver (MagazineProp.Holding.cs:624 "Bounds well = wellRig.Data.MagBounds;"), so receiver solid inside the tail's volume counts as open well, and (c) if the tail is within 1.5 m of the box pivot when the held copy is made, the copy keeps it (MagazineProp.Look.cs:716 "if ((r.transform.position - source.position).sqrMagnitude > ParkedAway * ParkedAway)"; the box's children are walked at Look.cs:710). A held copy that carries the tail is a box with a 21-link strip sticking out at its back, and HoldPose would take its length and grip from the tail's far end (MagazineProp.cs:334-336; MagazineProp.Holding.cs:78-81). Both outcomes match the complaint.
+Proposed change: Measure the box from the group of meshes that touch the box's main body, not from all visible meshes within 1.5 m. WeaponAnalyzer.Magazine.cs already has a grouping pass for the gun's own parts (the group of the part nearest the grip, Magazine.cs:586-596); reuse it in LocalBounds' caller so MagBounds and the copy's renderers come from the same cluster. Alternatively drop meshes whose box lies more than half the body's length beyond the body. Acceptance: rig.json's magBoundsSize for PKM_PKM is about 0.32 x 0.095 x 0.17, and SeatedMagBaseWorld lands on the box's back face (about x -0.137 in gun space). Re-run the sandbox export after the change (it is the cheap check).
+Confidence: medium. The numbers are exact (the glb node bounds union, nodes 1-11 plus 0, 12, 13, gives 0.391 x 0.095 x 0.538 m, matching rig.json), and the runtime uses d.MagBounds without any further check, so the pull-point error follows. Not confirmed: whether the tail is still within 1.5 m in the game at the moment of analysis and copy (the code comment says it is parked 25 m away at rest), and whether PoseSampler changes since 2026-10-19 altered the box bounds. Re-export the PKM to settle it.
+
+2. Skill: IMPROVE - The held belt end is clamped to 0.32 m but the belt only slips from the hand at 0.38 m
+Complaint: "the magbelt is floating on another position"
+File: src/Weapons/ReloadInteractions.Parts.cs:332, 408-414, 541-544
+Quote: Parts.cs:332 "private const float BeltReach = 0.32f;"
+Quote: Parts.cs:408 "if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)"
+Quote: Parts.cs:543-544 "to = off.Palm.position + off.Palm.Forward * 0.02f;" / "to = from + Vector3.ClampMagnitude(to - from, BeltReach);"
+What is wrong: The belt end is drawn at most 0.32 m from the mouth, but the hand keeps the belt until it is 0.38 m from the mouth. Between 0.32 and 0.38 m the hand holds nothing visible: the strip stops and the glove goes on.
+Trigger / what the player sees: Pulling the belt past about 28 rounds' length, the strip stops short of the hand by up to 6 cm (8 cm counting the 2 cm forward offset) and then slips off the fingers, with the visible end left behind in the air.
+Proposed change: Clamp to the same distance as the drop test: change Parts.cs:544 to ClampMagnitude(to - from, BeltReach + 0.06f) and raise MaxRounds in src/Weapons/BeltStrip.cs:13 from 32 to at least 34. Without the MaxRounds change the strip is capped at 32 rounds at 0.38 m (ceil(0.38/0.0115) = 34), and its back end then sits about 2 cm off the mouth, the same kind of gap as finding 4.
+Confidence: high. The two lines are unambiguous; the visible gap follows from them. Not checked in game.
+
+3. Skill: IMPROVE - The laid belt jumps up to 7 cm when it is laid, and the tray it is laid on is a guessed point
+Complaint: "the magbelt is floating on another position"
+File: src/Weapons/ReloadInteractions.Parts.cs:377, 417-420, 521-523, 543, 552
+Quote: Parts.cs:377 "private Vector3 FeedTrayWorld => Rig.ToWorld(Vector3.Lerp(Data.HingePivot, Data.HingeGrabPoint, 0.5f) - Data.Up * 0.012f);"
+Quote: Parts.cs:417-420 "float toTray = Vector3.Distance(off.Palm.position + off.Palm.Forward * 0.02f, FeedTrayWorld);" / "if (toTray < 0.07f)" / "CompleteBelt(off);"
+Quote: Parts.cs:552 "to = FeedTrayWorld;"
+What is wrong: While the belt is held the drawn end is palm + 2 cm forward (Parts.cs:543). CompleteBelt fires when that same point is within 7 cm of the tray (Parts.cs:417-420). The next frame the laid strip is drawn to FeedTrayWorld (Parts.cs:552), so the end jumps by up to 7 cm. The tray point itself is the midpoint of the cover's hinge pivot and latch, moved 1.2 cm down (Parts.cs:377). That is the hinge line, not the feed floor; docs/Tasks.md task 274 already says the tray end is a guess from the cover's hinge. On the PKM export the same formula, with rig.json hingePivot and hingeGrab, puts the tray about 8 cm above the box's top face and about 17 cm sideways from the box's +X end face. The laid strip therefore runs sideways from the box's end to the tray (about 19 cm), which is a different place from the feed the game shows.
+Trigger / what the player sees: The belt lands and the end visibly snaps onto a point up to 7 cm away; after that it lies on a guessed tray that may not be where the feed is.
+Proposed change: For the snap: on CompleteBelt keep the drawn end (store palm + 2 cm forward) and ease from it to FeedTrayWorld over about 0.1 s, or move the lay point onto the tray at lay. For the tray: take the feed floor from the analysis (a per-gun height above the receiver, as task 274 asks) instead of the hinge midline, and check it against the export.
+Confidence: high for the snap (it follows from lines 417-420 and 552). Medium for the tray being wrong (task 274 says it is a guess; the PKM geometry is computed, not seen in game).
+
+4. Skill: IMPROVE - A belt with fewer rounds than its length hangs in the air, away from the box mouth
+Complaint: "the magbelt is floating on another position"
+File: src/Weapons/BeltStrip.cs:6-8, 78, 105, 116 ; src/Weapons/ReloadInteractions.Parts.cs:554
+Quote: BeltStrip.cs:7-8 "rounds side by side, pointing down the barrel, / running from the mouth of the box to the hand that pulls it, sagging a little in between."
+Quote: BeltStrip.cs:78 "/// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box."
+Quote: BeltStrip.cs:105 "int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));"
+Quote: BeltStrip.cs:116 "float t = 1f - i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));"
+Quote: Parts.cs:554 "_belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds); // a nearly empty box has only a few rounds of belt"
+What is wrong: When the box holds fewer rounds than the belt length needs (about 28 at full reach, 0.32 m and 1.15 cm pitch), count is capped at the round count (BeltStrip.cs:105), but the rounds are still spaced back from the hand (BeltStrip.cs:116). The back round then sits at L - (count - 1) x Pitch from the mouth, not at the mouth. Examples at full reach: 10 rounds leave a gap of about 22 cm, 5 rounds about 27 cm. The same happens to the laid strip, since it is placed with Ammo.MagRounds too (Parts.cs:554). The header (BeltStrip.cs:7-8) says the strip runs from the mouth; the comment at BeltStrip.cs:78 accepts the gap as intended.
+Trigger / what the player sees: On a box with fewer than about 27 rounds left, the belt is a short string of rounds that starts in mid-air well away from the mouth, and it stays there while laid.
+Proposed change: Keep the rounds anchored at the mouth: use t_i = 1 - i x Pitch / length (so round 0 is at the hand end and the last round at the mouth when count is capped), or equivalently place round i at span x (i x Pitch / length) from the mouth; leave the hand-end logic for the uncapped case. Update the comment at BeltStrip.cs:78 to match.
+Confidence: high on the arithmetic and the code path. Medium on how often it shows in play (it needs a box below about 27 rounds). I did not run it.
+
+5. Skill: IMPROVE - The glove's box pose reads the instant BoxSized flag while the hold eases through BoxBlend
+Complaint: "on the PKM the mag is floating around and not really in the hand"
+File: src/Rig/HandPoses.cs:74, 78, 165-168 ; src/Weapons/MagazineProp.cs:95, 102, 351, 531-546 ; src/Weapons/MagazineProp.Holding.cs:96
+Quote: HandPoses.cs:165 "if (magazine.BoxSized)"
+Quote: HandPoses.cs:78 "new GripPose(HandPoseId.BoxMagazine, 0.35f, false, 0.35f, 0.5f, 0.55f, 0.58f, 0.6f),"
+Quote: MagazineProp.cs:95 "public bool BoxSized => Kind == PropKind.Magazine && (CrossHalf > 0.055f || _sideHalf > 0.025f);"
+Quote: MagazineProp.cs:102 "internal float BoxBlend => _sectionEasing ? _boxNow : BoxSized ? 1f : 0f;"
+Quote: MagazineProp.cs:540-542 "_frontHalf = now.x;" / "_sideHalf = now.y;" / "CrossHalf = now.z;"
+What is wrong: The hold geometry was changed to use the eased BoxBlend, because a flag that flips in one frame moved the magazine 2 cm (comment at MagazineProp.cs:97-100; used at Holding.cs:96). The glove's pose choice still reads BoxSized directly (HandPoses.cs:165), and BoxSized is computed from the sizes that are easing (MagazineProp.cs:540-542). During the 0.1 s section ease after a grab, the pose can switch between the box curls (HandPoses.cs:78) and the rifle curls (HandPoses.cs:74) mid-grab. The side half-width is also capped at 4 cm (MagazineProp.cs:351). A box whose side half-width is 2.5 cm or less and whose largest half-size is 5.5 cm or less is held on the rifle curls for as long as those sizes hold.
+Trigger / what the player sees: The glove closes differently for a few frames after the grab, and for a box whose sizes sit under both thresholds it stays on the rifle curls, which do not wrap a box.
+Proposed change: Pick the pose from the eased state (BoxBlend >= 0.5f, or a dedicated BoxHeld that uses the same blend as the hold) and give BoxSized a hysteresis band (switch at 0.025 up and 0.02 down) so it cannot flicker. Check with grip_check.py's MG box (Tasks.md "For 127").
+Confidence: medium-low. The mismatch in the code is clear, but the size needed for a permanent wrong pose is not measured; the transient one is certain once the section ease runs.
+
+6. Skill: IMPROVE - The box's intended forward tilt is discarded by LookRotation, so the box lies along the thumb side
+Complaint: "the mag is floating around and not really in the hand" (hold orientation; lower confidence)
+File: src/Weapons/MagazineProp.Holding.cs:61-63, 71-72 ; src/Rig/VRHand.cs:280 ; src/Runtime/OpenVRMath.cs:80-81 ; src/Rig/HandModel.cs:12-13
+Quote: Holding.cs:61 "/// hold a magazine to seat it), tip up-forward out between the thumb and the index, front forward. A pistol magazine"
+Quote: Holding.cs:71 "Vector3 insertTarget = (palm.Up * 0.75f + palm.Forward * 0.65f).normalized;"
+Quote: Holding.cs:72 "Quaternion rot = Quaternion.LookRotation(palm.Forward, insertTarget) * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(FrontLocal, InsertDirLocal));"
+What is wrong: Quaternion.LookRotation(forward, up) uses only the part of "up" perpendicular to "forward". VRHand.cs:280 builds Palm from the pointer rotation, and its Forward and Up are the local +Z and +Y (src/Runtime/OpenVRMath.cs:80-81), which HandModel.cs:12-13 describes as the palm's pointing direction and its top/thumb side. So the 0.65 forward part of insertTarget is dropped. The result is that InsertDirLocal lands exactly on palm.Up, not 41 degrees toward the fingers as the comment says. The rest distance (Holding.cs:88) uses the same palm-Y span, so it matches the real orientation; the comment is the stale part. Whether the tilt was ever meant to take effect is not clear from the code.
+Trigger / what the player sees: Magazines sit straight along the thumb side of the fist, not tipped out toward the fingers as documented.
+Proposed change: Decide which is intended. If the tilt is wanted, build the rotation from insertTarget directly (for example Quaternion.FromToRotation applied to the insertion axis) and recompute the rest span in PalmSurfaceFromGrip from the tilted footprint. If not, change the comment at Holding.cs:61. Verify with grip_check.py before touching either.
+Confidence: low. The discard follows from the documented behaviour of LookRotation and the palm-frame convention, but I did not check the rendered result, and the grip check may have been tuned against the current orientation.
+
+Swept:
+src/Weapons/MagazineProp.Holding.cs:1-945 (whole file)
+src/Weapons/MagazineProp.Look.cs:1-868 (whole file read in four parts)
+src/Weapons/MagazineProp.cs:1-700
+src/Runtime/OpenVRMath.cs:80-81
+src/Weapons/BeltStrip.cs:1-243 (whole file)
+src/Weapons/ReloadInteractions.Parts.cs:52-200, 310-570
+src/Weapons/ReloadInteractions.cs:340-372, 575-700, 740-775 (excerpts; 700-740 not read)
+src/Weapons/ReloadInteractions.Magazines.cs:100-200
+src/Weapons/WeaponAnalyzer.Magazine.cs:1-240, 325-470, 586-640, 1540-1570, 1643-1703, 2120-2278
+src/Weapons/WeaponAnalyzer.Action.cs:600-745
+src/Weapons/WeaponRig.cs:380-580
+src/Weapons/PoseSampler.cs:586-760
+src/Weapons/AmmoState.cs:196-270, 350-480, 618-645
+src/Weapons/HeldWeapon.cs:444-490, 2232-2252
+src/Weapons/HeldWeapon.Shape.cs:255-290
+src/Weapons/HeldWeapon.Parts.cs (grep only: lines 77-89, 173-187, 415-419)
+src/Weapons/SandboxExport.cs:445-453 (grep)
+src/Rig/HandPoses.cs:20-82, 140-200
+src/Rig/HandModel.cs:10-16, 241-266
+src/Rig/VRHand.cs:405-414
+src/Core/VRConfig.cs:335-336 (grep)
+reports/sandbox/data/weapons/PKM_PKM/rig.json (whole), reports/sandbox/data/weapons/PKM_PKM/model.glb (node tree, mesh bounds of nodes 0-13, 27-37; read-only parse)
+reports/sandbox/data/export-log.txt (PKM lines, grep)
+reports/agents/grab-review/machine-guns.txt (head)
+docs/Tasks.md (grep for belt, PKM, float; lines 274, 312, 118-120, 127, 257, 331, 332)
+git log (read-only): src/Weapons/PoseSampler.cs, src/Weapons/WeaponAnalyzer.Magazine.cs, src/Weapons/SandboxExport.cs since 2026-10-19; the commit that introduced PoseSampler.cs:710-711 (Branch check fixes, 2026-10-14)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Fixed (commit "Machine-gun boxes"): confirmed on the export, and wider than the PKM: the PKM, PKP and Type 80 (x9 variants)
+   carry 11 belt links under the box, the MK46 13 links 42 cm off. The analysis now finds pieces under the magazine that hang
+   5 cm or more apart from its body (body = the largest mesh and everything touching it within 2 cm), leaves them out of the
+   box's bounds and vertex axis, hides them while held (as parked ammunition) and never copies them into the hand. Checked on
+   all 287 exports: those nine guns and nothing else (the RPG-7's rocket safety, 9 cm off, is excluded with launchers).
+2. Fixed: the held strip is drawn to the same 38 cm the hand keeps it to (BeltHeldReach), MaxRounds 36.
+3. Fixed for the snap: the laid end eases from where it was drawn onto the tray in 0.12 s. The tray point itself (hinge
+   midline) stays a guess: open (docs/Tasks.md 355), it needs a picture check in the game.
+4. Fixed for the hanging and laid strips (they start at the box mouth now); a held short belt still ends in the hand.
+5. Fixed: the glove's box and pistol poses come from the eased BoxBlend / PistolBlend the hold takes.
+6. Declined: the hold orientation is tuned against the grip pictures as it is; changing the tilt needs grip_check.py and the
+   game. The comment is the stale part.

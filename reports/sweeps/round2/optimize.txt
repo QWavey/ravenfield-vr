@@ -1,0 +1,80 @@
+OPTIMIZE sweep, round 2 (frame rate), Ravenfield VR mod. Read-only: no edits, no builds, no game run. Numbers from RavenfieldVR-autotest.txt (run 2026-10-27 21:50, VR on, 14,437 frames). Worst first.
+
+1. Skill: OPTIMIZE - Harmony patches on per-frame game methods sit outside every mod timer
+Complaint: general (frame rate)
+File: src/Core/VRManager.cs:288-289 (what the timers leave out); patches at src/Weapons/WeaponPatches.cs:293, src/UI/SquadPointing.cs:442, src/Weapons/SoldierGuns.cs:508 and :521, src/Weapons/GunCollider.cs:1395 and :1423, src/UI/CanvasManager.cs:722, src/Input/TurretAim.cs:109, src/Rig/GroundCheck.cs:17
+Quote: VRManager.cs:288: "// The mod's own main-thread time: its Update, LateUpdate and before-render work (not its patches inside the game's code"
+Quote: WeaponPatches.cs:293: "[HarmonyPatch(typeof(Weapon), "Update")]"
+Quote: SquadPointing.cs:442-451: "[HarmonyPatch(typeof(FpsActorController), "Update")]" ... "SquadPointing.Compute();" (called every frame on the local player)
+What is wrong: The timed sections in the autotest table (lines 33-76) add up to about 0.7 ms a frame: UI.Update 0.137, Rig.BeforeRender 0.088, Weapons.BeforeRender 0.077, Input 0.071, Weapons.Update 0.070, UI.BeforeRender 0.057, Rig.Update 0.039, HandModel 2 x 0.029, held-weapon and pouch parts about 0.06 together, and the rest. The average frame is 11.40 ms (line 29), so about 10.7 ms sits outside the timed sections. Mod code that runs inside the game's own per-frame and per-physics-step methods through Harmony is not timed by any section: at least a dozen patched methods run every frame or per call (Weapon.Update for every gun in the scene, AiActorController.FacingDirection and WantsToFire per soldier, FirstPersonController.FixedUpdate and CharacterController.Move, the LateUpdate of several UI and camera components, SteelInput.GetAxis and GetButton per call, InputProxy.GetKey per call). The table therefore cannot say how much of the frame is the mod's own.
+Trigger / what the player sees: Medium and Ultra hold at half rate with the CPU as the limit (the task brief cites the user's Quest 3 run). The timers account for about 6% of the frame as mod code; nothing in the table names the rest.
+Proposed change: Wrap the bodies of these patches in PerfProbe.Part / PerfProbe.End (as HeldWeapon.cs:1646 and WeaponSystem.cs:446 already do for their parts), give each a name, and add the names to the "Mod sections" table the autotest prints. Run the Medium and Ultra bench once with that table, then pick targets from it. No behaviour change.
+Estimated saving: none yet; this is a measurement step.
+Confidence: high that the gap exists (the comment at VRManager.cs:288 says so and the patch list above is from grep); low on how much of the gap the patches hold, since nothing here measures them.
+
+2. Skill: OPTIMIZE - UI.Update runs a scene-wide canvas search once a second and allocates about 2 MB on those frames
+Complaint: general (frame rate, hitches)
+File: src/UI/CanvasManager.cs:127-129 and 199-201 (reached from UISystem.cs:134 via Canvases.Update)
+Quote: CanvasManager.cs:128-129: "_nextScan = Time.unscaledTime + (Util.GameContext.InGame && !Util.GameContext.GameMenuOpen ? 1f : 0.4f);" / "Scan();"
+Quote: CanvasManager.cs:201: "foreach (Canvas c in UnityEngine.Object.FindObjectsOfType<Canvas>())"
+What is wrong: UI.Update is the costliest per-call mod section: 0.137 ms average, 48.30 ms max, 14,437 calls (autotest line 35). Its average allocation is 20,559 bytes per call with 1.0% of calls allocating. By the profile's own numbers that is about 2 MB per allocating call and about 297 MB across the run, roughly 80% of all mod-section allocation (the run had 127 gen-0 collections, line 30). The 1.0% is about 144 calls in 173 s, about one a second, which fits the once-a-second scan in a match. The profile does not split UI.Update, and I did not trace the 2 MB to a line; the scan is the leading candidate, not a proven one.
+Trigger / what the player sees: In a match, once a second, the frame that runs the scan carries the search and the allocation. The garbage feeds the gen-0 collections, and the 99th-percentile frame (50.61 ms, line 29) can include such frames. The steady part is at most 0.137 ms a frame.
+Proposed change: First time Scan() on its own with PerfProbe.Part, and the rest of UISystem.Update separately, so the next profile names the source. If the scan is the cost: keep the full FindObjectsOfType only at scene change and when a menu opens, and between those look only at the canvases already tracked or at Canvas.GetCanvasList. Check the Unity 2020.3 behaviour of GetCanvasList before relying on it: if it returns active canvases only, a switched-off menu is found later than it is now, so the full search has to stay on menu open.
+Estimated saving: upper bound 0.137 ms a frame (the whole UI.Update average), plus one allocation spike a second. If the 2 MB is the scan, up to about 80% of the mod's per-frame garbage. Not measured.
+Confidence: medium that UI.Update is the allocating part (the profile says so); low that the scan is the cause (no split in the profile).
+
+3. Skill: OPTIMIZE - the magnified scope lens draws most of the scene a second time on every aimed frame
+Complaint: general (frame rate while aiming)
+File: src/Weapons/VRScope.cs:344-354
+Quote: VRScope.cs:345: "bool render = brightness > 0.004f;"
+Quote: VRScope.cs:352: "render &= (Time.frameCount & 1) == 0; // the last picture stays on the lens in between"
+Quote: VRScope.cs:354: "_camera.enabled = render;"
+What is wrong: While a magnified sight is raised and the eye is within about 7 cm of its line, the lens camera renders most of the scene into a 768 px target with MSAA 2 on every frame. That is a second cull and draw-call submission on the main thread, on top of the two eye passes. The code's own bench note (VRScope.cs:355-357) reads "14.2 ms frames aimed through the RECON LRR's lens, 11.3 without its shadows, 10.8 with no lens at all". So with the lens's shadows off (the default, VRScope.cs:358) the lens costs about 0.5 ms a frame; the other 3.4 ms in that note is its shadow cascades. The every-other-frame option already exists as the BenchMode 2 branch (VRScope.cs:350-352). Tasks.md:1374 keeps the choice open for a headset check.
+Trigger / what the player sees: Any magnified sight raised to the eye. Those are the frames a half-rate drop would show on.
+Proposed change: Run the bench with BenchMode 2 (every other frame) against the default on a magnified sight, check the picture in the headset as Tasks.md:1374 asks, and keep it only if the picture holds. The note's numbers were frame times, so re-measure the main-thread part too.
+Estimated saving: about 0.5 ms a frame while an aimed lens is up (from the code's own bench note, shadows off); every other frame would take about half of that.
+Confidence: medium. The figure comes from a comment in the code, not from this sweep; the code path is verified.
+
+4. Skill: OPTIMIZE - late shape fits cook up to three convex hulls on the main thread every frame
+Complaint: general (hitch; once per weapon type)
+File: src/Weapons/WeaponDrops.Spawning.cs:1299-1302; src/Weapons/ShapeFit.cs:263-281; called every frame from src/Weapons/WeaponDrops.Pickup.cs:24 (UpdateLateFits) through WeaponSystem.cs:190 (Drops.Update)
+Quote: WeaponDrops.Spawning.cs:1299-1300: "int cooked = 0;" / "for (; fit.Baked < fit.Pieces.Length && cooked < 3; fit.Baked++, cooked++)"
+Quote: ShapeFit.cs:273: "Physics.BakeMesh(p.Mesh.GetInstanceID(), true);"
+What is wrong: The fit itself runs on the thread pool (WeaponDrops.Spawning.cs:1358-1369, FitCloud is pure arithmetic per ShapeFit.cs:252-256), but every hull is cooked on the main thread by Physics.BakeMesh, three pieces per frame, until the fit's up to 12 pieces are cooked (FitCloud call with maxPieces 12 at WeaponDrops.Spawning.cs:1362). Each cook is a synchronous PhysX call. Nothing times it, and the per-frame limit is a count, not a time, so a frame with three large hulls pays for three cooks.
+Trigger / what the player sees: The first drop of each weapon type that needs a late fit: about four frames of cooking for that type. It is a hitch, not the steady half rate, and it does not repeat once the type is stored (ShapeFit.Store, WeaponDrops.Spawning.cs:1307, and the Cache lookup at ShapeFit.cs:205).
+Proposed change: Budget the cooks by time instead of count (stop the loop after about 1 ms of cooking in a frame and resume next frame), and time ShapeFit.Bake with PerfProbe so the cost of one cook is known before the budget is chosen.
+Estimated saving: not measured here. The three-per-frame bound is verified; the time per cook is not.
+Confidence: low (the cook count is verified from the code; the cook time is not).
+
+Checked, not reported (under about 0.02 ms a frame, not per frame, or already handled):
+- CameraSuppressor.Refresh, 0.011 ms a frame, no allocation (src/Rig/CameraSuppressor.cs:51-122).
+- QualitySettings.shadowDistance writes in the suppressor and the scope lens (CameraSuppressor.cs:146-149 and 156-163; VRScope.cs:388-397): two per suppressed camera pass and two per lens render. The suppressor's comment cites a measured gain (CameraSuppressor.cs:143-145), so no change proposed without a bench.
+- GunCollider.HideFromPlayer (GunCollider.cs:595-616, patched at 1398-1404 and 1426-1433): trigger and layer writes per physics step while a gun is held; cheap-looking, not measured.
+- MagazineProp.Cull body checks (MagazineProp.cs:964-972): once per 0.25 s per dropped magazine, at most 12 (VRConfig.cs:247); under 0.02 ms steady.
+- LensEye.OnWillRenderObject (src/Rig/LensEffects.cs:1298-1334): per renderer per camera, property block sent only on a change.
+- WristHud text (WristHud.cs:161-178) is rebuilt only on change; HandBody.Layer (HandBody.cs:52-80) is cached per scene; BodyZones.ComputeSpots (BodyZones.cs:118-148) is pure math; ThrowAndMelee.Bash (ThrowAndMelee.cs:947-1030) sweeps only on fast swings; GroundCheck.Cast (GroundCheck.cs:49-92) reuses its buffer; SquadPointing.Compute (SquadPointing.cs:89-160) is small loops plus one Raycast while pointing; VRRig.CopyCameraSettings (VRRig.cs:1116-1146) sets about a dozen camera properties per frame, unmeasured and below threshold.
+- Excluded items (VRInput digital reads, HideBody renderer caching, GatherClose, MagReadout.Find, SolveFinger FirstTouch, PalmOffset warm start, CanvasGroup and FOV writes) not revisited.
+- Tasks.md:1374 (scope lens) is open; finding 3 repeats it only for its frame cost.
+
+Swept:
+- RavenfieldVR-autotest.txt (C:/Program Files (x86)/Steam/steamapps/common/Ravenfield/BepInEx/RavenfieldVR-autotest.txt) lines 1-108.
+- docs/Tasks.md lines 103, 216, 322, 1374, 2508 (grep for perf, fps, frame, alloc items).
+- src/Core/VRManager.cs 240-420; src/Core/GraphicsPresets.cs 40-275; src/Core/EyeFilm.cs 100-200 (recording only).
+- src/Rig/CameraSuppressor.cs 1-300; src/Rig/LensEffects.cs 1270-1336; src/Rig/GroundCheck.cs 14-94; src/Rig/VRRig.cs 470-520, 839-900, 1100-1200, 1213-1330.
+- src/Weapons/WeaponSystem.cs 55-200, 367-470; src/Weapons/WeaponPatches.cs 17-75, 288-410; src/Weapons/SoldierGuns.cs 495-545; src/Weapons/GunCollider.cs 53-135, 240-260, 595-616, 1095-1245, 1385-1445; src/Weapons/MagazineProp.cs 370-390, 690-815, 936-1030; src/Weapons/Casings.cs 266-290; src/Weapons/GrenadeDud.cs 286-325; src/Weapons/VRScope.cs 252-440; src/Weapons/ShapeFit.cs 25-58, 120-175, 196-281; src/Weapons/WeaponDrops.Spawning.cs 1094-1106, 1290-1372; src/Weapons/WeaponDrops.Pickup.cs 19-100; src/Weapons/ThrowAndMelee.cs 947-1030; src/Weapons/BodyZones.cs 118-148; src/Weapons/AmmoState.cs 269-285; src/Weapons/PoseSampler.cs 436-500; src/Weapons/HeldWeapon.cs 922-1016; src/Weapons/PouchDisplay.cs 37-77; src/Weapons/HandBody.cs 40-80.
+- src/UI/CanvasManager.cs 88-240, 277-343, 388-420, 459-520, 543-600; src/UI/UISystem.cs 120-300; src/UI/LoadingView.cs 86-118, 250-300; src/UI/WristHud.cs 120-185; src/UI/SquadPointing.cs 89-160, 355-380, 440-470; src/UI/SquadHandSigns.cs 200-225; src/UI/SquadObjectiveMarkers.cs 68-96; src/UI/VRKeyboard.cs 32-44.
+- src/Input/GameInputBridge.cs 953-980, 1033-1100; src/Input/ScriptKeys.cs 178-235.
+- src/Core/VRConfig.cs (grep: lines 244, 247); src/Core/FrameBudget.cs (grep only).
+- Repository-wide greps in src/ (excluding AutoTest.cs): per-camera hooks, Harmony targets, physics queries, scene searches, GetComponent and collection allocations in the hot files; decompiled UserIsPlayer and IsMountedWeapon in .ref/decompiled/Assembly-CSharp (Weapon.cs).
+
+OUTCOME (verified by the main session, 2026-10-29; nothing pushed)
+1. Declined: the patch bodies are a lookup or two each (SoldierGuns.Knocked, the scope-overlay switch). The user's own frame
+   breakdown (reports/shots/user-1027/game-log.txt, Medium) names the rest of the frame: VR Head 3.53 ms (two eye passes),
+   FinishFrameRendering 5.76, the game's Update 2.83, physics 1.41, VR UI Camera 1.11 (two passes).
+2. Declined: the profile's allocation column is GC.GetTotalMemory, process-wide (commit 65d4f78 labels it so); the 2 MB lands
+   with the thread-pool shape fits that run at the same time, not provably in UI.Update.
+3. Open (Tasks.md 1374): every-other-frame lens needs a picture check in the headset.
+4. Fixed: late drop fits cook one hull a frame and more only while under 1 ms (three at most).
+Also measured: physics shapes are pre-analysed in the loading screen ("Pre-analysed 38 weapon rigs and 36 physics shapes in
+2.5 s"), so a disk cache would mostly shorten loading. The next FPS target is the VR UI Camera's second cull per eye (1.1 ms
+on Medium in the user's session); open in docs/Tasks.md 355.

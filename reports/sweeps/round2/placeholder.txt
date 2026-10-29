@@ -1,0 +1,140 @@
+PLACEHOLDER REPLACER sweep, round 2 (read-only), Ravenfield-VR, 2026-10-29
+
+Note on line numbers: the tree changed during the sweep. Commit 92a2694 (16:25:30, "Parked ammo: a copy of the magazine ...") landed in src/Weapons/WeaponAnalyzer.Magazine.cs and moved every line below about line 558 down by 34. All Magazine.cs numbers below are the current ones (after 92a2694). Repo-relative paths.
+
+1. PLACEHOLDER REPLACER - belt strip is capped at a fixed 0.32 m (about 28 rounds) and stops up to 6 cm short of the hand
+Complaint: the magbelt floats in another position (belt-fed guns, the PKM)
+File: src/Weapons/ReloadInteractions.Parts.cs:331-332, 408, 544, 554; src/Weapons/BeltStrip.cs:13-14, 105
+Quote:
+  ReloadInteractions.Parts.cs:332    private const float BeltReach = 0.32f;
+  ReloadInteractions.Parts.cs:408    if (Vector3.Distance(off.Palm.position, BeltStartWorld) > BeltReach + 0.06f)
+  ReloadInteractions.Parts.cs:544    to = from + Vector3.ClampMagnitude(to - from, BeltReach);
+  ReloadInteractions.Parts.cs:554    _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds); // a nearly empty box has only a few rounds of belt
+  BeltStrip.cs:13                    private const int MaxRounds = 32; // enough for the whole length the belt comes out of the box
+  BeltStrip.cs:14                    private const float Pitch = 0.0115f; // link spacing of a rifle-calibre belt
+What is wrong: the length of the drawn belt is a constant, not the belt in the box. The strip end is clamped to 0.32 m from the box mouth (544), but the hand only lets go at 0.38 m (408). Between 32 and 38 cm the strip stops up to 6 cm short of the fingers. The link pitch is one fixed 11.5 mm for every belt. Ammo.MagRounds only lowers the count (554), so a full box never shows more than about 28 rounds. The comment on BeltReach ("about 28 rounds") and the comment on MaxRounds ("the whole length the belt comes out of the box") describe the constant, not a measurement. Tasks.md:1427 documents BeltReach as the belt reach, but not the 6 cm release gap or the 28-round limit as faults.
+Trigger / what the player sees: pull the belt out past 32 cm from the box mouth: the drawn strip stops in the air short of the hand while the fingers keep going, then the belt drops off at 38 cm. A full box shows the same 28 rounds as a short one.
+Proposed change: take the reach from the measured belt (the belt part's length on the MG3-style guns, or the belt's rounds in the reload trajectory) and the pitch from the belt's own round spacing. Clamp to that measured reach and use the same value for the release distance (408), so the strip end always meets the hand.
+Confidence: medium. The clamp at 544 and the release at 408 are read in full, and the 6 cm gap follows from them. Not checked in game. The 11.5 mm pitch is a comment claim, not a measurement in this code.
+
+2. PLACEHOLDER REPLACER - shell loading port falls back to a guessed point 15 cm ahead of the grip, outside the measured 17-30 cm
+Complaint: reloaded shells go into the wrong feed port sometimes (shotguns)
+File: src/Weapons/WeaponAnalyzer.Magazine.cs:1538, 1551, 1560-1562
+Quote:
+  WeaponAnalyzer.Magazine.cs:1538    Vector3 port = EstimatedPort(d);
+  WeaponAnalyzer.Magazine.cs:1551    d.Warnings.Add("loading port estimated (the reload's shell never comes under the bore by the grip): half way to the forend, 3 cm under the bore");
+  WeaponAnalyzer.Magazine.cs:1560    Vector3 forend = d.HasSupportPoint ? d.SupportPoint : d.GripPoint + d.AimAxis * 0.3f;
+  WeaponAnalyzer.Magazine.cs:1561    Vector3 mid = Vector3.Lerp(d.GripPoint, forend, 0.5f);
+  WeaponAnalyzer.Magazine.cs:1562    return d.MuzzlePoint + d.AimAxis * Vector3.Dot(mid - d.MuzzlePoint, d.AimAxis) - d.Up * 0.03f;
+What is wrong: when the gun has no forend support point, the forend is a made point 30 cm ahead of the grip (1560), so the port lands halfway, 15 cm ahead of the grip. The doc comment above EstimatedPort says the measured ports were 17-30 cm ahead of the grip and 1.4-4.7 cm under the bore. The 15 cm and the 3 cm are fixed values, and 15 cm is outside the measured range the comment cites. The warning (1551) says "half way to the forend" but does not say the forend itself was guessed at 30 cm, so the log does not show the number that set the port. Tasks.md has no entry for this port guess.
+Trigger / what the player sees: a shell-fed gun with a shell part found, no forend point, and a reload whose shell never comes under the bore (the ShellPort path, 1538). Shells are seated 15 cm ahead of the grip, not where the reload shows the port.
+Proposed change: measure the port from the reload's closest approach to the bore (already sampled in ShellPort), or from the handguard or pump mesh bounds, instead of a 30 cm forend guess. When no forend exists, log the 30 cm and the 15 cm port in the same warning.
+Confidence: medium. The fallback and the warning are read in full. Not confirmed on any named shotgun that the ShellPort path (rather than the no-shell-part path, which logs "virtualmag" and is excluded) is the one taken.
+
+3. PLACEHOLDER REPLACER - AR charging-handle rack point falls back to a grip guess when the receiver mesh cannot be read, and the analysis still reports it at the receiver's back
+Complaint: general (AR racking; the mwii M4s in the complaints)
+File: src/Weapons/WeaponAnalyzer.cs:752, 1006-1008, 1018-1023, 1121, 1138-1140; src/Weapons/WeaponAnalyzer.Magazine.cs:874-875 (doc comment)
+Quote:
+  WeaponAnalyzer.cs:1007    d.RackPoint = boreAboveGrip - d.AimAxis * 0.05f + d.Up * 0.03f;
+  WeaponAnalyzer.cs:1008    if (UpperReceiverRear(d, root, gunBody, armRenderers, out float rear))
+  WeaponAnalyzer.cs:1023    d.SlideMethod += " (AR-pattern: the charging handle at the back of the receiver)";
+  WeaponAnalyzer.cs:1121    if (m == null || !m.isReadable || m.vertexCount == 0 || mr == null || armRenderers.Contains(mr) || OpticName.IsMatch(mf.name))
+  WeaponAnalyzer.cs:1138-1140  if (along.Count < 8) { return false; }
+  WeaponAnalyzer.Magazine.cs:875  (ArChargingHandle: 5 cm behind the grip point, 3 cm over the bore; the receiver's mesh cannot be measured in game),
+What is wrong: UpperReceiverRear only walks meshes that are readable (1121). When fewer than 8 samples come back (1138), it returns false, and the rack point stays at the grip guess (1007). Nothing is noted or warned on that branch, but line 1023 writes "the charging handle at the back of the receiver" into SlideMethod regardless. The comment at WeaponAnalyzer.cs:1010-1012 records that this same 5 cm grip guess put the hand 8-10 cm off the handle on AR-15s. SnapRackPoint (src/Weapons/HeldWeapon.Shape.cs:714; RackOnSurface set at 1016) then moves the point straight onto the drawn surface, which the 1010-1012 comment says can be the buffer tube. ArChargingHandle is the last rule (752), so it runs only when no named, static, own-handle or bolt-carrier rule found a part (701-706).
+Corroboration: Tasks.md:1933 (ac) says the mwii M4s' meshes are unreadable and their charging handle "cannot be cut out". That is the case this branch serves, so the grip guess is what those guns use when no own handle is found.
+Trigger / what the player sees: an AR-pattern rifle with no handle part found and an unreadable receiver mesh. The hand takes the gun 5 cm behind the grip point, and the self-test and dump report the handle at the receiver's back.
+Proposed change: when UpperReceiverRear returns false, add a Notes or Warnings entry ("charging handle guessed: receiver unreadable") and make line 1023 say the same. Better, read the receiver's back end from the part's GunSpaceBounds (as the other rules do), or from GpuMeshReader, which SandboxExport already uses (src/Weapons/SandboxExport.cs:158).
+Confidence: medium. Both branches are read in full, and the M4 readability is backed by Tasks.md:1933. Not run in game. The rule order is read from WeaponAnalyzer.cs:701-706 and 752.
+
+4. PLACEHOLDER REPLACER - spare magazines: rifle spares within a made 28 cm of the grip are never considered, and the 4-part cap drops the rest silently
+Complaint: M4-type "2nd mag behind the gun floating" (partly addressed by commit 92a2694, which covers named copies of the magazine within 12% of its size)
+File: src/Weapons/WeaponAnalyzer.Magazine.cs:468, 500 (sibling caps at 724-726 and 1627-1629)
+Quote:
+  WeaponAnalyzer.Magazine.cs:468    || sampler.ReloadMax[i] < 0.03f || Vector3.Distance(sampler.RelIdle[i].position, d.GripPoint) < (d.Handgun ? SpareNearHandgun : 0.28f))
+  WeaponAnalyzer.Magazine.cs:500    if (underAnother || d.SparePartPaths.Count >= 4)
+  WeaponAnalyzer.Magazine.cs:724-726  if (d.SparePartPaths.Count >= 16) { d.Warnings.Add($"more parked ammunition than hidden: ...
+What is wrong: the fifth spare found by CollectSpareMagazines is dropped at 500 with no warning, while the two sibling caps (724-726 and 1627-1629) do warn. Rifle spares closer than a made 28 cm to the grip (468) are never considered by this rule. They are left to the ParkedAmmo group rule, which hides a part only if it is not grouped with the gun. Tasks.md:1919 (j) already names both as suspected causes: the 28 cm gate ("a spare held just behind the pistol stays drawn") and "the caps (4 spares, 8 props)". The handgun half was fixed there (12 cm); the rifle 28 cm and the cap were not. Commit 92a2694 fixed the grouped case for named copies within 12% of the magazine's size only.
+Trigger / what the player sees: a rifle with a spare magazine beside the receiver, closer than 28 cm to the grip, not named as a copy of the magazine, and grouped with the gun: it stays drawn at its rest pose. With five or more spares, the extra ones stay drawn silently.
+Proposed change: replace the fixed 0.28 with the spare's measured gap to the gun's group, and add the warning from 724-726 to the cap at 500.
+Confidence: low. I did not trace one specific gun's spare through both rules. The cause is already on the task list (1919 (j)), and 92a2694 may already cover the case the user saw.
+
+5. PLACEHOLDER REPLACER - the measured bolt stroke is silently capped at 11 cm (4.5 cm for handguns)
+Complaint: general (racking on guns whose bolt is part of the receiver mesh)
+File: src/Weapons/WeaponAnalyzer.Action.cs:414, 463-466, 516-517
+Quote:
+  WeaponAnalyzer.Action.cs:414    int window = Mathf.RoundToInt(0.7f / PoseSampler.Dt);
+  WeaponAnalyzer.Action.cs:516    // A hand keeps moving a little after the bolt stops: cap at real bolt travel.
+  WeaponAnalyzer.Action.cs:517    d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.Handgun ? 0.02f : 0.03f, d.Handgun ? 0.045f : 0.11f);
+What is wrong: bestLen is the reload hand's measured stroke (RackStrokeFromHands, 408-462). It is clamped to 11 cm for long guns (3 cm at least) without any note or warning, and the comment calls the clamp "real bolt travel". No bolt travel is measured at this point; the 11 cm is a made ceiling, and a longer measured pull is cut short with nothing in the Notes.
+Trigger / what the player sees: a gun whose bolt is part of its receiver mesh and whose reload pull is longer than 11 cm. The bolt and rack travel stop at 11 cm while the reload hand is still moving back, so the racking motion no longer matches the measured pull.
+Proposed change: keep the measured length, and cap it at the receiver's rear extent (from the GunSpaceBounds of the receiver part) rather than at a fixed 11 cm. When the cap binds, say so in Notes.
+Confidence: medium on the code: the clamp is unconditional and unlogged. Low on whether any real gun exceeds 11 cm, since no export was checked for it.
+
+6. PLACEHOLDER REPLACER - the FPS budget silently falls back to a fixed 90 Hz refresh rate
+Complaint: general (FPS)
+File: src/Core/FrameBudget.cs:63, 73, 85, 100-101, 110-121, 154; src/Core/GraphicsPresets.cs:166
+Quote:
+  FrameBudget.cs:100-101    /// The headset's refresh rate: SteamVR's display frequency (Unity's XRDevice.refreshRate read 0 Hz through Link in the
+                            /// user's log), else Unity's, else 90.
+  FrameBudget.cs:114-115    catch (System.Exception) { // no OpenVR system (flat mode): Unity's below }
+  FrameBudget.cs:118        return XRDevice.refreshRate > 1f ? XRDevice.refreshRate : 90f;
+  FrameBudget.cs:73         bool onTime = ms <= _budgetMs * 1.2f;
+  FrameBudget.cs:154        Log.Info($"Frame rate over the last minute of play: ... at the headset's {hz:0} Hz " +
+  GraphicsPresets.cs:166    return gpuMs >= budgetMs * (taken ? 0.45f : 0.7f);
+What is wrong: when OpenVR's display frequency cannot be read and Unity's refreshRate is 1 Hz or less, the budget is a made 90 Hz. Nothing logs that the rate is a guess, and the catch at 114-115 drops the reason. The summary at 154 then prints "at the headset's 90 Hz" as though it were measured. The budget drives the on-time test (73) and the preset hold in GraphicsPresets (166), so the guess changes what the mod decides to lower.
+Trigger / what the player sees: a headset whose refresh is not 90 Hz, with the OpenVR read failing. At 72 Hz the vsync frame is 13.9 ms, above the 13.3 ms threshold (1.2 x 11.1 ms), so every frame counts as late and the preset steps down although the headset is on time. At 120 Hz the threshold is 13.3 ms instead of 10 ms, so late frames in that band are not seen.
+Setup note: Tasks.md:3166 says the user's PC runs Quest 3 through Link at 90 Hz. There the guess equals the real rate, so the finding does not change the user's own numbers unless the headset is set to another rate or the OpenVR read fails.
+Proposed change: keep the refresh rate's source (OpenVR, XR, or guessed). When it is guessed, log it once (Log.InfoOnce, the way the virtual parts are logged) and print the source in the Report line at 154. Or measure the rate from the median frame interval over the first seconds of play instead of the constant.
+Confidence: medium on the code: the fallback, the threshold and the hold rule are all read. Low for the user's own setup, because the guess matches the rate in use there.
+
+7. PLACEHOLDER REPLACER - named and AR charging handles move a fixed 7.5 cm, not their measured stroke
+Complaint: general (machine-gun charging handles are included: NamedChargingHandle runs for them)
+File: src/Weapons/WeaponAnalyzer.cs:783-784, 826, 833, 1021; src/Weapons/WeaponAnalyzer.Magazine.cs:948; compare src/Weapons/WeaponAnalyzer.Action.cs:214, 221
+Quote:
+  WeaponAnalyzer.cs:826                d.HandleTravel = -d.AimAxis * 0.075f;
+  WeaponAnalyzer.cs:833                d.SlideTravel = d.HandleTravel;
+  WeaponAnalyzer.cs:1021               d.SlideTravel = -d.AimAxis * 0.075f;
+  WeaponAnalyzer.Magazine.cs:948       d.HandleTravel = -d.AimAxis * 0.075f;
+  WeaponAnalyzer.Action.cs:221         d.SlideTravel = -d.AimAxis * Mathf.Clamp(handleVec.magnitude, 0.03f, 0.15f);
+What is wrong: a named handle (826), an AR carved handle (1021) and an own handle (948) all move exactly 7.5 cm whatever the model does. For an animated handle the analysis does measure the stroke (handleVec, Action.cs:214-221, clamped), but the named and AR paths never use it.
+Trigger / what the player sees: a named MG handle or an AR T whose real stroke is not 7.5 cm. The handle and the bolt it carries move that far, so a handle with a shorter stroke slides past its stop and a longer one stops short of the hand.
+Proposed change: where the named or AR handle has a reload trajectory, measure its stroke the way ChargingHandleFromReload does (handleVec). Keep 7.5 cm only as the last resort, with a Notes entry saying it was guessed.
+Confidence: low. The constant is a guess by construction, and I did not measure any model's real handle stroke.
+
+Items checked and not reported
+- WeaponAnalyzer.Helpers.cs:17-18, 21-50 (virtual slide and magazine seats, RackEstimate, SlideTravel 0.035/0.07 at 27): each is logged with Log.InfoOnce and says "guessed", so under the EXCLUDED rule. Tasks.md:1919 and 1933 also cover the AR and spare cases.
+- WeaponAnalyzer.Helpers.cs:44-50 and WeaponAnalyzer.Magazine.cs:1538 for the tube case with no shell part: same log line, excluded.
+- BoltPiece.cs:447 fallback material and BoltPiece.cs:457: a colour and the made latch shape, not behaviour.
+- WeaponRig.cs:123-124 (default "virtual" for MagMethod and SlideMethod): only a default, not reported.
+- MagazineProp.cs:363-365 (RailLength for machine-gun boxes, clamped 0.03-0.06 m): measured from the extent, no evidence of a wrong clamp.
+- GraphicsPresets.cs:101 (literal 6 equal to HoldSteps): duplicated magic number, not a stand-in for behaviour.
+- FrameBudget.cs:73 (1.2x on-time threshold) and GraphicsPresets.cs:190-191 (85% and 98% windows): design thresholds, documented.
+- Tasks.md [x] items checked against the findings: 255.I3-5 (PKM-style AMMO belt part, WeaponAnalyzer.cs:1567) and 255.P1.6 (BeltStrip rebuild) are fixed and are not about the reach or the release gap above.
+
+Swept:
+- src/Weapons/WeaponAnalyzer.Helpers.cs: 1-120
+- src/Weapons/WeaponAnalyzer.cs: 770-836, 975-1030, 1106-1150 (grep over the whole file)
+- src/Weapons/WeaponAnalyzer.Magazine.cs: 318-340, 440-510, 530-700 (ParkedAmmo, partly), 838-930 (old numbering; now about 872-964), 1398-1420, 1440-1565 (old numbering; now about 1474-1600), grep over the whole file
+- src/Weapons/WeaponAnalyzer.Action.cs: 208-226, 404-470, 488-522, 640-705, 870-930 (grep over the whole file)
+- src/Weapons/ReloadInteractions.Parts.cs: 320-400, 465-560 (grep over the whole file)
+- src/Weapons/ReloadInteractions.cs, ReloadInteractions.Magazines.cs, ReloadInteractions.Slide.cs, ReloadInteractions.SelfChecks.cs: keyword grep only
+- src/Weapons/BeltStrip.cs: 1-135
+- src/Weapons/MagazineProp.cs: 330-400; MagazineProp.Holding.cs: 60-112; MagazineProp.Look.cs: 300-380; keyword grep on all three
+- src/Weapons/HeldWeapon.Shape.cs: 320-340, 704-735; HeldWeapon.Parts.cs, HeldWeapon.cs, AmmoState.cs, BoltPiece.cs, WeaponRig.cs (120-125): keyword grep, with the reads noted
+- src/Core/FrameBudget.cs: 1-60, 60-122, 147-165 (grep over the whole file)
+- src/Core/GraphicsPresets.cs: 86-175, 231-234, 393-396 (grep over the whole file)
+- src/Weapons/SandboxExport.cs: 158 (grep only)
+- docs/Tasks.md: grep for belt, refresh, forend, port, charging handle, stroke, unreadable, spare, parked ammo, 90 Hz and budget; the matching entries are cited above (1427, 1919, 1933, 3166, and the [x] items listed)
+- git: read-only log and show of commit 92a2694 (no change to the repository)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Fixed (same as improve 2): the held strip reaches the hand to the release distance.
+2. Fixed: the port estimate is 0.6 of the way to the forend (forend 35 cm ahead when none), about 21 cm ahead of the grip, and
+   the warning gives the distance and says when the forend was guessed. The ARS M500 (Bot Friendly) uses it too.
+3. Fixed: a guessed AR charging handle (receiver unreadable) is said in the notes.
+4. Fixed for the cap: a fifth spare magazine is warned about. The 28 cm gate stays (the 92a2694 copy rule and ParkedAmmo cover
+   the near spares).
+5. Fixed: a reload pull longer than the bolt cap is said in the notes.
+6. Fixed: a refresh rate that cannot be read is said once; the budget still takes 90 Hz then.
+7. Open: named and AR handles move a fixed 7.5 cm; measuring each needs the game.

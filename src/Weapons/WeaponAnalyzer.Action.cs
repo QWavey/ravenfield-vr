@@ -513,8 +513,13 @@ namespace RavenfieldVR.Weapons
             d.RackFromHand = true;
             d.RackOnSurface = true;
             d.RackPoint = bestStart;
-            // A hand keeps moving a little after the bolt stops: cap at real bolt travel.
-            d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.Handgun ? 0.02f : 0.03f, d.Handgun ? 0.045f : 0.11f);
+            // A hand keeps moving a little after the bolt stops: capped at a bolt's travel (said when it binds; sweep).
+            float boltMax = d.Handgun ? 0.045f : 0.11f;
+            d.SlideTravel = -d.AimAxis * Mathf.Clamp(bestLen, d.Handgun ? 0.02f : 0.03f, boltMax);
+            if (bestLen > boltMax)
+            {
+                d.Notes += $"the reload hand's pull of {bestLen * 100f:0.0} cm capped at {boltMax * 100f:0.0} cm of bolt travel ";
+            }
             d.SlideMethod = "reload hand motion (bolt is part of the receiver mesh)";
             d.TSlideBack = bestEnd;
             d.Warnings.RemoveAll(w => w.StartsWith("no moving slide/bolt", StringComparison.Ordinal));

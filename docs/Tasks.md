@@ -2819,6 +2819,31 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
+User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
+inserted"; "shotguns ... pullback shotguns ... handling is ass and reloading shells goes in the wrong magfeeder sometimes";
+"some MGs still cant be reloaded nicely and on the PKM the mag is floating around and not really in the hand and the magbelt is
+floating on another position"; "some guns such like m4s also have a 2nd mag behind the gun floating". Reports with OUTCOME
+sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, placeholder).
+- [x] The K13 family's spare magazine behind the stock (all seven variants): a copy of the magazine is grouped only with its
+      own parts in ParkedAmmo (92a2694). Check in a game run: K13 held, nothing behind the stock.
+- [x] PKM / PKP / Type 80 / MK46: the belt links hanging under the box are left out of the box's shape and axis, hidden while
+      held and not copied. Check: the PKM box sits in the hand, no links under the gun, the box's grab point on the box.
+- [x] Belts: the held strip reaches the fingers, the laid end eases onto the tray, a short belt starts at the box mouth.
+- [x] Pumps: let go a stroke past the stops (not 30 cm), back on the pump; TRIGGER TO PUMP cue on a grip-only pull. Check on the
+      R870 in the headset.
+- [x] Tube port estimate 0.6 of the way to the forend; guessed AR handle, bolt cap, spare cap and 90 Hz fallback said in the log.
+- [x] Late drop fits cook by a 1 ms budget.
+- [ ] The user's "mag insertion on the wrong place": only four guns show a copy/analysis difference in the last full autotest
+      (PKP fixed; G BRN180 EO SS's analysis is the inflated one, 50 against 28 cm; M1 GARRET, THUMPER). Ask which guns; then
+      bughunt 1-3 (copy box against analysed box, first insert after a dry draw, parked seat rotation).
+- [ ] Shotguns' "wrong magfeeder sometimes": not reproduced offline (no competing chamber path; the 17 checked ports are 17-30
+      cm ahead). Ask which shotgun and what is seen; dump the port's reload frames (fullimplement 7).
+- [ ] The floating second magazine on other M4s, if not the K13: Weapon's arms shows arm renderers, and a magazine mesh on an
+      arm bone is an arm renderer. Ask which M4 and which Hands mode.
+- [ ] FPS: the VR UI Camera's second cull per eye (1.1 ms of main thread on Medium in the user's 10-27 session); the laid
+      belt's tray point (a hinge-midline guess, Tasks 274); named/AR handles' fixed 7.5 cm.
+
 ### 354. Five-skill Haiku sweep (user, 2026-10-29: improve, optimize, bug hunt, full implement, placeholder replacer; the game not started; nothing pushed)
 - [x] Five read-only Haiku agents, one report each in reports/sweeps/ (improve 8, optimize 8, bughunt 2, fullimplement 6,
       placeholder 7). Each report ends with an OUTCOME section: what was done (commit), declined (why) or left open.
