@@ -3001,6 +3001,8 @@ array (debug option only).
       cut short; the build re-publicizes when the publicizer is newer; the sandbox's pose history kept the copy it just made of
       an old game pose (copy2's old time had it pruned at once) and only the exact export job reloads the list. Round 11's
       verifier: the slowed hand on a 1.5 m leash (dragged along, never snapped).
+      Round 13 (WeaponSystem.cs, VRManager/VRPlugin/Log, GameInputBridge/VRInput, VRScope/LensFlash/LensEffects) was stopped
+      unfinished at the run's 45% ceiling, before any finding came back: run it again next time.
 - [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
       given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
       weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
