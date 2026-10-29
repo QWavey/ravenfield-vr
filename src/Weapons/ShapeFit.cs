@@ -38,6 +38,7 @@ namespace RavenfieldVR.Weapons
                 {
                     if (_mesh == null)
                     {
+                        Baked = false; // (made again after a retired one went: cooked again too, or it never was)
                         _mesh = new Mesh { name = "RavenfieldVR hull" };
                         _mesh.vertices = Points;
                         // PhysX builds the hull from the vertices; the triangles only make the mesh valid.
@@ -359,7 +360,7 @@ namespace RavenfieldVR.Weapons
 
         private static void AddVertices(List<Vector3> verts, Matrix4x4 m)
         {
-            int step = Mathf.Max(1, verts.Count / MaxPointsPerMesh);
+            int step = Mathf.Max(1, (verts.Count + MaxPointsPerMesh - 1) / MaxPointsPerMesh); // (rounded up: 9 000 vertices took all 9 000)
             for (int i = 0; i < verts.Count; i += step)
             {
                 Points.Add(m.MultiplyPoint3x4(verts[i]));

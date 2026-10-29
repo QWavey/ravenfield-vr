@@ -133,7 +133,9 @@ namespace RavenfieldVR.Weapons
         public List<Vector3> SurfaceSample(int stride, int count)
         {
             int all = WalkSurface(stride, null, 1);
-            int every = Mathf.Max(1, all / Mathf.Max(1, count));
+            // Odd: the walk counts a near and a far point per texel (two a step), so an even stride never took a far one and the
+            // model's back was never in the sample the physics shape is scored on (round 11).
+            int every = Mathf.Max(1, all / Mathf.Max(1, count)) | 1;
             var points = new List<Vector3>(all / every + 1);
             WalkSurface(stride, points, every);
             return points;
@@ -564,6 +566,7 @@ namespace RavenfieldVR.Weapons
             foreach (GunVolume v in Cache.Values)
             {
                 v.ReleasePlace();
+                ShapeFit.Retire(v.HullPieces); // (their hull meshes: forgotten, they and their cooked data stayed for the session; round 11)
             }
             Cache.Clear();
             CacheOrder.Clear();
@@ -611,6 +614,7 @@ namespace RavenfieldVR.Weapons
                 if (Cache.TryGetValue(CacheOrder[oldest], out GunVolume evicted))
                 {
                     evicted.ReleasePlace(); // (released once only: a measuring that finishes later releases nothing)
+                    ShapeFit.Retire(evicted.HullPieces); // (destroyed at a scene change once nothing uses them)
                 }
                 Cache.Remove(CacheOrder[oldest]);
                 CacheOrder.RemoveAt(oldest);

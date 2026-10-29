@@ -283,8 +283,17 @@ namespace RavenfieldVR.Weapons
                     bool canTakeRounds = !(UsesDetachableMag && !MagInserted) && !Open && !(HasCover && CoverOpen);
                     if (canTakeRounds)
                     {
-                        int chamber = UsesChamber && Chambered && Rig.Action != ActionType.SingleShot ? 1 : 0;
-                        MagRounds = Mathf.Clamp(Weapon.ammo - chamber, 0, Capacity);
+                        if (SlideLocked && !Chambered)
+                        {
+                            // Locked back on an empty chamber the game is told 0 (Sync) while the magazine holds rounds: the refill's
+                            // rounds are added to them (set to the refill alone, rounds vanished or appeared; round 11).
+                            MagRounds = Mathf.Clamp(MagRounds + (Weapon.ammo - _expectedAmmo), 0, Capacity);
+                        }
+                        else
+                        {
+                            int chamber = UsesChamber && Chambered && Rig.Action != ActionType.SingleShot ? 1 : 0;
+                            MagRounds = Mathf.Clamp(Weapon.ammo - chamber, 0, Capacity);
+                        }
                         Log.Debug($"{Weapon.name}: refilled externally {_expectedAmmo} -> {Weapon.ammo}.");
                     }
                 }
