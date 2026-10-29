@@ -86,8 +86,18 @@ namespace RavenfieldVR.Weapons
                 RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
-                RigidPose palm = off.Palm;
-                Quaternion rot = Quaternion.LookRotation(palm.Forward, palm.Up) * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(c.FingerDir, c.BackDir));
+                // Turned as the VR glove is (its tracked frame, the glove rotation setting included): fingers along its forward,
+                // the back of the hand along its side (+x on the right hand, -x on the left: HandModel's palm faces the other
+                // way). The back of the hand went along the palm frame's up, the top of the fist, and the weapon's own hand
+                // was a quarter turn off whenever it was not on the gun (user, 2026-10-29: "the hand is turned wrong").
+                RigidPose tracked = default, placed = default;
+                if (off.Model != null)
+                {
+                    off.Model.PlacedFromTracked(out tracked, out placed);
+                }
+                Quaternion glove = off.Model != null ? tracked.rotation : off.Palm.rotation;
+                Quaternion rot = Quaternion.LookRotation(glove * Vector3.forward, glove * new Vector3(off.Mirror, 0f, 0f))
+                                 * Runtime.RigidPose.Conjugate(Quaternion.LookRotation(c.FingerDir, c.BackDir));
                 // PalmPoint is in metres already (measured on the unscaled idle pose): scaled by the hand bone's scale again, a
                 // rig built at 1/100 put its hand a palm's length off the controller (night bug hunt, 229).
                 Vector3 palmPoint = rot * c.PalmPoint;
@@ -97,7 +107,6 @@ namespace RavenfieldVR.Weapons
                     // Where the glove is placed off the tracked hand (holding a magazine on the well's line, kept out of the
                     // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
                     // was not (bug hunt 251.7).
-                    off.Model.PlacedFromTracked(out RigidPose tracked, out RigidPose placed);
                     if (off.Role == HandRole.Magazine && off.Model.SnapPose.HasValue)
                     {
                         // The glove pinned on a magazine it pushed home (ReloadInteractions' seated hold): the arm goes where the glove
