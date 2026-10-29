@@ -2993,6 +2993,11 @@ array (debug option only).
       catches up, the bench's 1 px cameras, the warm-up log counts failures, the autotest's allocations without the film writer,
       the README's night-vision limitation corrected, three stacked doc comments fixed. Placeholder sweeps: clean. The sandbox
       self-test: 105 PASS, 3 SKIP (a revolver), 0 FAIL.
+      Round 12 (the sandbox app and the build and backup scripts): the Drive backup in a linked worktree, an empty state file,
+      and a last backup not behind HEAD (git refused the empty bundle every run; a dry run checked); flashfilm.py past a film
+      cut short; the build re-publicizes when the publicizer is newer; the sandbox's pose history kept the copy it just made of
+      an old game pose (copy2's old time had it pruned at once) and only the exact export job reloads the list. Round 11's
+      verifier: the slowed hand on a 1.5 m leash (dragged along, never snapped).
 - [x] The frame rate hold's last step (the render scale) only when the GPU is the cause: at 70% of the refresh interval or more,
       given back under 45%. The user's Medium was CPU-bound (GPU 3.3 of 11.1 ms) and the step only blurred the view. The hold
       weighs this window's GPU time now (it read the window before's). Offline tests for the thresholds.
