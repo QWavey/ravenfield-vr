@@ -16,7 +16,7 @@ namespace RavenfieldVR.Core
         private sealed class Section
         {
             public long Ticks, MaxTicks, Calls, Allocated, AllocatingCalls;
-            public long StartTicks, StartBytes;
+            public long StartTicks, StartBytes, StartWriter;
             public string MaxAt;
         }
 
@@ -66,6 +66,7 @@ namespace RavenfieldVR.Core
                 Sections[name] = s;
             }
             s.StartBytes = GC.GetTotalMemory(false);
+            s.StartWriter = System.Threading.Interlocked.Read(ref EyeFilm.WriterBytes);
             s.StartTicks = Stopwatch.GetTimestamp();
         }
 
@@ -84,7 +85,10 @@ namespace RavenfieldVR.Core
                 s.MaxAt = Where; // a string only on a new slowest call, which stops happening once the run has warmed up
             }
             s.Calls++;
-            long bytes = GC.GetTotalMemory(false) - s.StartBytes;
+            // Process-wide (no per-thread count in this .NET): the eye film's writer thread's PNG arrays taken out, other worker
+            // threads' allocations still in (the report says so). The two reads are not one with GC.GetTotalMemory: a PNG finished
+            // between them is put on the wrong side of at most one boundary.
+            long bytes = GC.GetTotalMemory(false) - s.StartBytes - (System.Threading.Interlocked.Read(ref EyeFilm.WriterBytes) - s.StartWriter);
             if (bytes > 0)
             {
                 s.Allocated += bytes; // a collection inside the section shows as negative and is skipped
@@ -215,7 +219,7 @@ namespace RavenfieldVR.Core
             }
             // Bytes per call is an average: a few weapon switches (analysis, pouch rebuild) can carry it on their own.
             // The share of calls that allocated at all tells steady-state garbage from those one-off spikes.
-            sb.AppendLine("Mod sections (per call): avg ms, max ms, calls, bytes allocated per call, % of calls that allocated");
+            sb.AppendLine("Mod sections (per call): avg ms, max ms, calls, bytes allocated per call (process-wide: worker threads' included, the eye film's taken out), % of calls that allocated");
             foreach (KeyValuePair<string, Section> kv in Sections.OrderByDescending(kv => kv.Value.Ticks))
             {
                 Section s = kv.Value;

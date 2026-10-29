@@ -19,6 +19,9 @@ namespace RavenfieldVR.Core
     /// </summary>
     internal sealed class EyeFilm : MonoBehaviour
     {
+        /// <summary>The film writer's PNG arrays (bytes, all films): PerfProbe takes them out of the sections it overlapped.</summary>
+        internal static long WriterBytes;
+
         private const int Width = 480;
 
         private Camera _cam;
@@ -217,6 +220,7 @@ namespace RavenfieldVR.Core
                 try
                 {
                     byte[] png = ImageConversion.EncodeArrayToPNG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h);
+                    System.Threading.Interlocked.Add(ref WriterBytes, png.Length);
                     lock (_queue)
                     {
                         if (_spare.Count < SpareMax)
