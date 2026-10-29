@@ -1296,8 +1296,13 @@ namespace RavenfieldVR.Weapons
             if (_lateBaking != null)
             {
                 LateFit fit = _lateBaking;
+                // One hull a frame at least, then more while the frame's cooking is under 1 ms (three at most): counted only, a
+                // frame with three large hulls paid for three synchronous PhysX cooks (sweep round 2).
+                long cookStart = System.Diagnostics.Stopwatch.GetTimestamp();
+                long cookBudget = System.Diagnostics.Stopwatch.Frequency / 1000;
                 int cooked = 0;
-                for (; fit.Baked < fit.Pieces.Length && cooked < 3; fit.Baked++, cooked++)
+                for (; fit.Baked < fit.Pieces.Length && (cooked == 0 || cooked < 3 && System.Diagnostics.Stopwatch.GetTimestamp() - cookStart < cookBudget);
+                     fit.Baked++, cooked++)
                 {
                     ShapeFit.Bake(new[] { fit.Pieces[fit.Baked] });
                 }
