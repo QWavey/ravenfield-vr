@@ -78,7 +78,9 @@ namespace RavenfieldVR.UI
             // Read when a weapon is drawn: the panel said it applied at once (review, 2026-10-20).
             Choice("Hands (next draw)", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
             Choice("Holsters", VRConfig.Holsters, new[] { HolsterLayout.Boneworks, HolsterLayout.Classic }, new[] { "Boneworks", "Classic" });
-            Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
+            // (All four places: one set in the file to the off-hand chest lit no button, and a press changed it; sweep.)
+            Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.OffHandChest, PouchLocation.Chest, PouchLocation.DominantHip },
+                new[] { "Hip", "Off chest", "Chest", "Other hip" });
             TogglePair("Two-handed aiming", VRConfig.TwoHandedAiming, "Holster switching", VRConfig.HolsterSwitching);
             TogglePair("Spawn empty-handed", VRConfig.SpawnEmptyHanded, "Grip to hold", VRConfig.GripToHoldWeapon);
             TogglePair("MG belts by hand", VRConfig.BeltByHand, "Magazine palming", VRConfig.MagazinePalming);
@@ -86,6 +88,9 @@ namespace RavenfieldVR.UI
             TogglePair("Show pouch", VRConfig.ShowPouch, "Reduce flashing", VRConfig.ReduceFlashing);
             Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0.#;-0.#;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
             Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
+            // How close a hand must be to take a slide, a foregrip or a magazine (only in the config file before: grabs that miss by
+            // a few centimetres on another controller or hand size had no fix in the headset; sweep).
+            Stepper("Grab reach", () => $"{VRConfig.GrabRadius.Value * 100f:0} cm", d => VRConfig.GrabRadius.Value = Mathf.Clamp(VRConfig.GrabRadius.Value + d * 0.01f, 0.03f, 0.25f));
             Stepper("Scope steadying", () => VRConfig.ScopeSteadying.Value <= 0f ? "off" : $"{VRConfig.ScopeSteadying.Value * 100f:0}%",
                 d => VRConfig.ScopeSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ScopeSteadying.Value + d * 0.25f) * 4f) / 4f));
             Stepper("Aim steadying", () => VRConfig.AimSteadying.Value <= 0f ? "off" : $"{VRConfig.AimSteadying.Value * 100f:0}%",
@@ -104,11 +109,11 @@ namespace RavenfieldVR.UI
             Choice("Frame rate on wrist", VRConfig.WristFrameRate, new[] { true, false }, new[] { "On", "Off" });
             TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
             // The body's shadow beside it: a switch to see whether it was the shadow over the hands (task 336).
-            TogglePair("Wrist display", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);
+            TogglePair("Wrist HP and ammo", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);
             TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
             Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
                 d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
-            Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",
+            Stepper("Scope picture (next scope)", () => $"{VRConfig.ScopeResolution.Value} px",
                 d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 
             _height += 18f;

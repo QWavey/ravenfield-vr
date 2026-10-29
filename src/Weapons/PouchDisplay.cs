@@ -26,6 +26,7 @@ namespace RavenfieldVR.Weapons
         private Vector3 _insertLocal, _frontLocal;
         private Bounds _bounds;
         private float _scale = 1f;
+        private bool _reachingLast;
         private float _hover;
 
         public PouchDisplay(WeaponSystem sys)
@@ -56,6 +57,11 @@ namespace RavenfieldVR.Weapons
             BodyZones zones = _sys.Zones;
             VRHand off = _sys.Rig.Off;
             bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
+            if (reaching && !_reachingLast)
+            {
+                off.Haptic(0.012f, 220f, 0.3f); // a tick on reaching it, as a holster gives: the pouch is found by feel too (sweep)
+            }
+            _reachingLast = reaching;
             _hover = Mathf.MoveTowards(_hover, reaching ? 1f : 0f, Time.unscaledDeltaTime * 8f);
 
             // Standing up in the pouch, facing forward with the body.

@@ -748,6 +748,14 @@ namespace RavenfieldVR.Rig
                 VRConfig.EyeHeight.Value = Mathf.Round(y * 100f) / 100f;
                 Log.Info($"Eye height set to {VRConfig.EyeHeight.Value:0.00} m");
             }
+            else
+            {
+                // Said, not silent (sweep: a press with the headset off the head or out of tracking did nothing, and the panel
+                // still read "auto" with no reason).
+                string why = $"Eye height not saved: your head reads {y:0.00} m above the floor. Stand or sit as you play, then press again.";
+                Log.Info(why);
+                Log.Guard("Eye height notice", () => VRManager.Instance?.UI?.Notice?.Show(why, 6f));
+            }
         }
 
         /// <summary>Re-centres seated/follow views on the current head pose.</summary>
