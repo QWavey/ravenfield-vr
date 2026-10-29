@@ -334,7 +334,7 @@ namespace RavenfieldVR.Weapons
             {
                 _rescan = false;
                 float passStarted = Time.realtimeSinceStartup;
-                int analysed = 0;
+                int analysed = 0, failed = 0;
                 int fittedAtStart = _fitted;
                 entries.Clear();
                 if (WeaponManager.instance != null && WeaponManager.instance.allWeapons != null)
@@ -402,6 +402,7 @@ namespace RavenfieldVR.Weapons
                     else if (result.Error != null)
                     {
                         Warmed.Add(entry); // not tried again every pass
+                        failed++;
                         Log.WarnOnce("warmup:" + entry.name, $"Pre-analysing {entry.name} failed: {result.Error.Message}");
                     }
                     else if (result.Done)
@@ -411,7 +412,9 @@ namespace RavenfieldVR.Weapons
                     }
                     // (Stopped part way because a match started: not marked, its first draw does the rest.)
                 }
-                Log.Info($"Pre-analysed {analysed} weapon rigs (of {entries.Count} weapons; the rest were ready) and {_fitted - fittedAtStart} physics shapes in {Time.realtimeSinceStartup - passStarted:0.0} s.");
+                // (The failures said apart: counted with the ready ones, every weapon failing read "Pre-analysed 0 ... the rest were
+                // ready" in the user's play of the broken overrides build, 2026-10-28.)
+                Log.Info($"Pre-analysed {analysed} weapon rigs ({(failed > 0 ? $"{failed} FAILED, " : "")}of {entries.Count} weapons; the rest were ready) and {_fitted - fittedAtStart} physics shapes in {Time.realtimeSinceStartup - passStarted:0.0} s.");
                 ParkedPartsCache.Write(); // what this pass analysed, for the next session's first drops
                 // A weapon that appears after this pass took the list (a workshop mod subscribed or loaded in the menu, a weapon
                 // unlocked) was never analysed: its first death in a match built the dropped model there, a hitch of tens of
