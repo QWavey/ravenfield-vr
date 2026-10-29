@@ -165,6 +165,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms |
 | `TurnMode` / `SnapTurnAngle` | Snap / 30 | |
 | `HolsterLayout` | Boneworks | Boneworks, or Classic (pistols on the hips, gear on the chest) |
+| `GripToHoldWeapon` | on | Hold the grip to keep holding a weapon; letting go puts it away. Off: it stays in your hand (either hand) until you put it back at its holster with a grip press there |
 | `MagazinePouch` | OffHandHip | Also Chest, DominantHip, OffHandChest |
 | `ShowPouch` | on | Show the gun's ammo at the pouch |
 | `WeaponWorldCollision` | on | The gun in your hand is stopped by walls, crates and the ground |
