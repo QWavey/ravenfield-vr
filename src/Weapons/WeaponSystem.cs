@@ -1199,11 +1199,13 @@ namespace RavenfieldVR.Weapons
 
         public void OnSceneChanged()
         {
-            _bodyGrab?.ReleaseAll();
-            BodyImpacts.Clear();
-            SoldierGuns.Clear();
-            GunVolume.OnSceneLoaded();
-            HandBody.OnSceneLoaded();
+            // Each on its own: one that threw skipped the rest, the held weapon's release and the ammo and rig clean-up included
+            // (sweep, 2026-10-29).
+            Log.Guard("Scene: body grab", () => _bodyGrab?.ReleaseAll());
+            Log.Guard("Scene: body impacts", BodyImpacts.Clear);
+            Log.Guard("Scene: soldier guns", SoldierGuns.Clear);
+            Log.Guard("Scene: gun volumes", GunVolume.OnSceneLoaded);
+            Log.Guard("Scene: hand bodies", HandBody.OnSceneLoaded);
             Log.Guard("Retired hull meshes", ShapeFit.ReleaseRetired); // (replaced content's, now that the old scene's drops are gone)
             if (Held != null)
             {

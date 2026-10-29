@@ -588,7 +588,10 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
+            // Only the gun still in the hand: its state is kept after a let-go (a holstered or dropped gun is still alive), and its
+            // barrel ahead of the eyes kept a fading glow with nothing firing (sweep, 2026-10-29).
+            bool stillHeld = _gun != null && WeaponSystem.Instance != null && WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Weapon == _gun;
+            Transform muzzle = stillHeld && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
             Transform head = _rig.Camera.transform;
             // At the plume, where its core in the world and the shot's flash are (8-21 cm ahead): at the muzzle itself the lens glow
             // sat apart from its own core while the barrel was off the eye's line (visual hunt, 2026-10-20).

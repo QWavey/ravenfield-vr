@@ -390,8 +390,8 @@ namespace RavenfieldVR.Core
             _pausedForHeadset = false;
             _speedBeforePause = 1f;
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
-            Weapons?.OnSceneChanged();
-            UI?.OnSceneChanged();
+            Log.Guard("Weapons.OnSceneChanged", () => Weapons?.OnSceneChanged()); // (a throw there skipped the UI's)
+            Log.Guard("UI.OnSceneChanged", () => UI?.OnSceneChanged());
         }
 
         // Whether the match is paused because the SteamVR dashboard is open (not by the player).
