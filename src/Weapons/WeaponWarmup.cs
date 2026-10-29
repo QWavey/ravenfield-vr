@@ -384,7 +384,9 @@ namespace RavenfieldVR.Weapons
                     {
                         yield return InMatch() ? new WaitForSecondsRealtime(1f) : null;
                     }
-                    // Models being measured hold their read-back pictures until done: a few at a time.
+                    // Models being measured hold their read-back pictures until done: a few at a time (the stalled ones' places given
+                    // back first: they never finish).
+                    GunVolume.ReleaseStalled();
                     for (float until = Time.realtimeSinceStartup + 2f; GunVolume.InFlight > 4 && Time.realtimeSinceStartup < until;)
                     {
                         yield return null; // (never stuck: a read-back that never returns does not hold the warm-up up)

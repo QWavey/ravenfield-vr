@@ -77,6 +77,26 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Measurements rendered and not yet ready (each holds its read-back pictures until it is done).</summary>
         public static int InFlight => Volatile.Read(ref _inFlight);
+
+        /// <summary>
+        /// Gives back the places of measurings stalled past 15 s whatever their key (main thread). A stalled one gave its place back
+        /// only when its own key was asked for again, and weapon types not drawn again kept theirs: five of them held the warm-up's
+        /// wait to its full 2 s at every weapon (round 11).
+        /// </summary>
+        internal static void ReleaseStalled()
+        {
+            if (InFlight == 0)
+            {
+                return;
+            }
+            foreach (GunVolume v in Cache.Values)
+            {
+                if (v.Stalled)
+                {
+                    v.ReleasePlace();
+                }
+            }
+        }
         private readonly Bounds _box;
         // The box's corners, compared by hand in Test: Bounds.Contains is a native call in this Unity, one per point tested.
         private readonly Vector3 _boxMin, _boxMax;
