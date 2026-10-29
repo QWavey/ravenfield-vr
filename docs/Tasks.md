@@ -2819,6 +2819,12 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 353. Weapon's arms: the off hand turned wrong away from the gun (user, 2026-10-29; built afc17be, check in a game run)
+- [ ] "when the default hands are not on the gun, the hand is turned wrong" (Hands = Weapon's arms). ArmIK oriented the free
+      off hand with the arm hand's back of the hand along the palm frame's up, which is the top of the fist (the glove's frame:
+      +Z fingers, +Y thumb, palm -X): a quarter turn. Now from the glove's tracked frame, back along +X x Mirror. Check: the
+      off hand let go of the handguard, holding a magazine, racking, with Weapon's arms.
+
 ### 352. Hands in slow motion: Normal or Slowed (user, 2026-10-28 evening; built 7b4824a, check in a game run)
 - [ ] "lets do a mode in settings, Normal and slowed (regarding hands, hands holding mags, hands holding guns, guns etc almost
       everything when its on slowed the hands etc are delayed too in slowmo (everything) like boneworks does it". Built: the
