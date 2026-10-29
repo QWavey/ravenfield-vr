@@ -106,6 +106,76 @@ namespace RavenfieldVR.Tests
             RackPointFileTests(mod);
             RenderScaleHoldTests(mod);
             StaticInitTests(mod);
+            SlowedHandTests(mod);
+            HandPushTests(mod);
+        }
+
+        /// <summary>
+        /// The slowed hand's step (VRHand.SpringStep, Hands in slow motion: Slowed): a 30 cm jump of the controller at the game's 0.2
+        /// at 90 fps is followed without overshoot, never faster than 10 m/s of game time, under half way after 0.1 s of real time and
+        /// all but there after 1.5 s; at full speed it is there within a quarter second.
+        /// </summary>
+        private static void SlowedHandTests(System.Reflection.Assembly mod)
+        {
+            Type hand = mod.GetType("RavenfieldVR.Rig.VRHand");
+            System.Reflection.MethodInfo step = hand?.GetMethod("SpringStep", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(step != null, "Slowed hand: SpringStep found");
+            if (step == null)
+            {
+                return;
+            }
+            UnityEngine.Vector3 target = new UnityEngine.Vector3(0.3f, 0f, 0f);
+            float Run(float scale, int frames, out bool overshot, out float fastest)
+            {
+                UnityEngine.Vector3 p = UnityEngine.Vector3.zero, v = UnityEngine.Vector3.zero;
+                overshot = false;
+                fastest = 0f;
+                for (int i = 0; i < frames; i++)
+                {
+                    object[] args = { p, v, target, (1f / 90f) * scale };
+                    p = (UnityEngine.Vector3)step.Invoke(null, args);
+                    v = (UnityEngine.Vector3)args[1];
+                    overshot |= p.x > 0.3001f;
+                    fastest = Math.Max(fastest, v.magnitude);
+                }
+                return p.x / 0.3f;
+            }
+            float early = Run(0.2f, 9, out bool o1, out float f1), late = Run(0.2f, 135, out bool o2, out float f2), full = Run(1f, 23, out bool o3, out float f3);
+            Check(early < 0.5f && late > 0.9f && !o1 && !o2, $"Slowed hand: at 0.2 a 30 cm move is {early * 100f:0}% after 0.1 s and {late * 100f:0}% after 1.5 s, no overshoot");
+            Check(full > 0.95f && !o3, $"Slowed hand: at full speed {full * 100f:0}% after 0.25 s");
+            Check(Math.Max(f1, Math.Max(f2, f3)) <= 10.001f, $"Slowed hand: never over 10 m/s of game time ({Math.Max(f1, Math.Max(f2, f3)):0.00})");
+            object[] zero = { UnityEngine.Vector3.zero, UnityEngine.Vector3.zero, target, 0f };
+            Check((UnityEngine.Vector3)step.Invoke(null, zero) == UnityEngine.Vector3.zero, "Slowed hand: a zero time step does not move it (no NaN)");
+        }
+
+        /// <summary>
+        /// An empty hand pushing a loose magazine (HandBody.Pushed): a slow reach (0.3 m/s) passes, a tap (2 m/s) gives the magazine the
+        /// hand's speed along the contact, a hand moving away pushes nothing, and a magazine never leaves faster than the hand.
+        /// </summary>
+        private static void HandPushTests(System.Reflection.Assembly mod)
+        {
+            Type body = mod.GetType("RavenfieldVR.Weapons.HandBody");
+            System.Reflection.MethodInfo pushed = body?.GetMethod("Pushed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(pushed != null, "Hand push: Pushed found");
+            if (pushed == null)
+            {
+                return;
+            }
+            bool P(UnityEngine.Vector3 hand, UnityEngine.Vector3 mag, UnityEngine.Vector3 normal, out UnityEngine.Vector3 v)
+            {
+                object[] args = { hand, mag, normal, null };
+                bool r = (bool)pushed.Invoke(null, args);
+                v = (UnityEngine.Vector3)args[3];
+                return r;
+            }
+            UnityEngine.Vector3 x = new UnityEngine.Vector3(1f, 0f, 0f), z = new UnityEngine.Vector3(0f, 0f, 1f);
+            Check(!P(x * 0.3f, UnityEngine.Vector3.zero, x, out _), "Hand push: a slow reach (0.3 m/s) does not push");
+            Check(P(x * 2f, UnityEngine.Vector3.zero, x, out UnityEngine.Vector3 tap) && Math.Abs(tap.x - 2f) < 0.01f, $"Hand push: a 2 m/s tap gives it 2 m/s along the contact ({tap.x:0.00})");
+            Check(!P(x * -2f, UnityEngine.Vector3.zero, x, out _), "Hand push: a hand moving away pushes nothing");
+            bool swept = P(x * 2f + z * 3f, UnityEngine.Vector3.zero, x, out UnityEngine.Vector3 sweep);
+            Check(swept && sweep.magnitude <= (x * 2f + z * 3f).magnitude + 0.001f && sweep.z > 0f && sweep.z < 3f,
+                  $"Hand push: a sweep drags it a little and never faster than the hand ({sweep.magnitude:0.00} of {(x * 2f + z * 3f).magnitude:0.00} m/s)");
+            Check(!P(x * 2f, x * 1.8f, x, out _), "Hand push: a magazine already moving away almost as fast is not pushed again");
         }
 
         /// <summary>

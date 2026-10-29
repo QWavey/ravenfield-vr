@@ -89,6 +89,35 @@ namespace RavenfieldVR.Rig
         private const float SlowSpring = 20f, SlowTopSpeed = 10f, SlowTopTurn = 30f;
 
         /// <summary>
+        /// One step (<paramref name="step"/> s of game time) of a slowed hand toward <paramref name="target"/>: a critically damped
+        /// spring (the target taken as still for the step), never faster than <see cref="SlowTopSpeed"/>. The velocity carried on is
+        /// the spring's at the end of the step, not the step's average (fed back, the average overshot the controller by 4%; the
+        /// offline tests caught it). Pure: the offline tests check it converges without overshoot and keeps to the top speed.
+        /// </summary>
+        internal static Vector3 SpringStep(Vector3 position, ref Vector3 velocity, Vector3 target, float step)
+        {
+            if (step <= 1e-6f)
+            {
+                return position;
+            }
+            float decay = Mathf.Exp(-SlowSpring * step);
+            Vector3 off = position - target;
+            Vector3 lead = (velocity + SlowSpring * off) * step;
+            Vector3 moved = target + (off + lead) * decay - position;
+            float top = SlowTopSpeed * step;
+            if (moved.sqrMagnitude > top * top)
+            {
+                moved = moved.normalized * top; // at the top speed: the arm's limit, not the spring
+                velocity = moved / step;
+            }
+            else
+            {
+                velocity = Vector3.ClampMagnitude((velocity - SlowSpring * lead) * decay, SlowTopSpeed);
+            }
+            return position + moved;
+        }
+
+        /// <summary>
         /// Whether the hand follows the controller slowed (Slowed, in slow motion, or still catching up after it): the controller's
         /// pose <paramref name="local"/> becomes the slowed hand's, and its velocity and spin (tracking space, game units) are given.
         /// Not in a pause (time scale 0: the menus and the laser at full speed) nor while catching up from more than 1.5 m away.
@@ -111,14 +140,8 @@ namespace RavenfieldVR.Rig
                 _slowVelocity = _slowSpin = Vector3.zero;
             }
             float step = dt * Mathf.Min(s, 1f); // the frame in game time
-            // A critically damped spring toward the controller in game time (its pose taken as still for the step), at most the top speed.
             float decay = Mathf.Exp(-SlowSpring * step);
-            Vector3 off = _slowPose.position - local.position;
-            Vector3 lead = (_slowVelocity + SlowSpring * off) * step;
-            Vector3 next = local.position + (off + lead) * decay;
-            Vector3 moved = Vector3.ClampMagnitude(next - _slowPose.position, SlowTopSpeed * step);
-            _slowPose.position += moved;
-            _slowVelocity = step > 1e-6f ? moved / step : Vector3.zero;
+            _slowPose.position = SpringStep(_slowPose.position, ref _slowVelocity, local.position, step);
             Quaternion before = _slowPose.rotation;
             float angle = Quaternion.Angle(before, local.rotation);
             _slowPose.rotation = Quaternion.RotateTowards(before, local.rotation, Mathf.Min(angle * (1f - decay), SlowTopTurn * Mathf.Rad2Deg * step));

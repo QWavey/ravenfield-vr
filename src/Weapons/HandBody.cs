@@ -218,16 +218,11 @@ namespace RavenfieldVR.Weapons
                     Vector3 surface = c.ClosestPoint(centre);
                     Vector3 normal = surface - centre;
                     normal = normal.sqrMagnitude > 1e-8f ? normal.normalized : (body.worldCenterOfMass - centre).normalized;
-                    Vector3 relative = handVelocity - body.velocity;
-                    float approach = Vector3.Dot(relative, normal);
-                    if (approach < PushApproach || float.IsNaN(approach))
+                    if (!Pushed(handVelocity, body.velocity, normal, out Vector3 pushed))
                     {
                         continue;
                     }
-                    Vector3 along = relative - normal * approach;
-                    Vector3 v = body.velocity + normal * approach + along * PushDrag;
-                    float top = handVelocity.magnitude;
-                    body.velocity = v.sqrMagnitude > top * top ? v.normalized * top : v;
+                    body.velocity = pushed;
                     body.WakeUp();
                     if (Time.unscaledTime - PushedAt[i] > 0.15f)
                     {
@@ -236,6 +231,27 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// A magazine's velocity after a hand (<paramref name="hand"/>, game units) moves into it along <paramref name="normal"/> (from
+        /// the hand to it): false when the hand comes slower than <see cref="PushApproach"/> (a reach to take it) or goes away; else it
+        /// takes the hand's speed along the normal and a little of its sweep, never more than the hand's speed. Pure: offline tests.
+        /// </summary>
+        internal static bool Pushed(Vector3 hand, Vector3 body, Vector3 normal, out Vector3 velocity)
+        {
+            velocity = body;
+            Vector3 relative = hand - body;
+            float approach = Vector3.Dot(relative, normal);
+            if (approach < PushApproach || float.IsNaN(approach))
+            {
+                return false;
+            }
+            Vector3 along = relative - normal * approach;
+            Vector3 v = body + normal * approach + along * PushDrag;
+            float top = hand.magnitude;
+            velocity = v.sqrMagnitude > top * top ? v.normalized * top : v;
+            return true;
         }
 
         private static HandBody Create(VRHand hand)
