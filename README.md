@@ -209,7 +209,8 @@ No .NET SDK needed:
 
 ## Known limitations
 
-- Night vision and other effects the game applies to its own camera are not copied to the headset camera.
+- The game's night vision shows in the headset (its colour grading is drawn there while the goggles are on), but image effects a
+  mod attaches to the game's own camera (scripts drawing over its picture) are not copied to the headset camera.
 - Third-person vehicle cameras and the death camera follow the game's camera position, turning with it only around the vertical axis.
 - Ravenscript mods that draw their own screen-space UI get the same head-locked HUD treatment as the game's HUD.
 - Weapons without any animator get their parts by name only; a few of those keep an estimated handle position.
