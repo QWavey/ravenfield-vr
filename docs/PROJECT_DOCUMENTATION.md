@@ -1118,3 +1118,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`WeaponSystem.PutBackSecond`), volumes and magazine looks retiring their hull meshes, the surface sample's odd stride,
    stalled measurings released (`GunVolume.ReleaseStalled`), the Drive backup's worktree and empty-bundle cases, and the
    sandbox putting SteamVR back when it is closed during a game test.
+18. **1.15.0** (built and installed, not published; notes in `dist/notes-1.15.0.md`): the weapon's arms hold a magazine as
+   the gun's reload animation does (`WeaponRigData.MagHold`, sampled by `WeaponAnalyzer.MagHoldOf` with the support hand's
+   rotations kept, `PoseSampler.KeepRotationsUnder`) and turn the free off hand from the glove's frame (`ArmIK`); and the
+   five-skill Haiku sweep (Tasks 354, reports in `reports/sweeps/`): the lens glow only at the held gun, the scene change's
+   steps guarded one by one, the pouch tick, all four pouch places and Grab reach on the panel, Calibrate now's notice, the
+   mud splash from the headset's projection, the autotest's skipped-check count and the canvas's cached CanvasGroup.
