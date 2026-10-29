@@ -314,7 +314,8 @@ namespace RavenfieldVR.Rig
             {
                 // In game units, as everything in the slowed world: the slowed hand's own, and the rig's (measured over real time) over
                 // the time scale. What it lets go of then moves at the world's pace with no real-time flight (RealTimeFlight).
-                float pace = 1f / Mathf.Clamp(Time.timeScale, 0.05f, 1f);
+                // (Catching up after a switch to Normal: real-time units, as Normal hands' are; the follower then ran at full speed.)
+                float pace = VRConfig.SlowedHands ? 1f / Mathf.Clamp(Time.timeScale, 0.05f, 1f) : 1f;
                 own = rig.rotation * slowVelocity;
                 ownSpin = rig.rotation * slowSpin;
                 rigVelocity *= pace;
