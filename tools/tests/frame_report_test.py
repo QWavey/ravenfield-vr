@@ -40,6 +40,11 @@ def main():
               f"bound: CPU at GPU 3.3 of 11.1 ms, GPU at 11.0, none when on time, GPU at 7.8 (70%): {[r['bound'] for r in table]}")
         check(table[0]['steps'] == 'PlayerLoop 1.23, Update (own) 0.50, Render 0.40', f"steps keep '(own)': {table[0]['steps']!r}")
         check(table[0]['mod sections'] == 'Input 0.18, Weapons.BeforeRender 0.10', f"sections without stray spaces: {table[0]['mod sections']!r}")
+        cpu_log = os.path.join(root, 'cpu.log')
+        with open(cpu_log, 'w', encoding='utf-8') as f:
+            f.write(line(90, '3.0').replace('; costliest steps', "; CPU speed 88% of the session's first minute (0.71 ms for a fixed sum); costliest steps"))
+        cpu_rows = list(frame_report.rows(cpu_log))
+        check(cpu_rows[0]['cpu'] == '88%' and table[0]['cpu'] == '', f"cpu column: 88% when the line has it, empty when not ({cpu_rows[0]['cpu']!r})")
 
         game = os.path.join(root, 'BepInEx')
         os.makedirs(game)
