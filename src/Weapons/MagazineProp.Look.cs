@@ -217,6 +217,8 @@ namespace RavenfieldVR.Weapons
             if (kind == PropKind.Rocket && Longest(bounds) < 0.12f || kind == PropKind.Shell && !WeaponAnalyzer.ShellSized(bounds))
             {
                 Object.Destroy(go); // not a rocket (a fuse, a cap), not a shell: the made one instead
+                Log.InfoOnce("copytoosmall:" + kind + ":" + d.Key, $"{d.Key}: its own {kind.ToString().ToLowerInvariant()} copy measures {Longest(bounds) * 100f:0} cm, "
+                                                              + "not one: a made stand-in is held instead."); // (said, as the other fallbacks are; sweep)
                 return null;
             }
             return go;

@@ -26,6 +26,13 @@ namespace RavenfieldVR.Weapons
                 d.RackPoint = pump ? d.SupportPoint : RackEstimate(d);
                 d.SlideTravel = -d.AimAxis * (d.Handgun ? 0.035f : 0.07f);
                 d.RackOnSurface = !pump; // an estimate above the grip: put on top of the receiver once the model is measured
+                // Said once at Info: the guesses were warned only for self-loading and manual guns, and a shotgun's or a single shot's
+                // stood in without a word (sweep). WeaponOverrides (slideTravel) corrects one.
+                if (d.Action != ActionType.NoAmmo && d.Action != ActionType.Throwable)
+                {
+                    Log.InfoOnce("virtualslide:" + d.Key, $"{d.Key}: no slide or handle part found: the rack is {(pump ? "at the support hand (a pump)" : "guessed above the grip")}, "
+                                                        + $"{d.SlideTravel.magnitude * 100f:0.0} cm of travel (a slideTravel override corrects it).");
+                }
             }
             if (d.MagazinePath == null)
             {
@@ -38,6 +45,10 @@ namespace RavenfieldVR.Weapons
                     : d.GripPoint + d.AimAxis * (d.Handgun ? 0.0f : 0.1f) - d.Up * (d.Handgun ? 0.02f : 0.05f);
                 d.MagSeat = new RigidPose(seat, Quaternion.LookRotation(d.AimAxis, d.Up));
                 d.MagEjectAxis = d.Action == ActionType.SingleShot ? d.AimAxis : tube ? -d.AimAxis : -d.Up; // a shell goes into the tube along it
+                if (d.Action != ActionType.NoAmmo && d.Action != ActionType.Throwable && d.Action != ActionType.BreakOpen)
+                {
+                    Log.InfoOnce("virtualmag:" + d.Key, $"{d.Key}: no magazine or shell part found: it loads at a guessed {(d.Action == ActionType.SingleShot ? "seat 5 cm behind the muzzle" : tube ? "port under the receiver" : "well under the grip")}.");
+                }
             }
             d.LockOnEmpty = d.Action == ActionType.SelfLoading && (d.SlidePath != null || d.Handgun);
             // (A Garand classed Manual too: every Manual gun cycles by hand in the analysis, so "Manual && !CyclesByHand" never

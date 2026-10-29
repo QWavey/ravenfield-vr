@@ -167,7 +167,7 @@ namespace RavenfieldVR.Core
             RenderScale = cfg.Bind("Rendering", "RenderScale", 1.0f,
                 new ConfigDescription("Eye texture resolution multiplier on top of SteamVR's own resolution.", new AcceptableValueRange<float>(0.5f, 2.0f)));
             Mirror = cfg.Bind("Rendering", "MirrorView", MirrorMode.Right,
-                "What the desktop window shows. Restart required.");
+                "What the desktop window shows (applies at once)."); // (applied live: OpenVRRuntime.ApplyLiveSettings; the text said a restart)
             NearClip = cfg.Bind("Rendering", "NearClip", 0.02f,
                 new ConfigDescription("Camera near plane in metres. Lower lets you bring scopes closer to your eye.", new AcceptableValueRange<float>(0.005f, 0.2f)));
             PostProcessing = cfg.Bind("Rendering", "PostProcessing", false,
@@ -529,7 +529,13 @@ namespace RavenfieldVR.Core
 
         public static Color ParseColor(ConfigEntry<string> entry, Color fallback)
         {
-            return ColorUtility.TryParseHtmlString(entry.Value, out Color c) ? c : fallback;
+            if (ColorUtility.TryParseHtmlString(entry.Value, out Color c))
+            {
+                return c;
+            }
+            // Said once, as a rejected vector is (ParseVector): a mistyped colour showed the default with no word why (sweep).
+            Log.WarnOnce("color:" + entry.Definition.Key, $"Config {entry.Definition.Section}.{entry.Definition.Key} = '{entry.Value}' is not a colour (#RRGGBB); using the default.");
+            return fallback;
         }
     }
 }
