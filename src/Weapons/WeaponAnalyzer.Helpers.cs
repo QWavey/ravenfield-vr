@@ -188,11 +188,12 @@ namespace RavenfieldVR.Weapons
         /// clip), the holder is not the gun: sample again one level closer to the muzzle.
         /// </summary>
         private static PoseSampler SampleFromRigidBody(Weapon w, Transform[] all, Dictionary<Transform, int> index, Transform muzzle,
-            Transform gripHand, bool canSample, ActionType action, HashSet<Renderer> armRenderers, ref Transform gunBody, out bool sampled)
+            Transform gripHand, Transform supportHand, bool canSample, ActionType action, HashSet<Renderer> armRenderers, ref Transform gunBody, out bool sampled)
         {
             for (int attempt = 0; ; attempt++)
             {
                 var sampler = new PoseSampler(w, all, index, gunBody);
+                sampler.KeepRotationsUnder(supportHand); // (how its reload holds the magazine: MagHoldOf)
                 sampled = canSample && sampler.Run(action, w.configuration);
                 if (!sampled || attempt >= 4 || gunBody == muzzle || !muzzle.IsChildOf(gunBody) || !index.TryGetValue(muzzle, out int mi))
                 {

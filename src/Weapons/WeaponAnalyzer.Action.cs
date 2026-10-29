@@ -929,6 +929,79 @@ namespace RavenfieldVR.Weapons
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
         /// <summary>
+        /// The support hand on the magazine as the reload animation holds it (the user, 2026-10-29: "cant we do the real poses on how
+        /// the mag gets also held in the animations"): the step where the hand bone is nearest the magazine part while the magazine is
+        /// out of its seat (2 cm or more) and shown, within 20 cm; the hand bone's pose in the magazine part's frame then and its
+        /// fingers' local turns. Null when the reload never brings the hand to it (a magazine swapped by a second object, no reload).
+        /// </summary>
+        private static MagHoldPose MagHoldOf(WeaponRigData d, Transform root, Transform hand, Dictionary<Transform, int> index, PoseSampler sampler)
+        {
+            if (hand == null || d.MagazinePath == null || !sampler.HasReload || sampler.ReloadRotation == null)
+            {
+                return null;
+            }
+            Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
+            if (mag == null || !index.TryGetValue(mag, out int mi) || !index.TryGetValue(hand, out int hi))
+            {
+                return null;
+            }
+            Quaternion[] magRot = sampler.ReloadRotation[mi], handRot = sampler.ReloadRotation[hi];
+            Vector3[] magPos = sampler.ReloadTrajectory[mi], handPos = sampler.ReloadTrajectory[hi];
+            if (magRot == null || handRot == null)
+            {
+                return null;
+            }
+            bool Set(Quaternion q) => q.x != 0f || q.y != 0f || q.z != 0f || q.w != 0f; // (zero before the part first moved)
+            Vector3 seat = sampler.RelIdle[mi].position;
+            int best = -1;
+            float bestDistance = 0.2f;
+            for (int s = 0; s < sampler.ReloadSteps; s++)
+            {
+                if (!sampler.ReloadVisible[mi][s] || (magPos[s] - seat).sqrMagnitude < 0.02f * 0.02f || !Set(magRot[s]) || !Set(handRot[s]))
+                {
+                    continue;
+                }
+                float distance = Vector3.Distance(handPos[s], magPos[s]);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = s;
+                }
+            }
+            if (best < 0)
+            {
+                return null;
+            }
+            var paths = new List<int[]>();
+            var locals = new List<Quaternion>();
+            foreach (Transform f in hand.GetComponentsInChildren<Transform>(true))
+            {
+                if (f == hand || f.parent == null || !index.TryGetValue(f, out int fi) || !index.TryGetValue(f.parent, out int pi))
+                {
+                    continue;
+                }
+                Quaternion[] fr = sampler.ReloadRotation[fi], pr = sampler.ReloadRotation[pi];
+                if (fr == null || pr == null || !Set(fr[best]) || !Set(pr[best]))
+                {
+                    continue;
+                }
+                paths.Add(WeaponRig.PathOf(hand, f));
+                locals.Add(RigidPose.Conjugate(pr[best]) * fr[best]);
+            }
+            var hold = new MagHoldPose
+            {
+                HandInMag = new RigidPose(magPos[best], magRot[best]).Inverse().Multiply(new RigidPose(handPos[best], handRot[best])),
+                FingerPaths = paths.ToArray(),
+                FingerLocal = locals.ToArray(),
+                Step = best,
+                Distance = bestDistance
+            };
+            Log.InfoOnce("maghold:" + d.Key, $"{d.Key}: the support hand holds the magazine as its reload does at {best * PoseSampler.Dt:0.00} s "
+                                            + $"({bestDistance * 100f:0} cm from the magazine part, {paths.Count} finger bone(s)).");
+            return hold;
+        }
+
+        /// <summary>
         /// Upper arm, forearm and hand of one first-person arm. The forearm is the first ancestor a bone-length above
         /// the hand and the upper arm the next one (twist and wrist helpers in between are skipped); the root is the
         /// topmost bone that belongs to this arm alone, which IK moves so the shoulder never tears.

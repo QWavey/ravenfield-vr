@@ -80,6 +80,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public Quaternion[][] ReloadRotation;
         private bool[] _drawsSomething;
+        /// <summary>Kept in <see cref="ReloadRotation"/> from the first step whatever they draw or move: the support hand and its fingers.</summary>
+        private readonly bool[] _keepRotation;
         public Vector3[][] FireTrajectory;
         public int ReloadSteps;
         public int FireSteps;
@@ -121,6 +123,26 @@ namespace RavenfieldVR.Weapons
             FireRotAxis = new Vector3[n];
             ReloadRotMax = new float[n];
             ReloadRotAxis = new Vector3[n];
+            _keepRotation = new bool[n];
+        }
+
+        /// <summary>
+        /// Before <see cref="Run"/>: <paramref name="bone"/> and everything under it get their reload rotations kept (the support hand
+        /// and its fingers: how the animation holds the magazine; WeaponAnalyzer.MagHoldOf). Bones draw nothing, so they were left out.
+        /// </summary>
+        public void KeepRotationsUnder(Transform bone)
+        {
+            if (bone == null)
+            {
+                return;
+            }
+            foreach (Transform t in bone.GetComponentsInChildren<Transform>(true))
+            {
+                if (_index.TryGetValue(t, out int i))
+                {
+                    _keepRotation[i] = true;
+                }
+            }
         }
 
         public bool Run(ActionType action, Weapon.Configuration config)
@@ -519,7 +541,7 @@ namespace RavenfieldVR.Weapons
                 }
                 Vector3 d = rel - RelIdle[i].position;
                 float m = d.magnitude;
-                if (rotations != null && _drawsSomething[i] && (rotations[i] != null || m > 0.01f))
+                if (rotations != null && (_keepRotation[i] || _drawsSomething[i] && (rotations[i] != null || m > 0.01f)))
                 {
                     if (rotations[i] == null)
                     {

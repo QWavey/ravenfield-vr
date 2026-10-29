@@ -27,6 +27,21 @@ namespace RavenfieldVR.Weapons
         NoAmmo
     }
 
+    /// <summary>
+    /// The support hand on the magazine as the weapon's own reload animation holds it (WeaponAnalyzer.MagHoldOf): the hand bone's
+    /// pose in the magazine part's frame (the frame the magazine in the VR hand is drawn in: MagSeat) and its fingers' local turns.
+    /// </summary>
+    public sealed class MagHoldPose
+    {
+        public RigidPose HandInMag;
+        /// <summary>The finger bones under the hand bone (paths from it) and their local rotations there.</summary>
+        public int[][] FingerPaths;
+        public Quaternion[] FingerLocal;
+        /// <summary>The reload step it was taken at and how far (m) the hand bone was from the magazine part then.</summary>
+        public int Step;
+        public float Distance;
+    }
+
     /// <summary>One first-person arm of the weapon's rig, for IK: bones and the hand's grasp geometry.</summary>
     public sealed class ArmChain
     {
@@ -245,6 +260,9 @@ namespace RavenfieldVR.Weapons
         public float[] SupportCurls;
 
         public RigidPose MagSeat = RigidPose.Identity;
+
+        /// <summary>The weapon's own support hand on the magazine, from its reload animation (null: the animation never holds it).</summary>
+        public MagHoldPose MagHold;
         /// <summary>
         /// Share of the seated magazine that sticks out of the gun along its eject axis (1 = all outside, 0 = flush).
         /// A fresh magazine can only knock out one that sticks out; deep wells (pistol grips, KRISS Vector) cannot.

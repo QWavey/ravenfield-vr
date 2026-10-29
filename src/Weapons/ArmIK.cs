@@ -30,10 +30,19 @@ namespace RavenfieldVR.Weapons
         /// <summary>How far the off arm has gone over to the weapon's support grip (0: the controller, 1: the grip).</summary>
         private float _onGunBlend = -1f;
 
+        /// <summary>The support hand's fingers as its reload holds the magazine (MagHoldPose), and how far the hand has gone onto it.</summary>
+        private readonly Transform[] _magFingers;
+        private readonly Quaternion[] _magFingerLocal;
+        private float _onMagBlend;
+        private RigidPose _lastOnMag;
+
         /// <summary>Self-test: after the last solve, how far (m) each hand bone ended from its target, and whether a shoulder had to slide.</summary>
         internal float GunHandError { get; private set; } = -1f;
         internal float OffHandError { get; private set; } = -1f;
         internal bool Stretched { get; private set; }
+
+        /// <summary>Self-test: the off hand is all the way onto the magazine it holds, as the gun's reload holds it.</summary>
+        internal bool OnMagazine => _onMagBlend >= 0.999f;
 
         public bool Active => _right.Valid || _left.Valid;
 
@@ -45,6 +54,16 @@ namespace RavenfieldVR.Weapons
             // The model's right arm is the gun arm (its mesh is not mirrored for left-handed play).
             _right = Resolve(root, held.Rig.Data.ArmRight);
             _left = Resolve(root, held.Rig.Data.ArmLeft);
+            MagHoldPose hold = held.Rig.Data.MagHold;
+            if (hold != null && _left.Valid && hold.FingerPaths != null)
+            {
+                _magFingers = new Transform[hold.FingerPaths.Length];
+                _magFingerLocal = hold.FingerLocal;
+                for (int i = 0; i < _magFingers.Length; i++)
+                {
+                    _magFingers[i] = WeaponRig.Resolve(_left.Hand, hold.FingerPaths[i]);
+                }
+            }
         }
 
         private static Arm Resolve(Transform root, ArmChain chain)
@@ -82,7 +101,12 @@ namespace RavenfieldVR.Weapons
             if (_left.Valid)
             {
                 VRHand off = _sys.Rig.Off;
-                bool onGun = off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked;
+                // A magazine of this gun in the hand (its reload's hold: MagHoldPose) is not the gun: a two-handed mark left set must
+                // not send the hand to the handguard while it holds the magazine.
+                MagHoldPose hold = _held.Rig.Data.MagHold;
+                MagazineProp mag = off.Role == HandRole.Magazine ? off.Held as MagazineProp : null;
+                bool onMag = hold != null && mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key;
+                bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
                 RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
@@ -132,6 +156,18 @@ namespace RavenfieldVR.Weapons
                 _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * Time.unscaledDeltaTime));
                 at += _anchorOffset;
                 var free = new RigidPose(at - palmPoint, rot);
+                // A magazine of this gun in the hand: the hand on it as the gun's own reload holds it, its fingers too (the user,
+                // 2026-10-29: the weapon's hand sat off the magazine with the handguard's grip). Eased on and off.
+                if (onMag)
+                {
+                    _lastOnMag = RigidPose.Of(mag.Go.transform).Multiply(hold.HandInMag);
+                }
+                _onMagBlend = Mathf.MoveTowards(_onMagBlend, onMag ? 1f : 0f, Time.unscaledDeltaTime * 10f);
+                float m = _onMagBlend * _onMagBlend * (3f - 2f * _onMagBlend);
+                if (m > 0f)
+                {
+                    free = new RigidPose(Vector3.Lerp(free.position, _lastOnMag.position, m), Quaternion.Slerp(free.rotation, _lastOnMag.rotation, m));
+                }
                 // Taking hold of the handguard or letting go eases over a tenth of a second instead of snapping.
                 float want = onGun ? 1f : 0f;
                 _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, Time.unscaledDeltaTime * 10f);
@@ -140,6 +176,16 @@ namespace RavenfieldVR.Weapons
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);
                 OffHandError = Vector3.Distance(_left.Hand.position, target.position);
+                if (m > 0f && _magFingers != null)
+                {
+                    for (int i = 0; i < _magFingers.Length; i++)
+                    {
+                        if (_magFingers[i] != null)
+                        {
+                            _magFingers[i].localRotation = Quaternion.Slerp(_magFingers[i].localRotation, _magFingerLocal[i], m);
+                        }
+                    }
+                }
             }
         }
 

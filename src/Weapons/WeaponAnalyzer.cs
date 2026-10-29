@@ -628,7 +628,7 @@ namespace RavenfieldVR.Weapons
             // --- sample the animator on an inert clone ----------------------------------------------
             Animator animator = w.animator != null ? w.animator : root.GetComponent<Animator>();
             bool canSample = animator != null && animator.runtimeAnimatorController != null && animator.transform == root;
-            PoseSampler sampler = SampleFromRigidBody(w, all, index, muzzle, handR, canSample, d.Action, armRenderers, ref gunBody, out bool sampled);
+            PoseSampler sampler = SampleFromRigidBody(w, all, index, muzzle, handR, handL, canSample, d.Action, armRenderers, ref gunBody, out bool sampled);
             d.GunBodyPath = WeaponRig.PathOf(root, gunBody) ?? new int[0];
             string rigDump = null;
             byte[] exportGlb = null;
@@ -723,6 +723,7 @@ namespace RavenfieldVR.Weapons
                     d.ArmRight = ArmChainOf(root, handR, handL, armBones, sampler, gunIdle, d);
                     d.ArmLeft = ArmChainOf(root, handL, handR, armBones, sampler, gunIdle, d);
                 });
+                Guarded(d, "magazine hold", () => d.MagHold = MagHoldOf(d, root, handL, index, sampler));
                 Guarded(d, "sounds", () => BuildSoundMap(d, sampler, w));
                 if (WeaponSelfTest.WantsRigDump(key))
                 {

@@ -2994,8 +2994,42 @@ namespace RavenfieldVR.Core
                 Metric("weapon's arms: cm the gun hand is off its grip", gunErr * 100f);
                 Metric("weapon's arms: cm the off hand is off its target", Mathf.Max(gripErr, freeErr) * 100f);
                 bool torn = gunErr > 0.02f || gripErr > 0.02f || freeErr > 0.02f;
+                // A magazine of this gun in the off hand: the hand on it as the gun's reload holds it (MagHoldPose; user, 2026-10-29).
+                string magNote = "";
+                MagHoldPose hold = held.Rig.Data.MagHold;
+                if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
+                {
+                    if (hold == null)
+                    {
+                        magNote = "; a magazine in the off hand: no hold pose in its reload (the hand goes where the controller is)";
+                    }
+                    else
+                    {
+                        held.SetTwoHanded(false); // (set for the handguard step above)
+                        MagazineProp mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
+                        try
+                        {
+                            mag.Attach(off);
+                            yield return new WaitForSecondsRealtime(0.4f);
+                            yield return new WaitForEndOfFrame();
+                            Shots.Capture(name + "-holding-a-magazine");
+                            float magErr = arms.OffHandError;
+                            Metric("weapon's arms: cm the off hand is off its magazine hold", magErr * 100f);
+                            bool offMag = !arms.OnMagazine || magErr > 0.02f;
+                            torn |= offMag;
+                            magNote = $"; holding a magazine: {magErr * 100f:0.0} cm off the hold its reload has (from {hold.Step * PoseSampler.Dt:0.00} s, "
+                                      + $"{hold.FingerPaths.Length} finger bones){(offMag ? " (NOT ON THE MAGAZINE)" : "")}";
+                        }
+                        finally
+                        {
+                            mag?.Destroy();
+                            off.Held = null;
+                            off.Role = Rig.HandRole.Free;
+                        }
+                    }
+                }
                 report($"weapon's arms: gun hand {gunErr * 100f:0.0} cm off its grip, off hand {gripErr * 100f:0.0} cm off the handguard and {freeErr * 100f:0.0} cm off the controller"
-                       + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{(torn ? " (NOT ON TARGET)" : "")}");
+                       + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{magNote}{(torn ? " (NOT ON TARGET)" : "")}");
             }
             finally
             {
