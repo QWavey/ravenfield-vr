@@ -35,6 +35,9 @@ namespace RavenfieldVR.UI
             public CanvasRole Role;
             public bool Visible;
             public bool Placed;
+            /// <summary>Its CanvasGroup (looked up once a second, not every frame: a GetComponent per canvas per frame; sweep).</summary>
+            public CanvasGroup Group;
+            public int GroupFrame = -1000;
             public RigidPose LocalPose; // relative to the rig root
             public float NextRoleCheck;
             /// <summary>Parts of an open menu kept at no depth inside it every frame (its nested pages, anything set deep).</summary>
@@ -184,7 +187,12 @@ namespace RavenfieldVR.UI
 
         private static bool HasVisibleGraphics(Tracked t)
         {
-            CanvasGroup group = t.Canvas.GetComponent<CanvasGroup>();
+            if (Time.frameCount - t.GroupFrame > 60)
+            {
+                t.Group = t.Canvas.GetComponent<CanvasGroup>(); // (again now and then: one added later is found)
+                t.GroupFrame = Time.frameCount;
+            }
+            CanvasGroup group = t.Group;
             return group == null || group.alpha > 0.01f;
         }
 
@@ -514,8 +522,17 @@ namespace RavenfieldVR.UI
             if (player != null && player.fpCamera != null)
             {
                 float vfov = 2f * Mathf.Atan(Mathf.Tan(hfov * 0.5f * Mathf.Deg2Rad) / aspect) * Mathf.Rad2Deg;
-                player.fpCamera.fieldOfView = vfov;
-                player.fpCamera.aspect = aspect;
+                // Written only when they differ (the game may change them itself, so compared with the camera's own values): two
+                // camera setters every frame before (sweep).
+                Camera fp = player.fpCamera;
+                if (!Mathf.Approximately(fp.fieldOfView, vfov))
+                {
+                    fp.fieldOfView = vfov;
+                }
+                if (!Mathf.Approximately(fp.aspect, aspect))
+                {
+                    fp.aspect = aspect;
+                }
             }
         }
 
