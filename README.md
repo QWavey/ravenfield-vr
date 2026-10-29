@@ -162,7 +162,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
 | `WristFrameRate` | on | The wrist display also shows the share of frames at the headset's rate and the GPU's time a frame (last few seconds) |
 | `BodyShadow` | off | Your own soldier's shadow on foot and in first-person seats. Its arms and gun move in the game's animation, not yours, so the shadow wanders across your hands |
-| `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms |
+| `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms (with no weapon in the hand, the arms of the last one you held) |
 | `TurnMode` / `SnapTurnAngle` | Snap / 30 | |
 | `HolsterLayout` | Boneworks | Boneworks, or Classic (pistols on the hips, gear on the chest) |
 | `GripToHoldWeapon` | on | Hold the grip to keep holding a weapon; letting go puts it away. Off: it stays in your hand (either hand) until you put it back at its holster with a grip press there |

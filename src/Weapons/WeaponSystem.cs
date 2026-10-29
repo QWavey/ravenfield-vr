@@ -440,6 +440,15 @@ namespace RavenfieldVR.Weapons
             {
                 PerfProbe.End("render: pouch and holsters");
             }
+            // Weapon's arms on empty hands, before the held weapon's step: a gun drawn this frame hides the gloves again after it.
+            try
+            {
+                _emptyArms.BeforeRender(this, VRConfig.HandsNow == HandsMode.WeaponArms && (Held == null || Held.Weapon == null) && GameContext.InGame);
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("EmptyArms.BeforeRender", e);
+            }
             Second?.BeforeRender();
             if (Held != null && Held.Weapon != null)
             {
@@ -483,6 +492,9 @@ namespace RavenfieldVR.Weapons
         }
 
         private readonly LensFlash _lensFlash;
+
+        /// <summary>Weapon's arms with no weapon in the hand: the last held gun's arms on both hands.</summary>
+        private readonly EmptyArms _emptyArms = new EmptyArms();
 
         // ---------------------------------------------------------------------------------------------
 
@@ -530,6 +542,7 @@ namespace RavenfieldVR.Weapons
         {
             if (Held != null)
             {
+                Log.Guard("EmptyArms.TakeFrom", () => _emptyArms.TakeFrom(Held)); // its arms for the empty hands, in this frame's pose
                 Log.Guard("ReleaseHeld", () => Held.Release()); // a seat's drawn weapon with no held rig called it on nothing (lifecycle hunt)
             }
             _throwables.Release();
@@ -1241,6 +1254,7 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Guard("Weapons.ReleaseHeld", ReleaseHeld);
             }
+            Log.Guard("Weapons.Dispose.EmptyArms", _emptyArms.Destroy); // (DontDestroyOnLoad: it outlives the scenes)
             // Each step on its own, as VRManager's and the rig's: one that threw skipped the rest, the lens flash's muzzle
             // objects (DontDestroyOnLoad) and the scopes' spare textures among them (render-effects scout, 2026-10-23).
             // Each part only if it was made (a constructor that threw part way disposes what it built).

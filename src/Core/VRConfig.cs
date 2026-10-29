@@ -250,7 +250,7 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Visual/aim recoil applied to the gun in your hand.", new AcceptableValueRange<float>(0f, 3f)));
             Hands = cfg.Bind("Weapons", "Hands", HandsMode.VRHands,
                 "VRHands: the mod's own hands (fingers posed like each weapon's rig). WeaponArms: the weapon's own first-person arms, " +
-                "gloves and sleeves, moved by IK to your controllers.");
+                "gloves and sleeves, moved by IK to your controllers; with no weapon in the hand, the arms of the last one you held.");
             Glove = cfg.Bind("Weapons", "Glove", GloveStyle.Tactical,
                 "Tactical: a textured tactical glove (Valve's SteamVR glove) whose fingers move like SteamVR's own hand poses. " +
                 "Simple: the mod's earlier plain glove. Applies when the game starts.");
