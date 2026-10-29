@@ -717,6 +717,10 @@ namespace RavenfieldVR.Weapons
                     {
                         continue; // parked out of sight by the mod (a PKM box's belt links wait 25 m away): not on the magazine
                     }
+                    if (PoseSampler.UnderAny(r.transform, rig.SpareParts))
+                    {
+                        continue; // hidden while held (the PKM box's belt links hanging under it): not on the magazine in the hand
+                    }
                     Mesh mesh = null;
                     if (r is MeshRenderer)
                     {

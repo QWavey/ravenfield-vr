@@ -703,13 +703,19 @@ namespace RavenfieldVR.Weapons
         /// second, hidden magazine (the fresh one their reload brings in) parked somewhere under the magazine bone; it is
         /// not part of the magazine's shape. All meshes count when none is visible at idle.
         /// </summary>
-        public Bounds LocalBounds(Transform live)
+        public Bounds LocalBounds(Transform live) => LocalBounds(live, null);
+
+        /// <summary>
+        /// <see cref="LocalBounds(Transform)"/> without the meshes under any of <paramref name="skip"/> (pieces that hang apart
+        /// from the part at rest: the PKM box's belt links under it).
+        /// </summary>
+        public Bounds LocalBounds(Transform live, ICollection<Transform> skip)
         {
             RigidPose selfInv = Idle(live).Inverse();
             Func<Transform, Vector3, Vector3> toSpace = (t, p) => selfInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale)));
             // Pieces a mod parks far away at rest to hide them (the PKM/PKP box's belt links wait 25 m off until the
             // reload brings them in) are not part of what is there: they made the box measure 25 m.
-            Func<Transform, bool> near = t => selfInv.TransformPoint(Idle(t).position).sqrMagnitude < ParkedAway * ParkedAway;
+            Func<Transform, bool> near = t => selfInv.TransformPoint(Idle(t).position).sqrMagnitude < ParkedAway * ParkedAway && !UnderAny(t, skip);
             Bounds shown = MeshBounds(live, toSpace, t => IdleVisible(t) && near(t));
             if (shown.size.sqrMagnitude > 1e-8f)
             {
@@ -717,6 +723,54 @@ namespace RavenfieldVR.Weapons
             }
             Bounds nearby = MeshBounds(live, toSpace, near);
             return nearby.size.sqrMagnitude > 1e-8f ? nearby : MeshBounds(live, toSpace);
+        }
+
+        /// <summary>
+        /// Each mesh under <paramref name="live"/> that shows at rest and is not parked away, with its box in the part's own rest
+        /// space (as <see cref="LocalBounds(Transform)"/> measures them).
+        /// </summary>
+        public List<KeyValuePair<Transform, Bounds>> ShownMeshBoxes(Transform live)
+        {
+            RigidPose selfInv = Idle(live).Inverse();
+            Func<Transform, Vector3, Vector3> toSpace = (t, p) => selfInv.TransformPoint(Idle(t).TransformPoint(Vector3.Scale(p, t.lossyScale)));
+            var boxes = new List<KeyValuePair<Transform, Bounds>>();
+            void Add(Transform t, Mesh mesh)
+            {
+                if (mesh == null || !IdleVisible(t) || selfInv.TransformPoint(Idle(t).position).sqrMagnitude >= ParkedAway * ParkedAway)
+                {
+                    return;
+                }
+                bool any = false;
+                var b = new Bounds();
+                Encapsulate(ref b, ref any, mesh.bounds, t, toSpace);
+                boxes.Add(new KeyValuePair<Transform, Bounds>(t, b));
+            }
+            foreach (MeshFilter mf in live.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Add(mf.transform, mf.sharedMesh);
+            }
+            foreach (SkinnedMeshRenderer smr in live.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                Add(smr.transform, smr.sharedMesh);
+            }
+            return boxes;
+        }
+
+        /// <summary>Whether <paramref name="t"/> is one of <paramref name="tops"/> or under one.</summary>
+        internal static bool UnderAny(Transform t, ICollection<Transform> tops)
+        {
+            if (tops == null || tops.Count == 0)
+            {
+                return false;
+            }
+            foreach (Transform top in tops)
+            {
+                if (top != null && (t == top || t.IsChildOf(top)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>A piece further than this from its part at rest is parked out of sight, not part of the part.</summary>

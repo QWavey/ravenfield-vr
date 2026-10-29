@@ -390,7 +390,8 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 eject = sampler.HasReload && !toggles ? sampler.FirstDir[mi] : Vector3.zero;
             d.MagEjectAxis = eject.sqrMagnitude > 0.5f ? eject.normalized : -d.Up;
-            Bounds mb = sampler.LocalBounds(mag);
+            Guarded(d, "magazine's detached pieces", () => DetachedMagazinePieces(d, root, mag, sampler));
+            Bounds mb = sampler.LocalBounds(mag, _detachedPieces);
             if (mb.size.sqrMagnitude > 1e-6f)
             {
                 d.MagBounds = mb;
@@ -443,6 +444,114 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// The magazine's pieces that hang apart from its body at rest, this analysis's (left out of its shape and its vertex axis;
+        /// <see cref="DetachedMagazinePieces"/>).
+        /// </summary>
+        private static readonly List<Transform> _detachedPieces = new List<Transform>();
+
+        /// <summary>
+        /// Pieces under the magazine that hang apart from its body at rest: the PKM's, PKP's and Type 80's box carries 11 links of
+        /// belt ('AMMO.001') 17 to 37 cm under it, the MK46's 13 links 42 cm off, the belt their reload brings out of the box,
+        /// waiting out of the flat view. They were drawn hanging under the held gun, copied into the hand with the box, and
+        /// measured as the box: 39 x 10 x 54 cm for a 32 x 9 x 15 cm box, so its grab and hold points were 20 cm off it (user,
+        /// 2026-10-29: "on the PKM the mag is floating around and not really in the hand and the magbelt is floating on another
+        /// position"). The body is the largest mesh and every mesh that touches it within 2 cm, through each other; the rest, when
+        /// it is lighter than the body and 5 cm or more off it, is left out of the magazine's shape and hidden while held, as
+        /// parked ammunition is. Not a launcher's rocket (the RPG-7's safety sits 9 cm off its rocket). Checked on the 287
+        /// weapon exports: those nine machine guns and nothing else.
+        /// </summary>
+        private static void DetachedMagazinePieces(WeaponRigData d, Transform root, Transform mag, PoseSampler sampler)
+        {
+            _detachedPieces.Clear();
+            if (d.Action == ActionType.SingleShot)
+            {
+                return;
+            }
+            List<KeyValuePair<Transform, Bounds>> meshes = sampler.ShownMeshBoxes(mag);
+            if (meshes.Count < 2)
+            {
+                return;
+            }
+            float Volume(Bounds b) => Mathf.Max(b.size.x, 0.002f) * Mathf.Max(b.size.y, 0.002f) * Mathf.Max(b.size.z, 0.002f);
+            int seed = 0;
+            for (int k = 1; k < meshes.Count; k++)
+            {
+                if (Volume(meshes[k].Value) > Volume(meshes[seed].Value))
+                {
+                    seed = k;
+                }
+            }
+            var inBody = new bool[meshes.Count];
+            inBody[seed] = true;
+            for (bool grew = true; grew;)
+            {
+                grew = false;
+                for (int k = 0; k < meshes.Count; k++)
+                {
+                    if (inBody[k])
+                    {
+                        continue;
+                    }
+                    for (int j = 0; j < meshes.Count; j++)
+                    {
+                        Bounds near = meshes[j].Value;
+                        near.Expand(0.04f); // within 2 cm
+                        if (inBody[j] && near.Intersects(meshes[k].Value))
+                        {
+                            inBody[k] = grew = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            float bodyVolume = 0f, restVolume = 0f, gap = float.MaxValue;
+            var body = new List<Transform>();
+            var rest = new List<Transform>();
+            for (int k = 0; k < meshes.Count; k++)
+            {
+                if (inBody[k])
+                {
+                    bodyVolume += Volume(meshes[k].Value);
+                    body.Add(meshes[k].Key);
+                    continue;
+                }
+                restVolume += Volume(meshes[k].Value);
+                rest.Add(meshes[k].Key);
+                for (int j = 0; j < meshes.Count; j++)
+                {
+                    if (inBody[j])
+                    {
+                        gap = Mathf.Min(gap, Mathf.Sqrt(Gap(meshes[k].Value, meshes[j].Value)));
+                    }
+                }
+            }
+            if (rest.Count == 0 || restVolume >= bodyVolume || gap < 0.05f)
+            {
+                return;
+            }
+            // Each detached mesh by its highest holder under the magazine that holds none of the body.
+            foreach (Transform t in rest)
+            {
+                Transform top = t;
+                while (top.parent != null && top.parent != mag && !body.Exists(b => b == top.parent || b.IsChildOf(top.parent)))
+                {
+                    top = top.parent;
+                }
+                if (!_detachedPieces.Exists(o => top == o || top.IsChildOf(o)))
+                {
+                    _detachedPieces.RemoveAll(o => o.IsChildOf(top));
+                    _detachedPieces.Add(top);
+                }
+            }
+            foreach (Transform top in _detachedPieces)
+            {
+                d.SparePartPaths.Add(WeaponRig.PathOf(root, top));
+            }
+            d.Notes += $"'{_detachedPieces[0].name}'{(_detachedPieces.Count > 1 ? $" and {_detachedPieces.Count - 1} more" : "")} ({rest.Count} mesh(es)) "
+                       + $"hang {gap * 100f:0} cm off the magazine's body at rest: left out of its shape, hidden while held ";
         }
 
         /// <summary>
@@ -1827,9 +1936,10 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f))
+                if (shownNearOnly && (!ActiveUpTo(mf.transform, part) || (mf.transform.position - part.position).sqrMagnitude > 1.5f * 1.5f
+                                      || PoseSampler.UnderAny(mf.transform, _detachedPieces)))
                 {
-                    continue;
+                    continue; // (and a piece hanging apart from the magazine: the PKM box's links turned its axis 83 degrees)
                 }
                 Vector3[] v = m.vertices;
                 int step = Mathf.Max(1, v.Length / 4000);
