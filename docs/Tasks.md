@@ -2811,6 +2811,10 @@ array (debug option only).
    hand's speed, falls as in real time, not hurt more than at full speed), a gun drawn with the off hand then holstered (map and
    squad back on the main hand's buttons), a launcher holstered loaded then fired (its rocket gone), the VR keyboard with two
    fields, the wrist's "CPU-bound" on a heavy map, a long session's CPU speed column (100%, 98%, 88% in three minutes at 16:10).
+7. (Added 2026-10-29.) The bench's new "Game, game cameras 1 px" line against "Game (own quality)" (the suppressed
+   cameras' remaining cost; Tasks 348), the autotest's SlowedHandsCheck, and in the headset: Hands in slow motion = Slowed
+   (the lag and catch-up feel, the laser and walking direction not lagging, a switch back to Normal mid slow motion), loose
+   magazines pushed by the gun and by a tapping hand (Tasks 351-352).
 
 ### 352. Hands in slow motion: Normal or Slowed (user, 2026-10-28 evening; built 7b4824a, check in a game run)
 - [ ] "lets do a mode in settings, Normal and slowed (regarding hands, hands holding mags, hands holding guns, guns etc almost
