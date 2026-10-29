@@ -218,7 +218,8 @@ namespace RavenfieldVR.Weapons
                     Vector3 surface = c.ClosestPoint(centre);
                     Vector3 normal = surface - centre;
                     normal = normal.sqrMagnitude > 1e-8f ? normal.normalized : (body.worldCenterOfMass - centre).normalized;
-                    if (!Pushed(handVelocity, body.velocity, normal, out Vector3 pushed))
+                    // (The threshold in the same units: game units, in slow motion with real-time hands a fifth of a reach shoved it; round 11.)
+                    if (!Pushed(handVelocity, body.velocity, normal, PushApproach / BodyGrab.SlowMotion(), out Vector3 pushed))
                     {
                         continue;
                     }
@@ -235,15 +236,16 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A magazine's velocity after a hand (<paramref name="hand"/>, game units) moves into it along <paramref name="normal"/> (from
-        /// the hand to it): false when the hand comes slower than <see cref="PushApproach"/> (a reach to take it) or goes away; else it
+        /// the hand to it): false when the hand comes slower than <paramref name="threshold"/> (a reach to take it: <see cref="PushApproach"/>
+        /// in the velocity's units) or goes away; else it
         /// takes the hand's speed along the normal and a little of its sweep, never more than the hand's speed. Pure: offline tests.
         /// </summary>
-        internal static bool Pushed(Vector3 hand, Vector3 body, Vector3 normal, out Vector3 velocity)
+        internal static bool Pushed(Vector3 hand, Vector3 body, Vector3 normal, float threshold, out Vector3 velocity)
         {
             velocity = body;
             Vector3 relative = hand - body;
             float approach = Vector3.Dot(relative, normal);
-            if (approach < PushApproach || float.IsNaN(approach))
+            if (approach < threshold || float.IsNaN(approach))
             {
                 return false;
             }

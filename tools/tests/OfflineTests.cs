@@ -163,9 +163,9 @@ namespace RavenfieldVR.Tests
             }
             bool P(UnityEngine.Vector3 hand, UnityEngine.Vector3 mag, UnityEngine.Vector3 normal, out UnityEngine.Vector3 v)
             {
-                object[] args = { hand, mag, normal, null };
+                object[] args = { hand, mag, normal, 0.5f, null };
                 bool r = (bool)pushed.Invoke(null, args);
-                v = (UnityEngine.Vector3)args[3];
+                v = (UnityEngine.Vector3)args[4];
                 return r;
             }
             UnityEngine.Vector3 x = new UnityEngine.Vector3(1f, 0f, 0f), z = new UnityEngine.Vector3(0f, 0f, 1f);

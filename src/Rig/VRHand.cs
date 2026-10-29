@@ -83,6 +83,8 @@ namespace RavenfieldVR.Rig
         // in game units, and whether it is following (it is not at full speed once it has caught up).
         private RigidPose _slowPose;
         private Vector3 _slowVelocity, _slowSpin;
+        /// <summary>The controller's place last frame (tracking space): a jump of it, not of the slowed hand, is a recentring.</summary>
+        private Vector3 _slowTarget;
         private bool _slowActive;
 
         /// <summary>
@@ -124,7 +126,9 @@ namespace RavenfieldVR.Rig
         /// <summary>
         /// Whether the hand follows the controller slowed (Slowed, in slow motion, or still catching up after it): the controller's
         /// pose <paramref name="local"/> becomes the slowed hand's, and its velocity and spin (tracking space, game units) are given.
-        /// Not in a pause (time scale 0: the menus and the laser at full speed) nor while catching up from more than 1.5 m away.
+        /// Not in a pause (time scale 0: the menus and the laser at full speed). A sustained fast swing may leave it well behind: it
+        /// keeps following (it snapped to the controller at 1.5 m before, a jump of the hand and the gun; round 11); only a jump of the
+        /// controller itself (tracking recentred) or a gap over 4 m starts it afresh where the controller is.
         /// </summary>
         private bool Slowed(ref RigidPose local, out Vector3 velocity, out Vector3 spin)
         {
@@ -132,12 +136,15 @@ namespace RavenfieldVR.Rig
             // (Switched to Normal mid slow motion: caught up at full speed, as when slow motion ends, not snapped to the controller.)
             float s = Time.timeScale > 0f && !VRConfig.SlowedHands ? 1f : Time.timeScale, dt = Time.unscaledDeltaTime;
             bool caughtUp = (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
-            if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || dt > 0.25f
-                || _slowActive && (_slowPose.position - local.position).sqrMagnitude > 1.5f * 1.5f)
+            bool jumped = _slowActive && ((local.position - _slowTarget).sqrMagnitude > 0.5f * 0.5f || (_slowPose.position - local.position).sqrMagnitude > 4f * 4f);
+            _slowTarget = local.position;
+            if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || jumped)
             {
                 _slowActive = false;
                 return false;
             }
+            // (A long frame, a hitch or a load, is taken as a tenth of a second: it dropped the hand to the controller before.)
+            dt = Mathf.Min(dt, 0.1f);
             if (!_slowActive)
             {
                 _slowActive = true; // from where the hand is: no jump as slow motion starts

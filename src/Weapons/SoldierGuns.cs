@@ -300,15 +300,22 @@ namespace RavenfieldVR.Weapons
             // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
             // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
             gun.OnAmmoChanged();
+            MagazineProp prop = null;
             try
             {
-                MagazineProp prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
+                prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
                 prop.Attach(hand);
                 prop.FollowHand();
             }
             catch (System.Exception e)
             {
+                // No magazine in the hand: his rounds back and the squeeze not spent (it wrests the gun instead). Kept emptied, the
+                // rounds were gone with nothing in the hand (round 11).
                 Log.ExceptionOnce("SoldierGuns.TakeMagazine", e);
+                prop?.Destroy();
+                gun.ammo = rounds;
+                gun.OnAmmoChanged();
+                return false;
             }
             _sys.Sounds.Play(MechSound.MagOut, hand.PalmCentre, 0.8f);
             hand.Haptic(0.06f, 120f, 0.7f);
@@ -336,7 +343,7 @@ namespace RavenfieldVR.Weapons
             {
                 return KnockAndHold(i, hand, soldier, gun);
             }
-            DroppedWeapon drop = _sys.Drops.DropFromHands(soldier, gun, hand.Velocity * 0.3f);
+            DroppedWeapon drop = _sys.Drops.DropFromHands(soldier, gun, hand.Velocity * 0.3f / BodyGrab.SlowMotion()); // (game units)
             if (drop == null)
             {
                 // (No copy of it can be made (a kind with no model): returned false, the squeeze went on to take the soldier himself.)
