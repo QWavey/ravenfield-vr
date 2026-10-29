@@ -6896,12 +6896,17 @@ namespace RavenfieldVR.Core
 
         private static float _matchAt, _deployedAt;
 
+        /// <summary>Where the header's count of skipped checks goes once the report is built.</summary>
+        private const string SkippedToken = "<skipped>";
+
         private static void Write(bool final = true)
         {
             _written |= final;
             var sb = new StringBuilder();
             sb.AppendLine($"Ravenfield VR {PluginInfo.Version} autotest, {DateTime.Now:yyyy-MM-dd HH:mm}, VR {(VRManager.Active ? "on" : "off")}");
-            sb.AppendLine($"Problems: {Problems.Count}, weapons reported: {_tested}"); // (a run that tested nothing read as clean)
+            // And how many checks were skipped (counted from the report's own lines once it is built): a run whose soldier checks all
+            // skipped (the soldier not brought, the off hand busy) read "Problems: 0" as if it had tested them (sweep, 2026-10-29).
+            sb.AppendLine($"Problems: {Problems.Count}, weapons reported: {_tested}, " + SkippedToken); // (a run that tested nothing read as clean)
             // Where a run's time goes (the fast test mode is judged by it; seconds after the game started).
             sb.AppendLine($"Timeline: content ready {Core.TestHost.ContentReadyAt:0.0} s{(Core.TestHost.Mods != null ? " (fast test mode)" : "")}, match "
                           + $"{_matchAt:0.0} s, player deployed {_deployedAt:0.0} s, this report {Time.realtimeSinceStartup:0.0} s");
@@ -6936,12 +6941,28 @@ namespace RavenfieldVR.Core
             {
                 sb.AppendLine("  " + r);
             }
+            int skipped = 0;
+            var skippedNames = new List<string>();
+            foreach (string reportLine in sb.ToString().Split('\n'))
+            {
+                int at = reportLine.IndexOf(": skipped", StringComparison.OrdinalIgnoreCase);
+                if (at > 0)
+                {
+                    skipped++;
+                    string what = reportLine.Substring(0, at).Trim().TrimStart('!', ' ');
+                    if (skippedNames.Count < 12 && !skippedNames.Contains(what))
+                    {
+                        skippedNames.Add(what);
+                    }
+                }
+            }
+            sb.Replace(SkippedToken, $"checks skipped: {skipped}{(skippedNames.Count > 0 ? " (" + string.Join("; ", skippedNames.ToArray()) + (skipped > skippedNames.Count ? "; ..." : "") + ")" : "")}");
             try
             {
                 File.WriteAllText(ReportPath, sb.ToString(), new UTF8Encoding(false));
                 if (final)
                 {
-                    Log.Info($"Autotest finished: {Problems.Count} problems. Report: {ReportPath}");
+                    Log.Info($"Autotest finished: {Problems.Count} problems, {skipped} checks skipped. Report: {ReportPath}");
                 }
             }
             catch (Exception e)
