@@ -231,8 +231,10 @@ namespace RavenfieldVR.Weapons
                 handed.HandOver();
                 return;
             }
+            // (And a pairing no longer allowed after a switch of the gun hand's weapon: a knife drawn beside a pistol, two grenades;
+            // checked only as the free hand took it, the pair stayed; round 11.)
             bool gone = Second.Weapon == null || actor == null || actor.dead || actor.IsSeated() || Held == null || Held.Weapon == null
-                        || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0;
+                        || System.Array.IndexOf(actor.weapons, Second.Weapon) < 0 || !SecondWeapon.CanPair(Held.Weapon, Second.Weapon);
             if (gone || Second.Done)
             {
                 // The gun in the other hand went away (a seat, death), or a grenade thrown: back into its holster.

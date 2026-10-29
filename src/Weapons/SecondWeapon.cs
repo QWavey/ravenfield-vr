@@ -87,6 +87,7 @@ namespace RavenfieldVR.Weapons
         internal int LastLiveCount { get; private set; }
 
         private bool _triggerWas;
+        private float _lastUpdateAt = -1f;
         private bool _throwBlocked; // input was blocked (a pause, or a panel under the laser) last frame
         private readonly List<Projectile> _spawned = new List<Projectile>();
         /// <summary>The weapon's own right hand (its first-person arms), whose grip pose the glove takes, as the gun hand's does.</summary>
@@ -158,6 +159,14 @@ namespace RavenfieldVR.Weapons
             bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !blocked;
             if (IsThrowable)
             {
+                // Back after a gap (a tracking gap: the free hand is not worked while untracked; or the first update after it was
+                // taken): resynced to the trigger as after a block, so a trigger let go out of view is no throw when the hand is seen
+                // again, and one already down as the grenade is taken does not pull its pin (round 11).
+                if (Time.unscaledTime - _lastUpdateAt > 0.1f)
+                {
+                    _triggerWas = held;
+                }
+                _lastUpdateAt = Time.unscaledTime;
                 if (_throwBlocked && !blocked)
                 {
                     // Back from a block (the match paused with no menu, or a panel opened under the laser): the pin stays pulled,
@@ -351,7 +360,10 @@ namespace RavenfieldVR.Weapons
             }
             Armed = false; // the next one comes with its pin in
             RestorePin();
-            _sys.Sounds.Play(MechSound.Spoon, Hand.Palm.position, 0.8f);
+            if (_usesPin)
+            {
+                _sys.Sounds.Play(MechSound.Spoon, Hand.Palm.position, 0.8f); // (a pinned grenade's only, as in the gun hand: no spoon on a molotov)
+            }
             Hand.Haptic(0.04f, 90f, 0.6f);
             Log.Info($"Second weapon: {weapon.name} thrown from the {Hand.Side} hand ({velocity.magnitude:0.0} m/s).");
             // The hand is empty after a throw, as with the grenade hand (the next one waits in its holster).

@@ -85,15 +85,17 @@ namespace RavenfieldVR.Weapons
             if (_armed && VRInput.GetReleased(DigitalAction.Fire, hand.Side))
             {
                 _armed = false;
+                // Not from a hand out of view: its own velocity reads zero then and the body's motion alone (walking) threw the grenade
+                // from a palm riding on the rig (round 11); the free hand and the grip are not worked in a tracking gap either.
                 Vector3 v = ThrowableHandler.Released(hand);
-                if ((v.magnitude > 1.1f || CanStrap(hand)) && Throw(weapon, hand, v))
+                if (hand.Tracked && (v.magnitude > 1.1f || CanStrap(hand)) && Throw(weapon, hand, v))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
                 }
             }
             // Holding by the grip: opening the hand in a throwing motion lets the grenade go, as in other VR games (a slow
             // release puts it back on the chest instead).
-            if (VRConfig.GripToHoldWeapon.Value && hand.GrabReleased && !GameContextBlocksThrow() && Time.unscaledTime - GripThrowAt > 0.5f)
+            if (VRConfig.GripToHoldWeapon.Value && hand.Tracked && hand.GrabReleased && !GameContextBlocksThrow() && Time.unscaledTime - GripThrowAt > 0.5f)
             {
                 // A throwing motion against the body (opening the hand while running is not a throw); the grenade then
                 // leaves with the hand's full speed, running included. Backing away as you throw, that speed could cancel
