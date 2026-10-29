@@ -1926,7 +1926,9 @@ class Workbench(QWidget):
                 pass
             raise OSError(f'no copy of the old pose could be kept in {hist}, so it was left as it is: {e}') from e
         try:  # (the oldest copies beyond 30 go; one that cannot go only stays)
-            old = sorted((f for f in os.listdir(hist) if f.startswith(base + '--')), key=lambda f: os.path.getmtime(os.path.join(hist, f)))
+            # By when each was kept, the stamp ending its name: copy2 keeps the pose file's own time, so the copy just made of an
+            # old game pose sorted oldest and was removed at once while the toast said it was kept (round 12).
+            old = sorted((f for f in os.listdir(hist) if f.startswith(base + '--')), key=lambda f: f.rsplit('--', 1)[-1])
             for f in old[:-30]:
                 os.remove(os.path.join(hist, f))
         except OSError as e:
@@ -2475,7 +2477,7 @@ class Workbench(QWidget):
         # The Easy card showed the job while it ran: an export reads the weapon list again, and another job goes back to the text
         # it had, unless a weapon was opened meanwhile (that weapon has its own text then).
         shows_job = self.weapon_info.text() == self._job_busy
-        if 'Export' in title:
+        if title == 'Export weapons':  # (exactly: a test of a weapon named '... Export ...' is no export)
             self.load_weapon_list(keep_open=True)  # (after this, the card holds the list: a failure below replaces its text)
             shows_job = True
         elif shows_job and code == 0:
@@ -2491,7 +2493,7 @@ class Workbench(QWidget):
                        + '\n(the whole output: Advanced, under the Game card)', error=True)
         else:
             self.toast(f'{title}: finished', 'The weapons are read again; the open weapon and its hands stay as they were.'
-                       if 'Export' in title else 'Done.')
+                       if title == 'Export weapons' else 'Done.')
 
     def export_weapons(self):
         names = self.export_names.text().strip()
