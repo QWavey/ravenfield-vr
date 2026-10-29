@@ -2440,6 +2440,7 @@ class Workbench(QWidget):
         if self.weapon_info.text() != self._card_job_text:
             self._info_before_job = self.weapon_info.text()
         self._job_busy = busy
+        self._job_title = title
         if busy:
             self.weapon_info.setText(busy)
             self._card_job_text = busy
@@ -2867,13 +2868,26 @@ class Window(FluentWindow):
         job = wb.process
         if job is not None and job.state() != QProcess.ProcessState.NotRunning:
             box = MessageBox('Something is still running',
-                             'An export or game test is still running. Close anyway? The sandbox stops waiting for it; '
-                             'a game it started closes itself when it is done.', self)
+                             'An export or game test is still running. Close anyway? It is stopped, with the game it started, '
+                             'and SteamVR gets your own settings back; an export\'s weapons are not copied (export again).', self)
             if not box.exec():
                 e.ignore()
                 return
             job.kill()
             job.waitForFinished(2000)
+            # Killed, the job's own clean-up never ran: a game test left SteamVR on the null driver with the test's play area (the
+            # real headset ignored until 'vrshots.py --restore' was run by hand) and the game running, which refused the next
+            # export or test (round 12). The restore stops the game and SteamVR and puts the user's settings back.
+            # (A game test only: it put SteamVR on the null driver, and the restore stops SteamVR. An export runs the game without
+            # VR: only its game is stopped, a SteamVR the user runs is left alone.)
+            try:
+                if getattr(wb, '_job_title', '').startswith('Test '):
+                    subprocess.run([wb._python(), '-I', os.path.join(wb.repo, 'tools', 'vrshots.py'), '--restore'],
+                                   capture_output=True, timeout=60)
+                else:
+                    subprocess.run(['taskkill', '/F', '/IM', 'ravenfield.exe'], capture_output=True, timeout=20)
+            except (OSError, subprocess.SubprocessError) as err:
+                wb.log_error('cleaning up after a stopped job', err)
         if not wb.selftest and wb.scene.weapon is not None and (wb.unsaved() or wb.drafts):
             names = ([wb.scene.weapon.name] if wb.unsaved() else []) + [d for d in wb.drafts]
             box = MessageBox('Close without saving?', 'These weapons have hands that are not saved: ' + ', '.join(names[:6])
