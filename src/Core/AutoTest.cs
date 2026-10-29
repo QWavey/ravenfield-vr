@@ -5622,6 +5622,28 @@ namespace RavenfieldVR.Core
                 bool instant = early > 0.5f, stuck = late < 0.9f;
                 string line = $"slowed hands in slow motion (0.2): a 30 cm move of the controller, {early * 100f:0}% of it after 0.1 s, {late * 100f:0}% after 1.5 s"
                               + (instant ? " (NOT SLOWED: the hand went with the controller)" : "") + (stuck ? " (NEVER CAUGHT UP with the controller)" : "");
+                // A swing held past the top speed (4.5 m/s for a second, back and forth along the side): the hand stays on its 1.5 m
+                // leash and never jumps (it snapped to the controller at 1.5 m before; round 11).
+                Vector3 sideLocal = root.InverseTransformDirection(aside);
+                float worstGap = 0f, worstJump = 0f;
+                Vector3 lastHand = root.InverseTransformPoint(off.Raw.position);
+                for (float t0 = Time.realtimeSinceStartup, u = 0f; u < 1f; u = Time.realtimeSinceStartup - t0)
+                {
+                    float x = Mathf.PingPong(u * 4.5f, 1.2f); // (4.5 m/s, turning every 1.2 m)
+                    Runtime.RigidPose swing = new Runtime.RigidPose(to.position + sideLocal * x, to.rotation);
+                    Rig.VRHand.Scripted[os] = Runtime.RigidPose.Of(root).Multiply(swing);
+                    yield return null;
+                    Vector3 handNow = root.InverseTransformPoint(off.Raw.position);
+                    worstGap = Mathf.Max(worstGap, Vector3.Distance(handNow, swing.position));
+                    worstJump = Mathf.Max(worstJump, Vector3.Distance(handNow, lastHand));
+                    lastHand = handNow;
+                }
+                Metric("slowed hands: farthest behind the controller in a 4.5 m/s swing (m)", worstGap);
+                Metric("slowed hands: largest move in a frame in a 4.5 m/s swing (m)", worstJump);
+                bool snapped = worstJump > 0.25f, unleashed = worstGap > 1.55f;
+                line += $"; a 4.5 m/s swing for a second: at most {worstGap:0.00} m behind, at most {worstJump * 100f:0} cm in a frame"
+                        + (snapped ? " (JUMPED: the hand snapped to the controller)" : "") + (unleashed ? " (NOT HELD within 1.5 m of the controller)" : "");
+                stuck |= snapped || unleashed;
                 // A magazine let go from the slowed hand at 1 m/s: the world's pace, no real-time flight.
                 if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                 {
