@@ -223,7 +223,17 @@ namespace RavenfieldVR.Weapons
             }
             hand.Model.Solid = HandSolids[side];
             hand.Model.SolidAnchor = Go.transform;
-            hand.Model.SolidVersion = HeldShapesOf(hand).Count;
+            // The shapes' count and where each sits against the anchor (to the millimetre): a palmed magazine easing from the well
+            // into the hand (a tactical reload) moved with the hand still, and the fingers kept the grip solved where it had been
+            // until the hand moved (round 11).
+            List<HeldShape> shapes = HeldShapesOf(hand);
+            int version = shapes.Count;
+            foreach (HeldShape s in shapes)
+            {
+                Vector3 at = Go.transform.InverseTransformPoint(s.Position) * 1000f;
+                version = unchecked(version * 31 + Mathf.RoundToInt(at.x) * 73856093 + Mathf.RoundToInt(at.y) * 19349663 + Mathf.RoundToInt(at.z) * 83492791);
+            }
+            hand.Model.SolidVersion = version;
         }
 
         /// <summary>One held magazine's shape at its pose this frame (magazines of one type share a volume).</summary>

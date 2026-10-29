@@ -346,8 +346,9 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
-                // Snap it shut with a flick of the wrist, like the real thing.
-                if (Breaks && Ammo.Open && !_coverHeld && Time.unscaledTime - _openedAt > 0.35f && dom.OwnAngularVelocity.magnitude > 9f)
+                // Snap it shut with a flick of the wrist, like the real thing. (Not in a pause, the dashboard or a menu: the match is
+                // frozen, as the release buttons are gated; round 11.)
+                if (Breaks && Ammo.Open && !_coverHeld && !VRGameInput.GunInputBlocked && Time.unscaledTime - _openedAt > 0.35f && dom.OwnAngularVelocity.magnitude > 9f)
                 {
                     SetBreakOpen(false);
                 }
@@ -357,7 +358,7 @@ namespace RavenfieldVR.Weapons
                 // after the cover was let go: a hand dropping away from it shut it again; 255.B2-4, B6-4.)
                 if (Ammo.HasCover && Ammo.CoverOpen && !_coverHeld && off.Tracked && off.Role == HandRole.Free && !off.GrabHeld
                     && Time.unscaledTime - _coverLetGoAt > 0.5f && CoverZoneDistance(off.Palm.position) < 0.1f
-                    && Vector3.Dot(off.BodyRelativeVelocity - dom.BodyRelativeVelocity, -Rig.UpWorld) > 1.5f)
+                    && !VRGameInput.GunInputBlocked && Vector3.Dot(off.BodyRelativeVelocity - dom.BodyRelativeVelocity, -Rig.UpWorld) > 1.5f)
                 {
                     Ammo.SetCoverOpen(false);
                     _held.Nudge(-Rig.UpWorld * 0.08f, 8f);

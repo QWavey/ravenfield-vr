@@ -35,17 +35,21 @@ namespace RavenfieldVR.Rig
         /// </summary>
         public RigidPose TrackedPointer { get; private set; }
 
-        /// <summary>World-space linear velocity including the rig's own motion.</summary>
+        /// <summary>
+        /// World-space linear velocity including the rig's own motion: the hand's motion in the world (throws, a carried body, a push),
+        /// in game units for slowed hands (Hands in slow motion: Slowed).
+        /// </summary>
         public Vector3 Velocity { get; private set; }
 
         /// <summary>
         /// The hand's velocity against the player's body (the rig carried by walking, jumping, a vehicle left out): what a
-        /// held weapon's weight lags behind (a jump or a landing pitched a one-handed heavy gun; 85-agent regression guard).
+        /// held weapon's weight lags behind (a jump or a landing pitched a one-handed heavy gun; 85-agent regression guard). The
+        /// controller's own, in real time, also for slowed hands: the gestures read it (a swing, a slap, a reach).
         /// </summary>
         public Vector3 BodyRelativeVelocity { get; private set; }
         public Vector3 AngularVelocity { get; private set; }
 
-        /// <summary>The controller's own spin, without the rig's turn: for wrist gestures (a smooth turn is no flick).</summary>
+        /// <summary>The controller's own spin, without the rig's turn: for wrist gestures (a smooth turn is no flick). Real time, also for slowed hands.</summary>
         public Vector3 OwnAngularVelocity { get; private set; }
 
         public HandRole Role = HandRole.Free;
@@ -310,25 +314,29 @@ namespace RavenfieldVR.Rig
 
             Vector3 own = raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero;
             Vector3 ownSpin = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
+            if (TestVelocityNoise > 0f)
+            {
+                own += Random.insideUnitSphere * TestVelocityNoise;
+            }
+            // The hand's motion in the world: the controller's, or the slowed hand's.
+            Vector3 moving = own, spinning = ownSpin;
             if (slowed)
             {
                 // In game units, as everything in the slowed world: the slowed hand's own, and the rig's (measured over real time) over
                 // the time scale. What it lets go of then moves at the world's pace with no real-time flight (RealTimeFlight).
                 // (Catching up after a switch to Normal: real-time units, as Normal hands' are; the follower then ran at full speed.)
                 float pace = VRConfig.SlowedHands ? 1f / Mathf.Clamp(Time.timeScale, 0.05f, 1f) : 1f;
-                own = rig.rotation * slowVelocity;
-                ownSpin = rig.rotation * slowSpin;
+                moving = rig.rotation * slowVelocity;
+                spinning = rig.rotation * slowSpin;
                 rigVelocity *= pace;
                 rigSpin *= pace;
             }
-            if (TestVelocityNoise > 0f)
-            {
-                own += Random.insideUnitSphere * TestVelocityNoise;
-            }
+            // The gestures' (a flick, a slap, a swing, a punch, a reach) are the controller's own, in real time, slowed hands or
+            // not: what the player does. In game units (the slowed hand's) every one of them fired at a fifth of its speed (round 11).
             BodyRelativeVelocity = own;
-            Velocity = own + rigVelocity;
             OwnAngularVelocity = ownSpin;
-            AngularVelocity = OwnAngularVelocity + rigSpin;
+            Velocity = moving + rigVelocity;
+            AngularVelocity = spinning + rigSpin;
             _velHistory[_historyIndex] = Velocity;
             _bodyVelHistory[_historyIndex] = Velocity - rigVelocity;
             _timeHistory[_historyIndex] = Time.unscaledTime;

@@ -510,6 +510,12 @@ namespace RavenfieldVR.Weapons
             SeatLooks.Clear();
             BoneCuts.Clear(); // (kept, every content reload left its entries for the session)
             GripSections.Clear();
+            // Their hull meshes retired, as the drops' are (WeaponDrops.ClearShapes): forgotten, they stayed in memory for the session,
+            // one set per magazine type and reload (round 11). Destroyed at the next scene change once no collider uses them.
+            foreach (ShapeFit.Piece[] pieces in RenderedShapes.Values)
+            {
+                ShapeFit.Retire(pieces);
+            }
             RenderedShapes.Clear();
         }
 
