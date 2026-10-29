@@ -173,7 +173,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `ExplosionDirt` | on | Dirt on your view from close explosions |
 | `TwoHandRecoilReduction` | 0.4 | How much a second hand on the gun tames recoil |
 | `WeaponWeight` | on | Long guns held in one hand droop and trail the wrist |
-| `SlowMotionHands` | Normal | In slow motion. Normal: your hands move at your real speed and what you let go of flies as in real time until it touches something. Slowed: your hands are slowed with the world, as in Boneworks (they trail a fast move and catch up when you stop; what you hold, throw or drop moves at the world's pace). Your head is never slowed. Also on the panel ("Hands in slow motion") |
+| `SlowMotionHands` | Normal | In slow motion. Normal: your hands move at your real speed and what you let go of flies as in real time until it touches something. Slowed: your hands are slowed with the world, as in Boneworks (they trail a fast move and catch up when you stop; what you hold, throw or drop moves at the world's pace). Your head is never slowed, nor the menu laser and your walking direction; a fast swing drags the hand along at most 1.5 m behind. Also on the panel ("Hands in slow motion") |
 | `FireSelector` | on | Semi/auto switching on automatic weapons |
 | `WeaponsWhileDriving` | on | Draw your weapon from the driver seat of cars |
 | `EnemyWeaponDrops` | on | Fallen soldiers drop their weapon |
