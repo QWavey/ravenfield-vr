@@ -283,7 +283,7 @@ namespace RavenfieldVR.Core
             HolsterSwitching = cfg.Bind("Weapons", "HolsterSwitching", true,
                 "Reach over your shoulder / to your hip / chest and grip to draw primary, sidearm or gear. Gripping at the holster of the weapon you hold puts it away and frees your hand.");
             GripToHoldWeapon = cfg.Bind("Weapons", "GripToHoldWeapon", true,
-                "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty and free. Off: the weapon stays in your hand until you put it back at its holster.");
+                "Hold the grip button to keep holding your weapon; letting go puts it in its holster and leaves your hand empty and free. Off: the weapon stays in your hand (either hand: a second weapon in the free hand too) until you put it back at its holster with a grip press there.");
             SpawnEmptyHanded = cfg.Bind("Weapons", "SpawnEmptyHanded", true,
                 "You spawn with empty hands, every weapon in its holster: reach for one to draw it (needs HolsterSwitching). Off: you spawn holding your first weapon, as in the flat game.");
             TriggerReleasesSlide = cfg.Bind("Weapons", "TriggerReleasesSlide", true,
