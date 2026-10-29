@@ -21,8 +21,58 @@ namespace RavenfieldVR.Rig
         private const float Distance = 0.25f;
         private const int Pool = 48;
         private const int Variants = 4;
-        // Half the visor's width and height that the eyes see at Distance (Quest 3: about 110 x 96 degrees).
-        private const float HalfWidth = 0.34f, HalfHeight = 0.27f;
+        // Half the visor's width and height that the eyes see at Distance: the headset's own (OpenVR's projection of the left eye,
+        // read once), else the Quest 3's (about 110 x 96 degrees). It was the Quest 3's on every headset (sweep).
+        private const float QuestHalfWidth = 0.34f, QuestHalfHeight = 0.27f;
+        private static float _halfWidth = -1f, _halfHeight = -1f;
+
+        private static float HalfWidth
+        {
+            get
+            {
+                Measure();
+                return _halfWidth;
+            }
+        }
+
+        private static float HalfHeight
+        {
+            get
+            {
+                Measure();
+                return _halfHeight;
+            }
+        }
+
+        private static void Measure()
+        {
+            if (_halfWidth > 0f)
+            {
+                return;
+            }
+            _halfWidth = QuestHalfWidth;
+            _halfHeight = QuestHalfHeight;
+            try
+            {
+                Valve.VR.CVRSystem system = Valve.VR.OpenVR.System;
+                if (system == null)
+                {
+                    return;
+                }
+                float left = 0f, right = 0f, top = 0f, bottom = 0f;
+                system.GetProjectionRaw(Valve.VR.EVREye.Eye_Left, ref left, ref right, ref top, ref bottom);
+                float tanX = Mathf.Max(Mathf.Abs(left), Mathf.Abs(right)), tanY = Mathf.Max(Mathf.Abs(top), Mathf.Abs(bottom));
+                if (tanX > 0.3f && tanX < 4f && tanY > 0.3f && tanY < 4f) // (a plausible eye: 33 to 152 degrees across)
+                {
+                    _halfWidth = Distance * tanX;
+                    _halfHeight = Distance * tanY;
+                }
+            }
+            catch (System.Exception)
+            {
+                // (no OpenVR: the Quest 3's)
+            }
+        }
 
         private sealed class Splat
         {

@@ -2819,6 +2819,21 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 354. Five-skill Haiku sweep (user, 2026-10-29: improve, optimize, bug hunt, full implement, placeholder replacer; the game not started; nothing pushed)
+- [x] Five read-only Haiku agents, one report each in reports/sweeps/ (improve 8, optimize 8, bughunt 2, fullimplement 6,
+      placeholder 7). Each report ends with an OUTCOME section: what was done (commit), declined (why) or left open.
+- [x] Built and committed: 3cfc0fe (bug hunt), 62a4bec (improve, full implement), 90c79a0 and bd216fa (placeholder),
+      bdf4cb4 (autotest skip count), fbcdb32 (canvas optimize), and MudSplash's field of view from the headset.
+- [ ] A holstered copy that reacts when the free hand reaches it, as the pouch's copy does (improve 6); and hysteresis on its
+      hide-near-the-eyes test (improve 7). Judge both in the headset.
+- [ ] A second settings page for the settings the panel has no room for: RoomscaleMovement, PhysicalCrouchRatio,
+      SmoothVehicleHorizon, TurnStickJumpCrouch, StickDeadzone, SprintMode, HapticStrength, Glove, GloveSize, VRScopes,
+      ShotViewFlash, TurretAim, MagazineReadout (fullimplement 3).
+- [ ] A rig with only a right hand: the free hand gets no support curls (fullimplement 6). Mirror the right hand's pose and
+      check it in a picture.
+- [ ] Check in a game run: the pouch tick, Calibrate now's notice with the headset off the head, the mud splash's size on the
+      Quest 3 (its own projection now, not the constants).
+
 ### 353. Weapon's arms: the off hand turned wrong away from the gun (user, 2026-10-29; built afc17be, check in a game run)
 - [ ] "when the default hands are not on the gun, the hand is turned wrong" (Hands = Weapon's arms). ArmIK oriented the free
       off hand with the arm hand's back of the hand along the palm frame's up, which is the top of the fist (the glove's frame:

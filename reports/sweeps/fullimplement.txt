@@ -1,0 +1,140 @@
+FULL IMPLEMENT SWEEP - Ravenfield-VR (read-only; nothing in the mod was edited, built or run)
+
+Scope and depth: src/Core/VRConfig.cs and src/UI/VRSettingsPanel.cs (read in full); src/Input/BindingsWriter.cs (full);
+src/Input/SteamVR/bindings_oculus_touch.json and bindings_vive_controller.json (full), the other three binding files and
+actions.json checked by script; README.md (full); docs/Tasks.md (the open "[ ]" list, plus the sections cited below);
+src/Core/AutoTest.cs (7008 lines: the verdict code and about 25 targeted ranges, not every line); src/Rig/LensEffects.cs
+(thread and band code); src/Input/VRInput.cs and GameInputBridge.cs (targeted ranges); src/Weapons/WeaponAnalyzer.cs,
+WeaponAnalyzer.HandsAndSights.cs, WeaponAnalyzer.Action.cs, HeldWeapon.cs, LensFlash.cs (targeted ranges and greps).
+
+
+1. Skill: FULL IMPLEMENT - autotest checks that report but never fail
+Where: src/Core/AutoTest.cs:3448, 3461, 3835, 3850, 3918, 3946, 4073, 4138, 4166, 4233, 4267, 4347, 4402, 4466, 4581,
+4656, 4795, 4858, 4896, 4929 (soldier skips); 1843, 2325, 2414, 2608, 2643, 993, 1254 (Results-only skips); verdict at
+6806 (Failure regex), 381, 1184, 6636 (where lines become problems), 6944 (the final count).
+Quote (line 3850): report($"soldier grab: skipped (the soldier could not be brought: {broughtNote})");
+What is wrong: A skipped check is only a text line. A problem is added only when a line matches the capitals-only Failure
+regex (line 6806: \b(NOT|NOTHING|NO|NEVER) [A-Z]|TOO SMALL|...). "could not be brought", "skipped (off hand ...)" and
+"skipped (no player)" never match, so they never count. The deploy failure is the one skip path that was fixed (line 323-324
+calls Problem() and says why). The lower-case "physics shape: the rendered-model fit was not kept" (line 3129) is a
+failure-type line that also does not count.
+Trigger and effect: The soldier suite (18 skip sites) runs only if a bot is brought within 1 m of the spot in 0.6 s (Bring,
+lines 3586-3594). If that fails, or the off hand holds something at 3445-3447, every soldier check skips and the run still
+ends with "Autotest finished: N problems" (line 6944) where N can be 0. The same is true of the five environment checks
+(standing still, wrist view, pause menu, loadout list, squad pointing). A run that passes can have tested none of the
+soldier grabs, throws, neck, shield or punch checks.
+Proposed change: One helper, Skip(string name, string reason), that adds the line to Results, counts it, and keeps the
+names. Write "Skipped: N (names)" beside "Problems" in the report file and in the Log.Info at line 6944. In a full run treat
+a skip of a required check (soldiers, environment, deploy-like cases) as a problem, as line 324 already does for deploy; keep
+-rfvr-quick and genuinely optional skips (no second weapon, no grenade in the loadout) as information. Add the skip phrases to
+tools/tests/failure_phrases_test.py so this cannot reopen silently.
+How sure: high (the verdict paths and skip lines were traced; the exact count of runs that hit a skip is not measured).
+
+
+2. Skill: FULL IMPLEMENT - a valid setting that the in-headset panel cannot show or set
+Where: src/UI/VRSettingsPanel.cs:81; src/Core/VRConfig.cs:17 (enum), src/Weapons/BodyZones.cs:174 (position exists);
+README.md:169 (documented).
+Quote (VRSettingsPanel.cs:81): Choice("Magazine pouch", VRConfig.Pouch, new[] { PouchLocation.OffHandHip, PouchLocation.Chest, PouchLocation.DominantHip }, new[] { "Hip", "Chest", "Other hip" });
+What is wrong: OffHandChest is a real value with a body position (BodyZones.cs:174: case PouchLocation.OffHandChest) and it is
+in the README table, but the panel's list leaves it out. Choice() (VRSettingsPanel.cs:195-208) lights the button whose value
+equals the setting. With OffHandChest no button is lit, and any press writes a different value.
+Trigger and effect: A player who set MagazinePouch = OffHandChest in the file opens the panel and sees no pouch position
+chosen; the value cannot be picked in the headset, and touching the row replaces it.
+Proposed change: Add PouchLocation.OffHandChest as a fourth choice, e.g. "Off chest" (a four-button row is 450/4 - 8 = about
+104 px per button, so keep the label short), in the order Hip, Off chest, Chest, Other hip.
+How sure: high.
+
+
+3. Skill: FULL IMPLEMENT - settings that exist but are not on the in-headset panel
+Where (settings): src/Core/VRConfig.cs:57 RoomscaleMovement, :56 PhysicalCrouchRatio, :60 LevelHorizonInVehicles
+(SmoothVehicleHorizon), :63 TurnStickJumpCrouch, :64 StickDeadzone, :65 SprintMode, :66 HapticStrength, :254 Glove, :257
+GloveSize, :273 VRScopes, :369 ShotViewFlash, and TurretAim (:226), MagazineReadout (:293).
+Where (reads): src/Rig/VRRig.cs:647 and :789; src/Input/GameInputBridge.cs:123 and :809; src/Input/VRInput.cs:792;
+src/Weapons/LensFlash.cs:461; src/Weapons/HeldWeapon.cs:169; src/Rig/HandShape.cs:62; src/Input/TurretAim.cs:23.
+Quote (VRConfig.cs:195-196): RoomscaleMovement = cfg.Bind("Comfort", "RoomscaleMovement", true, "Walking around your play space moves your soldier (with collision). Off keeps the soldier where the stick puts it.");
+What is wrong: VRSettingsPanel.cs Build() (lines 57-116) has none of these (a grep for Sprint, Roomscale, Haptic, Deadzone,
+ShotViewFlash, VRScopes, Glove, StickJump, SmoothVehicle, TurretAim, MagazineReadout and MinFarClip finds nothing). The README
+says "most of it" is on the panel, which is true, but these are comfort and control switches a player reaches for in the
+headset. Only the file can change them. ShotViewFlash is a specific gap: "Reduce flashing" (panel) gates the whole-view flash
+only through its limiter (LensFlash.cs:479), and there is no panel switch to turn the whole-view flash itself off while the
+limiter stays on.
+Trigger and effect: A player who gets sick from roomscale walking, wants vibration down, wants hold-to-sprint (open items
+314 and the sprint notes), or wants no whole-view flash has to take the headset off and edit BepInEx/config. Several of these
+apply live once set, so the panel is the only missing piece.
+Proposed change: A second page of the panel, reached by a "Next" button in Footer() (VRSettingsPanel.cs:273-289), with:
+Roomscale movement on/off; Sprint Toggle/Hold; Vibration as a stepper on HapticStrength (0 to 2); Stick dead zone stepper;
+Shot view flash on/off; VR scopes on/off; Turret aim Head/Hand; Glove Tactical/Simple (labelled "applies at next start", as
+GloveSize already says in the config). Leave page one unchanged.
+How sure: high that they are absent from the panel; medium on priority (the list is long and the panel is already 1.5 m tall).
+
+
+4. Skill: FULL IMPLEMENT - one controller type and one control with no binding
+Where: src/Input/SteamVR/bindings_hpmotioncontroller.json (description and poses); bindings_oculus_touch.json (no ModKeys
+output); src/Input/VRInput.cs:156 (PoseGrip read); src/UI/VRSettingsPanel.cs:278-282 (the only Touch route to Mod keys);
+docs/Tasks.md item 292 (open).
+Quote (bindings_hpmotioncontroller.json, description): "Same layout as Touch, but no grip pose is bound: the palms sit on the fixed offset, not on the controller's grip."
+What is wrong: The Reverb G2 file binds only Pose and PoseTip. The Vive wand and Index files bind a grip pose (Vive:
+/user/hand/{left,right}/pose/grip; Touch: pose/openxr_grip). VRInput.cs:156 reads PoseGrip, so on Reverb G2 the palm sits at
+a fixed offset whatever the grip does. ModKeys (the Mod keys panel) is bound only on Index and Vive; Touch and HP have no
+binding, so on Quest 3 the panel is reached only from the settings panel button. The README describes that route, so this is a
+parity gap, not a false claim. Countermeasures is unbound on Touch, Vive and HP, but in a vehicle the gun hand's A already
+triggers it through SlideRelease (GameInputBridge.cs:775-777), so that one works.
+Trigger and effect: A Reverb G2 user gets the fixed palm on every grip (task 292 says the path could not be checked). A
+Quest 3 or Reverb user has no in-game shortcut to Mod keys.
+Proposed change: Check the real Reverb grip path with SteamVR's Input Debugger on that headset (no game run); if pose/grip is
+there, bind it the way the Vive and Index files do and update the description. For ModKeys, pick an input on Touch and HP
+that no other action uses (on Touch the A, B, X, Y, both sticks, triggers and grips are all taken, so this may be a
+documented "panel only" choice instead); whichever is chosen, say it in the description.
+How sure: medium (the Reverb path is unverified, as the mod's own notes say; the ModKeys gap is verified from the binding files).
+
+
+5. Skill: FULL IMPLEMENT - open Tasks.md item buildable without the game, and a fixed-size design that only fits one machine
+Where: src/Rig/LensEffects.cs:107 (Bands = 4), :109-112 (per-band threads and events), :157 (wash scratch per band),
+:231 (worker AboveNormal), :232-238 (band threads created whatever the core count); docs/Tasks.md:1409 (open, "[minor, lens]").
+Quote (LensEffects.cs:107): private const int Bands = 4;
+What is wrong: The flash picture is cut into four fixed bands (the top and bottom half of each eye), and one thread per band is
+started regardless of the machine. Environment.ProcessorCount is not read anywhere in LensEffects.cs. Band 0 runs on the
+worker and bands 1-3 on their own threads, so on a four-core CPU the worker plus three bands are busy at once beside Unity's
+main thread; on eight or more cores the bands sit idle while the band that holds the muzzle's starburst (usually the one below
+the lens middle, Tasks 1409) finishes last.
+Trigger and effect: Every flash, hit, low-health or drops frame waits for the slowest band (Tasks estimates it at 1.3 to 1.6
+times the mean), so the picture arrives later. On fewer cores the threads compete with the main thread. The output does not
+change, so there is no visual risk.
+Proposed change: Split each eye's picture into 12 to 16 row strips; let the worker and the band threads take strips from one
+shared counter with Interlocked.Increment; size the thread count from Environment.ProcessorCount (for example min(3,
+ProcessorCount - 2), at least 1); give each thread its own wash scratch instead of indexing _washX/_washY by band. The output
+stays identical, so before the in-game check compare the Color32 arrays of a fixed job rendered with one thread and with four,
+offline if the job can be built without Unity's scene.
+How sure: medium (the code state is verified; the speed-up is the Tasks estimate, not measured).
+
+
+6. Skill: FULL IMPLEMENT - the free hand of a weapon whose rig has only a right hand
+Where: src/Weapons/WeaponAnalyzer.HandsAndSights.cs:30-40 (support point and HandsMethod); src/Weapons/WeaponAnalyzer.cs:719
+(SupportCurls from the left hand); src/Weapons/WeaponAnalyzer.Action.cs:538-540 (FingerCurls returns null for a missing
+hand); src/Weapons/HeldWeapon.cs:960 (the off-hand model gets the curls); src/Weapons/SandboxPoses.cs:129 (the one other
+writer of SupportCurls); src/Weapons/WeaponSelfTest.cs:454-455 (report line).
+Quote (WeaponAnalyzer.HandsAndSights.cs:40): d.HandsMethod = handR != null && handL != null ? "arm rig" : handR != null ? "right hand only" : "estimated";
+What is wrong: With a right hand but no left-hand bone, the free hand's support point is estimated 24 cm ahead of the grip
+(1 cm for a pistol, lines 33-37), and SupportCurls is null (FingerCurls returns null for a missing hand), so HeldWeapon.cs:960
+gives the off-hand model no weapon-specific finger pose and the glove takes a generic shape. The README says each weapon's own
+finger pose shapes the hand. The gun hand is still measured from its own rig, so this is a deliberate fallback that the
+support hand does not get; the "right hand only" count is not in any report on disk.
+Trigger and effect: On such a weapon the foregrip hand has the generic fingers, and the support point is where the estimate
+puts it rather than where the animation holds the gun. How many weapons take this path was not measured.
+Proposed change: When handL is null, take the support curls and point from the sandbox pose saved for that weapon (the path
+SandboxPoses.cs:129 already reads) or from the hand pose library keyed by grip type; and write "support hand: estimated (no
+left-hand bone)" into the weapon report at WeaponSelfTest.cs:454-455 so the fallback is visible per weapon.
+How sure: low to medium (the fallback is verified in code; the number of affected weapons and the visible effect are unknown).
+Swept: README.md; docs/Tasks.md; src/Core/VRConfig.cs; src/UI/VRSettingsPanel.cs; src/Input/BindingsWriter.cs; src/Input/SteamVR/actions.json; src/Input/SteamVR/bindings_oculus_touch.json; src/Input/SteamVR/bindings_vive_controller.json; src/Input/SteamVR/bindings_knuckles.json; src/Input/SteamVR/bindings_hpmotioncontroller.json; src/Input/SteamVR/bindings_rift.json (last four by script); src/Core/AutoTest.cs (targeted ranges and greps); src/Input/VRInput.cs (targeted ranges); src/Input/GameInputBridge.cs (targeted ranges); src/Input/VehicleInput.cs (grep); src/Rig/LensEffects.cs (targeted ranges and greps); src/Rig/VRRig.cs, src/Rig/HandShape.cs, src/Rig/HandModel.cs (grep); src/Weapons/WeaponAnalyzer.cs, WeaponAnalyzer.HandsAndSights.cs, WeaponAnalyzer.Action.cs (targeted ranges and greps); src/Weapons/HeldWeapon.cs (targeted ranges); src/Weapons/LensFlash.cs, BodyZones.cs, SandboxPoses.cs, WeaponSelfTest.cs, ReloadInteractions.cs (greps); src/Input/TurretAim.cs (grep); src/Core/VRManager.cs and src/UI/CanvasManager.cs (grep)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Done (bdf4cb4): the autotest report's header and its finish line count the skipped checks and name them ("checks
+   skipped: N (...)"), so a run whose soldier checks all skipped no longer reads as a clean "Problems: 0".
+2. Done (62a4bec): the panel's Magazine pouch offers all four places (Hip, Off chest, Chest, Other hip).
+3. Partly: Grab reach is on the panel now (62a4bec). The rest need a second settings page (the panel has no room left);
+   open in docs/Tasks.md 354.
+4. Declined for now: the HP Reverb's grip pose needs that controller to measure, and Touch has no spare control for Mod
+   keys without taking one from another action (the panel route stays).
+5. Declined for now: the band split's cost is measured in a game run, and the game is not to be started this round.
+6. Open (docs/Tasks.md 354): a right-hand-only rig's free hand gets no support curls; a mirrored right-hand pose needs a
+   picture check.

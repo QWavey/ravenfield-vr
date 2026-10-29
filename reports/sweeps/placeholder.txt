@@ -1,0 +1,75 @@
+PLACEHOLDER REPLACER SWEEP, Ravenfield-VR, 2026-10-29 (read-only: no source, build, run, commit or delete)
+
+Checked and clean (no entry): no TODO/FIXME/HACK or NotImplemented left in src/, installer/ or tools/*.py; no commented-out code; every VRConfig field has a reader; the enum options that settings offer are handled (Glove Simple, GunAngle Manual, Mirror are read through the fall-through or cast paths); no name-keyed per-weapon special cases outside the autotest; the installer's empty catches are cosmetic or deliberate fallbacks.
+
+1. Skill: placeholder-replacer (hand-set values labelled as picture-checked)
+File: src/Weapons/MagLineTable.cs:14 (same label at :104, :105, :111, :112); generator tools/export_checks/mag_line_table.py:35-39 and :133-135
+Quote: { "ARS Glock 19#G19", new Vector3(0.28402f, 0.00000f, 0.95882f) }, // ... -16.5 fore/aft, +0.0 sideways ...; set by hand from a picture
+What is wrong: The five rows (ARS Glock 19, vector, vector rds, mw-vector x2) are not measured lines. The generator sets them to -16.5 by hand under --both (mag_line_table.py:37-39), and its own comment (:35-36) calls them "the earlier scan's line" where "the least lies on the edge unchecked". The output label at :133-134 still says "set by hand from a picture". The scans' own least for these is one step further out at -18.0 (reports/maglines/body_both.txt:17, :269, :284): Glock 19 wall 12 at -18.0 against 35 at the table's -16.5; the vector family wall 27 against 84. reports/maglines/table_both.txt shows these rows as "(-1 -> -1)", meaning no scan counts were recorded for them. No magazine-line picture for them is saved in reports/maglines. The sheets under .claude/worktrees/*/research/2026-10-19/sheets/ are in-game reload sequences, not line overlays.
+Trigger / user-visible effect: Any ARS Glock 19 or vector-family gun within the 25 degree check (MagLineTableApply.cs:20, :34) gets a magazine line that leaves about three times the wall contact the scan found available. That is the kind of magazine-through-gun clipping the user reported (MagLineTableApply.cs:10-11).
+Proposed change: Measure -16.5 and -18.0 with tools/export_checks/mag_line_draw.py, keep the one whose picture is clean, and save the picture in reports/maglines. Until then, either keep -16.5 and change the generator's label (the `how` expression at :133-135) to "chosen one step inside the search edge; counts in body_both.txt", or drop these rows so the analysed line is used. Keep "from a picture" only for PPSh-41 (MANUAL at :31), whose comment documents a picture check.
+Confidence: medium (the label and the count gap are verified from the files; whether -18.0 is better in game is not verified).
+
+2. Skill: placeholder-replacer (fixed-number stand-in parts, silent for shell-fed and single-shot guns)
+File: src/Weapons/WeaponAnalyzer.Helpers.cs:21-41 (FinishVirtualParts), warning gates at src/Weapons/WeaponAnalyzer.Magazine.cs:295 and src/Weapons/WeaponAnalyzer.Action.cs:122
+Quote: d.SlideTravel = -d.AimAxis * (d.Handgun ? 0.035f : 0.07f);   (Helpers.cs:27)
+Quote: if (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual && w.configuration.ammo > 1 && !w.configuration.advancedReload)   (Magazine.cs:295)
+What is wrong: For a gun with no slide or no magazine part, FinishVirtualParts invents geometry from constants: slide travel 3.5 or 7 cm (:27); rack point 7-8 cm above the grip and 2-3 cm fore/aft (RackEstimate, :17-18); magazine seat 5 cm behind the muzzle for single-shot and 10 cm ahead of the grip, 5 cm under it, otherwise (:35-38); and a fixed 3 cm under the bore for shell-fed ports (EstimatedPort, Magazine.cs:1528). The two warnings that name these guesses are gated to SelfLoading and Manual (Magazine.cs:295, Action.cs:122), so shell-fed, single-shot and break-open stand-ins are never warned about. Warnings are read only by WeaponSelfTest.cs:411 and :480 and by SandboxExport.cs:457. At runtime the stand-in appears only as "mag=virtual" and "slideFound=virtual" in Describe() (WeaponRig.cs:349, :360), and Describe() is logged only at Debug level or with DumpWeaponRigs (WeaponAnalyzer.cs:205-211). This is the still-open "silent fallbacks ... warned nowhere" item in docs/Tasks.md:485.
+Trigger / user-visible effect: A shotgun, pump or single-shot gun whose analysis finds no magazine or shell part (or any gun with no slide) reloads with a magazine or shell at these fixed offsets. If a mod's proportions differ, the shell or magazine starts visibly in the wrong place, and the log gives no sign that a guess was used.
+Proposed change: Log each virtual part once per gun at Info level, naming the part and the offsets used. Gate both warnings on the part being virtual rather than on the action. Then the user's WeaponOverrides file (slideTravel, gripForward) is the documented way to correct a guess.
+Confidence: medium (the code facts are high; how often real mods hit this path is not measured).
+
+3. Skill: placeholder-replacer (made rocket is a fixed 75 cm capsule)
+File: src/Weapons/MagazineProp.Look.cs:1074 with fallback rules at :937 and :219
+Quote: size = new Vector3(0.085f, 0.75f, 0.085f);   (:1074)
+Quote: return kind == PropKind.Rocket && (length < 0.001f || length > 0.15f && length < 2f);   (:937)
+What is wrong: The "made" rocket is a fixed 75 cm, 8.5 cm olive capsule for every launcher. It is used when the copy of the gun's own rocket is not rocket-sized (under 15 cm or over 2 m, :937) or fails its check. On that last branch (:219, "not a rocket (a fuse, a cap), not a shell: the made one instead") nothing is logged, unlike the neighbouring branches at :177, :205 and :446. docs/Tasks.md:362 (item 179) records the same olive stand-in as a visible placeholder the user reported.
+Trigger / user-visible effect: A launcher whose rocket part is measured too short or too long, or whose copy fails the check, shows an olive 75 cm capsule in the hand instead of its warhead, whatever the real projectile's size.
+Proposed change: Use the analysed rocket box (d.MagBounds) for the stand-in's length when that box is plausible. Otherwise hide the rocket with a logged reason. Add a Log.InfoOnce to the :219 branch like its neighbours.
+Confidence: low (the fallback is real and silent on one branch, but I did not establish that a shipped launcher reaches it today).
+
+4. Skill: placeholder-replacer (headset field of view written as constants)
+File: src/Rig/MudSplash.cs:24-25 (Distance at :21). The project never reads the headset's projection: there is no GetProjectionRaw anywhere in src/.
+Quote: // Half the visor's width and height that the eyes see at Distance (Quest 3: about 110 x 96 degrees).   and   private const float HalfWidth = 0.34f, HalfHeight = 0.27f;
+What is wrong: The dirt splats are laid on a 0.34 x 0.27 m half-extent at 0.25 m, which is about 107 x 94 degrees. That is the Quest 3 field of view named in the comment. Nothing reads the connected headset's real projection, so this is a one-headset constant.
+Trigger / user-visible effect: On another headset (Index, Vive, Pimax, or a Quest with different optics) the splats cover a different share of the view. This is cosmetic.
+Proposed change: Read the eye's tangents from OpenVR once (OpenVR.System.GetProjectionRaw, the same OpenVR.System that FrameBudget.cs:108 already uses). Set HalfWidth = Distance * max(|tan left|, |tan right|) and HalfHeight = Distance * max(|tan top|, |tan bottom|). Fall back to the current values if the call fails.
+Confidence: high (the constants and the missing read are verified; the effect is cosmetic).
+
+5. Skill: placeholder-replacer (silent fallback for a rejected config colour)
+File: src/Core/VRConfig.cs:532 (ParseColor), sole caller src/UI/UISystem.cs:382
+Quote: return ColorUtility.TryParseHtmlString(entry.Value, out Color c) ? c : fallback;
+What is wrong: The sibling ParseVector warns once when it rejects a value (VRConfig.cs:495, Log.WarnOnce "... is not 'x, y, z'; using ..."). ParseColor drops a rejected LaserColor without a word, so the setting "Menu laser colour (hex)" (VRConfig.cs:351) silently shows the default gold.
+Trigger / user-visible effect: A mistyped LaserColor, such as a hex value with the wrong number of digits, is ignored and the player sees the default colour with no log line saying why.
+Proposed change: Add a Log.WarnOnce in the failure branch, as ParseVector does, naming the section, key and rejected value.
+Confidence: high (the code is verified; the effect is cosmetic and limited to the menu laser).
+
+6. Skill: placeholder-replacer (stale "Restart required." text)
+File: src/Core/VRConfig.cs:169-170
+Quote: "What the desktop window shows. Restart required.");
+What is wrong: MirrorView is applied live. VRManager subscribes it to the render-scale handler (VRManager.cs:116: VRConfig.Mirror.SettingChanged += OnRenderSettingChanged;), which calls OpenVRRuntime.ApplyLiveSettings (VRManager.cs:514), which calls SetMirrorViewMode at once (OpenVRRuntime.cs:147). The description tells the user a restart is needed when none is.
+Trigger / user-visible effect: A user who changes MirrorView in the BepInEx config while the game runs is told to restart, but the change already applies. The StereoMode text at VRConfig.cs:163 is a different case and still needs its restart.
+Proposed change: Remove "Restart required." from the MirrorView description. I did not test the live path in the headset.
+Confidence: high (the subscription and the live call are verified).
+
+7. Skill: placeholder-replacer (empty except hides unreadable report lines)
+File: tools/metric_diff.py:53-55 (measurements) and :61-63 (mod sections)
+Quote: except ValueError: / pass   (lines 54-55, and 62-63)
+What is wrong: A measurement or section line whose fields do not parse is dropped with no note. The docstring says problems are listed only when they appear in one run. So a line that fails to parse in both runs, for example after a report-format change, disappears from the comparison, and the tool prints no difference for it.
+Trigger / user-visible effect: After the autotest report's format changes, metric_diff quietly compares fewer measurements than the report holds.
+Proposed change: Count the skipped lines per run and print the count at the top of the output, so the comparison says when it read less.
+Confidence: low (a developer tool; the silent drop only matters after a format change).
+
+Swept: src/Weapons/WeaponOverrides.cs; src/Core/VRConfig.cs (9-29, 149-535); src/Core/GraphicsPresets.cs (full); src/Core/InstallCheck.cs (full); src/Core/VRManager.cs (108-122, 514-530); src/Core/FrameBudget.cs (grep and 100-120); src/Core/Log.cs (21-25); src/Runtime/OpenVRRuntime.cs (138-152); src/Weapons/MagLineTable.cs (full); src/Weapons/MagLineTableApply.cs (full); src/Weapons/SoundDonors.cs (full); src/Weapons/WeaponAnalyzer.Helpers.cs (1-80); src/Weapons/WeaponAnalyzer.Action.cs (112-127, 380-400, 664-690); src/Weapons/WeaponAnalyzer.Magazine.cs (286-300, 1524-1529); src/Weapons/WeaponAnalyzer.cs (200-215); src/Weapons/WeaponRig.cs (105-128, 340-362); src/Weapons/MagazineProp.Look.cs (145-180, 200-222, 240-250, 398-446, 908-940, 1040-1100); src/Weapons/HeldWeapon.Shape.cs (318-336); src/Weapons/GunCollider.cs and src/Weapons/BodyGrab.cs (grep); src/Rig/MudSplash.cs (18-40); src/Rig/HandPreview.cs (1-30); src/UI/UISystem.cs (grep, 382); src/UI/VRInputModule.cs (44-52); src/Input/GameInputBridge.cs (176-200); src/Input/SteamVR/bindings_knuckles.json, bindings_oculus_touch.json, bindings_hpmotioncontroller.json (parsed); installer/Setup.cs (228-252, 280-295, 960-990, 1085-1125); installer/Launcher.cs (325-350); installer/SteamLaunchOption.cs (215-240); tools/metric_diff.py (1-70); tools/vrshots.py (120-200, 285-345, 460-476, grep); tools/export_checks/mag_line_table.py (full); tools/inspect_weapon_bundles.py (48-100, grep); tools/frame_report.py (8-16, grep); tools/shots_categories.py (14-22); docs/Tasks.md (1-40 and grep); reports/maglines/table_both.txt, body_both.txt, body_check.txt, body_check2.txt, body_search.txt, edge.txt, todo.txt (grep); .claude/worktrees/agent-a13797d2b637a8f08/research/2026-10-19/sheets/vector.jpg (viewed)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Done (bd216fa): the five magazine lines chosen one step inside the scan's edge are labelled so (only the PPSh-41's was
+   checked in a picture), in tools/export_checks/mag_line_table.py and src/Weapons/MagLineTable.cs.
+2. Done (90c79a0): guessed slide, rack and magazine seats are said once per gun at Info (shotguns and single shots stood in
+   silently).
+3. Done (90c79a0): a made stand-in in place of a too-small rocket or shell copy is said once ("copytoosmall").
+4. Done (this round): MudSplash reads the headset's own field of view from OpenVR's left-eye projection once, keeping the
+   Quest 3's numbers as the fallback when there is no OpenVR or the read is implausible.
+5. Done (90c79a0): a rejected LaserColor warns once, as a rejected vector does.
+6. Done (90c79a0): MirrorView's text says it applies at once (it is applied live).
+7. Done (bd216fa): metric_diff counts the table lines it could not read and says so.

@@ -1,0 +1,83 @@
+OPTIMIZE sweep, Ravenfield-VR mod, 2026-10-29. Read only: no source, build, run or game change. Savings are estimates from the code's operation counts and the call-cost note in docs/Tasks.md:549, not profiler numbers; confirm each with the -rfvr-perf section timers before changing it.
+Total if all eight are taken: about 0.03-0.07 ms a frame, most of it from item 1, against the 0.7-0.9 ms the mod costs. The heavy per-frame work in these files already sits behind change gates (docs/Tasks.md:1380 and 1425 were fixed: HeldWeapon.cs:1894 uses SkinKey, BeltStrip.cs Place() rebuilds only on a shape change; GunCollider.cs UpdateRestingProps runs at 10 Hz; MuzzleFlashInfo.Of is no longer called per shot from gameplay code).
+
+1. [OPTIMIZE] src/Input/VRInput.cs:265-273, the per-hand digital loop in Update(); the slot mapping is at VRInput.cs:907-923.
+Quote: "bool ok = input.GetDigitalActionData(DigitalHandle[a], ref data, DigitalSize, HandSource[h]) == EVRInputError.None && data.bActive;"
+What is wrong: every frame the loop reads all 18 digital actions for both hands (36 SteamVR calls). Ten actions are never queried with a hand argument anywhere in src: FireMode, Sprint, WeaponNext, Kick, Loadout, Scoreboard, Pause, VRMenu, Countermeasures, ModKeys. They are read only through the any-hand slot, so their 20 per-hand reads feed nothing except the OR at VRInput.cs:306. Map must stay per-hand: Slot() (VRInput.cs:919-920) sends MagRelease's per-hand reads to Map's index while the weapon is in the other hand, and MagRelease has five per-hand callers.
+Trigger or user-visible effect: 20 SteamVR calls a frame are wasted; no visible effect today.
+Saving: 20 calls x 1.2 us = about 0.024 ms a frame (Tasks.md:549 measured 0.060 ms for about 51 calls). If the current 0.16 ms Input section implies about 3 us a call, it is about 0.06 ms.
+Proposed change: for those ten actions, read once with OpenVR.k_ulInvalidInputValueHandle as the any-hand state and skip the two per-hand reads. The dropout handling must come with it: the comments at VRInput.cs:261-264 and 483-484 say a per-hand dropout re-pressed Pause, FireMode and Sprint, so these actions need the HandOutage/HeldBeforeOutage path kept, or a headset dropout test before the change lands.
+Confidence: high that the 20 calls have no caller; medium on the time saved; medium overall because the dropout behaviour is the risk.
+
+2. [OPTIMIZE] src/Rig/VRRig.cs:1259-1261 and 1276 (HideBody), with the per-renderer read at 1297; the per-frame call is UpdateBodyShadows at 1205-1226.
+Quote: "Hide(player.thirdpersonRenderers);" and "if (r != null && !r.forceRenderingOff)"
+What is wrong: BodyShadow defaults to false (src/Core/VRConfig.cs:175-177), so on foot every frame runs HideBody. It walks player.thirdpersonRenderers, the accessory renderers, and every weapon imposter's renderers (a Dictionary Values enumeration at 1276), reading the native forceRenderingOff of each one.
+Trigger or user-visible effect: about 40-80 native property reads a frame in the default settings, on foot.
+Saving: about 2-5 us a frame. The per-frame re-hide is deliberate (the comment at VRRig.cs:1216 says the game switches the body back to drawn whenever it sets a camera), so do not drop it.
+Proposed change: keep the per-frame hide, but build the flattened renderer array once per player and rebuild it only when weaponImposterRenderers.Count changes; this removes the nested Dictionary enumeration each frame. The forceRenderingOff read stays.
+Confidence: medium on the mechanism; low on the size.
+
+3. [OPTIMIZE] src/Weapons/SoldierGuns.cs:81 and 149-155 (GatherClose, called every frame from SoldierGuns.Update, which WeaponSystem.cs:199 calls each frame).
+Quote: "foreach (Actor a in ActorManager.instance.actors)" followed by "Vector3 at = a.transform.position;"
+What is wrong: GatherClose walks every actor in the level each frame while a hand is free and tracked (the common case in play), reading each AI soldier's transform position, before any distance test.
+Trigger or user-visible effect: cost is linear in the soldier count; about 60-100 native transform reads a frame in a large fight.
+Saving: about 2-4 us a frame.
+Proposed change: run the walk every second frame, or only when a hand has moved more than 5 cm since the last walk. The Close list only has to hold the soldiers near the hands, and NearestGun and BodyDistance still run every frame on that short list.
+Confidence: high on the mechanism; low on the size.
+
+4. [OPTIMIZE] src/UI/CanvasManager.cs:142 and 187 (Update, per tracked canvas), and 517-518 (BeforeRender).
+Quote: "CanvasGroup group = t.Canvas.GetComponent<CanvasGroup>();" and "player.fpCamera.fieldOfView = vfov;" / "player.fpCamera.aspect = aspect;"
+What is wrong: CanvasManager.Update runs every frame (src/UI/UISystem.cs:134) and HasVisibleGraphics calls GetComponent<CanvasGroup> for every tracked canvas on every frame. BeforeRender writes the game camera's fieldOfView and aspect every frame, though they change only when the HUD canvas or the setting does; the SetScale call just above uses the write-only-when-different pattern.
+Trigger or user-visible effect: N GetComponent calls a frame (N is the tracked canvas count, probably 5-15) plus two camera property sets every frame.
+Saving: about 1-3 us a frame. A camera setter may also mark the projection dirty even when the value is unchanged; I did not verify that, so the saving could be larger.
+Proposed change: cache the CanvasGroup in the Tracked record when the canvas is converted and re-query it only in Scan(); compare vfov and aspect with the last written values and write only when they differ.
+Confidence: high on the GetComponent per frame; medium on the camera write cost (not measured).
+
+5. [OPTIMIZE] src/Rig/HandModel.cs:1333 (SolveFinger, the final bisection step), exact duplicate work.
+Quote: "int hit = FirstTouch(f, c0 + (n0 - c0) * hi, c1 + (n1 - c1) * hi, c2 + (n2 - c2) * hi, in0, in1, in2);"
+What is wrong: after the five-step bisection (HandModel.cs:1320-1332), the FirstTouch at hi recomputes a result already known. Either hi was set by a probe at that exact value (the branch at 1324-1331), or hi is still 1, and then the same arguments were tested at HandModel.cs:1312 and returned touching, because this branch only runs on a touch. Each repeat costs one Chain (three AngleAxis products and matrix multiplies) and up to nine Solid tests.
+Trigger or user-visible effect: once per touching step of every solve; a solve runs for each finger that is not reused (reuse at HandModel.cs:913-916), up to five per hand per moving frame, plus the trigger finger's second solve.
+Saving: about one FirstTouch in roughly 15-20 per solve, about 1-3 us a solve and 5-10 us for a fully re-solved hand.
+Proposed change: keep the FirstTouch result from the touching probe (the one that set hi, or the result from line 1312 when hi is still 1) and use it as hit. The output is identical; there is no behaviour change.
+Confidence: high (exact, same output); the saving is small.
+
+6. [OPTIMIZE] src/Rig/HandModel.cs:1157-1179 (PalmOffset), called from SettlePalm at HandModel.cs:1144-1146 when the grip moved, a slide is in progress, or the target is unset.
+Quote: "for (float o = 0.002f; o <= 0.0201f; o += 0.002f)"
+What is wrong: the scan tests PalmTouches at each 2 mm step out to 2 cm, and at 0 and then on the negative side out to -4 cm. The palm skin has 12 points (HandShape.cs:131-135), so one PalmTouches is up to 12 Solid tests. Worst case is about 31 PalmTouches, about 370 Solid tests, on one frame.
+Trigger or user-visible effect: only frames where the hand moves on the grip or a slide is in progress; usually only a few probes, because the scan returns at the first clear offset.
+Saving: up to about 5 us a frame on those frames.
+Proposed change: start the scan from last frame's answer (_palmTarget) and step outward by 2 mm both ways, so a steady hand takes 2-3 probes. This is not identical: contact is not always monotone along the palm normal, so the answer can differ on a concave part. It needs the grip check the comment points at (tools/hands/grip_check.py, named at HandModel.cs:497) before it lands.
+Confidence: medium on the cost; low on whether it is worth the behaviour risk.
+
+7. [OPTIMIZE] src/Weapons/MagReadout.cs:69 and 138-142 (Find, called every frame while on foot with no menu open and not aiming).
+Quote: "MagazineProp best = TestTarget != null && TestTarget.Go != null ? TestTarget : allowed ? Find(head) : null;" and "IReadOnlyList<MagazineProp> all = MagazineProp.All;"
+What is wrong: Find walks every live dropped magazine each frame (12 by default, src/Core/VRConfig.cs:247-248) and for each one reads p.Go.activeInHierarchy and the tip point, although the readout fades in and out and does not need a new target every frame.
+Trigger or user-visible effect: about 12 magazines of native reads a frame on foot in a normal match.
+Saving: about 2-4 us a frame.
+Proposed change: run Find on every third frame, or when the head has turned more than 2 degrees since the last run; keep the last target in between (the existing alpha fade already hides the switch).
+Confidence: medium on the mechanism; low on the size.
+
+8. [OPTIMIZE] src/Weapons/WeaponSystem.cs:511 (log line on weapon draw).
+Quote: "Log.Debug($"Holding {weapon.name} ({rig.Data.Action})"); // (built only when logged: every draw before)"
+What is wrong: the comment says the string is built only when logging is on, but Log.Debug (src/Core/Log.cs:21-25) receives the already interpolated string and checks the flag inside. So every weapon draw builds the string whether or not debug logging is enabled. Log.DebugOn (src/Core/Log.cs:19) exists for exactly this guard.
+Trigger or user-visible effect: once per weapon draw, not per frame; one short string per draw.
+Saving: negligible (no frame cost); the fix is what the comment already claims.
+Proposed change: wrap it as if (Log.DebugOn) Log.Debug(...); with the same message.
+Confidence: high.
+
+Swept: src/Input/VRInput.cs (full); src/Rig/HandModel.cs (full); src/Weapons/WeaponSystem.cs (1-500, 793-1002, grep of the rest); src/Weapons/HeldWeapon.cs (918-1117, 1496-1720, 1849-1992, grep of the rest); src/Weapons/HeldWeapon.Shape.cs (56-300, 1008-1070, grep of the rest); src/Weapons/HeldWeapon.Parts.cs (grep); src/Rig/VRRig.cs (181-406, 831-1355, grep of the rest); src/UI/UISystem.cs (60-300, grep of the rest); src/UI/CanvasManager.cs (79-200, 380-600, grep of the rest); src/Weapons/WeaponDrops.cs (100-200); src/Weapons/WeaponDrops.Pickup.cs (15-152, 316-340); src/Weapons/WeaponDrops.Spawning.cs (1290-1374, grep); src/Weapons/WeaponDrops.OwnWeapon.cs (grep); src/Weapons/GunCollider.cs (196-258, 621-652, 1019-1200); src/Weapons/SoldierGuns.cs (69-125, 136-215); src/Weapons/BodyGrab.cs (309-372, 457-468); src/Weapons/HandBody.cs (50-75, 180-230); src/Weapons/PoseSampler.cs (1-150); src/Weapons/ModHand.cs (1-160); src/Weapons/BeltStrip.cs (36-140); src/Weapons/MagReadout.cs (1-30, 60-200); src/Weapons/PouchDisplay.cs (36-80, 203-226); src/Weapons/GunVolume.cs (260-300); src/Weapons/ReloadInteractions.cs (1060-1160); src/Weapons/LensFlash.cs (grep); src/Rig/HandPoses.cs (grep); src/Rig/GloveSweep.cs (grep); src/Rig/IntroStage.cs (55-80); src/Rig/LensEffects.cs (990-1030); src/Weapons/Casings.cs (430-465); src/Core/VRConfig.cs (grep, 175-177, 247-248, 329, 484-525); src/Core/Log.cs (1-30); src/Core/PerfProbe.cs (grep); src/Util/GameContext.cs (1-150); docs/Tasks.md (grep, 100-110, 214-222, 549, 1375-1505); .ref/decompiled/Assembly-CSharp (LocalPlayer.cs, Actor.cs IsOnLadder, FpsActorController.cs IsCursorFree, GameManager.cs IsPaused, IngameMenuUi.cs and LoadoutUi.cs IsOpen)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Declined: the per-hand reads of those ten actions are what the headset-dropout handling (HandOutage, HeldBeforeOutage)
+   leans on; Pause, FireMode and Sprint re-pressed on a dropout before. 0.02-0.06 ms is not worth that risk without a
+   dropout test in the headset.
+2. Declined: 2-5 us a frame (about 0.03% of an 11 ms frame, inside the noise), and a cached renderer list goes stale when
+   accessories or imposters change without the count changing.
+3. Declined: 2-4 us a frame; walking every second frame leaves the soldier-grab target one frame stale.
+4. Done (fbcdb32): the CanvasGroup looked up once a second per canvas, not every frame; the game camera's field of view and
+   aspect written only when they differ from the camera's own values.
+5. Declined: the last FirstTouch at hi is not only a result: it leaves the chain's scratch state at hi, which the code after
+   it reads. When the last probe went to lo, the scratch is at lo, so the repeat is needed.
+6. Declined: the warm start is not identical on concave grips (the finding says so) and needs the grip check first.
+7. Declined: 2-4 us a frame; the readout's target would lag the head by up to three frames.
+8. Wrong: Log.Debug's string there is already built under a Log.DebugOn test; nothing to change.

@@ -1,0 +1,42 @@
+BUG HUNT sweep of the round-13 gaps: WeaponSystem.cs, VRManager.cs, GameInputBridge.cs, VRScope.cs, LensFlash.cs, ArmIK.cs and WeaponAnalyzer.Action.cs (MagHoldOf). Read-only; nothing built, run or edited.
+
+1. Skill: BUG HUNT
+   File: src/Weapons/LensFlash.cs:591 (state set at 419-427; read at 600, 605, 615; no clear anywhere)
+   Quote: Transform muzzle = _gun != null && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
+   What is wrong: the sustained-fire glow keeps the last gun's state after that gun is let go. _gun, _gunMuzzle, _gunAuto, _gunSize, _gunSizeRaw and _gunHeld are written only in TryFlash (lines 419-427). Nothing clears them on a let-go: WeaponSystem.ReleaseHeld (WeaponSystem.cs:529-538) does not call into LensFlash, and LensFlash.Destroy (lines 640-651) clears only the caches. A holstered or dropped Weapon object is still alive, so _gun != null stays true.
+   Trigger and user-visible effect: fire a gun on full auto, then holster or drop it within the glow's decay. The glow falls by about 0.04 x power per frame (Limiter.Step, lines 721-727), so roughly 0.1-0.2 s. While the holstered or dropped barrel is ahead of the eyes (m.z > 0.02, line 605), the lens keeps a faint glow at that barrel with nothing firing. Separately, Visibility(_gunHeld, ...) at line 615 runs LineThroughDrawnGun on a released HeldWeapon. HeldWeapon.Release (HeldWeapon.cs:2154-2300) never clears its _volume, so it returns values from a stale pose. No exception is thrown.
+   Proposed change: clear the gun state on let-go. Add a LensFlash method (for example GunReleased) called from WeaponSystem.ReleaseHeld that sets _gun, _gunMuzzle and _gunHeld to null and _gunSize and _gunSizeRaw to 0. Alternatively, in UpdateGlow use the muzzle only when WeaponSystem.Instance?.Held?.Weapon == _gun.
+   Confidence: medium. The code path is certain; how visible the ghost glow is remains uncertain.
+
+2. Skill: BUG HUNT
+   File: src/Weapons/WeaponSystem.cs:1202-1206 (and src/Core/VRManager.cs:393-394)
+   Quote: _bodyGrab?.ReleaseAll(); ... GunVolume.OnSceneLoaded(); ... and in VRManager: Weapons?.OnSceneChanged(); then UI?.OnSceneChanged();
+   What is wrong: only the "Retired hull meshes" step (1207) and the Second.PutAway step (1216) are guarded inside WeaponSystem.OnSceneChanged. The calls at 1202-1206 are not, so an exception in any of them skips the rest of the method. That includes the Held release (1208-1211), _ammo.Clear and _rigs.Clear (1224-1225), _attachFailed.Clear (1226) and WeaponAnalyzer.ForgetFailed (1227). VRManager.OnSceneChanged then also skips UI.OnSceneChanged (line 394), because the exception escapes the activeSceneChanged handler.
+   Trigger and user-visible effect: an exception in one of those five calls at a level load. The previous match's weapon stays Held until WeaponSystem.Update's mismatch test releases it (lines 134-137). Its ammo state lingers until LateUpdate prunes destroyed keys. The UI never hears of the scene change. Most of this heals itself; the UI part does not.
+   Proposed change: wrap each call at 1202-1206 in Log.Guard, as the method already does for the others. Wrap VRManager's Weapons?.OnSceneChanged() in Log.Guard so UI.OnSceneChanged always runs.
+   Confidence: low. No throwing path is visible in the current code, so this is hardening rather than a reproduced failure.
+
+Not defects (checked in the current code, so they need not be re-checked):
+- ArmIK.cs:154 dereferences off.Model unguarded. VRHand's constructor sets Model unconditionally (src/Rig/VRHand.cs:195), so it is never null.
+- ArmIK.cs:61 copies hold.FingerLocal with no length check. MagHoldOf fills FingerPaths and FingerLocal in lockstep (WeaponAnalyzer.Action.cs:988-995).
+- MagHoldOf null paths: ReloadTrajectory is allocated for every bone (PoseSampler.cs:271, Alloc at 309), and ReloadRotation is null-checked (WeaponAnalyzer.Action.cs MagHoldOf).
+- ArmIK reads mag.Go.transform after the magazine is placed: Reload.BeforeRender (HeldWeapon.cs:1673) runs before _armIK.Solve (1680), and FollowHand is called from there (ReloadInteractions.cs:880). No one-frame lag.
+- ArmIK.SolveArm maths (law-of-cosines elbow, FromToRotation pair, stretch) is correct. The degenerate-chain guards (a or b below 1e-3) hold.
+- WeaponSystem.UpdateDrivingWeapons (lines 793-857) runs unguarded, but actor is null only when DrivingWeapons.CanDraw returns false first (DrivingWeapons.cs:23).
+- GameManager.IsPaused() is Time.timeScale == 0 (.ref/decompiled/Assembly-CSharp/GameManager.cs:2379-2382), so the unguarded calls are safe.
+- VRInput.Update is frame-guarded (VRInput.cs:226), so VRManager and the SteelInput prefix do not double-update.
+- Glove Suppressed flags are reset by HeldWeapon.Release (SetHandModelsSuppressed(false), HeldWeapon.cs:2269). GraspAnchor and GraspPinch are cleared by ReloadInteractions.Release (ReloadInteractions.cs:1290).
+- VRScope lifecycle: Destroy returns the texture to the spare list, ReleaseSpares runs after ReleaseHeld in Weapons.Dispose, and a failed HeldWeapon build runs UndoPartialBuild (HeldWeapon.cs:290). No leak found.
+- CameraSuppressor._ignored is pruned every 15 frames (CameraSuppressor.cs:96-97).
+- The lens glow goes out on death (LensEffects.cs:435, dead ? 0f).
+- VRManager pause, dashboard and headset bookkeeping, and Shutdown order hold together. The F6 retry cannot stick, because OpenVRRuntime.Start has its own try (OpenVRRuntime.cs:65).
+- A magazine whose Go is destroyed frees its hand (MagazineProp.cs:896-900), so the loop at WeaponSystem.cs:467-472 cannot spin.
+- Held keys: Compute clears Held every frame, and ResetSession, RestoreGameSwitches and ScriptKeys.Clear run in Shutdown. No held key found.
+
+Swept: src/Weapons/WeaponSystem.cs, src/Core/VRManager.cs, src/Input/GameInputBridge.cs, src/Weapons/VRScope.cs, src/Weapons/LensFlash.cs, src/Weapons/ArmIK.cs, src/Weapons/WeaponAnalyzer.Action.cs (MagHoldOf), src/Weapons/HeldWeapon.cs (150-330, 1500-1760, 2126-2300), src/Weapons/WeaponAnalyzer.cs (272-300, 690-740), src/Weapons/PoseSampler.cs (52-100, 262-320, 502-545), src/Weapons/WeaponRig.cs (25-60), src/Weapons/MagazineProp.Holding.cs (455-500), src/Weapons/MagazineProp.cs (885-905), src/Weapons/ReloadInteractions.cs (860-890, 1279-1345), src/Weapons/DrivingWeapons.cs (15-85), src/Rig/VRHand.cs (180-200), src/Rig/VRRig.cs (grep), src/Rig/CameraSuppressor.cs (40-100), src/Rig/LensEffects.cs (grep), src/Input/VRInput.cs (220-260), src/Runtime/OpenVRRuntime.cs (59-95), src/Core/FramePhases.cs (85-100), src/Core/GraphicsPresets.cs (147-152), .ref/decompiled/Assembly-CSharp/GameManager.cs (2379-2382)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Fixed (3cfc0fe): the sustained-fire glow follows only the gun still in the hand (WeaponSystem.Held); a holstered or
+   dropped gun no longer keeps a fading glow at its barrel.
+2. Fixed (3cfc0fe): WeaponSystem.OnSceneChanged's first steps are each guarded (body grab, gun volume and the rest), and
+   VRManager guards Weapons.OnSceneChanged and UI.OnSceneChanged apart, so the UI's runs whatever the weapons' does.

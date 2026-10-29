@@ -1,0 +1,81 @@
+IMPROVE sweep, Ravenfield-VR, 2026-10-29 (read-only; no game run, no build, no edits to the mod)
+
+1. Skill: IMPROVE
+File: src/UI/VRSettingsPanel.cs:73 (the button), with src/Rig/VRRig.cs:743-751 (the manual path) against src/Rig/VRRig.cs:699-727 (the spawn path).
+Quote: VRSettingsPanel.cs:73 `ActionRow("Eye height", ..., "Calibrate now", () => _rig.CalibrateHeightNow());` and VRRig.cs:745-746 `float y = HeadLocal.y;` / `if (y > 0.3f)`.
+What is wrong: "Calibrate now" takes one frame's head height, saves any value above 0.3 m, and at or below 0.3 m does nothing: no log line and no message in the panel. The spawn calibration averages about 2 s of samples taken at y > 0.5 m, uses the 75th percentile so that looking down does not count, refuses anything outside 1.0-2.1 m, and logs why it refused (VRRig.cs:718-725). The button skips all of that. The spawn path also runs only on foot (VRRig.cs:370-372), so a seated player's button press cannot reuse it as it stands.
+Trigger and user-visible effect: (a) press while the head is under 0.3 m (headset out of view, or on a desk) and nothing happens; the value still reads "auto" and the player is not told why. (b) Press with the head dipped or tilted and the lower height is saved with no warning, and the panel shows only the number.
+Proposed change: make the button start the same sampling window, run in whatever mode the player is in (not only on foot), keep the 0.3 m floor so seated play still works, and add a status row under "Eye height" in VRSettingsPanel: "measuring, hold still", then "saved 1.62 m" or "not saved: head 0.25 m, too low". Log the same line for both outcomes.
+Confidence: high that the two paths differ and that the failure is silent; medium on how often a press lands on a bad sample.
+
+2. Skill: IMPROVE
+File: src/Weapons/ReloadInteractions.cs:420-434; src/Weapons/MagazineProp.Holding.cs:459-463; src/Rig/VRHand.cs:216-219 and 235-236.
+Quote: ReloadInteractions.cs:420-434 `if (!off.Tracked) { _offLostTracking = true; if (_coverHeld) { EndCover(off); } if (_beltHeld) { LetBeltHang(off); } return; }` and MagazineProp.Holding.cs:463 `if (HeldBy != null && !OnRail)`.
+What is wrong: when the off hand loses tracking, a held cover and a held belt are let go (both fixed for this, per docs/Tasks.md 2026-10-24), but a magazine in the off hand, or a palmed one, is not. VRHand keeps the last raw pose relative to the rig root (VRHand.cs:216-219 `rawLocal = _lastRawLocal;`, then `Raw = rig.Multiply(rawLocal)` at 235), and FollowHand has no tracking check, so the magazine stays on a hand that moves with the body.
+Trigger and user-visible effect: a controller drops out of view while a magazine is in the off hand (for example held low, or behind the hip). The magazine keeps moving with the player's body, walking included, and the player cannot let go of it until tracking returns. When tracking returns it jumps to the real hand.
+Proposed change: record when the off hand was lost. After about 0.3 s without tracking, Drop the held magazine (and the palmed one, _palmed) where it was last seen, with zero velocity, as EndCover and LetBeltHang already do for their parts. The grace period keeps a brief dropout from dropping it.
+Confidence: medium-high that the gap exists (the code path is clear); unknown how often dropouts happen while a magazine is held.
+
+3. Skill: IMPROVE
+File: src/Weapons/ReloadInteractions.cs:317-348, the branch chain for the magazine release.
+Quote: line 322 `Log.InfoOnce("magrel-no:" + Data.Key, $"Magazine release on {Data.Key} did nothing: ...")`; line 333 `else if (Ammo.UsesDetachableMag && Ammo.MagInserted)` with no else after it.
+What is wrong: in manual reloading, a release press with no magazine in the well (already out, or not yet seated) does nothing the player can feel or see. The only record is a log line, once per gun. The locked-box case just above gets a buzz and a counter text (lines 330-331, "OPEN COVER"), so the pattern exists.
+Trigger and user-visible effect: the player presses release after the magazine is out, nothing happens, and the release looks broken. (Checked and not a gap: in Assisted mode the release press is sent to the game's reload, src/Input/GameInputBridge.cs:715.)
+Proposed change: add `else if (Ammo.UsesDetachableMag) { _held.FlashCounter("NO MAGAZINE"); dom.Haptic(0.03f, 90f, 0.3f); }` after the MagInserted branch. Keep the log line.
+Confidence: medium-high.
+
+4. Skill: IMPROVE
+File: src/Weapons/PouchDisplay.cs:58-59 (the file has no haptic call at all; the holster's entry tick is at src/Weapons/WeaponSystem.cs:938-941).
+Quote: PouchDisplay.cs:58 `bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);` and WeaponSystem.cs:938-940 `if (usable && slot != _hoveredHolster[i]) { hand.Haptic(0.012f, 220f, 0.35f); }`.
+What is wrong: the pouch lifts its copy 1.5 cm, scales it 6% and turns the count gold when the free hand enters the zone (PouchDisplay.cs:65-66, 84), but the entry itself is silent. A holster gives a one-shot tick on entry; the pouch, the other grab target on the hip, does not.
+Trigger and user-visible effect: a player looking away from the hip cannot tell that the hand is in the pouch zone. The first real feedback comes only when a magazine is taken.
+Proposed change: keep a `_reachingLast` flag and, on the rising edge of `reaching`, call `off.Haptic(0.012f, 220f, 0.3f);`. The edge limits it to one tick per entry.
+Confidence: high that the gap exists; medium on its value.
+
+5. Skill: IMPROVE
+File: src/UI/VRSettingsPanel.cs, Weapons section (lines 75-94); the setting is src/Core/VRConfig.cs:335-336.
+Quote: VRConfig.cs:335 `GrabRadius = cfg.Bind("Weapons", "GrabRadius", 0.09f,` with the description "How close (m) your hand must be to grab a slide, foregrip or magazine." and a range of 0.03-0.25.
+What is wrong: the grab reach decides every grab (ReloadInteractions.cs:614 `float radius = VRConfig.GrabRadius.Value;`, and the rack check at 512). It has no entry in the in-headset panel, while smaller tuning values do (gun pitch, recoil, scope and aim steadying, VRSettingsPanel.cs:87-92).
+Trigger and user-visible effect: a player whose grabs miss by a few centimetres (small or large hands, a different controller) has no fix in the headset and must edit the BepInEx config file.
+Proposed change: add `Stepper("Grab reach", () => $"{VRConfig.GrabRadius.Value * 100f:0} cm", d => VRConfig.GrabRadius.Value = Mathf.Clamp(VRConfig.GrabRadius.Value + d * 0.01f, 0.03f, 0.25f));` in the Weapons section, using the config's own range.
+Confidence: medium (a design choice; no comment says it was kept out of the panel).
+
+6. Skill: IMPROVE
+File: src/Weapons/HolsterDisplay.cs:48 and 70-76 (the copy never reads a hover); src/Weapons/WeaponSystem.cs:860 and 938-942 (the hover is computed and kept private as _hoveredHolster).
+Quote: WeaponSystem.cs:942 `_hoveredHolster[i] = usable ? slot : -1;`; HolsterDisplay.cs:48 `int slot = show ? zones.SlotAtSpot(spot) : -1;` (nothing from the hover reaches the copy).
+What is wrong: a holstered copy never reacts when the free hand reaches it. The pouch lifts its copy when reached (PouchDisplay.cs:59, 65-66); a holster gets only the one tick (WeaponSystem.cs:938-941).
+Trigger and user-visible effect: holsters are found by feel. The copy stays the same while the hand is over it, so the player cannot see which of several holsters the hand is on.
+Proposed change: expose the hovered slot per hand (for example `internal int HoveredHolster(int side)` returning _hoveredHolster[side]), and in HolsterDisplay.Place ease the hovered copy about 1.5 cm out and 4% larger, the way PouchDisplay eases _hover.
+Confidence: medium.
+
+7. Skill: IMPROVE
+File: src/Weapons/HolsterDisplay.cs:71-76.
+Quote: line 71 `bool visible = Vector3.Distance(centre, head.position) > 0.2f + s.Length * 0.25f`, line 72 `|| Vector3.Dot(head.forward, (centre - head.position).normalized) < 0.2f;`, then lines 73-76 `if (s.Go.activeSelf != visible) { s.Go.SetActive(visible); }`.
+What is wrong: visibility is decided every frame against one threshold per test, with no hysteresis. A head held near either boundary (a shouldered rifle close to the eyes, or a holster at the edge of the view) flips the copy on and off, and each flip re-enables or disables all its renderers.
+Trigger and user-visible effect: flicker of a holstered copy while the head sits at the edge of the "in front of the eyes" test, for example looking down toward the chest or turning slowly past a slung rifle.
+Proposed change: two thresholds per state (hide only when closer than 0.2 + 0.25 x length and the dot is above 0.25; show again beyond 0.25 + 0.25 x length or when the dot is below 0.15), or hold a new state for about 0.15 s before changing it.
+Confidence: medium-low (the flicker follows from the code; its frequency was not measured).
+
+8. Skill: IMPROVE
+File: src/UI/VRSettingsPanel.cs:107 and 111-112; the behaviour is in src/UI/WristHud.cs:113 and 119 and src/Weapons/BodyZones.cs:248-254.
+Quote: VRSettingsPanel.cs:107 `TogglePair("Wrist display", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);`; VRSettingsPanel.cs:111 `Stepper("Scope picture", () => $"{VRConfig.ScopeResolution.Value} px",` with the comment "next scope drawn" at 112.
+What is wrong: "Wrist display" switches off only the HP and ammo plate (WristHud.cs:119). The ring still fills (WristHud.cs:113, `UpdateRing(VRGameInput.WristLooking && !VRGameInput.WristLookGesture, ...)`, which does not read the setting), and the two-second look still opens the map and scoreboard (BodyZones.cs:248-254). "Scope picture" applies to the next scope drawn, not the one in view. Neither label says so.
+Trigger and user-visible effect: a player who turns the wrist display off still sees the ring fill and the map open, with nothing in the panel to explain it. A player who changes the scope picture expects a change at once and sees none.
+Proposed change: relabel to "Wrist HP and ammo" and "Scope picture (next scope)", or add a one-line hint row. No behaviour change. If the ring should follow the setting, gate only UpdateRing on VRConfig.WristHud.Value; the map gesture itself should stay ungated.
+Confidence: medium (a clarity issue, not a fault).
+
+Swept: src/Weapons/HolsterDisplay.cs (full); src/Weapons/PouchDisplay.cs (full); src/UI/WristHud.cs (full); src/UI/VRSettingsPanel.cs (full); src/Weapons/ReloadInteractions.cs (full); src/Weapons/ReloadInteractions.Slide.cs (full); src/Weapons/ReloadInteractions.Magazines.cs (1-300); src/Weapons/ReloadInteractions.Parts.cs (270-330); src/Weapons/MagazineProp.cs (324-425, 674-760, 840-1028); src/Weapons/MagazineProp.Look.cs (1-135); src/Weapons/MagazineProp.Holding.cs (36-60, 320-345, 455-490); src/Weapons/BodyZones.cs (180-262); src/Rig/VRRig.cs (370-372, 555-563, 699-751); src/Rig/VRHand.cs (195-262, 509); src/UI/UiKit.cs (84-109); src/Weapons/WeaponSystem.cs (55-66, 300-320, 880-1000, 1060-1090, 1244-1262); src/Weapons/HeldWeapon.cs (785-815); src/Weapons/WeaponDrops.Spawning.cs (112-150); src/Weapons/AmmoState.cs (598-614); src/Input/GameInputBridge.cs (710-720, 760-786); src/Core/VRConfig.cs (236-250, 333-344, and grep hits); docs/Tasks.md (search hits and lines 1-70); README.md (grep hits)
+
+OUTCOME (verified and acted on by the main session, 2026-10-29; nothing pushed)
+1. Done (62a4bec): Calibrate now says why it did not save (the head read too low: off the head or out of tracking) in the log
+   and as a head notice, instead of nothing.
+2. Declined: a magazine held through a short tracking blip stays in the hand at its last pose, which is what a brief loss
+   wants; dropping it would throw the player's magazine away on every blip. The cover and the belt are let go because they
+   are on the gun, not in the hand.
+3. Declined: the same button held is the slow-motion control, so a buzz on a press with an empty well would also fire on
+   each slow-motion hold. The once-per-gun log line stays.
+4. Done (62a4bec): a one-shot tick when the free hand reaches the magazine pouch, as a holster gives.
+5. Done (62a4bec): a Grab reach stepper on the panel (3-25 cm, 1 cm steps).
+6. Open (docs/Tasks.md 354): a holstered copy that reacts when reached, as the pouch's does. A visual, judged in the headset.
+7. Open (docs/Tasks.md 354): hysteresis on the holster copy's hide-near-the-eyes test. Judged in the headset.
+8. Done (62a4bec): the labels say "Wrist HP and ammo" and "Scope picture (next scope)".
