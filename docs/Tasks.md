@@ -2824,6 +2824,13 @@ array (debug option only).
       off hand with the arm hand's back of the hand along the palm frame's up, which is the top of the fist (the glove's frame:
       +Z fingers, +Y thumb, palm -X): a quarter turn. Now from the glove's tracked frame, back along +X x Mirror. Check: the
       off hand let go of the handguard, holding a magazine, racking, with Weapon's arms.
+- [ ] "holding mags with the weapons arms is also wrong, sometimes the hands are not even on the mag; cant we do the real poses
+      on how the mag gets held in the animations" (built 2cda141): the sampler keeps the support hand's and fingers' rotations
+      through the reload, WeaponAnalyzer.MagHoldOf takes the step where the hand is nearest the magazine part while it is out
+      and shown (within 20 cm), and ArmIK puts the weapon's hand on the held magazine there with the animation's finger pose.
+      The log says per weapon "the support hand holds the magazine as its reload does at N s"; a reload that swaps in a second
+      magazine object, or never brings the hand within 20 cm, has none (the hand then follows the controller as before).
+      Autotest: the weapon's-arms check holds a magazine (picture "-holding-a-magazine", cm off the hold).
 
 ### 352. Hands in slow motion: Normal or Slowed (user, 2026-10-28 evening; built 7b4824a, check in a game run)
 - [ ] "lets do a mode in settings, Normal and slowed (regarding hands, hands holding mags, hands holding guns, guns etc almost
