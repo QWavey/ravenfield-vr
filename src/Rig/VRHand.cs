@@ -94,6 +94,9 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private const float SlowSpring = 20f, SlowTopSpeed = 10f, SlowTopTurn = 30f;
 
+        /// <summary>How far (m) a slowed hand may trail its controller: further, it is dragged along at this distance.</summary>
+        private const float SlowLeash = 1.5f;
+
         /// <summary>
         /// One step (<paramref name="step"/> s of game time) of a slowed hand toward <paramref name="target"/>: a critically damped
         /// spring (the target taken as still for the step), never faster than <see cref="SlowTopSpeed"/>. The velocity carried on is
@@ -127,8 +130,8 @@ namespace RavenfieldVR.Rig
         /// Whether the hand follows the controller slowed (Slowed, in slow motion, or still catching up after it): the controller's
         /// pose <paramref name="local"/> becomes the slowed hand's, and its velocity and spin (tracking space, game units) are given.
         /// Not in a pause (time scale 0: the menus and the laser at full speed). A sustained fast swing may leave it well behind: it
-        /// keeps following (it snapped to the controller at 1.5 m before, a jump of the hand and the gun; round 11); only a jump of the
-        /// controller itself (tracking recentred) or a gap over 4 m starts it afresh where the controller is.
+        /// keeps following, dragged along at <see cref="SlowLeash"/> (it snapped to the controller at 1.5 m before, a jump of the hand
+        /// and the gun; round 11); only a jump of the controller itself (tracking recentred) starts it afresh where the controller is.
         /// </summary>
         private bool Slowed(ref RigidPose local, out Vector3 velocity, out Vector3 spin)
         {
@@ -136,7 +139,7 @@ namespace RavenfieldVR.Rig
             // (Switched to Normal mid slow motion: caught up at full speed, as when slow motion ends, not snapped to the controller.)
             float s = Time.timeScale > 0f && !VRConfig.SlowedHands ? 1f : Time.timeScale, dt = Time.unscaledDeltaTime;
             bool caughtUp = (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
-            bool jumped = _slowActive && ((local.position - _slowTarget).sqrMagnitude > 0.5f * 0.5f || (_slowPose.position - local.position).sqrMagnitude > 4f * 4f);
+            bool jumped = _slowActive && (local.position - _slowTarget).sqrMagnitude > 0.5f * 0.5f;
             _slowTarget = local.position;
             if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || jumped)
             {
@@ -154,6 +157,18 @@ namespace RavenfieldVR.Rig
             float step = dt * Mathf.Min(s, 1f); // the frame in game time
             float decay = Mathf.Exp(-SlowSpring * step);
             _slowPose.position = SpringStep(_slowPose.position, ref _slowVelocity, local.position, step);
+            // On a leash of 1.5 m: a swing held past the top speed drags the hand along at that distance, continuously (the trail had
+            // no bound, or snapped to the controller; round 11), its velocity taking the pull.
+            Vector3 trail = _slowPose.position - local.position;
+            if (trail.sqrMagnitude > SlowLeash * SlowLeash)
+            {
+                Vector3 leashed = local.position + trail.normalized * SlowLeash;
+                if (step > 1e-6f)
+                {
+                    _slowVelocity += (leashed - _slowPose.position) / step;
+                }
+                _slowPose.position = leashed;
+            }
             Quaternion before = _slowPose.rotation;
             float angle = Quaternion.Angle(before, local.rotation);
             _slowPose.rotation = Quaternion.RotateTowards(before, local.rotation, Mathf.Min(angle * (1f - decay), SlowTopTurn * Mathf.Rad2Deg * step));
