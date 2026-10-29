@@ -262,7 +262,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             _secondUntrackedAt = -1f;
-            if (!Second.Hand.GrabHeld)
+            // With Grip to hold off the free hand keeps its weapon as the gun hand does, until it is put back at its holster
+            // (UpdateHolster); it went away the moment the grip opened (round 11).
+            if (!Second.Hand.GrabHeld && VRConfig.GripToHoldWeapon.Value)
             {
                 // Let go: back into its holster (a grenade let go in a throwing motion is thrown first).
                 SecondWeapon let = Second;
@@ -877,6 +879,32 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// With Grip to hold off, the free hand's second weapon goes back at its own holster: a tick when the hand reaches it, a grip
+        /// press there puts it away (as the gun hand puts its weapon back). Nowhere else does the free hand let it go then.
+        /// </summary>
+        private void PutBackSecond(Actor actor, VRHand hand, int i)
+        {
+            int own = actor != null && actor.weapons != null ? Array.IndexOf(actor.weapons, Second.Weapon) : -1;
+            int slot = own >= 0 ? Zones.HolsterAt(hand.Palm.position, includeChest: Held == null || !Held.Aiming) : -1;
+            bool atOwn = slot >= 0 && slot == own;
+            if (atOwn && slot != _hoveredHolster[i])
+            {
+                hand.Haptic(0.012f, 220f, 0.35f);
+            }
+            _hoveredHolster[i] = atOwn ? slot : -1;
+            if (!atOwn || !hand.GrabPressed)
+            {
+                return;
+            }
+            VRInput.Consume(DigitalAction.Grab, hand.Side);
+            SecondWeapon away = Second;
+            Second = null;
+            away.PutAway();
+            Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
+            hand.Haptic(0.05f, 100f, 0.5f);
+        }
+
         private void UpdateHolster(Actor actor, VRHand hand)
         {
             int i = (int)hand.Side;
@@ -884,6 +912,11 @@ namespace RavenfieldVR.Weapons
             // The gun hand may hold its weapon; the free hand only draws while it holds nothing (not the handguard, a bolt,
             // a magazine).
             bool canDraw = gunHand ? hand.Role != HandRole.Magazine : hand.Role == HandRole.Free && hand.Held == null;
+            if (!gunHand && hand.Tracked && Second != null && Second.Hand == hand && !VRConfig.GripToHoldWeapon.Value)
+            {
+                PutBackSecond(actor, hand, i);
+                return;
+            }
             if (!hand.Tracked || !canDraw)
             {
                 _hoveredHolster[i] = -1; // a hand holding a magazine has no room for a weapon
