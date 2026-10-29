@@ -35,7 +35,10 @@ def luma(img):
 
 def read_film(d):
     rows = []
-    for line in open(os.path.join(d, 'frames.txt'), encoding='utf-8').read().splitlines()[1:]:
+    path = os.path.join(d, 'frames.txt')
+    if not os.path.exists(path):
+        return []  # (a film cut short, the game killed or crashed: its pictures but no list; it aborted the whole run)
+    for line in open(path, encoding='utf-8').read().splitlines()[1:]:
         p = line.split('\t')
         if len(p) >= 5:
             rows.append({'frame': int(p[0]), 'eye': p[1], 'time': num(p[2]), 'note': p[3], 'lens': p[4]})
@@ -160,7 +163,11 @@ def film(d, summary):
 def reload_film(d, summary):
     """A reload close-up (C-0000.png ...): a GIF two times slower and an MP4, captioned with what the hand does."""
     name = os.path.basename(d)
-    rows = [l.split('	') for l in open(os.path.join(d, 'frames.txt'), encoding='utf-8').read().splitlines()[1:]]
+    path = os.path.join(d, 'frames.txt')
+    if not os.path.exists(path):
+        summary.append(f'{name}: no frames.txt (the film was cut short)')
+        return
+    rows = [l.split('	') for l in open(path, encoding='utf-8').read().splitlines()[1:]]
     rows = [r for r in rows if len(r) >= 4 and r[1] == 'C']
     pics, times = [], []
     for i, r in enumerate(rows):
@@ -197,10 +204,17 @@ def num(text):
 def main(root):
     summary = []
     dirs = sorted(d for d in glob.glob(os.path.join(root, 'film-*')) if os.path.isdir(d))
+    # Each film on its own: one that fails is said in the summary, the rest still made (round 12).
     for d in dirs:
-        film(d, summary)
+        try:
+            film(d, summary)
+        except Exception as e:  # noqa: BLE001
+            summary.append(f'{os.path.basename(d)}: FAILED ({type(e).__name__}: {e})')
     for d in sorted(d for d in glob.glob(os.path.join(root, 'reload-*')) if os.path.isdir(d)):
-        reload_film(d, summary)
+        try:
+            reload_film(d, summary)
+        except Exception as e:  # noqa: BLE001
+            summary.append(f'{os.path.basename(d)}: FAILED ({type(e).__name__}: {e})')
     text = '\n'.join(summary) + '\n'
     open(os.path.join(root, 'film-summary.txt'), 'w', encoding='utf-8').write(text)
     print(text)

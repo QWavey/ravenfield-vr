@@ -35,7 +35,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
-$GitDir = Join-Path $Root '.git'
 
 function Write-Step([string]$text) { Write-Host "==> $text" }
 
@@ -87,22 +86,39 @@ if (-not ($remotes -contains "${Remote}:")) {
     if ($LASTEXITCODE -ne 0) { throw 'The Google Drive sign-in for rclone did not finish.' }
 }
 
+# The repository's own git folder: in a linked worktree .git is a file naming it, and the state files under '.git' could not be
+# written there (the upload done, the run failed and remembered nothing; round 12).
+$GitDir = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($Root, "$(Invoke-Git @('rev-parse', '--git-dir'))".Trim()))
+
+# A state file's line, or '' when it is missing or empty (an empty one read as $null and stopped every run; round 12).
+function Read-State([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return '' }
+    $raw = Get-Content -LiteralPath $path -Raw
+    if ($raw) { return $raw.Trim() }
+    return ''
+}
+
 # --- what is new since the last backup ---------------------------------------------------------
 $head = (Invoke-Git @('rev-parse', 'HEAD')).Trim()
 $short = $head.Substring(0, 7)
 $branch = (Invoke-Git @('rev-parse', '--abbrev-ref', 'HEAD')).Trim()
 $lastFile = Join-Path $GitDir 'drive-backup-last'
 $distFile = Join-Path $GitDir 'drive-backup-dist'
-$last = if (Test-Path $lastFile) { (Get-Content $lastFile -Raw).Trim() } else { '' }
+$last = Read-State $lastFile
 if ($last -and -not (Test-Git @('cat-file', '-e', "$last^{commit}")).Ok) {
     $last = '' # (rewritten history: start again with a whole bundle)
+}
+# The last backup not behind HEAD (another branch checked out, a reset): its commits since it make no bundle (git refuses an
+# empty one, and the run failed every time until a commit passed the remembered one; round 12): a whole bundle then.
+if ($last -and $last -ne $head -and -not (Test-Git @('merge-base', '--is-ancestor', $last, $head)).Ok) {
+    $last = ''
 }
 $whole = $Full -or -not $last
 
 $setup = Get-ChildItem (Join-Path $Root 'dist') -Filter 'RavenfieldVR-Setup-*.exe' -ErrorAction SilentlyContinue |
     Sort-Object { try { [version]($_.BaseName -replace '^RavenfieldVR-Setup-', '') } catch { [version]'0.0' } } | Select-Object -Last 1
 $setupKey = if ($setup) { "$($setup.Name) $($setup.Length) $($setup.LastWriteTimeUtc.Ticks)" } else { '' }
-$lastDist = if (Test-Path $distFile) { (Get-Content $distFile -Raw).Trim() } else { '' }
+$lastDist = Read-State $distFile
 $newDist = $setup -and $setupKey -ne $lastDist
 
 if (-not $whole -and $last -eq $head -and -not $newDist) {

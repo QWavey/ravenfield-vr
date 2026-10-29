@@ -68,7 +68,8 @@ if (-not (Test-Path $PublicizerExe) -or (Get-Item $PublicizerSrc).LastWriteTime 
 foreach ($asm in 'Assembly-CSharp', 'Assembly-CSharp-firstpass') {
     $src = Join-Path $Managed "$asm.dll"
     $dst = Join-Path $Refs "$asm.dll"
-    if (-not (Test-Path $dst) -or (Get-Item $src).LastWriteTime -gt (Get-Item $dst).LastWriteTime) {
+    # (Also when the publicizer is newer: rebuilt from a changed Publicizer.cs, the refs kept the old one's visibility; round 12.)
+    if (-not (Test-Path $dst) -or (Get-Item $src).LastWriteTime -gt (Get-Item $dst).LastWriteTime -or (Get-Item $PublicizerExe).LastWriteTime -gt (Get-Item $dst).LastWriteTime) {
         Write-Step "Publicizing $asm"
         & $PublicizerExe $src $dst $Managed
         if ($LASTEXITCODE -ne 0) { throw "Publicizer failed for $asm" }
