@@ -112,6 +112,7 @@ namespace RavenfieldVR.Tests
             BeltRoundTests(mod);
             HolsterEyeTests(mod);
             ShellPortTests(mod);
+            AmmoNameTests(mod);
         }
 
         /// <summary>
@@ -150,6 +151,41 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// The names that hide a part as ammunition (2026-10-30): a reload helper (WeaponAnalyzer.HelperNamedAsAmmunition: the M4A1's
+        /// 'zZ008 MAG', the P220's spaced-out 'dan    xia', loose rounds; not the PKM's 'eo', an optic, a radio, a spring) and an arm
+        /// mesh (NamedAsAmmunition: a magazine on the arm, but never one also named as the arm).
+        /// </summary>
+        private static void AmmoNameTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            Type analyzer = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer");
+            System.Reflection.MethodInfo helper = analyzer?.GetMethod("HelperNamedAsAmmunition", any);
+            System.Reflection.MethodInfo arm = analyzer?.GetMethod("NamedAsAmmunition", any);
+            Check(helper != null && arm != null, "Ammo names: HelperNamedAsAmmunition and NamedAsAmmunition found");
+            if (helper == null || arm == null)
+            {
+                return;
+            }
+            foreach (string n in new[] { "zZ008 MAG", "QBZ95_Mag", "1911 10r mag", "dan    xia", "\u5355\u72ec\u5b50\u5f39.001", "QJB201_AmmoBox", "RFB Magazine.001" })
+            {
+                Check((bool)helper.Invoke(null, new object[] { n, false }), $"Ammo names: helper '{n}' hidden while held");
+            }
+            foreach (string n in new[] { "eo", "spectre", "Radio call.001", "45 Spring Empty", "Scope_Mag_Cover", "Reload_Cube" })
+            {
+                Check(!(bool)helper.Invoke(null, new object[] { n, false }), $"Ammo names: helper '{n}' stays drawn");
+            }
+            Check((bool)helper.Invoke(null, new object[] { "PG-7V rocket", true }), "Ammo names: a launcher's rocket helper hidden");
+            foreach (string n in new[] { "Reload_Mag", "fresh magazine", "bullets" })
+            {
+                Check((bool)arm.Invoke(null, new object[] { n }), $"Ammo names: arm mesh '{n}' is ammunition");
+            }
+            foreach (string n in new[] { "Arms", "Arms_Mag", "hand_with_magazine", "Sleeve", "Gloves" })
+            {
+                Check(!(bool)arm.Invoke(null, new object[] { n }), $"Ammo names: arm mesh '{n}' stays an arm");
+            }
         }
 
         /// <summary>

@@ -335,15 +335,11 @@ namespace RavenfieldVR.Weapons
             // it showed where the flat game's hidden hand would be, a second magazine floating by the gun (user, 2026-10-29: "some guns
             // such like m4s also have a 2nd mag behind the gun floating"). Only one named as ammunition (a magazine, a round, a
             // shell, an ammo box, a rocket: of the 63 helpers in the weapon report, 'eo', 'Radio call.001', '45 Spring Empty' and an
-            // optic, 'spectre', are not), never a sight part, never one that holds the magazine or the gun. Its name also read with
-            // its spaces taken out: the P220's 'dan    xia' is 弹匣's pinyin (magazine) spaced out (tools/export_checks/reload_helper_rule.py).
+            // optic, 'spectre', are not: HelperNamedAsAmmunition), never a sight part, never one that holds the magazine or the gun.
             Transform helper = _reloadHelper;
             _reloadHelper = null;
-            bool singleShot = d.Action == ActionType.SingleShot;
-            string unspaced = helper != null ? Regex.Replace(helper.name, @"\s+", "") : "";
             if (helper != null && helper != mag && !mag.IsChildOf(helper) && !helper.IsChildOf(mag) && (gunBody == null || !gunBody.IsChildOf(helper))
-                && (IsMagName(helper.name, singleShot) || IsMagName(unspaced, singleShot) || RoundName.IsMatch(helper.name) || AmmoPartName.IsMatch(helper.name))
-                && !OpticName.IsMatch(helper.name)
+                && HelperNamedAsAmmunition(helper.name, d.Action == ActionType.SingleShot)
                 && !d.SightPartPaths.Exists(p => { Transform s = WeaponRig.Resolve(root, p); return s != null && (s == helper || s.IsChildOf(helper) || helper.IsChildOf(s)); }))
             {
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, helper));
@@ -476,6 +472,15 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The reload's helper this analysis found hidden at rest (between the magazine's search and its choice).</summary>
         private static Transform _reloadHelper;
+
+        /// <summary>
+        /// A reload helper the held gun hides: named as ammunition (a magazine, a round, a shell, an ammo box; on a launcher its
+        /// rocket), its name also read with the spaces taken out (the P220's 'dan    xia', 弹匣's pinyin spaced out), never an optic
+        /// (tools/export_checks/reload_helper_rule.py runs the same rule over an export).
+        /// </summary>
+        internal static bool HelperNamedAsAmmunition(string name, bool launcher) =>
+            (IsMagName(name, launcher) || IsMagName(Regex.Replace(name, @"\s+", ""), launcher) || RoundName.IsMatch(name) || AmmoPartName.IsMatch(name))
+            && !OpticName.IsMatch(name);
 
         /// <summary>
         /// The magazine's pieces that hang apart from its body at rest, this analysis's (left out of its shape and its vertex axis;
