@@ -96,6 +96,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<int> ScopeResolution;
         public static ConfigEntry<bool> ScopeShadows;
         public static ConfigEntry<bool> HoldFrameRate;
+        public static ConfigEntry<bool> GameCamerasOnePixel;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -274,6 +275,10 @@ namespace RavenfieldVR.Core
                 "Magnified picture-in-picture scope lens for scoped weapons that only had a 2D scope overlay.");
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
+            GameCamerasOnePixel = cfg.Bind("Rendering", "GameCamerasOnePixel", false,
+                "To try: the game's own screen cameras, which draw nothing in VR but are kept on for the game's logic, render into one pixel "
+                + "instead of the whole screen (their clears, image effects and post-processing cost about 0.7 ms of main thread a frame on a "
+                + "test PC). Applies at once; off until it is measured in a headset. The desktop mirror and aiming are not meant to change.");
             HoldFrameRate = cfg.Bind("Rendering", "HoldFrameRate", false,
                 "While frames keep missing the headset's rate, lower the preset's costliest settings one step at a time (shadow distance, "
                 + "shadows, LOD bias, grass, pixel lights, last 15% of the render scale, only when the GPU is the cause) and bring them back when there is room again. Off: the preset stays as set. "

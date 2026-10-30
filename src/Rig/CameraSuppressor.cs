@@ -24,13 +24,16 @@ namespace RavenfieldVR.Rig
         private readonly HashSet<Camera> _ignored = new HashSet<Camera>();
 
         /// <summary>
-        /// Bench only (AutoTest.PerfBench, "game cameras 1 px"): a suppressed camera also renders into one pixel, its viewport put
-        /// back after, as its mask is. What they still cost with nothing to draw (the user's log, 2026-10-28: "Camera" 0.33 ms, FP
-        /// Camera 0.12, post-processing 0.11, first-person model 0.10) is the clear, image effects and post-processing over a
-        /// full-size target; whether a 1 px viewport takes that away, and leaves the mirror and the game's aim alone, is what the
-        /// bench measures before it goes into play (Tasks 348).
+        /// A suppressed camera also renders into one pixel, its viewport put back after, as its mask is (GameCamerasOnePixel, off by
+        /// default: to try in a headset; the bench's own setting while it runs, AutoTest.PerfBench "game cameras 1 px", whatever the
+        /// config says). What they still cost with nothing to draw (the user's log, 2026-10-28: "Camera" 0.33 ms, FP Camera 0.12,
+        /// post-processing 0.11, first-person model 0.10) is the clear, image effects and post-processing over a full-size target;
+        /// whether a 1 px viewport takes that away, and leaves the mirror and the game's aim alone, is what is to be measured
+        /// (Tasks 348).
         /// </summary>
-        internal static bool TinyRect;
+        internal static bool? TinyRect;
+
+        private static bool OnePixel => TinyRect ?? VRConfig.GameCamerasOnePixel.Value;
         private readonly Dictionary<Camera, Rect> _rectDuringRender = new Dictionary<Camera, Rect>();
 
         public CameraSuppressor(Camera vrCamera)
@@ -135,7 +138,7 @@ namespace RavenfieldVR.Rig
             }
             _maskDuringRender[c] = c.cullingMask;
             c.cullingMask = 0;
-            if (TinyRect && !_rectDuringRender.ContainsKey(c))
+            if (OnePixel && !_rectDuringRender.ContainsKey(c))
             {
                 _rectDuringRender[c] = c.rect;
                 c.pixelRect = new Rect(0f, 0f, 1f, 1f);

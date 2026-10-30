@@ -818,7 +818,7 @@ namespace RavenfieldVR.Core
                 {
                     ui.UiCamera.enabled = true;
                 }
-                Rig.CameraSuppressor.TinyRect = false;
+                Rig.CameraSuppressor.TinyRect = null; // (the config's again)
                 GraphicsPresets.Apply();
                 Runtime.OpenVRRuntime.ApplyLiveSettings();
             }

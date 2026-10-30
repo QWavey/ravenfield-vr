@@ -172,6 +172,9 @@ namespace RavenfieldVR.UI
             Stepper("Scope picture (next scope)", () => $"{VRConfig.ScopeResolution.Value} px",
                 d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 
+            Section("Performance (try it)");
+            Choice("Game cameras into 1 px", VRConfig.GameCamerasOnePixel, new[] { false, true }, new[] { "Off", "On" });
+
             Section("Menus");
             Stepper("Menu distance (next open)", () => $"{VRConfig.MenuDistance.Value:0.0} m",
                 d => VRConfig.MenuDistance.Value = Mathf.Clamp(Mathf.Round((VRConfig.MenuDistance.Value + d * 0.1f) * 10f) / 10f, 0.6f, 4f));
