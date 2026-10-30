@@ -19,6 +19,22 @@ namespace RavenfieldVR.Weapons
         private readonly Quaternion[][] _fingerBase, _fingerWritten;
         private bool _fingersWritten;
 
+        /// <summary>
+        /// The joints' rotations now as this frame's last write: called after something else turned them on top of <see cref="Pose"/>
+        /// (ArmIK's magazine hold), so the next frame does not take that for an animator's pose and keep it as the base.
+        /// </summary>
+        public void Remember()
+        {
+            for (int f = 0; f < 5; f++)
+            {
+                Transform[] j = _fingers[f];
+                for (int s = 0; j != null && s < j.Length; s++)
+                {
+                    _fingerWritten[f][s] = j[s].localRotation;
+                }
+            }
+        }
+
         /// <summary>Self-test: how far the fingers are bent, on average (degrees summed over each finger's joints; -1: none found).</summary>
         internal float MeanBend()
         {

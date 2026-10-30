@@ -186,7 +186,10 @@ namespace RavenfieldVR.Weapons
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);
                 OffHandError = Vector3.Distance(_left.Hand.position, target.position);
-                _fingers?.Pose(off, _left.Hand, _left.Chain, e);
+                // Off the gun the fingers follow the controller; on a magazine they keep the animation's pose as before, the reload's
+                // hold on the joints it moves (the user: "the gun held and support hand held weapon positions need to stay (plus mag
+                // being held)"; review, 2026-10-30: the joints the reload does not move took the controller's curl).
+                _fingers?.Pose(off, _left.Hand, _left.Chain, Mathf.Max(e, m));
                 if (m > 0f && _magFingers != null)
                 {
                     for (int i = 0; i < _magFingers.Length; i++)
@@ -197,6 +200,7 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
+                _fingers?.Remember(); // (the magazine's turns are this frame's last write, not an animator's pose next frame)
             }
         }
 

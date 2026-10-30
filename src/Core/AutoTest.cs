@@ -2559,7 +2559,6 @@ namespace RavenfieldVR.Core
             return string.Join("; ", parts);
         }
 
-        /// <summary>Aims the laser at the pause menu's button with this label and clicks it with the trigger, wobbling 1.5 degrees.</summary>
         /// <summary>
         /// The VR settings panel's two pages, by its own buttons pressed with the laser: "More settings" shows the second page
         /// (the controls, gloves and menus), "Back" the first again, each pictured (2026-10-30).
@@ -2601,6 +2600,7 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>Aims the laser at the button with this label (on the pause menu, or under <paramref name="root"/>) and clicks it with the trigger, wobbling 1.5 degrees.</summary>
         private static IEnumerator ClickMenuButton(Rig.VRHand dom, string label, List<string> lines, Transform root = null)
         {
             int side = (int)dom.Side;

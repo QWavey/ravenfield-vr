@@ -69,7 +69,10 @@ namespace RavenfieldVR.Weapons
                         continue; // a bone outside the weapon (it would stay behind with it)
                     }
                     needed.AddRange(s.bones);
-                    needed.Add(s.rootBone);
+                    if (s.rootBone != null && s.rootBone.IsChildOf(weaponRoot))
+                    {
+                        needed.Add(s.rootBone); // (one outside it would be mirrored as loose objects outside the copy; review)
+                    }
                 }
                 renderers.Add(r);
                 needed.Add(r.transform);
@@ -84,6 +87,7 @@ namespace RavenfieldVR.Weapons
             var root = new GameObject("RavenfieldVR empty-hand arms");
             root.SetActive(false);
             Object.DontDestroyOnLoad(root);
+            _root = root; // at once: a step below that throws leaves it to the next Destroy, not an orphan (review)
             root.transform.SetPositionAndRotation(weaponRoot.position, weaponRoot.rotation);
             root.transform.localScale = weaponRoot.lossyScale;
             int layer = renderers[0].gameObject.layer;
@@ -126,7 +130,7 @@ namespace RavenfieldVR.Weapons
                     }
                     skin.sharedMesh = s.sharedMesh;
                     skin.bones = bones;
-                    skin.rootBone = Mirror(s.rootBone);
+                    skin.rootBone = s.rootBone != null && s.rootBone.IsChildOf(weaponRoot) ? Mirror(s.rootBone) : null;
                     skin.quality = s.quality;
                     skin.updateWhenOffscreen = true; // its bones go wherever the hands are: the bind-pose bounds culled it
                     copy = skin;
@@ -161,7 +165,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void BeforeRender(WeaponSystem sys, bool show)
         {
-            show &= _root != null && _renderers.TrueForAll(HasMesh);
+            // Not while a hand holds a soldier: that glove is on him, drawn (as with a gun in the other hand: HeldWeapon keeps it), and an
+            // arm sent to the controller left it hidden and the hand off the body (review, 2026-10-30).
+            show &= _root != null && _renderers.TrueForAll(HasMesh) && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
             if (show != _shown)
             {
                 _shown = show;
@@ -186,9 +192,11 @@ namespace RavenfieldVR.Weapons
             }
             BodyZones zones = sys.Zones;
             Vector3 neck = sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
-            // The model's right arm on the right controller, its left on the left (as ArmIK's shoulders, both sides).
-            float right = Solve(sys.Rig.Hand(Input.Hand.Right), _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * 0.17f, 1f, zones);
-            float left = Solve(sys.Rig.Hand(Input.Hand.Left), _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * 0.17f, -1f, zones);
+            // As ArmIK places them with a gun: the model's right arm (the gun arm) on the gun hand, its shoulder on that side. On the
+            // right controller always, left-handed play's arms swapped sides at every draw and holster (review, 2026-10-30).
+            float side = Input.VRInput.GunHand == Input.Hand.Left ? -1f : 1f;
+            float right = Solve(sys.Rig.Dominant, _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side), side, zones);
+            float left = Solve(sys.Rig.Off, _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side), -side, zones);
             HandError = Mathf.Max(right, left);
         }
 
