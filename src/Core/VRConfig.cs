@@ -99,6 +99,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> HoldFrameRate;
         public static ConfigEntry<bool> GameCamerasOnePixel;
         public static ConfigEntry<float> GcSliceMs;
+        public static ConfigEntry<bool> SmallObjectsNoShadows;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -277,6 +278,9 @@ namespace RavenfieldVR.Core
                 "Magnified picture-in-picture scope lens for scoped weapons that only had a 2D scope overlay.");
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
+            SmallObjectsNoShadows = cfg.Bind("Rendering", "SmallObjectsNoShadows", false,
+                "To try: the level's small objects (under 40 cm across) cast no shadow, so the shadow passes, drawn once per eye, have fewer "
+                + "objects to draw (with shadows on: Medium, High, Ultra). Applies at once; soldiers keep theirs.");
             GcSliceMs = cfg.Bind("Rendering", "GarbageCollectionSliceMs", 3f,
                 new ConfigDescription("To try: how much of a frame (ms) the game's incremental garbage collector may take while a collection runs "
                                       + "(Unity's own is 3, of the 11.1 ms a 90 Hz frame has). Lower spreads the same work over more frames, so a frame near "

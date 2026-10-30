@@ -273,6 +273,7 @@ namespace RavenfieldVR.Core
             _modFrames++;
             PerfProbe.Frame();
             Log.Guard("Frame budget", FrameBudgetTick);
+            Log.Guard("Small shadows", SmallShadowsTick);
             // Guarded as the rest: one that threw ended the frame's Update before the input, rig and weapons ran.
             Log.Guard("VR events", PumpVREvents);
             if (_pauseAfterLoad)
@@ -312,7 +313,8 @@ namespace RavenfieldVR.Core
         // (garbage) on every call, ten times a frame.
         private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
         private Action[] _handApply;
-        private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame;
+        private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame,
+            SmallShadowsTick = SmallShadows.Frame;
 
         // Input's parts timed apart (the frame rate line's mod sections): the whole was the mod's costliest section in the user's play
         // of 2026-10-28 (0.16-0.24 ms a frame) with nothing to say which part. Each guarded on its own, so one that throws leaves the
@@ -392,6 +394,7 @@ namespace RavenfieldVR.Core
             _pausedForHeadset = false;
             _speedBeforePause = 1f;
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
+            SmallShadows.OnSceneChanged();
             Log.Guard("Weapons.OnSceneChanged", () => Weapons?.OnSceneChanged()); // (a throw there skipped the UI's)
             Log.Guard("UI.OnSceneChanged", () => UI?.OnSceneChanged());
         }
@@ -532,6 +535,7 @@ namespace RavenfieldVR.Core
                 VRConfig.Mirror.SettingChanged -= OnRenderSettingChanged;
                 VRConfig.GcSliceMs.SettingChanged -= OnGcSliceChanged;
                 FrameBudget.RestoreGcSlice();
+                Log.Guard("SmallShadows.Restore", SmallShadows.Restore);
                 _subscribed = false;
             }
             _active = false;

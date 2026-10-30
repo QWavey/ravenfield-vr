@@ -175,6 +175,7 @@ namespace RavenfieldVR.UI
             Section("Performance (try it)");
             Choice("Game cameras into 1 px", VRConfig.GameCamerasOnePixel, new[] { false, true }, new[] { "Off", "On" });
             Choice("Scope lens every other frame", VRConfig.ScopeHalfRate, new[] { false, true }, new[] { "Off", "On" });
+            Choice("Small objects without shadows", VRConfig.SmallObjectsNoShadows, new[] { false, true }, new[] { "Off", "On" });
             Stepper("Garbage collection slice", () => $"{VRConfig.GcSliceMs.Value:0.0} ms",
                 d => VRConfig.GcSliceMs.Value = Mathf.Clamp(Mathf.Round((VRConfig.GcSliceMs.Value + d * 0.5f) * 2f) / 2f, 0.5f, 3f));
 
