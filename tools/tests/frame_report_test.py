@@ -45,6 +45,11 @@ def main():
             f.write(line(90, '3.0').replace('; costliest steps', "; CPU speed 88% of the session's first minute (0.71 ms for a fixed sum); costliest steps"))
         cpu_rows = list(frame_report.rows(cpu_log))
         check(cpu_rows[0]['cpu'] == '88%' and table[0]['cpu'] == '', f"cpu column: 88% when the line has it, empty when not ({cpu_rows[0]['cpu']!r})")
+        try_log = os.path.join(root, 'try.log')
+        with open(try_log, 'w', encoding='utf-8') as f:
+            f.write(line(90, '3.0').replace('(render scale 0.9); ', '(render scale 0.9), MSAA 2x, shadows 30 m, LOD bias 0.7, game cameras into 1 px, scope lens every other frame; '))
+        try_rows = list(frame_report.rows(try_log))
+        check(try_rows[0]['try'] == 'cams 1px, scope 1/2' and table[0]['try'] == '', f"try column: the settings to try when on ({try_rows[0]['try']!r})")
 
         game = os.path.join(root, 'BepInEx')
         os.makedirs(game)

@@ -51,6 +51,9 @@ def rows(path):
             'awake': number(r'\((\d+) awake\)', text),
             'faded': number(r'(\d+) faded out', text),
             'depth': 'yes' if 'the eyes draw a' in text else '',
+            # The settings to try (GameCamerasOnePixel, ScopeHalfRate), said in the line when on: their minutes against the others.
+            'try': ', '.join(short for short, said in (('cams 1px', 'game cameras into 1 px'), ('scope 1/2', 'scope lens every other frame'))
+                             if said in text),
         }
 
 
@@ -81,7 +84,7 @@ def main():
         print(f'{path}: no frame rate lines (under a minute of play?)')
         return 1
     print(path)
-    cols = ['on time', 'bound', 'median', 'GPU', 'preset', 'cpu', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
+    cols = ['on time', 'bound', 'median', 'GPU', 'preset', 'cpu', 'try', 'eyes', 'UI cam', 'mod', 'awake', 'faded', 'depth', 'steps', 'mod sections']
     widths = {c: max(len(c), *(len(r[c]) for r in table)) for c in cols}
     print('min  ' + '  '.join(c.ljust(widths[c]) for c in cols))
     for i, r in enumerate(table, 1):
