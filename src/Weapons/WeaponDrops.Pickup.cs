@@ -405,6 +405,10 @@ namespace RavenfieldVR.Weapons
                 swapped.Semi = FireSelector.IsSemiByPlayer(current);
                 PutDownState(current, out bool swapMagOut, out bool swapSlideBack);
                 swapped.MagOut = swapMagOut;
+                if (swapMagOut)
+                {
+                    HideMagazine(swapped);
+                }
                 swapped.SlideBack = swapSlideBack;
                 swapped.EmptyChamber = EmptyChamberOf(current);
                 BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);

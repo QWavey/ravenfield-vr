@@ -603,9 +603,25 @@ namespace RavenfieldVR.Weapons
                 Log.InfoOnce("parkedcache-hit", $"Copies of {entry.name}: parked ammunition from the cache of earlier sessions, no analysis on this frame (the first such type this session).");
             }
             Transform model = template.transform.GetChild(0); // the template's only child: the third-person model
+            int hidden = HideInWorldModel(model, tpPath, spare);
+            if (hidden > 0)
+            {
+                Log.InfoOnce("parkedcopy:" + entry.name, $"Copies of {entry.name} (holstered and dropped): {hidden} parked ammunition part(s) hidden, as in the hand.");
+            }
+        }
+
+        /// <summary>
+        /// Hides the parts of a weapon's analysis (paths in its first-person prefab) in a copy of its third-person model, where the
+        /// two share them (many mods' third-person model is the first-person gun itself): scaled to nothing and their meshes off
+        /// (at 1e-4 the vertices still sit at the pivot, and a dropped weapon's shape is fitted from the enabled renderers, so a
+        /// hidden part would leave an invisible collider beside the gun; Task 268). A part outside the third-person model is never
+        /// drawn in a copy. Returns how many were hidden.
+        /// </summary>
+        private static int HideInWorldModel(Transform model, int[] tpPath, IEnumerable<int[]> paths)
+        {
             Vector3 tiny = Vector3.one * 1e-4f;
             int hidden = 0;
-            foreach (int[] p in spare)
+            foreach (int[] p in paths)
             {
                 if (p == null || p.Length <= tpPath.Length)
                 {
@@ -618,7 +634,7 @@ namespace RavenfieldVR.Weapons
                 }
                 if (!inside)
                 {
-                    continue; // not in the third-person model, so never drawn in a copy
+                    continue;
                 }
                 var rest = new int[p.Length - tpPath.Length];
                 Array.Copy(p, tpPath.Length, rest, 0, rest.Length);
@@ -626,9 +642,6 @@ namespace RavenfieldVR.Weapons
                 if (part != null)
                 {
                     part.localScale = tiny;
-                    // Its meshes are switched off as well: at 1e-4 they still have their vertices at the pivot, where the part
-                    // waits, and the dropped weapon's physics shape is fitted from the enabled renderers only (ShapeFit.AddPoints),
-                    // so a hidden part would leave an invisible collider out beside the gun (Task 268).
                     foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                     {
                         r.enabled = false;
@@ -636,10 +649,35 @@ namespace RavenfieldVR.Weapons
                     hidden++;
                 }
             }
-            if (hidden > 0)
+            return hidden;
+        }
+
+        /// <summary>
+        /// A weapon put on the ground with its magazine out (swapped for one picked up) shows none: the copy is of the prefab, which
+        /// has its magazine in, and it lay there with one and came back without (Tasks 289). Only from an analysis already made
+        /// (the weapon was held: it is), so the swap's frame never runs one; the drop's shape keeps the magazine (fitted per type).
+        /// </summary>
+        internal static void HideMagazine(DroppedWeapon drop)
+        {
+            Weapon prefab = drop?.Entry?.prefab != null ? drop.Entry.prefab.GetComponent<Weapon>() : null;
+            Transform tpAsset = prefab != null ? prefab.thirdPersonTransform : null;
+            if (tpAsset == null || drop.Go == null || drop.Go.transform.childCount == 0 || drop.Go.transform.GetChild(0).childCount == 0
+                || !WeaponAnalyzer.IsCached(prefab, drop.Entry))
             {
-                Log.InfoOnce("parkedcopy:" + entry.name, $"Copies of {entry.name} (holstered and dropped): {hidden} parked ammunition part(s) hidden, as in the hand.");
+                return;
             }
+            int[] tpPath = WeaponRig.PathOf(prefab.transform, tpAsset);
+            WeaponRigData d = WeaponAnalyzer.Get(prefab, drop.Entry);
+            if (tpPath == null || d.MagazinePath == null)
+            {
+                return;
+            }
+            var paths = new List<int[]> { d.MagazinePath };
+            paths.AddRange(d.MagazinePartPaths);
+            Transform model = drop.Go.transform.GetChild(0).GetChild(0); // the drop's copy of the template, and its third-person model
+            int hidden = HideInWorldModel(model, tpPath, paths);
+            Log.InfoOnce("dropmagout:" + drop.Entry.name, $"{drop.Entry.name} put down with its magazine out: "
+                                                       + (hidden > 0 ? $"{hidden} magazine part(s) hidden on the ground copy." : "its third-person model has its own magazine, left drawn."));
         }
 
         /// <summary>The weapon dropped last (self-test).</summary>
