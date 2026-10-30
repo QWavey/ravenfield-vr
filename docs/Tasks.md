@@ -2874,12 +2874,12 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       placeholder 7). Each report ends with an OUTCOME section: what was done (commit), declined (why) or left open.
 - [x] Built and committed: 3cfc0fe (bug hunt), 62a4bec (improve, full implement), 90c79a0 and bd216fa (placeholder),
       bdf4cb4 (autotest skip count), fbcdb32 (canvas optimize), and MudSplash's field of view from the headset.
-- [ ] A holstered copy that reacts when the free hand reaches it, as the pouch's copy does (improve 6); and hysteresis on its
+- [x] (2026-10-30, 2cee2e4, 2b75542) A holstered copy that reacts when the free hand reaches it, as the pouch's copy does (improve 6); and hysteresis on its
       hide-near-the-eyes test (improve 7). Judge both in the headset.
-- [ ] A second settings page for the settings the panel has no room for: RoomscaleMovement, PhysicalCrouchRatio,
+- [x] (2026-10-30, 2a20a13, 2b75542: More settings, both pages about 1.8 m) A second settings page for the settings the panel has no room for: RoomscaleMovement, PhysicalCrouchRatio,
       SmoothVehicleHorizon, TurnStickJumpCrouch, StickDeadzone, SprintMode, HapticStrength, Glove, GloveSize, VRScopes,
       ShotViewFlash, TurretAim, MagazineReadout (fullimplement 3).
-- [ ] A rig with only a right hand: the free hand gets no support curls (fullimplement 6). Mirror the right hand's pose and
+- [x] (2026-10-30: none in the 308-weapon report: 18 have no hands at all, none a right hand only; nothing to do) A rig with only a right hand: the free hand gets no support curls (fullimplement 6). Mirror the right hand's pose and
       check it in a picture.
 - [ ] Check in a game run: the pouch tick, Calibrate now's notice with the headset off the head, the mud splash's size on the
       Quest 3 (its own projection now, not the constants).
