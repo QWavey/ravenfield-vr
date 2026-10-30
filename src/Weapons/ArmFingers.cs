@@ -26,6 +26,57 @@ namespace RavenfieldVR.Weapons
         /// The joints' rotations now as this frame's last write: called after something else turned them on top of <see cref="Pose"/>
         /// (ArmIK's magazine hold), so the next frame does not take that for an animator's pose and keep it as the base.
         /// </summary>
+        /// <summary>How far each joint of a pulled finger bends past the animation's pose at a full pull (degrees, knuckle to tip).</summary>
+        private static readonly float[] PullBend = { 14f, 18f, 12f };
+
+        /// <summary>
+        /// One finger of a hand on the gun pulled on top of the animation's pose, by <paramref name="amount"/> (0-1: the trigger):
+        /// the gun hand's index follows the trigger, as the VR glove's does; the hand and its other fingers keep the grip the gun's
+        /// animation gives them (the user: "the gun held ... weapon positions need to stay"). It bent nowhere before, however hard
+        /// the trigger was pulled. In the finger's own curl plane, the animation's pose read fresh as in <see cref="Pose"/>.
+        /// </summary>
+        public void Pull(Transform hand, ArmChain c, int finger, float amount)
+        {
+            Transform[] j = _fingers[finger];
+            if (j == null || hand == null || c == null)
+            {
+                return;
+            }
+            for (int s = 0; s < j.Length; s++)
+            {
+                Quaternion now = j[s].localRotation;
+                if (!_fingersWritten || Quaternion.Angle(now, _fingerWritten[finger][s]) > 0.05f)
+                {
+                    _fingerBase[finger][s] = now;
+                }
+                j[s].localRotation = _fingerBase[finger][s];
+            }
+            if (amount > 0.01f && j.Length >= 2)
+            {
+                Vector3 palm = -(hand.rotation * c.BackDir);
+                Vector3 d0 = j[1].position - j[0].position;
+                Vector3 d1 = j.Length > 2 ? j[2].position - j[1].position : j[1].childCount > 0 ? j[1].GetChild(0).position - j[1].position : d0;
+                Vector3 axis = Vector3.Angle(d0, d1) >= 8f ? Vector3.Cross(d0, d1) : Vector3.Cross(d0, palm);
+                if (axis.sqrMagnitude > 1e-10f)
+                {
+                    axis.Normalize();
+                    if (Vector3.Dot(Vector3.Cross(axis, d0), palm) < 0f)
+                    {
+                        axis = -axis;
+                    }
+                    for (int s = 0; s < j.Length; s++)
+                    {
+                        j[s].rotation = Quaternion.AngleAxis(Mathf.Clamp01(amount) * PullBend[Mathf.Min(s, 2)], axis) * j[s].rotation;
+                    }
+                }
+            }
+            for (int s = 0; s < j.Length; s++)
+            {
+                _fingerWritten[finger][s] = j[s].localRotation;
+            }
+            _fingersWritten = true;
+        }
+
         public void Remember()
         {
             for (int f = 0; f < 5; f++)

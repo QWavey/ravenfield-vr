@@ -46,6 +46,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The weapon's left hand's fingers, posed from the controller while the hand is off the gun.</summary>
         private readonly ArmFingers _fingers;
+        /// <summary>The gun hand's fingers: only its index moves, with the trigger (<see cref="ArmFingers.Pull"/>).</summary>
+        private readonly ArmFingers _gunFingers;
 
         public bool Active => _right.Valid || _left.Valid;
 
@@ -63,6 +65,10 @@ namespace RavenfieldVR.Weapons
             if (_left.Valid)
             {
                 _fingers = new ArmFingers(_left.Hand);
+            }
+            if (_right.Valid)
+            {
+                _gunFingers = new ArmFingers(_right.Hand);
             }
             MagHoldPose hold = held.Rig.Data.MagHold;
             if (hold != null && _left.Valid && hold.FingerPaths != null)
@@ -107,6 +113,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
                 GunHandError = Vector3.Distance(_right.Hand.position, target.position);
+                _gunFingers?.Pull(_right.Hand, _right.Chain, 1, Input.VRInput.GetTrigger(_sys.Rig.Dominant.Side));
             }
             if (_left.Valid)
             {
