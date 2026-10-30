@@ -1,7 +1,8 @@
 """The autotest's graphics bench as a table of what each variant saves or costs against its own preset: "Medium, small objects
 without shadows" against "Medium", "Game, game cameras 1 px" against "Game (own quality)", "old High" against "High". The
 bench measures every setting twice with the world frozen (AutoTest's graphics bench); a difference inside the spread of the two
-rounds' GPU times is marked as noise. Read it to decide the settings to try (Tasks 356: keep one on by default only if it holds).
+rounds' GPU times is marked as noise, and one inside the spread of their frame intervals (benches since 2026-10-30 print those)
+likewise. Read it to decide the settings to try (Tasks 356: keep one on by default only if it holds).
 
 Run: python -I tools/bench_report.py [REPORT]   (default: the game's BepInEx/RavenfieldVR-autotest.txt)"""
 import os
@@ -9,7 +10,7 @@ import re
 import sys
 
 GAME = r'C:\Program Files (x86)\Steam\steamapps\common\Ravenfield\BepInEx'
-ROW = re.compile(r'^\s{2,}(\S.*?)\s+frame\s+([\d.]+) ms, GPU\s+(\S+) ms \(GPU by round ([^)]*)\)')
+ROW = re.compile(r'^\s{2,}(\S.*?)\s+frame\s+([\d.]+) ms, GPU\s+(\S+) ms \(GPU by round ([^)]*)\)(?: \(frame by round ([^)]*)\))?')
 
 
 def number(text):
@@ -20,7 +21,7 @@ def number(text):
 
 
 def rows(text):
-    """The bench's rows after its heading: (name, frame ms, GPU ms or None, [GPU by round])."""
+    """The bench's rows after its heading: (name, frame ms, GPU ms or None, [GPU by round], [frame by round], possibly empty)."""
     out, inside = [], False
     for line in text.splitlines():
         if 'Graphics bench' in line:
@@ -34,7 +35,8 @@ def rows(text):
                 inside = False
             continue
         rounds = [r for r in (number(x.strip()) for x in m.group(4).split('/')) if r is not None]
-        out.append((m.group(1).strip(), float(m.group(2)), number(m.group(3)), rounds))
+        frames = [r for r in (number(x.strip()) for x in (m.group(5) or '').split('/')) if r is not None]
+        out.append((m.group(1).strip(), float(m.group(2)), number(m.group(3)), rounds, frames))
     return out
 
 
@@ -59,21 +61,25 @@ def spread(rounds):
 def table(bench):
     by_name = {r[0]: r for r in bench}
     lines = []
-    for name, frame, gpu, rounds in bench:
+    for name, frame, gpu, rounds, frames in bench:
         b = base_of(name, by_name)
         if b is None:
             continue
-        _, bframe, bgpu, brounds = by_name[b]
+        _, bframe, bgpu, brounds, bframes = by_name[b]
         d_frame = frame - bframe
         d_gpu = gpu - bgpu if gpu is not None and bgpu is not None else None
         noise = max(spread(rounds), spread(brounds))
         verdict = ''
         if d_gpu is not None:
-            # (By the GPU only: the bench prints the frame interval's rounds averaged, with no spread to weigh it by.)
+            # (The GPU by its rounds' spread; the frame below by its own, where the bench printed its rounds.)
             if abs(d_gpu) <= noise:
                 verdict = 'GPU: noise (inside the rounds\' spread)'
             else:
                 verdict = 'GPU: saves' if d_gpu < 0 else 'GPU: costs'
+        if frames and bframes:
+            frame_noise = max(spread(frames), spread(bframes))
+            said = 'noise' if abs(d_frame) <= frame_noise else 'saves' if d_frame < 0 else 'costs'
+            verdict = (verdict + '; ' if verdict else '') + f'frame: {said}'
         lines.append((name, b, d_frame, d_gpu, verdict))
     return lines
 

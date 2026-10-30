@@ -845,8 +845,11 @@ namespace RavenfieldVR.Core
                 List<float> gpuRounds = got.Where(s => s.Value >= 0f).Select(s => s.Value).ToList();
                 string gpuText = gpuRounds.Count > 0 ? gpuRounds.Average().ToString("0.00", CultureInfo.InvariantCulture) : "n/a";
                 string rounds = string.Join(" / ", got.Select(s => s.Value >= 0f ? s.Value.ToString("0.00", CultureInfo.InvariantCulture) : "n/a"));
-                Results.Add(string.Format(CultureInfo.InvariantCulture, "  {0,-26} frame {1,6:0.00} ms, GPU {2,6} ms (GPU by round {3})   last: {4}",
-                                          run.Key, cpu, gpuText, rounds, lines[run.Key]));
+                // (The frame interval's rounds too: the user's Medium is held back by the processor, and only the GPU's spread said
+                // whether a difference was the setting's or the scene's; tools/bench_report.py weighs both.)
+                string frameRounds = string.Join(" / ", got.Select(s => s.Key.ToString("0.00", CultureInfo.InvariantCulture)));
+                Results.Add(string.Format(CultureInfo.InvariantCulture, "  {0,-26} frame {1,6:0.00} ms, GPU {2,6} ms (GPU by round {3}) (frame by round {5})   last: {4}",
+                                          run.Key, cpu, gpuText, rounds, lines[run.Key], frameRounds));
                 // (Medians since 2026-10-24, named so: the runs before held averages under "GPU ms" and "frame ms".)
                 if (gpuRounds.Count > 0)
                 {
