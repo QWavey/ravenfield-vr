@@ -51,6 +51,10 @@ namespace RavenfieldVR.Weapons
                 {
                     bounds = d.MagBounds;
                 }
+                else if (kind == PropKind.Magazine)
+                {
+                    AdoptCopyBounds(d, bounds);
+                }
             }
             if (go == null && kind == PropKind.Rocket)
             {
@@ -122,6 +126,10 @@ namespace RavenfieldVR.Weapons
                 {
                     bounds = d.MagBounds;
                 }
+                else if (kind == PropKind.Magazine)
+                {
+                    AdoptCopyBounds(d, bounds); // (built as the gun is drawn: the well is right before the first magazine is taken)
+                }
             }
             if (go == null && kind == PropKind.Rocket)
             {
@@ -142,6 +150,34 @@ namespace RavenfieldVR.Weapons
         }
 
         internal static int DisplayLayer => HeldLayer;
+
+        /// <summary>
+        /// The gun takes its own magazine copy's box when the two clearly disagree (their middles 2 cm or more apart, or the longest
+        /// side off by a third): the magazine in the hand is lined up by the copy's box, while the well's keep-out, the grab on a
+        /// seated magazine and a belt's mouth went by the analysed one, so a magazine lined up in one place and seated in another
+        /// (user, 2026-10-29: "the mag insertion being on the wrong place but on the real when inserted"). In every logged case the
+        /// copy was the right one: the PKP's analysed box held its belt links, the G BRN180 EO SS's was 44 cm long for a 22 cm
+        /// magazine, the ARS guns' skinned magazines measured 13.6 cm across for a 21 cm one. Both boxes are in the magazine part's
+        /// own frame. Said once per gun.
+        /// </summary>
+        private static void AdoptCopyBounds(WeaponRigData d, Bounds copy)
+        {
+            Bounds analysed = d.MagBounds;
+            float copyLong = Longest(copy), analysedLong = Longest(analysed);
+            if (copyLong < 0.02f || analysedLong < 1e-4f)
+            {
+                return;
+            }
+            float apart = (copy.center - analysed.center).magnitude;
+            if (apart < 0.02f && copyLong <= analysedLong * 1.33f && copyLong >= analysedLong * 0.75f)
+            {
+                return;
+            }
+            Log.InfoOnce("magbounds-adopt:" + d.Key, $"{d.Key}: its magazine is measured by the copy in the hand from now on ({copyLong * 100f:0} cm long against "
+                                                   + $"the analysed {analysedLong * 100f:0}, their middles {apart * 100f:0.0} cm apart): the well, the seated grab and the "
+                                                   + "belt's mouth go by what is drawn.");
+            d.MagBounds = copy;
+        }
 
         /// <summary>
         /// The copy of the gun's own magazine (or rocket), checked against the analysis. A copy taken while the game had

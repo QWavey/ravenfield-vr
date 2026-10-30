@@ -2844,6 +2844,11 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       R870 in the headset.
 - [x] Tube port estimate 0.6 of the way to the forend; guessed AR handle, bolt cap, spare cap and 90 Hz fallback said in the log.
 - [x] Late drop fits cook by a 1 ms budget.
+- [x] (2026-10-30) The magazine's box from its copy where the two clearly disagree (MagazineProp.AdoptCopyBounds): the well's
+      keep-out, the seated grab and a belt's mouth went by the analysed box while the hand's magazine lines up by the copy's.
+      The exports' worst: the ARS HK416, MP9 and Glock 19 (skinned: analysed 13.6 cm across, the copy 21 cm long), the G BRN180
+      EO SS x3 (analysed 44 cm for a 22 cm magazine), the M1 GARRET's clip, the THUMPER. Check in a game run: the log line
+      "its magazine is measured by the copy in the hand" and a magazine going in on those guns.
 - [ ] The user's "mag insertion on the wrong place": only four guns show a copy/analysis difference in the last full autotest
       (PKP fixed; G BRN180 EO SS's analysis is the inflated one, 50 against 28 cm; M1 GARRET, THUMPER). Ask which guns; then
       bughunt 1-3 (copy box against analysed box, first insert after a dry draw, parked seat rotation).
