@@ -333,10 +333,15 @@ namespace RavenfieldVR.Weapons
             // The reload's helper hidden at rest (the M4A1 family's second 'zZ008 MAG', the fresh one the flat view's hand brings in) is
             // hidden while held too: wherever the game's reload animation plays it (Assisted reloading, or a reload the game starts),
             // it showed where the flat game's hidden hand would be, a second magazine floating by the gun (user, 2026-10-29: "some guns
-            // such like m4s also have a 2nd mag behind the gun floating"). Never one that holds the magazine or the gun.
+            // such like m4s also have a 2nd mag behind the gun floating"). Only one named as ammunition (a magazine, a round, a
+            // shell, an ammo box, a rocket: of the 63 helpers in the weapon report, 'eo', 'Radio call.001', '45 Spring Empty' and an
+            // optic, 'spectre', are not), never a sight part, never one that holds the magazine or the gun.
             Transform helper = _reloadHelper;
             _reloadHelper = null;
-            if (helper != null && helper != mag && !mag.IsChildOf(helper) && !helper.IsChildOf(mag) && (gunBody == null || !gunBody.IsChildOf(helper)))
+            bool singleShot = d.Action == ActionType.SingleShot;
+            if (helper != null && helper != mag && !mag.IsChildOf(helper) && !helper.IsChildOf(mag) && (gunBody == null || !gunBody.IsChildOf(helper))
+                && (IsMagName(helper.name, singleShot) || RoundName.IsMatch(helper.name) || AmmoPartName.IsMatch(helper.name)) && !OpticName.IsMatch(helper.name)
+                && !d.SightPartPaths.Exists(p => { Transform s = WeaponRig.Resolve(root, p); return s != null && (s == helper || s.IsChildOf(helper) || helper.IsChildOf(s)); }))
             {
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, helper));
                 d.Notes += $"the reload helper '{helper.name}' hidden while held ";
