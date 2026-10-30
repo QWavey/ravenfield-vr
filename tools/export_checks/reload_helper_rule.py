@@ -3,6 +3,8 @@ second 'zZ008 MAG', the fresh magazine the flat view's hand brings in) and which
 (WeaponAnalyzer.AnalyzeMagazine, 155fa20): only one named as ammunition (a magazine, a round, a shell, an ammo box), never an
 optic. An export made after that change says "the reload helper 'X' hidden while held" for each one hidden; a gun whose
 note disagrees with the rule here is listed as wrong (exit code 1). An older export has no such notes and is listed only.
+An export with the arm meshes' names (rig.json "armRenderers", 2026-10-30) also lists the arm meshes named as ammunition, which
+Weapon's arms never draws and the empty-hand arms never copy (WeaponAnalyzer.NamedAsAmmunition).
 Usage: reload_helper_rule.py [gun dir ...]"""
 import glob
 import json
@@ -23,6 +25,7 @@ AMMO = re.compile(r"gauge|guage|loader|follower|弹|patron", re.I)
 OPTIC = re.compile(r"glass|lens|scope|sight|optic|reticle|magnif|zoom|(^|[^a-z])(clu|cmd ?unit|command ?unit)($|[^a-z])|倍镜|瞄", re.I)
 FOUND = re.compile(r"'([^']*)' moves in the reload but is hidden at rest")
 HIDDEN = re.compile(r"the reload helper '([^']*)' hidden while held")
+ARM = re.compile(r"arm(?!ature|or)|hand(?!guard|le)|glove|sleeve|finger|wrist|body ?arms|手", re.I)  # WeaponAnalyzer's ArmMeshName
 
 
 def hides(name):
@@ -32,8 +35,14 @@ def hides(name):
     return bool(named) and not NOT_MAG.search(name) and not OPTIC.search(name)
 
 
+def arm_ammo(name):
+    """WeaponAnalyzer.NamedAsAmmunition: a magazine or round name that is not also an arm's."""
+    return bool(MAG.search(name) and not NOT_MAG.search(name) or ROUND.search(name)) and not ARM.search(name)
+
+
 names = sys.argv[1:] or sorted(os.path.basename(x) for x in glob.glob(os.path.join(DATA, '*')))
 rows, wrong, new_export = [], [], False
+arm_rows, arms_known = [], 0
 for n in names:
     try:
         rig = json.load(open(os.path.join(DATA, n, 'rig.json'), encoding='utf-8'))
@@ -46,6 +55,9 @@ for n in names:
     new_export |= bool(hidden)
     for helper in found:
         rows.append((n, helper, hides(helper), helper in hidden))
+    if 'armRenderers' in rig:
+        arms_known += 1
+        arm_rows += [(n, a) for a in rig['armRenderers'] if arm_ammo(a)]
 # Only an export with any such note was made after the rule: in an older one every helper reads as "not hidden".
 for n, helper, rule, said in rows:
     if new_export and rule != said:
@@ -59,5 +71,9 @@ for (helper, rule), guns in sorted(by_name.items(), key=lambda kv: (-len(kv[1]),
     print(f"  {'hidden' if rule else 'drawn '} {len(guns):3d}  {helper}   ({guns[0]}{', ...' if len(guns) > 1 else ''})")
 for n, helper, rule, said in wrong:
     print(f"WRONG {n}: '{helper}' {'should be' if rule else 'is'} hidden while held, the note {'does not say so' if rule else 'says so'}")
+if arms_known:
+    print(f"{len(arm_rows)} arm mesh(es) named as ammunition in {arms_known} gun(s) with their arm meshes exported (never drawn on Weapon's arms)")
+    for n, a in arm_rows:
+        print(f"  {n}: '{a}'")
 print(f"{len(wrong)} wrong")
 sys.exit(1 if wrong else 0)

@@ -454,11 +454,24 @@ namespace RavenfieldVR.Weapons
                 .Str("hingeKind", d.Hinge.ToString()).Vec("hingePivot", d.HingePivot).Vec("hingeAxis", d.HingeAxis)
                 .Num("hingeAngle", d.HingeOpenAngle).Vec("hingeGrab", d.HingeGrabPoint).Bool("seatOnHinge", d.SeatOnHinge)
                 .Floats("gripCurls", d.GripCurls).Floats("supportCurls", d.SupportCurls)
+                // By name: neither is in the model file (the arms are left out, a part hidden while held mostly hidden at rest), and the
+                // export checks read the name rules against them (tools/export_checks/reload_helper_rule.py).
+                .Strs("armRenderers", Names(root, d.ArmRendererPaths)).Strs("spareParts", Names(root, d.SparePartPaths))
                 .Str("notes", d.Notes).Str("warnings", string.Join("; ", d.Warnings.ToArray())).Str("export", note);
             return j.Done();
         }
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+        /// <summary>The names of the parts at these paths under <paramref name="root"/> ("?" for one gone).</summary>
+        private static IEnumerable<string> Names(Transform root, List<int[]> paths)
+        {
+            foreach (int[] p in paths)
+            {
+                Transform t = WeaponRig.Resolve(root, p);
+                yield return t != null ? t.name : "?";
+            }
+        }
 
         private static string Str(string s)
         {
@@ -549,6 +562,12 @@ namespace RavenfieldVR.Weapons
             public Json Path(string k, int[] p)
             {
                 Key(k)._sb.Append(p == null ? "null" : SandboxExport.Str(string.Join("/", p.Select(i => i.ToString(CultureInfo.InvariantCulture)).ToArray())));
+                return this;
+            }
+
+            public Json Strs(string k, IEnumerable<string> vs)
+            {
+                Key(k)._sb.Append('[').Append(string.Join(",", vs.Select(SandboxExport.Str).ToArray())).Append(']');
                 return this;
             }
 
