@@ -90,6 +90,10 @@ if (($unused | Select-Object -Last 1) -notmatch '^0 ') { $unused | Select-Object
 if (Test-Path (Join-Path $Root 'reports/sandbox/data/weapons')) {
     python -I (Join-Path $Root 'tools/export_checks/mag_line_table_check.py') | Select-Object -Last 1
     if ($LASTEXITCODE -ne 0) { $code = 1 }
+    # The reload helpers each gun hides while held, by their notes against the name rule (an export made before the rule: listed only).
+    $helpers = python -I (Join-Path $Root 'tools/export_checks/reload_helper_rule.py')
+    $helpers | Select-Object -Last 1
+    if ($LASTEXITCODE -ne 0) { $helpers | Where-Object { $_ -match '^WRONG' }; $code = 1 }
 } else {
     Write-Host 'Magazine-line table check skipped (no sandbox export in reports/sandbox/data)'
 }

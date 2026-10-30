@@ -130,13 +130,19 @@ namespace RavenfieldVR.Rig
             {
                 RestoreShadows(); // (the eyes always with the real distance: a suppressed render whose post-render never came left it at 0)
                 RestoreRects();
+                RestoreMasks();
                 return;
             }
             if (!_suppressed.Contains(c) || c.targetTexture != null)
             {
                 return;
             }
-            _maskDuringRender[c] = c.cullingMask;
+            // (Saved once: a render whose post-render never came left the mask at 0, and taken again as the real one it stayed 0 for
+            // good, after VR too; review, 2026-10-30.)
+            if (!_maskDuringRender.ContainsKey(c))
+            {
+                _maskDuringRender[c] = c.cullingMask;
+            }
             c.cullingMask = 0;
             if (OnePixel && !_rectDuringRender.ContainsKey(c))
             {
@@ -200,12 +206,13 @@ namespace RavenfieldVR.Rig
             _rectDuringRender.Clear();
         }
 
-        public void Dispose()
+        /// <summary>Culling masks whose post-render never came put back (as <see cref="RestoreRects"/>).</summary>
+        private void RestoreMasks()
         {
-            RestoreShadows();
-            RestoreRects();
-            Camera.onPreCull -= OnPreCull;
-            Camera.onPostRender -= OnPostRender;
+            if (_maskDuringRender.Count == 0)
+            {
+                return;
+            }
             foreach (KeyValuePair<Camera, int> kv in _maskDuringRender)
             {
                 if (kv.Key != null)
@@ -213,6 +220,16 @@ namespace RavenfieldVR.Rig
                     kv.Key.cullingMask = kv.Value;
                 }
             }
+            _maskDuringRender.Clear();
+        }
+
+        public void Dispose()
+        {
+            RestoreShadows();
+            RestoreRects();
+            RestoreMasks();
+            Camera.onPreCull -= OnPreCull;
+            Camera.onPostRender -= OnPostRender;
             foreach (Camera c in _suppressed)
             {
                 if (c == null)
