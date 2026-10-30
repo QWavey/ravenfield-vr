@@ -34,7 +34,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 ## First minutes
 
 - **Height** is calibrated a moment after you first spawn: stand up straight. Redo it from the settings panel ("Calibrate now"). Playing seated? Turn on "Seated play" and calibrate while sitting.
-- **Settings panel:** double-click the left stick. Recenter, SteamVR bindings and Mod keys are at the bottom; "More settings" there opens a second page (sprint button, mounted-gun aim, stick dead zone, vibration, crouch height, roomscale walking, gloves, scope lenses, menu distance and width).
+- **Settings panel:** double-click the left stick. Recenter, SteamVR bindings and Mod keys are at the bottom; "More settings" there opens a second page (sprint button, mounted-gun aim, stick dead zone, vibration, crouch height, roomscale walking, gloves, scope lenses, scope and aim steadying, throw strength, the HUD distance, the wrist and lens-flash switches, menu distance and width).
 - **Gun angle:** if guns feel tilted in your hand, use "Gun pitch" on the panel.
 
 ## Controls (Quest Touch, right-handed)

@@ -179,6 +179,7 @@ namespace RavenfieldVR.Weapons
             float dom = VRConfig.LeftHanded ? -1f : 1f;
             Vector3 at = zones.SpotPosition(spot);
             Vector3 barrel, top, centre;
+            Vector3 drawn = Vector3.zero; // which way a reached copy eases out of its holster (set per kind: its grip end)
             switch (zones.KindOf(spot))
             {
                 case BodyZones.SpotKind.Back when BodyZones.Boneworks:
@@ -225,7 +226,12 @@ namespace RavenfieldVR.Weapons
                     barrel = (up * 0.45f + right * (0.89f * (side != 0f ? side : dom))).normalized;
                     top = -fwd;
                     centre = at + fwd * 0.06f - up * 0.07f;
+                    drawn = fwd; // out from the chest, toward the hand in front of it (along the barrel was sideways, across it)
                     break;
+            }
+            if (drawn == Vector3.zero)
+            {
+                drawn = -barrel; // the grip end: up out of a back or hip holster, forward out of the others
             }
             Quaternion rot = Quaternion.LookRotation(barrel, top) * Runtime.RigidPose.Conjugate(s.Frame);
             Transform t = s.Go.transform;
@@ -234,14 +240,21 @@ namespace RavenfieldVR.Weapons
             {
                 t.localScale = scale;
             }
-            centre -= barrel * (0.015f * s.Hover); // drawn out a little toward the reaching hand (the grip end)
+            centre += drawn * (0.015f * s.Hover); // drawn out a little toward the reaching hand
             t.rotation = rot;
             t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);
         }
 
         private static void Hide(Shown s)
         {
-            if (s != null && s.Go != null && s.Go.activeSelf)
+            if (s == null)
+            {
+                return;
+            }
+            // Shown again at rest (a weapon back in another holster came back eased out and judged by its old place near the eyes).
+            s.Hover = 0f;
+            s.NearEyes = false;
+            if (s.Go != null && s.Go.activeSelf)
             {
                 s.Go.SetActive(false);
             }

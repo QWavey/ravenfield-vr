@@ -14,8 +14,9 @@ namespace RavenfieldVR.UI
     /// <summary>
     /// In-headset settings: turning, comfort, height, reloading, gun angle, rendering, handedness, plus recenter
     /// and the SteamVR binding UI; a second page ("More settings") for the controls, the gloves and the menus, which were only
-    /// in the config file (the first page was already about 1.5 m tall; sweep, 2026-10-29). Changes write straight to the
-    /// BepInEx config and apply live (the few that do not say when they do).
+    /// in the config file (sweep, 2026-10-29), and the first page's less used rows (aiming, display details: it was about 2.4 m
+    /// tall; the pages are about 1.8 m each). Changes write straight to the BepInEx config and apply live (the few that do not say
+    /// when they do).
     /// Visual language: gunmetal panel, off-white type, one signal-amber accent for the active choice, square
     /// flat controls; the game's own UI font when it can be found.
     /// </summary>
@@ -97,30 +98,13 @@ namespace RavenfieldVR.UI
             // How close a hand must be to take a slide, a foregrip or a magazine (only in the config file before: grabs that miss by
             // a few centimetres on another controller or hand size had no fix in the headset; sweep).
             Stepper("Grab reach", () => $"{VRConfig.GrabRadius.Value * 100f:0} cm", d => VRConfig.GrabRadius.Value = Mathf.Clamp(VRConfig.GrabRadius.Value + d * 0.01f, 0.03f, 0.25f));
-            Stepper("Scope steadying", () => VRConfig.ScopeSteadying.Value <= 0f ? "off" : $"{VRConfig.ScopeSteadying.Value * 100f:0}%",
-                d => VRConfig.ScopeSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ScopeSteadying.Value + d * 0.25f) * 4f) / 4f));
-            Stepper("Aim steadying", () => VRConfig.AimSteadying.Value <= 0f ? "off" : $"{VRConfig.AimSteadying.Value * 100f:0}%",
-                d => VRConfig.AimSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.AimSteadying.Value + d * 0.25f) * 4f) / 4f));
-            Stepper("Throw strength", () => $"{VRConfig.ThrowVelocityMultiplier.Value:0.0}×",
-                d => VRConfig.ThrowVelocityMultiplier.Value = Mathf.Clamp(Mathf.Round((VRConfig.ThrowVelocityMultiplier.Value + d * 0.1f) * 10f) / 10f, 0.5f, 4f));
 
             Section("Display");
             Choice("Graphics", VRConfig.Graphics, new[] { GraphicsPreset.Low, GraphicsPreset.Medium, GraphicsPreset.High, GraphicsPreset.Ultra, GraphicsPreset.Game },
                 new[] { "Low", "Medium", "High", "Ultra", "Game" });
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
             Choice("Hold the frame rate", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
-            Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
-            TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);
-            Choice("Frame rate on wrist", VRConfig.WristFrameRate, new[] { true, false }, new[] { "On", "Off" });
-            TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
-            // The body's shadow beside it: a switch to see whether it was the shadow over the hands (task 336).
-            TogglePair("Wrist HP and ammo", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);
-            TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
-            Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
-                d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
-            Stepper("Scope picture (next scope)", () => $"{VRConfig.ScopeResolution.Value} px",
-                d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
             float mainHeight = _height + 18f;
 
             BuildMore();
@@ -145,7 +129,7 @@ namespace RavenfieldVR.UI
             _page = _pages[1] = Page("More settings");
             _height = 28f;
             Label("More settings", 40, FontStyle.Bold, TextColor, 34f, 64f);
-            Label("Controls, gloves and menus. (restart): applies when the game starts again.", 20, FontStyle.Normal, MutedText, 34f, 40f);
+            Label("Controls, aiming, display details, gloves and menus. (restart): applies when the game starts again.", 20, FontStyle.Normal, MutedText, 34f, 40f);
             _height += 10f;
 
             Section("Controls and comfort");
@@ -165,6 +149,28 @@ namespace RavenfieldVR.UI
             Stepper("Glove size (restart)", () => $"{VRConfig.GloveSize.Value * 100f:0}%",
                 d => VRConfig.GloveSize.Value = Mathf.Clamp(Mathf.Round((VRConfig.GloveSize.Value + d * 0.02f) * 50f) / 50f, 0.7f, 1.1f));
             TogglePair("Scope lenses (next draw)", VRConfig.VRScopes, "Shot view flash", VRConfig.ShotViewFlash);
+
+            // (From the first page, which was about 2.4 m tall with them: the two pages are about 1.8 m each now; review, 2026-10-30.)
+            Section("Aiming and throwing");
+            Stepper("Scope steadying", () => VRConfig.ScopeSteadying.Value <= 0f ? "off" : $"{VRConfig.ScopeSteadying.Value * 100f:0}%",
+                d => VRConfig.ScopeSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.ScopeSteadying.Value + d * 0.25f) * 4f) / 4f));
+            Stepper("Aim steadying", () => VRConfig.AimSteadying.Value <= 0f ? "off" : $"{VRConfig.AimSteadying.Value * 100f:0}%",
+                d => VRConfig.AimSteadying.Value = Mathf.Clamp01(Mathf.Round((VRConfig.AimSteadying.Value + d * 0.25f) * 4f) / 4f));
+            Stepper("Throw strength", () => $"{VRConfig.ThrowVelocityMultiplier.Value:0.0}×",
+                d => VRConfig.ThrowVelocityMultiplier.Value = Mathf.Clamp(Mathf.Round((VRConfig.ThrowVelocityMultiplier.Value + d * 0.1f) * 10f) / 10f, 0.5f, 4f));
+
+            Section("Display details");
+            Stepper("HUD distance", () => $"{VRConfig.HudDistance.Value:0.0} m", d => VRConfig.HudDistance.Value = Mathf.Clamp(VRConfig.HudDistance.Value + d * 0.5f, 1f, 20f));
+            TogglePair("Ammo counter on gun", VRConfig.GunAmmoCounter, "Grenade pins", VRConfig.GrenadePins);
+            Choice("Frame rate on wrist", VRConfig.WristFrameRate, new[] { true, false }, new[] { "On", "Off" });
+            TogglePair("Holstered weapons", VRConfig.ShowHolsters, "Explosion dirt", VRConfig.ExplosionDirt);
+            // The body's shadow beside it: a switch to see whether it was the shadow over the hands (task 336).
+            TogglePair("Wrist HP and ammo", VRConfig.WristHud, "Own body shadow", VRConfig.BodyShadow);
+            TogglePair("Muzzle lens flash", VRConfig.LensFlash, "Water drops", VRConfig.WaterDrops);
+            Stepper("Lens flash strength", () => $"{VRConfig.LensFlashStrength.Value * 100f:0}%",
+                d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
+            Stepper("Scope picture (next scope)", () => $"{VRConfig.ScopeResolution.Value} px",
+                d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
 
             Section("Menus");
             Stepper("Menu distance (next open)", () => $"{VRConfig.MenuDistance.Value:0.0} m",
@@ -298,7 +304,7 @@ namespace RavenfieldVR.UI
             });
         }
 
-        /// <summary>Two on/off settings side by side in one row (the panel was already about 1.5 m tall).</summary>
+        /// <summary>Two on/off settings side by side in one row (the panel is tall enough as it is).</summary>
         private void TogglePair(string left, ConfigEntry<bool> leftEntry, string right, ConfigEntry<bool> rightEntry)
         {
             RectTransform row = Row(RowHeight);

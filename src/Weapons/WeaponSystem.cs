@@ -875,7 +875,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The holster each hand is over (a tick when it arrives at one with a weapon in it).</summary>
         private readonly int[] _hoveredHolster = { -1, -1 };
 
-        /// <summary>A hand is at this holster slot with something there to draw (or to put its second weapon back): its copy reacts.</summary>
+        /// <summary>A hand is at this holster slot with something there to draw: its copy reacts (the second weapon's own copy is hidden).</summary>
         internal bool HolsterHovered(int slot) => slot >= 0 && (_hoveredHolster[0] == slot || _hoveredHolster[1] == slot);
 
         /// <summary>
@@ -889,6 +889,8 @@ namespace RavenfieldVR.Weapons
             // weapon in the frozen match (vehicles hunt, 2026-10-21).
             if (!VRConfig.HolsterSwitching.Value || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
+                // (And no hover kept: a copy reached as the pause began stayed eased out through it; review, 2026-10-30.)
+                _hoveredHolster[0] = _hoveredHolster[1] = -1;
                 return;
             }
             Actor actor = GameContext.PlayerActor;
