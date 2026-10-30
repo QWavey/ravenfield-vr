@@ -26,6 +26,9 @@ namespace RavenfieldVR.Weapons
             public float Length;     // along the barrel
             /// <summary>The model's own frame: barrel and top in its local space, as a rotation (forward = barrel).</summary>
             public Quaternion Frame = Quaternion.identity;
+            /// <summary>Its scale as built, how far a hand's reach has eased it out (0-1), and whether it is hidden near the eyes.</summary>
+            public float Scale = 1f, Hover;
+            public bool NearEyes;
         }
 
         private readonly WeaponSystem _sys;
@@ -65,11 +68,18 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                 }
+                // A hand reaching the holster eases its copy out a little (5% larger, 1.5 cm out along its barrel), as the pouch's copy
+                // lifts: the one tick on reaching it was all a holster gave (sweep, improve 6).
+                s.Hover = Mathf.MoveTowards(s.Hover, _sys.HolsterHovered(slot) ? 1f : 0f, Time.unscaledDeltaTime * 8f);
                 Place(s, zones, spot);
-                // Never in front of the eyes: a copy reaching into the face is hidden until you look away.
+                // Never in front of the eyes: a copy reaching into the face is hidden until you look away. With a band either side
+                // (3 cm, and a tenth of the facing): one line for both ways flipped it every frame for a head held on it (a
+                // shouldered rifle close to the eyes; sweep, improve 7).
                 Vector3 centre = s.Go.transform.TransformPoint(s.Centre);
-                bool visible = Vector3.Distance(centre, head.position) > 0.2f + s.Length * 0.25f
-                               || Vector3.Dot(head.forward, (centre - head.position).normalized) < 0.2f;
+                float near = 0.2f + s.Length * 0.25f, distance = Vector3.Distance(centre, head.position);
+                float facing = Vector3.Dot(head.forward, (centre - head.position).normalized);
+                s.NearEyes = s.NearEyes ? distance < near + 0.03f && facing > 0.1f : distance <= near && facing >= 0.2f;
+                bool visible = !s.NearEyes;
                 if (s.Go.activeSelf != visible)
                 {
                     s.Go.SetActive(visible);
@@ -151,7 +161,8 @@ namespace RavenfieldVR.Weapons
                 Go = model,
                 Centre = any ? bounds.center : Vector3.zero,
                 Length = length,
-                Frame = frame
+                Frame = frame,
+                Scale = uniform
             };
         }
 
@@ -218,6 +229,12 @@ namespace RavenfieldVR.Weapons
             }
             Quaternion rot = Quaternion.LookRotation(barrel, top) * Runtime.RigidPose.Conjugate(s.Frame);
             Transform t = s.Go.transform;
+            Vector3 scale = Vector3.one * (s.Scale * (1f + 0.05f * s.Hover));
+            if (t.localScale != scale)
+            {
+                t.localScale = scale;
+            }
+            centre -= barrel * (0.015f * s.Hover); // drawn out a little toward the reaching hand (the grip end)
             t.rotation = rot;
             t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);
         }

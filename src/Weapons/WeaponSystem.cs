@@ -872,6 +872,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>The holster each hand is over (a tick when it arrives at one with a weapon in it).</summary>
         private readonly int[] _hoveredHolster = { -1, -1 };
 
+        /// <summary>A hand is at this holster slot with something there to draw (or to put its second weapon back): its copy reacts.</summary>
+        internal bool HolsterHovered(int slot) => slot >= 0 && (_hoveredHolster[0] == slot || _hoveredHolster[1] == slot);
+
         /// <summary>
         /// Either hand draws from the body: the weapon comes out in the hand that took it. The hand holding the drawn
         /// weapon puts it back at its own holster or swaps it for another; the free hand takes another weapon into itself
