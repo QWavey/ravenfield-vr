@@ -98,6 +98,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> ScopeHalfRate;
         public static ConfigEntry<bool> HoldFrameRate;
         public static ConfigEntry<bool> GameCamerasOnePixel;
+        public static ConfigEntry<float> GcSliceMs;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -276,6 +277,11 @@ namespace RavenfieldVR.Core
                 "Magnified picture-in-picture scope lens for scoped weapons that only had a 2D scope overlay.");
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
+            GcSliceMs = cfg.Bind("Rendering", "GarbageCollectionSliceMs", 3f,
+                new ConfigDescription("To try: how much of a frame (ms) the game's incremental garbage collector may take while a collection runs "
+                                      + "(Unity's own is 3, of the 11.1 ms a 90 Hz frame has). Lower spreads the same work over more frames, so a frame near "
+                                      + "the budget is less likely to miss; too low and a collection may not keep up. Applies at once; the frame rate line "
+                                      + "says the slice.", new AcceptableValueRange<float>(0.5f, 3f)));
             GameCamerasOnePixel = cfg.Bind("Rendering", "GameCamerasOnePixel", false,
                 "To try: the game's own screen cameras, which draw nothing in VR but are kept on for the game's logic, render into one pixel "
                 + "instead of the whole screen (their clears, image effects and post-processing cost about 0.7 ms of main thread a frame on a "

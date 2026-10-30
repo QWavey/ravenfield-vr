@@ -2837,7 +2837,8 @@ array (debug option only).
       Check it bends toward the trigger, not away, on a few guns.
 - [ ] Settings to try in a headset, each said in the frame rate line when on: GameCamerasOnePixel (the game's screen cameras
       into 1 px: compare "Camera", "FP Camera", "Global Post-processing" in the line; check the desktop mirror and aiming) and
-      ScopeHalfRate (aim through a magnified scope: does the lens picture judder?). Keep on by default only if they hold.
+      ScopeHalfRate (aim through a magnified scope: does the lens picture judder?), and GarbageCollectionSliceMs (2 or 1 against
+      Unity's 3: the minute's on-time share and collections). Keep on by default only if they hold.
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when

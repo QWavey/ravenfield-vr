@@ -223,6 +223,50 @@ namespace RavenfieldVR.Core
         private const double SlowCpuPercent = 75.0;
         private static bool _slowCpuSaid;
 
+        /// <summary>The collector's own slice as VR found it (0 until taken), put back when VR stops.</summary>
+        private static ulong _gcSliceOriginal;
+
+        /// <summary>
+        /// The incremental collector's slice from GarbageCollectionSliceMs, to try: only when it differs from Unity's 3 ms, so an untouched
+        /// setting leaves the game's own; called at VR start and when the setting changes.
+        /// </summary>
+        internal static void ApplyGcSlice()
+        {
+            try
+            {
+                if (!UnityEngine.Scripting.GarbageCollector.isIncremental)
+                {
+                    return;
+                }
+                if (_gcSliceOriginal == 0)
+                {
+                    _gcSliceOriginal = UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds;
+                }
+                float ms = Mathf.Clamp(VRConfig.GcSliceMs.Value, 0.5f, 3f);
+                UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = Mathf.Abs(ms - 3f) < 0.01f ? _gcSliceOriginal : (ulong)(ms * 1e6f);
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("FrameBudget.ApplyGcSlice", e);
+            }
+        }
+
+        /// <summary>The collector's slice back as VR found it.</summary>
+        internal static void RestoreGcSlice()
+        {
+            try
+            {
+                if (_gcSliceOriginal != 0)
+                {
+                    UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = _gcSliceOriginal;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("FrameBudget.RestoreGcSlice", e);
+            }
+        }
+
         /// <summary>
         /// The game's collector: incremental in slices of up to 3 ms a frame (its boot.config gc-max-time-slice=3), a third of a
         /// 90 Hz frame while a collection runs. Logged to weigh a shorter slice (a frame kept) against collections that then

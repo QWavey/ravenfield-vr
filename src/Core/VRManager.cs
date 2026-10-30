@@ -115,10 +115,12 @@ namespace RavenfieldVR.Core
             VRConfig.RenderScale.SettingChanged += OnRenderSettingChanged;
             VRConfig.Mirror.SettingChanged += OnRenderSettingChanged;
             VRConfig.Graphics.SettingChanged += OnGraphicsPresetChanged;
+            VRConfig.GcSliceMs.SettingChanged += OnGcSliceChanged;
             // Subscribed is set first and the presets guarded: a preset that threw left every handler above subscribed for good
             // (Shutdown unsubscribes only when set) and the warm-up never started (lifecycle hunt, 2026-10-20).
             _subscribed = true;
             Log.Guard("GraphicsPresets.Apply", GraphicsPresets.Apply);
+            FrameBudget.ApplyGcSlice();
             Log.Info($"VR active ({Time.realtimeSinceStartup:0.0} s after the game started).");
             // Content may have finished loading before VR came up; the warm-up skips rigs already analysed.
             WeaponWarmup.Start();
@@ -515,6 +517,8 @@ namespace RavenfieldVR.Core
 
         private void OnGraphicsPresetChanged(object sender, EventArgs e) => GraphicsPresets.OnPresetChanged();
 
+        private void OnGcSliceChanged(object sender, EventArgs e) => FrameBudget.ApplyGcSlice();
+
         private void Shutdown()
         {
             if (_subscribed)
@@ -526,6 +530,8 @@ namespace RavenfieldVR.Core
                 VRConfig.RenderScale.SettingChanged -= OnRenderSettingChanged;
                 VRConfig.Graphics.SettingChanged -= OnGraphicsPresetChanged;
                 VRConfig.Mirror.SettingChanged -= OnRenderSettingChanged;
+                VRConfig.GcSliceMs.SettingChanged -= OnGcSliceChanged;
+                FrameBudget.RestoreGcSlice();
                 _subscribed = false;
             }
             _active = false;
