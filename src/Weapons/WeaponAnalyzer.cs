@@ -71,6 +71,12 @@ namespace RavenfieldVR.Weapons
 
         private static bool IsMagName(string name) => MagName.IsMatch(name) && !NotMagName.IsMatch(name);
 
+        /// <summary>
+        /// Named as ammunition (a magazine, a round, a shell) and not as an arm: an arm mesh so named is the reload's fresh magazine
+        /// on the flat view's hand, not the arm ("Arms_Mag" is both, and stays an arm).
+        /// </summary>
+        internal static bool NamedAsAmmunition(string name) => (IsMagName(name) || RoundName.IsMatch(name)) && !ArmMeshName.IsMatch(name);
+
         /// <summary>A magazine (or on a launcher, its rocket) by its name: the launcher words count only on a launcher.</summary>
         private static bool IsMagName(string name, bool launcher) =>
             (MagName.IsMatch(name) || launcher && LauncherRoundName.IsMatch(name)) && !IsNotMag(name, launcher);
@@ -559,6 +565,10 @@ namespace RavenfieldVR.Weapons
                 }
                 if (hide)
                 {
+                    if (NamedAsAmmunition(r.name))
+                    {
+                        d.Notes += $"the arm mesh '{r.name}' is named as ammunition (never drawn on Weapon's arms) ";
+                    }
                     armRenderers.Add(r);
                     int[] path = WeaponRig.PathOf(root, r.transform);
                     if (path != null)

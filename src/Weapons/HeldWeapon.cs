@@ -122,6 +122,13 @@ namespace RavenfieldVR.Weapons
         /// <summary>The weapon's own right / left arm bones as ArmIK resolves them (root, upper, lower, hand); null: no chain.</summary>
         private readonly Transform[] _armRightBones, _armLeftBones;
 
+        /// <summary>
+        /// The arm meshes named as ammunition (<see cref="WeaponAnalyzer.NamedAsAmmunition"/>): the reload's fresh magazine on the
+        /// flat view's hand. Kept hidden with Weapon's arms, where the arms are otherwise left to the gun's animation: shown by it,
+        /// it came with the arm onto the controller beside the magazine the hand takes, or hung where the flat hand reloads.
+        /// </summary>
+        private readonly Renderer[] _ammoArms = new Renderer[0];
+
         private static Transform[] ResolveArm(Transform root, ArmChain chain) => chain == null ? null
             : new[] { WeaponRig.Resolve(root, chain.Root), WeaponRig.Resolve(root, chain.Upper), WeaponRig.Resolve(root, chain.Lower), WeaponRig.Resolve(root, chain.Hand) };
 
@@ -254,6 +261,7 @@ namespace RavenfieldVR.Weapons
                     _armIK = new ArmIK(system, this);
                     _armRightBones = ResolveArm(weapon.transform, rig.Data.ArmRight);
                     _armLeftBones = ResolveArm(weapon.transform, rig.Data.ArmLeft);
+                    _ammoArms = System.Array.FindAll(rig.ArmRenderers, r => r != null && WeaponAnalyzer.NamedAsAmmunition(r.name));
                 }
                 _gripHand = ModHand.Find(weapon.transform, rig.Data.ArmRight);
                 _supportHand = ModHand.Find(weapon.transform, rig.Data.ArmLeft);
@@ -1724,6 +1732,13 @@ namespace RavenfieldVR.Weapons
             }
             if (_armIK != null && _armIK.Active)
             {
+                foreach (Renderer r in _ammoArms)
+                {
+                    if (r != null && r.enabled)
+                    {
+                        r.enabled = false;
+                    }
+                }
                 _armIK.Solve();
                 // Only the glove whose arm the weapon draws gives way to it (the model's right arm is the gun arm): a model
                 // with one arm chain hid both gloves, and the other hand was invisible for the whole hold.

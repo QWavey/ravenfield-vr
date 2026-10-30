@@ -2873,6 +2873,9 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       ammo box, loose rounds); 'eo', 'spectre', 'Radio call.001', '45 Spring Empty' and the RPG's rockets stay drawn.
 - [ ] The floating second magazine on other M4s, if not the K13: Weapon's arms shows arm renderers, and a magazine mesh on an
       arm bone is an arm renderer. Ask which M4 and which Hands mode.
+      (2026-10-30) An arm mesh named as ammunition (a magazine skinned to the hand: the reload's fresh one) is kept hidden on
+      Weapon's arms and never copied onto the empty hands, which also copy only the arm meshes drawn at that moment (a
+      piece the animation hides stayed shown on the empty hand). Log: "the arm mesh '...' is named as ammunition".
 - [ ] FPS: the VR UI Camera's second cull per eye (1.1 ms of main thread on Medium in the user's 10-27 session); the laid
       belt's tray point (a hinge-midline guess, Tasks 274); named/AR handles' fixed 7.5 cm.
 

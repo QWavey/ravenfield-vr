@@ -43,7 +43,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Copy(held.Weapon, held.Rig);
+            Copy(held.Weapon, held.Rig, true);
         }
 
         /// <summary>When the next try at <see cref="TakeFromLoadout"/> may be (Time.unscaledTime).</summary>
@@ -76,7 +76,7 @@ namespace RavenfieldVR.Weapons
                 WeaponRig rig = sys.RigFor(w);
                 if (rig.Data.ArmRight != null && rig.Data.ArmLeft != null && rig.ArmRenderers.Length > 0)
                 {
-                    Copy(w, rig);
+                    Copy(w, rig, false);
                     if (_root != null)
                     {
                         return;
@@ -85,8 +85,11 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>The arm skeleton and arm meshes of <paramref name="weapon"/> copied (only those), its bones in their pose now.</summary>
-        private void Copy(Weapon weapon, WeaponRig rig)
+        /// <summary>
+        /// The arm skeleton and arm meshes of <paramref name="weapon"/> copied (only those), its bones in their pose now.
+        /// <paramref name="drawnNow"/>: held with Weapon's arms, so each arm mesh's own enabled state is the gun's animation's.
+        /// </summary>
+        private void Copy(Weapon weapon, WeaponRig rig, bool drawnNow)
         {
             WeaponRigData d = rig.Data;
             if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && AllMeshes())
@@ -107,6 +110,14 @@ namespace RavenfieldVR.Weapons
                 foreach (Renderer r in rig.ArmRenderers)
                 {
                     if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
+                    {
+                        continue;
+                    }
+                    // Only what the arms draw: a piece the gun's animation hides (a reload's fresh magazine on the hand, the flat view's)
+                    // was copied shown and stayed on the empty hand for good (Tasks 355). Its enabled state counts only off a gun held
+                    // with Weapon's arms (the mod leaves it to the animation there; with gloves the mod hid every arm mesh); a part
+                    // switched off in the model, and an arm mesh named as ammunition, never.
+                    if (drawnNow && !r.enabled || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
                     {
                         continue;
                     }
@@ -304,6 +315,19 @@ namespace RavenfieldVR.Weapons
             _root = null;
             _key = null;
             _renderers.Clear();
+        }
+
+        /// <summary>Whether <paramref name="t"/> and its parents up to the weapon's root are switched on in the model.</summary>
+        private static bool ActiveInWeapon(Transform t, Transform weaponRoot)
+        {
+            for (; t != null && t != weaponRoot; t = t.parent)
+            {
+                if (!t.gameObject.activeSelf)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static Transform[] Chain(Transform root, ArmChain c)
