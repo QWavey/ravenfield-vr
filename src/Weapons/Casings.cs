@@ -176,7 +176,7 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = held.ActiveRig.Data;
             Weapon.Configuration c = held.ActiveWeapon.configuration;
             // A slug gun's are shells too, when its own shell part is one (the R870 [SLUG]'s and M1878 Slugs' were rifle cases).
-            if ((c.projectilesPerShot > 1 || held.ActiveRig.Magazine != null && WeaponAnalyzer.ShellSized(d.MagBounds))
+            if ((c.projectilesPerShot > 1 || held.ActiveRig.Magazine != null && WeaponAnalyzer.ShellSized(d.AnalysedMagBounds)) // (not a copy's box)
                 && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual))
             {
                 return Kind.Shell;

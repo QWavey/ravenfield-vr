@@ -1555,6 +1555,8 @@ namespace RavenfieldVR.Weapons
                 if (d.Action == ActionType.ShellFed && !d.Handgun && Vector3.ProjectOnPlane(d.MagSeat.position - d.MuzzlePoint, d.AimAxis).magnitude > 0.12f)
                 {
                     SeatAtEstimatedPort(d, $"its reload part, {d.MagBounds.size.magnitude * 100f:0} cm, is no shell's size and waits out of the gun");
+                    // And not drawn where it waits while held, as ShellPort hides its shell (review: it stayed there beside the gun).
+                    d.SparePartPaths.Add(d.MagazinePath);
                 }
                 return;
             }

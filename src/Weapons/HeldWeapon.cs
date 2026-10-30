@@ -472,11 +472,16 @@ namespace RavenfieldVR.Weapons
                 }
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
-                    if (r is ParticleSystemRenderer || r.bounds.size.sqrMagnitude < 1e-8f)
+                    // Only what shows, near the gun (a renderer switched off, or a link parked away, is no feed; review).
+                    if (r is ParticleSystemRenderer || !r.enabled || !r.gameObject.activeInHierarchy || r.bounds.size.sqrMagnitude < 1e-8f)
                     {
                         continue;
                     }
                     Vector3 p = Rig.ToGun(r.bounds.center);
+                    if ((p - d.GripPoint).sqrMagnitude > 1.5f * 1.5f)
+                    {
+                        continue;
+                    }
                     float off = Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
                     if (Vector3.Dot(p - d.GripPoint, d.AimAxis) > 0.02f && off < bestOff && off < 0.15f)
                     {

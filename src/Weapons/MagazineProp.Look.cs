@@ -162,6 +162,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static void AdoptCopyBounds(WeaponRigData d, Bounds copy)
         {
+            // Once, on the first copy (the pouch's, at the draw: fully drawn): each later one compared with the last adopted box, a
+            // partly drawn copy at 0.4 of it passed and shrank it, and every loaded copy after was refused as too big (review).
+            if (d.MagBoundsChecked)
+            {
+                return;
+            }
+            d.MagBoundsChecked = true;
             Bounds analysed = d.MagBounds;
             float copyLong = Longest(copy), analysedLong = Longest(analysed);
             if (copyLong < 0.02f || analysedLong < 1e-4f)
@@ -176,6 +183,8 @@ namespace RavenfieldVR.Weapons
             Log.InfoOnce("magbounds-adopt:" + d.Key, $"{d.Key}: its magazine is measured by the copy in the hand from now on ({copyLong * 100f:0} cm long against "
                                                    + $"the analysed {analysedLong * 100f:0}, their middles {apart * 100f:0.0} cm apart): the well, the seated grab and the "
                                                    + "belt's mouth go by what is drawn.");
+            d.MagBoundsAnalysed = analysed;
+            d.MagBoundsAdopted = true;
             d.MagBounds = copy;
         }
 

@@ -272,6 +272,16 @@ namespace RavenfieldVR.Weapons
         /// <summary>Direction (gun-body space) a magazine leaves the well.</summary>
         public Vector3 MagEjectAxis = Vector3.down;
         public Bounds MagBounds = new Bounds(Vector3.zero, new Vector3(0.025f, 0.12f, 0.06f));
+
+        /// <summary>
+        /// Runtime: the magazine's box was compared with the gun's own copy once (MagazineProp.AdoptCopyBounds, the first copy, fully
+        /// drawn), and the analysed box as it was when the copy's replaced it (what the analysis's other readers, the casings, go by).
+        /// </summary>
+        public bool MagBoundsChecked, MagBoundsAdopted;
+        public Bounds MagBoundsAnalysed;
+
+        /// <summary>The magazine's box as the analysis measured it, whatever a copy's later replaced it with.</summary>
+        public Bounds AnalysedMagBounds => MagBoundsAdopted ? MagBoundsAnalysed : MagBounds;
         public Vector3 MuzzlePoint;
         /// <summary>
         /// Where the drawn barrel's front lies along the aim (gun-body space, metres from its origin), set only for a one-round

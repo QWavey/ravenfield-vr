@@ -677,7 +677,7 @@ namespace RavenfieldVR.Weapons
             Transform model = drop.Go.transform.GetChild(0).GetChild(0); // the drop's copy of the template, and its third-person model
             int hidden = HideInWorldModel(model, tpPath, paths);
             Log.InfoOnce("dropmagout:" + drop.Entry.name, $"{drop.Entry.name} put down with its magazine out: "
-                                                       + (hidden > 0 ? $"{hidden} magazine part(s) hidden on the ground copy." : "its third-person model has its own magazine, left drawn."));
+                                                       + (hidden > 0 ? $"{hidden} magazine part(s) hidden on the ground copy." : "the magazine is not in its third-person copy (a model of its own): left as it is."));
         }
 
         /// <summary>The weapon dropped last (self-test).</summary>
