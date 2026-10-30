@@ -108,6 +108,47 @@ namespace RavenfieldVR.Tests
             StaticInitTests(mod);
             SlowedHandTests(mod);
             HandPushTests(mod);
+            CopyBoxTests(mod);
+        }
+
+        /// <summary>
+        /// A gun takes its own magazine copy's box when the two clearly disagree, once (MagazineProp.AdoptCopyBounds, 2026-10-30: the
+        /// magazine lined up by the copy's box, the well by the analysed one): a copy 21 cm long and 10 cm off a 13.6 cm analysed box
+        /// is taken and the analysed box kept (the casings go by it); one within 2 cm and a third leaves it; a later copy is never
+        /// compared (a partly drawn one shrank it).
+        /// </summary>
+        private static void CopyBoxTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            Type data = mod.GetType("RavenfieldVR.Weapons.WeaponRigData");
+            System.Reflection.MethodInfo adopt = mod.GetType("RavenfieldVR.Weapons.MagazineProp")?.GetMethod("AdoptCopyBounds", any);
+            Check(adopt != null && data != null, "Copy box: AdoptCopyBounds found");
+            if (adopt == null || data == null)
+            {
+                return;
+            }
+            var analysed = new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(0.025f, 0.12f, 0.06f));
+            object Make()
+            {
+                object d = Activator.CreateInstance(data);
+                data.GetField("MagBounds").SetValue(d, analysed);
+                return d;
+            }
+            UnityEngine.Bounds Box(object d) => (UnityEngine.Bounds)data.GetField("MagBounds").GetValue(d);
+
+            object near = Make();
+            adopt.Invoke(null, new object[] { near, new UnityEngine.Bounds(new UnityEngine.Vector3(0.005f, 0f, 0f), new UnityEngine.Vector3(0.026f, 0.125f, 0.062f)) });
+            Check(!(bool)data.GetField("MagBoundsAdopted").GetValue(near) && Box(near).size == analysed.size,
+                "Copy box: a copy within 2 cm and a third leaves the analysed box");
+
+            object far = Make();
+            var copy = new UnityEngine.Bounds(new UnityEngine.Vector3(-0.096f, 0f, -0.018f), new UnityEngine.Vector3(0.03f, 0.21f, 0.09f));
+            adopt.Invoke(null, new object[] { far, copy });
+            var kept = (UnityEngine.Bounds)data.GetProperty("AnalysedMagBounds").GetValue(far);
+            Check(Box(far).center == copy.center && Box(far).size == copy.size && kept.size == analysed.size,
+                "Copy box: a 21 cm copy 10 cm off is taken, the analysed box kept");
+            adopt.Invoke(null, new object[] { far, new UnityEngine.Bounds(UnityEngine.Vector3.zero, UnityEngine.Vector3.one * 0.05f) });
+            Check(Box(far).size == copy.size, "Copy box: a later copy is not compared again");
         }
 
         /// <summary>
