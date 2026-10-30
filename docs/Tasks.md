@@ -2833,6 +2833,8 @@ array (debug option only).
       (spawned empty-handed: arms at once, not after a first draw), put aside while a hand holds a soldier, on the gun hand's
       side left-handed; the settings panel's two pages (about 1.8 m each; autotest SettingsPagesCheck); holster copies easing
       out when reached; the PKM family's belt laid at its model belt's feed (log: "the belt is laid at its model belt's feed").
+- [ ] The weapon's own gun hand: its index follows the trigger (up to 44 degrees on top of the animation's pose; ArmFingers.Pull).
+      Check it bends toward the trigger, not away, on a few guns.
 - [ ] Settings to try in a headset, each said in the frame rate line when on: GameCamerasOnePixel (the game's screen cameras
       into 1 px: compare "Camera", "FP Camera", "Global Post-processing" in the line; check the desktop mirror and aiming) and
       ScopeHalfRate (aim through a magnified scope: does the lens picture judder?). Keep on by default only if they hold.
