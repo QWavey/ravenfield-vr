@@ -1143,4 +1143,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    each said in the frame rate line and `frame_report`'s try column: `GameCamerasOnePixel`, `ScopeHalfRate`,
    `GarbageCollectionSliceMs`, `SmallObjectsNoShadows` (`SmallShadows`); offline tests for the copy box, the belt's rounds,
    the holster band and the shell port; the export check `magazine_pieces_rule.py`. Each batch read by a Haiku reviewer and its
-   findings fixed.
+   findings fixed. Later the same evening: the reload's helper hidden while held only when named as ammunition
+   (`WeaponAnalyzer.HelperNamedAsAmmunition`, the name also read without spaces; 36 of the export's 63 helpers; checked over an
+   export by `reload_helper_rule.py`), an arm mesh named as ammunition never drawn on Weapon's arms nor copied onto the empty
+   hands (`NamedAsAmmunition`), which copy only the arm meshes drawn; the small-shadow scan waiting for the level and measured
+   in the graphics bench (`SmallShadows.Bench`); offline tests for both name rules (249 checks).
