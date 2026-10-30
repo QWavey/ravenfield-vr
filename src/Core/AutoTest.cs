@@ -3174,7 +3174,7 @@ namespace RavenfieldVR.Core
                     actor.SwitchWeapon(slot);
                 }
             }
-            yield return new WaitForSecondsRealtime(1.5f); // drawn again with the VR hands
+            yield return new WaitForSecondsRealtime(1.5f); // drawn again in the chosen Hands mode
         }
 
         private static string _clipNow;
