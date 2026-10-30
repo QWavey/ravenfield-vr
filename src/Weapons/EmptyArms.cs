@@ -29,6 +29,18 @@ namespace RavenfieldVR.Weapons
         /// <summary>This class hid the gloves (and gives them back when it stops showing, whatever made it stop).</summary>
         private bool _glovesHidden;
 
+        /// <summary>
+        /// The copy's root against the head as it was copied, where it is carried every frame: left where the gun was put away, the
+        /// bones above and beside the two arms stayed there, and a mesh skinned to them stretched back to it as the player walked off.
+        /// </summary>
+        private RigidPose _rootInHead = RigidPose.Identity;
+
+        /// <summary>
+        /// The two arms' bones (right then left: root, upper arm, forearm, hand) as copied, put back before each frame's solve: with
+        /// no animator on the copy each solve began from the last one's, and the arms' twist could build up frame by frame.
+        /// </summary>
+        private readonly RigidPose[] _restLocal = new RigidPose[8];
+
         /// <summary>Self-test: the arms are drawn on the empty hands, and the farther hand bone's distance from its target (m).</summary>
         internal bool Shown => _root != null && _root.activeSelf;
         internal float HandError { get; private set; } = -1f;
@@ -211,6 +223,20 @@ namespace RavenfieldVR.Weapons
                 _leftChain = d.ArmLeft;
                 _rightFingers = new ArmFingers(_right[3]);
                 _leftFingers = new ArmFingers(_left[3]);
+                for (int i = 0; i < 8; i++)
+                {
+                    Transform t = i < 4 ? _right[i] : _left[i - 4];
+                    _restLocal[i] = new RigidPose(t.localPosition, t.localRotation);
+                }
+                // Carried with the head from where it is now (the gun in the hand); a carried weapon's object far off (more than a metre),
+                // just in front of the chest instead.
+                Transform head = VRRig.Instance != null ? VRRig.Instance.Head : null;
+                _rootInHead = head != null ? new RigidPose(head.position, head.rotation).Inverse().Multiply(new RigidPose(root.transform.position, root.transform.rotation))
+                    : RigidPose.Identity;
+                if (_rootInHead.position.magnitude > 1f)
+                {
+                    _rootInHead = new RigidPose(new Vector3(0f, -0.3f, 0.25f), _rootInHead.rotation);
+                }
                 _root = root;
                 _key = d.Key;
                 Log.Info($"Empty-hand arms: {d.Key}'s arms ({renderers.Count} renderer(s), {map.Count - 1} bone(s) and holders) drawn on both hands "
@@ -254,6 +280,17 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             _glovesHidden = true;
+            RigidPose carried = new RigidPose(sys.Rig.Head.position, sys.Rig.Head.rotation).Multiply(_rootInHead);
+            _root.transform.SetPositionAndRotation(carried.position, carried.rotation);
+            for (int i = 0; i < 8; i++)
+            {
+                Transform t = i < 4 ? _right[i] : _left[i - 4];
+                if (t != null)
+                {
+                    t.localPosition = _restLocal[i].position;
+                    t.localRotation = _restLocal[i].rotation;
+                }
+            }
             BodyZones zones = sys.Zones;
             Vector3 neck = sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
             // As ArmIK places them with a gun: the model's right arm (the gun arm) on the gun hand, its shoulder on that side. On the
