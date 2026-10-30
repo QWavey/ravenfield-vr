@@ -107,6 +107,8 @@ namespace RavenfieldVR.Weapons
                 // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
                 var renderers = new List<Renderer>();
                 var needed = new List<Transform>();
+                // (Not while the gun's main arm mesh is off itself: the flat view's scope picture switches the arms off with the gun.)
+                bool byEnabled = drawnNow && (weapon.arms == null || weapon.arms.enabled);
                 foreach (Renderer r in rig.ArmRenderers)
                 {
                     if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
@@ -117,7 +119,7 @@ namespace RavenfieldVR.Weapons
                     // was copied shown and stayed on the empty hand for good (Tasks 355). Its enabled state counts only off a gun held
                     // with Weapon's arms (the mod leaves it to the animation there; with gloves the mod hid every arm mesh); a part
                     // switched off in the model, and an arm mesh named as ammunition, never.
-                    if (drawnNow && !r.enabled || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
+                    if (byEnabled && !r.enabled || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
                     {
                         continue;
                     }
