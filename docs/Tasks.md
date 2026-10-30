@@ -2865,6 +2865,11 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
 - [ ] The user's "mag insertion on the wrong place": only four guns show a copy/analysis difference in the last full autotest
       (PKP fixed; G BRN180 EO SS's analysis is the inflated one, 50 against 28 cm; M1 GARRET, THUMPER). Ask which guns; then
       bughunt 1-3 (copy box against analysed box, first insert after a dry draw, parked seat rotation).
+      The first insert after a dry draw (bughunt 2; the in-game fits tilt the AUTOMATICO AKIMBO 12, RIPCORD 12, S-IND7 12-18,
+      SL-DEFENDER -3 degrees): FitMagazineLine needs the seated part drawn (its volume, its skin). Plan, for a session with
+      the headset: measure "seated:"+key from the magazine copy in the hand (same meshes, same frame), pose it at the hidden
+      part (it keeps its seated pose while scaled away), run the fit without making it a solid, and let a held prop take
+      the new line (InsertDirLocal, FrontLocal, TipLocal, BaseLocal readonly now).
 - [ ] Shotguns' "wrong magfeeder sometimes": not reproduced offline (no competing chamber path; the 17 checked ports are 17-30
       cm ahead). Ask which shotgun and what is seen; dump the port's reload frames (fullimplement 7).
 - [x] (2026-10-30, c2c87f6) Another cause found: the reload's helper hidden at rest (the M4A1 family's second 'zZ008 MAG')
