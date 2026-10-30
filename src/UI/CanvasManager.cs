@@ -200,7 +200,8 @@ namespace RavenfieldVR.UI
         {
             foreach (Canvas c in UnityEngine.Object.FindObjectsOfType<Canvas>())
             {
-                if (c == null || !c.isRootCanvas || _own.Contains(c) || _tracked.ContainsKey(c) || InsideAnotherCanvas(c))
+                // (World space first, a property: those are skipped below anyway, after a walk up their parents each second.)
+                if (c == null || !c.isRootCanvas || _own.Contains(c) || _tracked.ContainsKey(c) || c.renderMode == RenderMode.WorldSpace || InsideAnotherCanvas(c))
                 {
                     continue;
                 }
