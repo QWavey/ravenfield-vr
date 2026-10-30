@@ -2866,6 +2866,8 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       bughunt 1-3 (copy box against analysed box, first insert after a dry draw, parked seat rotation).
 - [ ] Shotguns' "wrong magfeeder sometimes": not reproduced offline (no competing chamber path; the 17 checked ports are 17-30
       cm ahead). Ask which shotgun and what is seen; dump the port's reload frames (fullimplement 7).
+- [x] (2026-10-30, c2c87f6) Another cause found: the reload's helper hidden at rest (the M4A1 family's second 'zZ008 MAG')
+      showed wherever the game's reload animation played (Assisted reloading); hidden while held now. Check with Assisted.
 - [ ] The floating second magazine on other M4s, if not the K13: Weapon's arms shows arm renderers, and a magazine mesh on an
       arm bone is an arm renderer. Ask which M4 and which Hands mode.
 - [ ] FPS: the VR UI Camera's second cull per eye (1.1 ms of main thread on Medium in the user's 10-27 session); the laid
