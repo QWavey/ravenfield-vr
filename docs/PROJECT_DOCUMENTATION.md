@@ -1153,3 +1153,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    autotest's weapon's-arms check run with the mode already chosen and its readings said for what they are (the IK's reach),
    `tools/bench_report.py` (each bench variant against its own preset), and the export's rig.json with the arm meshes' and
    hidden parts' names for the export checks (252 checks).
+21. **1.16.0** (2026-10-30, built and installed, not published; notes in `dist/notes-1.16.0.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.0.exe`): items 19 and 20, and the remaining known bugs fixed before it: a shotgun's short
+   tube kept shell-fed (`ReclassifyAdvancedReload`: pellets, three rounds or more, a shell-sized reload part), the shadow
+   distance put back after every suppressed camera's render, an arm mesh on bones outside the weapon copied with stand-ins
+   (`EmptyArms`). Still open, needing the game or the user: the first magazine after a dry draw on the un-fitted line
+   (Tasks 355's plan), which guns insert magazines in the wrong place, which shotgun loads at the wrong opening.
