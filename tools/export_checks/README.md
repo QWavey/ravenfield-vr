@@ -22,6 +22,7 @@ runtime line before changing the analysis.
 | `hand_points.py` | Grip and support points against the drawn model: those more than 5 cm off it (a hand in the air). Over the export only throwables, melee, sub-launchers and bot variants. | `python hand_points.py [gun dirs]` |
 | `mag_axis_audit.py` | Every self-loader's long magazine: its analysed line against its own long axis and its chord, worst first. | `python mag_axis_audit.py` |
 | `bolt_carrier_rule.py` | The bolt-carrier rule (WeaponAnalyzer.ArBoltCarrier) over every self-loading long gun: does it pick the known bolt, and what does it pick on the guns with nothing found to move. | `python bolt_carrier_rule.py` |
+| `magazine_pieces_rule.py` | Three magazine faults (sweep of 2026-10-29): drawn copies of the magazine away from its seat (the K13's spare), pieces under the magazine apart from its body (the PKM family's and MK46's belt links), and the analysed box off the drawn magazine (the ARS guns, the G BRN180 EO SS; corrected in game from the copy). An export made after the fixes should list the first two no more. | `python magazine_pieces_rule.py [gun dirs]` |
 | `hold_points_audit.py` | How far each firearm's grip point and support point (where the hands hold it) lie from its drawn surface, worst first. The grip point is the palm's centre: 1-3 cm off is normal, over 4 cm is worth a look. | `python hold_points_audit.py [gun dir ...]` |
 
 `<gun dir>` is a folder name under `reports/sandbox/data/weapons` (for example `vector_vector`). The audits over the whole
