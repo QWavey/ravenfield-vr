@@ -210,6 +210,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void BeforeRender(WeaponSystem sys, bool show)
         {
+            if (show && _root != null && !_renderers.TrueForAll(HasMesh))
+            {
+                Destroy(); // a mesh gone with its weapon (one made at run time): copied again below, not left hidden for good
+            }
             if (show && _root == null)
             {
                 TakeFromLoadout(sys);
@@ -267,6 +271,10 @@ namespace RavenfieldVR.Weapons
             return Vector3.Distance(arm[3].position, target.position);
         }
 
+        /// <summary>
+        /// The copy gone. Whether it was shown stays as it was, so the next <see cref="BeforeRender"/> sees the change and shows the
+        /// gloves again (cleared here, gloves hidden by a copy destroyed while shown stayed hidden).
+        /// </summary>
         public void Destroy()
         {
             if (_root != null)
@@ -276,7 +284,6 @@ namespace RavenfieldVR.Weapons
             _root = null;
             _key = null;
             _renderers.Clear();
-            _shown = false;
         }
 
         private static Transform[] Chain(Transform root, ArmChain c)
