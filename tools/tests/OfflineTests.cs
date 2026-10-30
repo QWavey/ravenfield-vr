@@ -109,6 +109,75 @@ namespace RavenfieldVR.Tests
             SlowedHandTests(mod);
             HandPushTests(mod);
             CopyBoxTests(mod);
+            BeltRoundTests(mod);
+            HolsterEyeTests(mod);
+            ShellPortTests(mod);
+        }
+
+        /// <summary>
+        /// A belt's rounds (BeltStrip.RoundAt, 2026-10-29): ten rounds held end in the hand, ten hanging or laid start at the box mouth
+        /// (they began in the air, 22 cm off the box), and a full belt spans the strip.
+        /// </summary>
+        private static void BeltRoundTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo at = mod.GetType("RavenfieldVR.Weapons.BeltStrip")?.GetMethod("RoundAt",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(at != null, "Belt: RoundAt found");
+            if (at == null)
+            {
+                return;
+            }
+            float T(int i, int count, bool fromMouth) => (float)at.Invoke(null, new object[] { i, count, 0.3f, fromMouth });
+            Check(Math.Abs(T(0, 10, true)) < 1e-5f && Math.Abs(T(9, 10, true) - 9 * 0.0115f / 0.3f) < 1e-4f, "Belt: a short belt hanging starts at the box mouth");
+            Check(Math.Abs(T(0, 10, false) - 1f) < 1e-5f && T(9, 10, false) > 0.6f, "Belt: a short belt held ends in the hand");
+            Check(T(26, 27, true) > 0.99f && T(26, 27, false) < 0.01f, "Belt: a full belt spans the strip");
+        }
+
+        /// <summary>
+        /// A holstered copy near the eyes (HolsterDisplay.NearEyesNext, 2026-10-30): hidden within the distance while faced, shown
+        /// again only 3 cm farther or a tenth less faced, so a head held on the line does not flip it every frame.
+        /// </summary>
+        private static void HolsterEyeTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo next = mod.GetType("RavenfieldVR.Weapons.HolsterDisplay")?.GetMethod("NearEyesNext",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(next != null, "Holster: NearEyesNext found");
+            if (next == null)
+            {
+                return;
+            }
+            bool N(bool was, float distance, float facing) => (bool)next.Invoke(null, new object[] { was, distance, 0.3f, facing });
+            Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
+            Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
+            Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// A tube's estimated loading port (WeaponAnalyzer.EstimatedPort, 2026-10-29): 0.6 of the way from the grip to the forend
+        /// and 3 cm under the bore (the R870's measured 20 cm ahead of a 33 cm forend), the forend 35 cm ahead when none is found.
+        /// </summary>
+        private static void ShellPortTests(System.Reflection.Assembly mod)
+        {
+            Type data = mod.GetType("RavenfieldVR.Weapons.WeaponRigData");
+            System.Reflection.MethodInfo port = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer")?.GetMethod("EstimatedPort",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(port != null && data != null, "Shell port: EstimatedPort found");
+            if (port == null || data == null)
+            {
+                return;
+            }
+            object d = Activator.CreateInstance(data);
+            data.GetField("AimAxis").SetValue(d, new UnityEngine.Vector3(0f, 0f, 1f));
+            data.GetField("Up").SetValue(d, new UnityEngine.Vector3(0f, 1f, 0f));
+            data.GetField("GripPoint").SetValue(d, UnityEngine.Vector3.zero);
+            data.GetField("MuzzlePoint").SetValue(d, new UnityEngine.Vector3(0f, 0.05f, 0.8f));
+            data.GetField("SupportPoint").SetValue(d, new UnityEngine.Vector3(0f, 0f, 0.33f));
+            data.GetField("HasSupportPoint").SetValue(d, true);
+            var p = (UnityEngine.Vector3)port.Invoke(null, new[] { d });
+            Check(Math.Abs(p.z - 0.198f) < 1e-3f && Math.Abs(p.y - 0.02f) < 1e-3f, $"Shell port: 0.6 of the way to the forend, 3 cm under the bore ({p.z * 100f:0.0} cm ahead)");
+            data.GetField("HasSupportPoint").SetValue(d, false);
+            p = (UnityEngine.Vector3)port.Invoke(null, new[] { d });
+            Check(Math.Abs(p.z - 0.21f) < 1e-3f, $"Shell port: no forend: taken 35 cm ahead ({p.z * 100f:0.0} cm)");
         }
 
         /// <summary>

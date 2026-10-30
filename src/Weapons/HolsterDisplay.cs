@@ -78,7 +78,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 centre = s.Go.transform.TransformPoint(s.Centre);
                 float near = 0.2f + s.Length * 0.25f, distance = Vector3.Distance(centre, head.position);
                 float facing = Vector3.Dot(head.forward, (centre - head.position).normalized);
-                s.NearEyes = s.NearEyes ? distance < near + 0.03f && facing > 0.1f : distance <= near && facing >= 0.2f;
+                s.NearEyes = NearEyesNext(s.NearEyes, distance, near, facing);
                 bool visible = !s.NearEyes;
                 if (s.Go.activeSelf != visible)
                 {
@@ -244,6 +244,13 @@ namespace RavenfieldVR.Weapons
             t.rotation = rot;
             t.position = centre - rot * Vector3.Scale(s.Centre, t.localScale);
         }
+
+        /// <summary>
+        /// Whether a copy is hidden near the eyes, from whether it was: hidden within <paramref name="near"/> while faced (0.2 of the
+        /// view or more), shown again only 3 cm farther or a tenth less faced (one line both ways flipped it every frame).
+        /// </summary>
+        internal static bool NearEyesNext(bool was, float distance, float near, float facing) =>
+            was ? distance < near + 0.03f && facing > 0.1f : distance <= near && facing >= 0.2f;
 
         private static void Hide(Shown s)
         {

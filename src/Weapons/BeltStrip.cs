@@ -115,10 +115,7 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < count; i++)
             {
                 int b = i * n;
-                // Count from the hand back toward the box, so the end in the hand is always a whole round (from the box out when
-                // nothing holds the end).
-                float along = i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
-                float t = fromMouth ? along : 1f - along;
+                float t = RoundAt(i, count, length, fromMouth);
                 Vector3 p = span * t + sag * (4f * t * (1f - t));
                 for (int k = 0; k < n; k++)
                 {
@@ -142,6 +139,18 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
+
+        /// <summary>
+        /// Where round <paramref name="i"/> of <paramref name="count"/> sits along a strip <paramref name="length"/> long (0: the box
+        /// mouth, 1: the far end), a pitch apart: counted from the hand back toward the box, so the end in the hand is always a
+        /// whole round, or from the box out when nothing holds the end (<paramref name="fromMouth"/>: a short belt hanging or laid
+        /// starts at the mouth, not in the air).
+        /// </summary>
+        internal static float RoundAt(int i, int count, float length, bool fromMouth)
+        {
+            float along = i / (float)Mathf.Max(1, count - 1) * Mathf.Min(1f, (count - 1) * Pitch / Mathf.Max(length, 1e-4f));
+            return fromMouth ? along : 1f - along;
+        }
 
         /// <summary>Self-test: the belt round's side faces drawn from outside (see <see cref="Casings.CountFacingOut"/>).</summary>
         internal static void CountFacingOut(ref int outward, ref int total)
