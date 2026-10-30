@@ -113,6 +113,12 @@ namespace RavenfieldVR.Weapons
                 {
                     return;
                 }
+                if (left[3].IsChildOf(right[0]) || right[3].IsChildOf(left[0]))
+                {
+                    // One arm's root holding the other hand too: solving the second arm would move the first after it was placed (review).
+                    Log.InfoOnce("emptyarms-sharedroot:" + d.Key, $"Empty-hand arms: {d.Key}'s two arms share a root bone: not copied.");
+                    return;
+                }
                 // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
                 var renderers = new List<Renderer>();
                 var needed = new List<Transform>();
@@ -130,7 +136,9 @@ namespace RavenfieldVR.Weapons
                     // Only what the arms draw: a piece the gun's animation hides (a reload's fresh magazine on the hand, the flat view's)
                     // was copied shown and stayed on the empty hand for good (Tasks 355); a part switched off in the model, and an arm
                     // mesh named as ammunition, never.
-                    if (byEnabled && !r.enabled || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
+                    // (With the main arm off, a switched-off piece named like ammunition is still the reload's magazine: "Arms_Mag".)
+                    if (byEnabled && !r.enabled || !byEnabled && !r.enabled && r != weapon.arms && WeaponAnalyzer.NamesAmmunition(r.name)
+                        || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
                     {
                         continue;
                     }
@@ -138,6 +146,10 @@ namespace RavenfieldVR.Weapons
                     {
                         if (s.bones == null || !System.Array.TrueForAll(s.bones, b => b == null || b.IsChildOf(weaponRoot)))
                         {
+                            if (r == weapon.arms)
+                            {
+                                Log.InfoOnce("emptyarms-outside:" + d.Key, $"Empty-hand arms: {d.Key}'s arm mesh uses bones outside the weapon: not copied.");
+                            }
                             continue; // a bone outside the weapon (it would stay behind with it)
                         }
                         needed.AddRange(s.bones);
@@ -282,22 +294,13 @@ namespace RavenfieldVR.Weapons
             _glovesHidden = true;
             RigidPose carried = new RigidPose(sys.Rig.Head.position, sys.Rig.Head.rotation).Multiply(_rootInHead);
             _root.transform.SetPositionAndRotation(carried.position, carried.rotation);
-            for (int i = 0; i < 8; i++)
-            {
-                Transform t = i < 4 ? _right[i] : _left[i - 4];
-                if (t != null)
-                {
-                    t.localPosition = _restLocal[i].position;
-                    t.localRotation = _restLocal[i].rotation;
-                }
-            }
             BodyZones zones = sys.Zones;
             Vector3 neck = sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
             // As ArmIK places them with a gun: the model's right arm (the gun arm) on the gun hand, its shoulder on that side. On the
             // right controller always, left-handed play's arms swapped sides at every draw and holster (review, 2026-10-30).
             float side = Input.VRInput.GunHand == Input.Hand.Left ? -1f : 1f;
-            float right = Solve(sys.Rig.Dominant, _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side), side, zones);
-            float left = Solve(sys.Rig.Off, _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side), -side, zones);
+            float right = Solve(sys.Rig.Dominant, _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side), side, zones, _restLocal, 0);
+            float left = Solve(sys.Rig.Off, _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side), -side, zones, _restLocal, 4);
             HandError = Mathf.Max(right, left);
         }
 
@@ -305,7 +308,7 @@ namespace RavenfieldVR.Weapons
         /// One arm on its hand; returns how far its hand bone ended from its target (m: the IK's reach, the placement itself is the
         /// autotest's picture), -1 when it was not solved (no arm, the hand with no pose: a 0 read as on target; review).
         /// </summary>
-        private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones)
+        private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones, RigidPose[] rest, int restAt)
         {
             if (arm == null || fingers == null || chain == null)
             {
@@ -318,6 +321,12 @@ namespace RavenfieldVR.Weapons
             if (!hand.HasPose || arm[0] == null || arm[1] == null || arm[2] == null || arm[3] == null)
             {
                 return -1f; // (held where it was: the glove holds its last pose too)
+            }
+            // From its copied pose (see _restLocal): only an arm solved now, one with no pose kept where it was (review).
+            for (int i = 0; i < 4; i++)
+            {
+                arm[i].localPosition = rest[restAt + i].position;
+                arm[i].localRotation = rest[restAt + i].rotation;
             }
             RigidPose target = ArmIK.FreeTarget(hand, chain);
             Vector3 pole = shoulder + Vector3.down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;

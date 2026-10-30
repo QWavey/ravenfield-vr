@@ -77,6 +77,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool NamedAsAmmunition(string name) => (IsMagName(name) || RoundName.IsMatch(name)) && !ArmMeshName.IsMatch(name);
 
+        /// <summary>Named with a magazine or round word at all, an arm's word too or not ("Arms_Mag").</summary>
+        internal static bool NamesAmmunition(string name) => IsMagName(name) || RoundName.IsMatch(name);
+
         /// <summary>A magazine (or on a launcher, its rocket) by its name: the launcher words count only on a launcher.</summary>
         private static bool IsMagName(string name, bool launcher) =>
             (MagName.IsMatch(name) || launcher && LauncherRoundName.IsMatch(name)) && !IsNotMag(name, launcher);
