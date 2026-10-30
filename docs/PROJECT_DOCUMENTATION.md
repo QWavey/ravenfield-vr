@@ -1147,4 +1147,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`WeaponAnalyzer.HelperNamedAsAmmunition`, the name also read without spaces; 36 of the export's 63 helpers; checked over an
    export by `reload_helper_rule.py`), an arm mesh named as ammunition never drawn on Weapon's arms nor copied onto the empty
    hands (`NamedAsAmmunition`), which copy only the arm meshes drawn; the small-shadow scan waiting for the level and measured
-   in the graphics bench (`SmallShadows.Bench`); offline tests for both name rules (249 checks).
+   in the graphics bench (`SmallShadows.Bench`); offline tests for both name rules (249 checks). Then: the empty-hand arms'
+   copy carried with the head and solved from its copied pose each frame (`EmptyArms._rootInHead`, `_restLocal`), a game
+   camera's mask saved once and put back at the eyes when its post-render never came (`CameraSuppressor.RestoreMasks`), the
+   autotest's weapon's-arms check run with the mode already chosen and its readings said for what they are (the IK's reach),
+   `tools/bench_report.py` (each bench variant against its own preset), and the export's rig.json with the arm meshes' and
+   hidden parts' names for the export checks (252 checks).
