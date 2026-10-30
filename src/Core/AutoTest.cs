@@ -3126,6 +3126,12 @@ namespace RavenfieldVR.Core
                     torn |= off2 || !gloves;
                     emptyNote = $"; put away, the arms stay on the empty hands, {empty.HandError * 100f:0.0} cm off the controllers"
                                 + $"{(off2 ? " (NOT ON THE CONTROLLERS)" : "")}{(gloves ? "" : " (GLOVES NOT HIDDEN)")}";
+                    // With no copy (spawned empty-handed, respawned): taken from a carried weapon within its 2 s retry.
+                    empty.Destroy();
+                    yield return new WaitForSecondsRealtime(2.6f);
+                    bool again = empty.Shown;
+                    torn |= !again;
+                    emptyNote += again ? "; with no copy, taken again from a carried weapon" : "; with no copy: THE ARMS NOT TAKEN FROM A CARRIED WEAPON";
                 }
                 report($"weapon's arms: gun hand {gunErr * 100f:0.0} cm off its grip, off hand {gripErr * 100f:0.0} cm off the handguard and {freeErr * 100f:0.0} cm off the controller"
                        + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{magNote}{fingerNote}{emptyNote}{(torn ? " (NOT ON TARGET)" : "")}");
