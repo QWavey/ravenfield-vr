@@ -2871,6 +2871,8 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       showed wherever the game's reload animation played (Assisted reloading); hidden while held now. Check with Assisted.
       155fa20: only a helper named as ammunition (10 of the 17 helper names: zZ008 MAG, QBZ95_Mag, the 1911 mags, the QJB201's
       ammo box, loose rounds); 'eo', 'spectre', 'Radio call.001', '45 Spring Empty' and the RPG's rockets stay drawn.
+      Its name also read without spaces (the P220's 'dan    xia', 弹匣's pinyin: 36 of 63 helpers hidden);
+      tools/export_checks/reload_helper_rule.py checks the next export's notes against the rule.
 - [ ] The floating second magazine on other M4s, if not the K13: Weapon's arms shows arm renderers, and a magazine mesh on an
       arm bone is an arm renderer. Ask which M4 and which Hands mode.
       (2026-10-30) An arm mesh named as ammunition (a magazine skinned to the hand: the reload's fresh one) is kept hidden on

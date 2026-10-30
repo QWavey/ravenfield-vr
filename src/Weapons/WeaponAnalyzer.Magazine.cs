@@ -335,12 +335,15 @@ namespace RavenfieldVR.Weapons
             // it showed where the flat game's hidden hand would be, a second magazine floating by the gun (user, 2026-10-29: "some guns
             // such like m4s also have a 2nd mag behind the gun floating"). Only one named as ammunition (a magazine, a round, a
             // shell, an ammo box, a rocket: of the 63 helpers in the weapon report, 'eo', 'Radio call.001', '45 Spring Empty' and an
-            // optic, 'spectre', are not), never a sight part, never one that holds the magazine or the gun.
+            // optic, 'spectre', are not), never a sight part, never one that holds the magazine or the gun. Its name also read with
+            // its spaces taken out: the P220's 'dan    xia' is 弹匣's pinyin (magazine) spaced out (tools/export_checks/reload_helper_rule.py).
             Transform helper = _reloadHelper;
             _reloadHelper = null;
             bool singleShot = d.Action == ActionType.SingleShot;
+            string unspaced = helper != null ? Regex.Replace(helper.name, @"\s+", "") : "";
             if (helper != null && helper != mag && !mag.IsChildOf(helper) && !helper.IsChildOf(mag) && (gunBody == null || !gunBody.IsChildOf(helper))
-                && (IsMagName(helper.name, singleShot) || RoundName.IsMatch(helper.name) || AmmoPartName.IsMatch(helper.name)) && !OpticName.IsMatch(helper.name)
+                && (IsMagName(helper.name, singleShot) || IsMagName(unspaced, singleShot) || RoundName.IsMatch(helper.name) || AmmoPartName.IsMatch(helper.name))
+                && !OpticName.IsMatch(helper.name)
                 && !d.SightPartPaths.Exists(p => { Transform s = WeaponRig.Resolve(root, p); return s != null && (s == helper || s.IsChildOf(helper) || helper.IsChildOf(s)); }))
             {
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, helper));
