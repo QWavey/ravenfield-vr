@@ -18,6 +18,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Each joint's pose from the animation, and what this class wrote to it last frame.</summary>
         private readonly Quaternion[][] _fingerBase, _fingerWritten;
         private bool _fingersWritten;
+        /// <summary>Scratch for a finger's joint directions and angles (kept: two new arrays a hand a frame before).</summary>
+        private readonly Vector3[] _dir = new Vector3[3];
+        private readonly float[] _baseAngle = new float[3];
 
         /// <summary>
         /// The joints' rotations now as this frame's last write: called after something else turned them on top of <see cref="Pose"/>
@@ -134,8 +137,8 @@ namespace RavenfieldVR.Weapons
             bool skeleton = Input.VRInput.HasSkeleton(side);
             float grip = Input.VRInput.GetGrip(side), trigger = Input.VRInput.GetTrigger(side);
             Vector3 fingerDir = hand.rotation * c.FingerDir, palm = -(hand.rotation * c.BackDir);
-            var dir = new Vector3[3];
-            var baseAngle = new float[3];
+            Vector3[] dir = _dir;
+            float[] baseAngle = _baseAngle;
             for (int f = 0; f < 5; f++)
             {
                 Transform[] j = _fingers[f];

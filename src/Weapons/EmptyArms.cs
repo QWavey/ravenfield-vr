@@ -88,7 +88,7 @@ namespace RavenfieldVR.Weapons
         private void Copy(Weapon weapon, WeaponRig rig)
         {
             WeaponRigData d = rig.Data;
-            if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && _renderers.TrueForAll(HasMesh))
+            if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && AllMeshes())
             {
                 return;
             }
@@ -210,7 +210,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void BeforeRender(WeaponSystem sys, bool show)
         {
-            if (show && _root != null && !_renderers.TrueForAll(HasMesh))
+            if (show && _root != null && !AllMeshes())
             {
                 Destroy(); // a mesh gone with its weapon (one made at run time): copied again below, not left hidden for good
             }
@@ -220,7 +220,7 @@ namespace RavenfieldVR.Weapons
             }
             // Not while a hand holds a soldier: that glove is on him, drawn (as with a gun in the other hand: HeldWeapon keeps it), and an
             // arm sent to the controller left it hidden and the hand off the body (review, 2026-10-30).
-            show &= _root != null && _renderers.TrueForAll(HasMesh) && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
+            show &= _root != null && AllMeshes() && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
             if (show != _shown)
             {
                 _shown = show;
@@ -290,6 +290,19 @@ namespace RavenfieldVR.Weapons
         {
             var t = new[] { WeaponRig.Resolve(root, c.Root), WeaponRig.Resolve(root, c.Upper), WeaponRig.Resolve(root, c.Lower), WeaponRig.Resolve(root, c.Hand) };
             return System.Array.TrueForAll(t, x => x != null) ? t : null;
+        }
+
+        /// <summary>Every copied renderer still has its mesh (a loop: TrueForAll(HasMesh) made a new delegate on every call, each frame).</summary>
+        private bool AllMeshes()
+        {
+            foreach (Renderer r in _renderers)
+            {
+                if (!HasMesh(r))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static bool HasMesh(Renderer r) =>
