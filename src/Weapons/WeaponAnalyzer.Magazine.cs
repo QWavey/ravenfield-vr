@@ -349,6 +349,11 @@ namespace RavenfieldVR.Weapons
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, helper));
                 d.Notes += $"the reload helper '{helper.name}' hidden while held ";
             }
+            else if (helper != null)
+            {
+                // (Said, so a log with a magazine floating by the gun tells whether a helper left drawn is it.)
+                d.Notes += $"the reload helper '{helper.name}' left as the gun's animation shows it ";
+            }
             d.MagazineName = mag.name;
             CollectSpareMagazines(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler);
             d.MagazineToggles = toggles;
