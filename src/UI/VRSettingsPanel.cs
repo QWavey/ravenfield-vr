@@ -174,6 +174,7 @@ namespace RavenfieldVR.UI
 
             Section("Performance (try it)");
             Choice("Game cameras into 1 px", VRConfig.GameCamerasOnePixel, new[] { false, true }, new[] { "Off", "On" });
+            Choice("Scope lens every other frame", VRConfig.ScopeHalfRate, new[] { false, true }, new[] { "Off", "On" });
 
             Section("Menus");
             Stepper("Menu distance (next open)", () => $"{VRConfig.MenuDistance.Value:0.0} m",

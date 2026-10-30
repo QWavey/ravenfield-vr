@@ -2919,7 +2919,7 @@ namespace RavenfieldVR.Core
             }
             finally
             {
-                Weapons.VRScope.BenchMode = 0;
+                Weapons.VRScope.BenchMode = -1; // (the config's again)
                 Rig.VRHand.Scripted[side] = null;
             }
             report(line.ToString());

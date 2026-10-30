@@ -347,7 +347,7 @@ namespace RavenfieldVR.Weapons
             {
                 render = false;
             }
-            else if (BenchMode == 2)
+            else if (BenchMode == 2 || BenchMode < 0 && VRConfig.ScopeHalfRate.Value)
             {
                 render &= (Time.frameCount & 1) == 0; // the last picture stays on the lens in between
             }
@@ -373,10 +373,11 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Autotest bench of the lens's cost (255.P1.2): 0 as set (shadows as ScopeShadows says), 1 its camera off, 2 rendered
-        /// every other frame, 3 with shadows (a camera of its own draws the shadow cascades again).
+        /// Autotest bench of the lens's cost (255.P1.2): 0 as set (shadows as ScopeShadows says, every frame whatever ScopeHalfRate
+        /// says), 1 its camera off, 2 rendered every other frame, 3 with shadows (a camera of its own draws the shadow cascades again);
+        /// -1 not benching (the config's).
         /// </summary>
-        internal static int BenchMode;
+        internal static int BenchMode = -1;
 
         private ScopeNoShadows _noShadows;
 

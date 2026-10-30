@@ -95,6 +95,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> VRScopes;
         public static ConfigEntry<int> ScopeResolution;
         public static ConfigEntry<bool> ScopeShadows;
+        public static ConfigEntry<bool> ScopeHalfRate;
         public static ConfigEntry<bool> HoldFrameRate;
         public static ConfigEntry<bool> GameCamerasOnePixel;
         public static ConfigEntry<bool> HolsterSwitching;
@@ -285,6 +286,9 @@ namespace RavenfieldVR.Core
                 + "Not with the Game preset (the game's own options).");
             ScopeShadows = cfg.Bind("Weapons", "ScopeShadows", false,
                 "Shadows in the scope lens's magnified picture. Off by default: the lens draws the shadow cascades a second time, about 2.8 ms of the 3.4 ms the lens costs each frame while aiming through it (measured on the RECON LRR, 2026-10-17).");
+            ScopeHalfRate = cfg.Bind("Weapons", "ScopeHalfRate", false,
+                "To try: the magnified scope lens draws its picture every other frame and keeps the last one in between, about half of the "
+                + "0.5 ms a frame it costs while aiming through it. Off until checked in a headset: the lens's picture may lag a fast pan.");
             HolsterSwitching = cfg.Bind("Weapons", "HolsterSwitching", true,
                 "Reach over your shoulder / to your hip / chest and grip to draw primary, sidearm or gear. Gripping at the holster of the weapon you hold puts it away and frees your hand.");
             GripToHoldWeapon = cfg.Bind("Weapons", "GripToHoldWeapon", true,
