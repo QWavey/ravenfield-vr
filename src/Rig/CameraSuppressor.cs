@@ -182,10 +182,9 @@ namespace RavenfieldVR.Rig
             {
                 c.cullingMask = mask;
                 _maskDuringRender.Remove(c);
-                if (_maskDuringRender.Count == 0)
-                {
-                    RestoreShadows();
-                }
+                // After each one (renders do not nest): waiting for none left, an entry whose post-render never came kept the shadow
+                // distance at 0 until the eyes, and a scope's or map's camera drawn meanwhile had no shadows (rig scout, 2026-10-30).
+                RestoreShadows();
             }
         }
 

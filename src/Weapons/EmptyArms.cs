@@ -144,15 +144,11 @@ namespace RavenfieldVR.Weapons
                     }
                     if (r is SkinnedMeshRenderer s)
                     {
-                        if (s.bones == null || !System.Array.TrueForAll(s.bones, b => b == null || b.IsChildOf(weaponRoot)))
+                        if (s.bones == null)
                         {
-                            if (r == weapon.arms)
-                            {
-                                Log.InfoOnce("emptyarms-outside:" + d.Key, $"Empty-hand arms: {d.Key}'s arm mesh uses bones outside the weapon: not copied.");
-                            }
-                            continue; // a bone outside the weapon (it would stay behind with it)
+                            continue;
                         }
-                        needed.AddRange(s.bones);
+                        needed.AddRange(s.bones); // (one outside the weapon gets a stand-in: Mirror)
                         if (s.rootBone != null && s.rootBone.IsChildOf(weaponRoot))
                         {
                             needed.Add(s.rootBone); // (one outside it would be mirrored as loose objects outside the copy; review)
@@ -185,6 +181,20 @@ namespace RavenfieldVR.Weapons
                     if (map.TryGetValue(t, out Transform m))
                     {
                         return m;
+                    }
+                    if (!t.IsChildOf(weaponRoot))
+                    {
+                        // A bone outside the weapon (an armature an exporter listed whole): a stand-in right under the copy, where it
+                        // is against the weapon now, carried with it. Left out, the whole arm mesh was not copied and the gloves
+                        // showed with no arms (review, 2026-10-30).
+                        var stand = new GameObject(t.name) { layer = layer };
+                        stand.transform.SetParent(root.transform, false);
+                        stand.transform.localPosition = weaponRoot.InverseTransformPoint(t.position);
+                        stand.transform.localRotation = Quaternion.Inverse(weaponRoot.rotation) * t.rotation;
+                        Vector3 own = t.lossyScale, of = weaponRoot.lossyScale;
+                        stand.transform.localScale = new Vector3(own.x / Mathf.Max(1e-6f, of.x), own.y / Mathf.Max(1e-6f, of.y), own.z / Mathf.Max(1e-6f, of.z));
+                        map[t] = stand.transform;
+                        return stand.transform;
                     }
                     var go = new GameObject(t.name) { layer = layer };
                     go.transform.SetParent(Mirror(t.parent), false);

@@ -358,6 +358,15 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // But not a shotgun's tube whose reload part is a shell (a short tube refilled a few shells a motion): taken for a box gun,
+            // its shells seated by the magazine rule wherever the reload's path came nearest the bore, the "wrong magfeeder", and the
+            // pouch handed out magazines (sweep round 2, full implement 4). Pellets only: a single-stack pistol magazine is
+            // shell-sized too (11 x 3.6 x 2.3 cm), and three rounds at least (a double barrel's two are its break action's).
+            if (c.projectilesPerShot > 1 && c.ammo >= 3 && d.MagazinePath != null && ShellSized(d.MagBounds))
+            {
+                d.Notes += $"a shotgun's tube loaded {chunk} at a time, kept shell-fed (its reload part is a shell) ";
+                return;
+            }
             d.Action = !AuthoredAuto(w) && c.cooldown >= 0.45f ? ActionType.Manual : ActionType.SelfLoading;
             d.Notes += "magazine-fed advanced reload ";
         }
