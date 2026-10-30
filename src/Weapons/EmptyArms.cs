@@ -238,17 +238,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!show)
             {
-                if (_glovesHidden)
-                {
-                    _glovesHidden = false;
-                    foreach (VRHand h in sys.Rig.Hands)
-                    {
-                        if (h.Model != null)
-                        {
-                            h.Model.Suppressed = false;
-                        }
-                    }
-                }
+                ReturnGloves(sys);
                 return;
             }
             _glovesHidden = true;
@@ -282,6 +272,23 @@ namespace RavenfieldVR.Weapons
             ArmIK.SolveArm(arm[0], arm[1], arm[2], arm[3], shoulder, target, pole);
             fingers.Pose(hand, arm[3], chain, 0f);
             return Vector3.Distance(arm[3].position, target.position);
+        }
+
+        /// <summary>The gloves shown again if this class hid them (put away; and VR stopping, when no later step gives them back: review).</summary>
+        public void ReturnGloves(WeaponSystem sys)
+        {
+            if (!_glovesHidden || sys.Rig == null)
+            {
+                return;
+            }
+            _glovesHidden = false;
+            foreach (VRHand h in sys.Rig.Hands)
+            {
+                if (h != null && h.Model != null)
+                {
+                    h.Model.Suppressed = false;
+                }
+            }
         }
 
         /// <summary>

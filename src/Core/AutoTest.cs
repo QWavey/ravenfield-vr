@@ -746,6 +746,14 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("Medium, Low's grass and trees", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, terrainOf: GraphicsPreset.Low)),
                 new KeyValuePair<string, Func<string>>("Medium, no pixel lights", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, pixelLights: 0)),
                 new KeyValuePair<string, Func<string>>("Medium, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, msaa: 0)),
+                // The level's small objects without their shadows (SmallObjectsNoShadows, to try): fewer casters in the shadow
+                // passes Medium draws once per eye.
+                new KeyValuePair<string, Func<string>>("Medium, small objects without shadows", () =>
+                {
+                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.Medium);
+                    SmallShadows.Bench = true;
+                    return d + ", small objects without shadows";
+                }),
                 new KeyValuePair<string, Func<string>>("High, no UI camera", () =>
                 {
                     string d = GraphicsPresets.ApplyForBench(GraphicsPreset.High);
@@ -793,6 +801,7 @@ namespace RavenfieldVR.Core
                             ui.UiCamera.enabled = true;
                         }
                         Rig.CameraSuppressor.TinyRect = false; // (only its own run sets it)
+                        SmallShadows.Bench = false;
                         string applied = run.Value();
                         yield return new WaitForSecondsRealtime(1.5f);
                         PerfProbe.Reset();
@@ -819,6 +828,7 @@ namespace RavenfieldVR.Core
                     ui.UiCamera.enabled = true;
                 }
                 Rig.CameraSuppressor.TinyRect = null; // (the config's again)
+                SmallShadows.Bench = null;
                 GraphicsPresets.Apply();
                 Runtime.OpenVRRuntime.ApplyLiveSettings();
             }

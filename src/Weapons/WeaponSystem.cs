@@ -1262,6 +1262,7 @@ namespace RavenfieldVR.Weapons
             {
                 Log.Guard("Weapons.ReleaseHeld", ReleaseHeld);
             }
+            Log.Guard("Weapons.Dispose.Gloves", () => _emptyArms.ReturnGloves(this));
             Log.Guard("Weapons.Dispose.EmptyArms", _emptyArms.Destroy); // (DontDestroyOnLoad: it outlives the scenes)
             // Each step on its own, as VRManager's and the rig's: one that threw skipped the rest, the lens flash's muzzle
             // objects (DontDestroyOnLoad) and the scopes' spare textures among them (render-effects scout, 2026-10-23).

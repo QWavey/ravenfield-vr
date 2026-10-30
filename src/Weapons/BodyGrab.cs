@@ -2167,8 +2167,10 @@ namespace RavenfieldVR.Weapons
                 {
                     _carrierDied = true;
                 }
-                else if (_carrierDied || _carrier.ragdoll != null && !_carrier.ragdoll.IsRagdoll())
+                else if (_carrierDied || _carrier.ragdoll != null && !_carrier.ragdoll.IsRagdoll() && !BodyGrab.IsHeld(_carrier))
                 {
+                    // (Not while he is held: a grab in the step after he was stood up put him down again, and his ragdoll read as put
+                    // away for that step while the hand had him; review, 2026-10-30.)
                     // Respawned elsewhere before it went off (the game reuses its soldiers), or got up: his ragdoll is put away when he
                     // stands, and the grenade stayed frozen on its bone where he lay while its going off killed him wherever he had
                     // walked (bug hunt, 2026-10-30). It stays where the body was, a grenade like any other.

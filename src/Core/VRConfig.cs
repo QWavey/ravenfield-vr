@@ -279,7 +279,7 @@ namespace RavenfieldVR.Core
             ScopeResolution = cfg.Bind("Weapons", "ScopeResolution", 768,
                 new ConfigDescription("Scope lens render texture size.", new AcceptableValueRange<int>(256, 2048)));
             SmallObjectsNoShadows = cfg.Bind("Rendering", "SmallObjectsNoShadows", false,
-                "To try: the level's small objects (under 40 cm across) cast no shadow, so the shadow passes, drawn once per eye, have fewer "
+                "To try: the level's small objects (under 40 cm corner to corner) cast no shadow, so the shadow passes, drawn once per eye, have fewer "
                 + "objects to draw (with shadows on: Medium, High, Ultra). Applies at once; soldiers keep theirs.");
             GcSliceMs = cfg.Bind("Rendering", "GarbageCollectionSliceMs", 3f,
                 new ConfigDescription("To try: how much of a frame (ms) the game's incremental garbage collector may take while a collection runs "

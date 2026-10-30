@@ -2839,7 +2839,8 @@ array (debug option only).
       into 1 px: compare "Camera", "FP Camera", "Global Post-processing" in the line; check the desktop mirror and aiming) and
       ScopeHalfRate (aim through a magnified scope: does the lens picture judder?), and GarbageCollectionSliceMs (2 or 1 against
       Unity's 3: the minute's on-time share and collections), and SmallObjectsNoShadows (Medium: the eyes' ms in the line, and
-      whether missing small shadows show). Keep on by default only if they hold.
+      whether missing small shadows show). Keep on by default only if they hold. The autotest's graphics bench measures the
+      last one too ("Medium, small objects without shadows" beside "Medium"; SmallShadows.Bench).
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
@@ -2868,6 +2869,8 @@ sections in reports/sweeps/round2/ (optimize, bughunt, fullimplement, improve, p
       cm ahead). Ask which shotgun and what is seen; dump the port's reload frames (fullimplement 7).
 - [x] (2026-10-30, c2c87f6) Another cause found: the reload's helper hidden at rest (the M4A1 family's second 'zZ008 MAG')
       showed wherever the game's reload animation played (Assisted reloading); hidden while held now. Check with Assisted.
+      155fa20: only a helper named as ammunition (10 of the 17 helper names: zZ008 MAG, QBZ95_Mag, the 1911 mags, the QJB201's
+      ammo box, loose rounds); 'eo', 'spectre', 'Radio call.001', '45 Spring Empty' and the RPG's rockets stay drawn.
 - [ ] The floating second magazine on other M4s, if not the K13: Weapon's arms shows arm renderers, and a magazine mesh on an
       arm bone is an arm renderer. Ask which M4 and which Hands mode.
 - [ ] FPS: the VR UI Camera's second cull per eye (1.1 ms of main thread on Medium in the user's 10-27 session); the laid

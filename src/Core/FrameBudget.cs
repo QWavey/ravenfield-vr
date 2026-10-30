@@ -224,7 +224,7 @@ namespace RavenfieldVR.Core
         private const double SlowCpuPercent = 75.0;
         private static bool _slowCpuSaid;
 
-        /// <summary>The collector's own slice as VR found it (0 until taken), put back when VR stops.</summary>
+        /// <summary>The collector's own slice as VR found it (0 until this changes it), put back when VR stops or the setting is 3 ms again.</summary>
         private static ulong _gcSliceOriginal;
 
         /// <summary>
@@ -239,12 +239,17 @@ namespace RavenfieldVR.Core
                 {
                     return;
                 }
+                float ms = Mathf.Clamp(VRConfig.GcSliceMs.Value, 0.5f, 3f);
+                if (Mathf.Abs(ms - 3f) < 0.01f)
+                {
+                    RestoreGcSlice(); // (only a slice this set is written back: an untouched setting writes nothing; review, 2026-10-30)
+                    return;
+                }
                 if (_gcSliceOriginal == 0)
                 {
                     _gcSliceOriginal = UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds;
                 }
-                float ms = Mathf.Clamp(VRConfig.GcSliceMs.Value, 0.5f, 3f);
-                UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = Mathf.Abs(ms - 3f) < 0.01f ? _gcSliceOriginal : (ulong)(ms * 1e6f);
+                UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = (ulong)(ms * 1e6f);
             }
             catch (System.Exception e)
             {
@@ -260,6 +265,7 @@ namespace RavenfieldVR.Core
                 if (_gcSliceOriginal != 0)
                 {
                     UnityEngine.Scripting.GarbageCollector.incrementalTimeSliceNanoseconds = _gcSliceOriginal;
+                    _gcSliceOriginal = 0;
                 }
             }
             catch (System.Exception e)
