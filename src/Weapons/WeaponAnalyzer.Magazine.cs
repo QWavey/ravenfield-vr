@@ -130,8 +130,12 @@ namespace RavenfieldVR.Weapons
                     {
                         // A reload helper the animation only shows while reloading (the RPG-7's "Reload_Cube": an 80 cm box
                         // around the tube). Taken for the rocket it was copied at full size into the pouch and the hand,
-                        // where the gun's own animation no longer hid it.
-                        skippedHelper = skippedHelper ?? t;
+                        // where the gun's own animation no longer hid it. The first one named as ammunition is kept (the one the held
+                        // gun hides, below), else the first: a hidden optic or radio met first kept a fresh magazine after it drawn (review).
+                        if (skippedHelper == null || !HelperNamedAsAmmunition(skippedHelper.name, launcher) && HelperNamedAsAmmunition(t.name, launcher))
+                        {
+                            skippedHelper = t;
+                        }
                         continue;
                     }
                     if (OpticName.IsMatch(t.name) && !MagName.IsMatch(t.name) || sampler.LocalBounds(t).size.magnitude > 2.2f)
@@ -475,12 +479,13 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A reload helper the held gun hides: named as ammunition (a magazine, a round, a shell, an ammo box; on a launcher its
-        /// rocket), its name also read with the spaces taken out (the P220's 'dan    xia', 弹匣's pinyin spaced out), never an optic
+        /// rocket), its name also read with the spaces taken out (the P220's 'dan    xia', 弹匣's pinyin spaced out), never an optic,
+        /// never one named as no magazine (a release, a catch: 弹匣释放 has the 弹 of AmmoPartName; review)
         /// (tools/export_checks/reload_helper_rule.py runs the same rule over an export).
         /// </summary>
         internal static bool HelperNamedAsAmmunition(string name, bool launcher) =>
             (IsMagName(name, launcher) || IsMagName(Regex.Replace(name, @"\s+", ""), launcher) || RoundName.IsMatch(name) || AmmoPartName.IsMatch(name))
-            && !OpticName.IsMatch(name);
+            && !IsNotMag(name, launcher) && !OpticName.IsMatch(name);
 
         /// <summary>
         /// The magazine's pieces that hang apart from its body at rest, this analysis's (left out of its shape and its vertex axis;

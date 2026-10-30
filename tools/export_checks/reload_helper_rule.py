@@ -28,8 +28,8 @@ HIDDEN = re.compile(r"the reload helper '([^']*)' hidden while held")
 def hides(name):
     """Whether the rule hides a helper of this name while held (the launcher words left out: a launcher's rockets stay drawn)."""
     unspaced = re.sub(r'\s+', '', name)  # (the P220's 'dan    xia': 弹匣's pinyin spaced out)
-    named = any(MAG.search(n) and not NOT_MAG.search(n) for n in (name, unspaced)) or ROUND.search(name) or AMMO.search(name)
-    return bool(named) and not OPTIC.search(name)
+    named = any(MAG.search(n) for n in (name, unspaced)) or ROUND.search(name) or AMMO.search(name)
+    return bool(named) and not NOT_MAG.search(name) and not OPTIC.search(name)
 
 
 names = sys.argv[1:] or sorted(os.path.basename(x) for x in glob.glob(os.path.join(DATA, '*')))

@@ -173,7 +173,7 @@ namespace RavenfieldVR.Tests
             {
                 Check((bool)helper.Invoke(null, new object[] { n, false }), $"Ammo names: helper '{n}' hidden while held");
             }
-            foreach (string n in new[] { "eo", "spectre", "Radio call.001", "45 Spring Empty", "Scope_Mag_Cover", "Reload_Cube" })
+            foreach (string n in new[] { "eo", "spectre", "Radio call.001", "45 Spring Empty", "Scope_Mag_Cover", "Reload_Cube", "\u5f39\u5323\u91ca\u653e", "Mag Release" })
             {
                 Check(!(bool)helper.Invoke(null, new object[] { n, false }), $"Ammo names: helper '{n}' stays drawn");
             }
