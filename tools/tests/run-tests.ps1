@@ -60,6 +60,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The frame rate report's bound column, steps and default log (tools/tests/frame_report_test.py).
 python -I (Join-Path $PSScriptRoot 'frame_report_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# The graphics bench's report: each variant against its own preset, noise inside the rounds' spread (tools/tests/bench_report_test.py).
+python -I (Join-Path $PSScriptRoot 'bench_report_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every controller binds every button action, but for the gaps listed on purpose (tools/tests/bindings_coverage_test.py).
 python -I (Join-Path $PSScriptRoot 'bindings_coverage_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }

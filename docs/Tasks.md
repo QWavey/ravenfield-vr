@@ -2840,7 +2840,8 @@ array (debug option only).
       ScopeHalfRate (aim through a magnified scope: does the lens picture judder?), and GarbageCollectionSliceMs (2 or 1 against
       Unity's 3: the minute's on-time share and collections), and SmallObjectsNoShadows (Medium: the eyes' ms in the line, and
       whether missing small shadows show). Keep on by default only if they hold. The autotest's graphics bench measures the
-      last one too ("Medium, small objects without shadows" beside "Medium"; SmallShadows.Bench).
+      last one too ("Medium, small objects without shadows" beside "Medium"; SmallShadows.Bench); tools/bench_report.py prints each
+      bench variant against its own preset, a difference inside the two rounds' GPU spread marked as noise.
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
