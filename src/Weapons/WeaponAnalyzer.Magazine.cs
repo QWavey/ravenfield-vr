@@ -349,8 +349,8 @@ namespace RavenfieldVR.Weapons
                     Vector3 end = path[path.Length - 1];
                     if ((end - d.GripPoint).sqrMagnitude < 1.5f * 1.5f && !float.IsNaN(end.x))
                     {
-                        d.MagSeat = new RigidPose(end, d.MagSeat.rotation);
-                        d.Notes += "rocket seated where its reload leaves it (parked away at rest) ";
+                        d.MagSeat = new RigidPose(end, ReloadTurnAt(sampler, mi, path.Length - 1, d.MagSeat.rotation, out float turned));
+                        d.Notes += $"rocket seated where its reload leaves it (parked away at rest{(turned > 1f ? $", turned {turned:0} deg as the reload holds it" : "")}) ";
                     }
                 }
             }
@@ -364,20 +364,27 @@ namespace RavenfieldVR.Weapons
                 // Where the reload brings it nearest the bore: in the gun (the M1's reload parks the clip away again at its end).
                 Vector3[] path = sampler.ReloadTrajectory[mi];
                 Vector3 end = d.MagSeat.position;
+                int endStep = -1;
                 if (path != null)
                 {
-                    foreach (Vector3 p in path)
+                    for (int k = 0; k < path.Length; k++)
                     {
-                        if (!float.IsNaN(p.x) && OffBore(p) < OffBore(end))
+                        if (!float.IsNaN(path[k].x) && OffBore(path[k]) < OffBore(end))
                         {
-                            end = p;
+                            end = path[k];
+                            endStep = k;
                         }
                     }
                 }
                 if (OffBore(end) < 0.12f)
                 {
-                    d.Notes += $"magazine parked {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest: seated where its reload brings it into the gun ";
-                    d.MagSeat = new RigidPose(end, d.MagSeat.rotation);
+                    // Turned as the reload holds it at that step too: the rest pose's turn (the clip parked 61 cm off the M1 GARRET,
+                    // lying any way) drew the seated part, and the shape's axis that becomes the insertion line, turned as it waits
+                    // (sweep round 2, bug hunt 3).
+                    Quaternion seated = ReloadTurnAt(sampler, mi, endStep, d.MagSeat.rotation, out float turned);
+                    d.Notes += $"magazine parked {OffBore(d.MagSeat.position) * 100f:0} cm off the bore at rest: seated where its reload brings it into the gun"
+                               + $"{(turned > 1f ? $", turned {turned:0} deg as the reload holds it there" : "")} ";
+                    d.MagSeat = new RigidPose(end, seated);
                 }
                 else
                 {
@@ -552,6 +559,28 @@ namespace RavenfieldVR.Weapons
             }
             d.Notes += $"'{_detachedPieces[0].name}'{(_detachedPieces.Count > 1 ? $" and {_detachedPieces.Count - 1} more" : "")} ({rest.Count} mesh(es)) "
                        + $"hang {gap * 100f:0} cm off the magazine's body at rest: left out of its shape, hidden while held ";
+        }
+
+        /// <summary>
+        /// The part's turn in the gun at a reload step (recorded only from the step it first moved: an unrecorded step holds a zero
+        /// quaternion), else <paramref name="fallback"/>; <paramref name="turned"/> is the angle between the two (degrees).
+        /// </summary>
+        private static Quaternion ReloadTurnAt(PoseSampler sampler, int part, int step, Quaternion fallback, out float turned)
+        {
+            Quaternion[] turn = sampler.ReloadRotation?[part];
+            if (turn == null || step < 0 || step >= turn.Length)
+            {
+                turned = 0f;
+                return fallback;
+            }
+            Quaternion q = turn[step];
+            if (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z <= 0.5f)
+            {
+                turned = 0f;
+                return fallback;
+            }
+            turned = Quaternion.Angle(q, fallback);
+            return q;
         }
 
         /// <summary>
