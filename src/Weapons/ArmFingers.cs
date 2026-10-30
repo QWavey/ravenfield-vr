@@ -89,8 +89,12 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Self-test: how far the fingers are bent, on average (degrees summed over each finger's joints; -1: none found).</summary>
-        internal float MeanBend()
+        /// <summary>
+        /// Self-test: how far the fingers are bent toward <paramref name="palm"/> (the palm's side), on average (degrees summed over
+        /// each finger's joints, a joint bent back counted against it: unsigned, a finger bent backward read as closing; review);
+        /// -1: none found.
+        /// </summary>
+        internal float MeanBend(Vector3 palm)
         {
             float sum = 0f;
             int n = 0;
@@ -108,7 +112,8 @@ namespace RavenfieldVR.Weapons
                         : j[s + 1].childCount > 0 ? j[s + 1].GetChild(0).position - j[s + 1].position : Vector3.zero;
                     if (a.sqrMagnitude > 1e-10f && b.sqrMagnitude > 1e-10f)
                     {
-                        bend += Vector3.Angle(a, b);
+                        float angle = Vector3.Angle(a, b);
+                        bend += Vector3.Dot(b.normalized - a.normalized, palm) >= 0f ? angle : -angle;
                     }
                 }
                 sum += bend;
