@@ -50,6 +50,12 @@ def main():
             f.write(line(90, '3.0').replace('(render scale 0.9); ', '(render scale 0.9), MSAA 2x, shadows 30 m, LOD bias 0.7, game cameras into 1 px, scope lens every other frame; '))
         try_rows = list(frame_report.rows(try_log))
         check(try_rows[0]['try'] == 'cams 1px, scope 1/2' and table[0]['try'] == '', f"try column: the settings to try when on ({try_rows[0]['try']!r})")
+        gc_log = os.path.join(root, 'gc.log')
+        with open(gc_log, 'w', encoding='utf-8') as f:
+            f.write(line(90, '3.0').replace('; costliest steps', '; 12 garbage collections (incremental, 1.5 ms a frame); costliest steps')
+                    + line(90, '3.0').replace('; costliest steps', '; 12 garbage collections (incremental, 3 ms a frame); costliest steps'))
+        gc_rows = list(frame_report.rows(gc_log))
+        check(gc_rows[0]['try'] == 'gc 1.5 ms' and gc_rows[1]['try'] == '', f"try column: a collector slice other than 3 ms ({gc_rows[0]['try']!r}, {gc_rows[1]['try']!r})")
 
         game = os.path.join(root, 'BepInEx')
         os.makedirs(game)

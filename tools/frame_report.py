@@ -30,6 +30,15 @@ def bound(text):
     return 'GPU' if gpu >= 0.7 * interval else 'CPU'
 
 
+def gc_slice(text):
+    """The collector's slice when it is not the game's 3 ms (GarbageCollectionSliceMs), as ['gc 1 ms'], else []."""
+    m = re.search(r'incremental, ([\d.,]+) ms a frame', text)
+    if not m:
+        return []
+    ms = m.group(1).replace(',', '.')
+    return [] if ms in ('3', '3.0') else [f'gc {ms} ms']
+
+
 def rows(path):
     for line in open(path, encoding='utf-8', errors='replace'):
         if 'Frame rate over the last minute of play:' not in line:
@@ -52,8 +61,8 @@ def rows(path):
             'faded': number(r'(\d+) faded out', text),
             'depth': 'yes' if 'the eyes draw a' in text else '',
             # The settings to try (GameCamerasOnePixel, ScopeHalfRate), said in the line when on: their minutes against the others.
-            'try': ', '.join(short for short, said in (('cams 1px', 'game cameras into 1 px'), ('scope 1/2', 'scope lens every other frame'))
-                             if said in text),
+            'try': ', '.join([short for short, said in (('cams 1px', 'game cameras into 1 px'), ('scope 1/2', 'scope lens every other frame'))
+                              if said in text] + gc_slice(text)),
         }
 
 
