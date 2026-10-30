@@ -46,7 +46,7 @@ def rotate(q, v):
 
 
 names = sys.argv[1:] or sorted(os.path.basename(x) for x in glob.glob(os.path.join(DATA, '*')))
-copies, detached, boxes = [], [], []
+copies, detached, boxes, parked = [], [], [], []
 for n in names:
     try:
         rig = json.load(open(os.path.join(DATA, n, 'rig.json'), encoding='utf-8'))
@@ -88,8 +88,12 @@ for n in names:
         g = min(gap(bx[k], bx[j]) for k in rest for j in body)
         if sum(vol(bx[k]) for k in rest) < sum(vol(bx[j]) for j in body) and g >= 0.05:
             detached.append((g, n, len(rest), mine[rest[0]].name))
-    # (3) the analysed box against the drawn magazine
-    if rig.get('action') not in ('ShellFed', 'BreakOpen', 'SingleShot'):
+    # (3) the analysed box against the drawn magazine. Not a magazine parked away from its seat at rest (the M1 GARRET's clip
+    # waits a metre off): the drawn part is where it waits, the box at the seat, and they read 107 cm apart for no fault.
+    rest_at = rig.get('magRestPos')
+    if rest_at is not None and float(np.linalg.norm(np.asarray(rest_at) - np.asarray(rig['magSeatPos']))) > 0.05:
+        parked.append(n)
+    elif rig.get('action') not in ('ShellFed', 'BreakOpen', 'SingleShot'):
         lo = np.min([b[0] for b in bx], axis=0)
         hi = np.max([b[1] for b in bx], axis=0)
         off = float(np.linalg.norm((lo + hi) / 2 - seat))
@@ -102,6 +106,7 @@ for far, n, name in sorted(copies, reverse=True):
 print(f'(2) pieces under the magazine apart from its body: {len(detached)}')
 for g, n, k, name in sorted(detached, reverse=True):
     print(f'    {g * 100:5.0f} cm off, {k} piece(s)  {n}  e.g. {name}')
-print(f'(3) analysed box off the drawn magazine by 2 cm or more: {len(boxes)}')
+print(f'(3) analysed box off the drawn magazine by 2 cm or more: {len(boxes)}'
+      + (f' ({len(parked)} parked away from the seat at rest not compared)' if parked else ''))
 for off, n, a, b in sorted(boxes, reverse=True):
     print(f'    {off * 100:5.1f} cm  (analysed {a * 100:.0f} cm long, drawn {b * 100:.0f})  {n}')
