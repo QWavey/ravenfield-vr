@@ -90,6 +90,10 @@ namespace RavenfieldVR.UI
                 UiCamera.farClipPlane = 200f;
                 UiCamera.allowHDR = false;
                 UiCamera.allowMSAA = true;
+                // No occlusion culling for it: a map's baked occlusion is for the world, and a panel behind a baked occluder (a wall
+                // between the head and a converted menu, never between it and a panel at arm's length) was culled by it; on a map
+                // with baked occlusion it was a query per eye too.
+                UiCamera.useOcclusionCulling = false;
                 // No shadow maps for it (the UI layer casts and takes none): rendered for it as for the eyes, they doubled its cost with
                 // a preset's shadows on (0.53 ms of main thread a frame with Game, about 1.0 with Medium or Ultra; the user's session,
                 // 2026-10-27).
