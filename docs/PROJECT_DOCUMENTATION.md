@@ -1134,3 +1134,13 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    controllers by `ArmIK.FreeTarget`/`SolveArm`, the gloves hidden). The settings panel's second page (More settings), holster
    copies easing out when reached, a swapped weapon's ground copy without its magazine when it was out, and autotest checks for
    the free fingers, the empty-hand arms and the settings pages.
+20. **The work-until-limit 60 of 2026-10-30** (the game not started): the magazine box taken from the gun's own copy where they
+   disagree, once (`MagazineProp.AdoptCopyBounds`; the ARS guns, the G BRN180 EO SS; `WeaponRigData.AnalysedMagBounds` for
+   the casings), the PKM family's belt laid at its model belt's feed (`HeldWeapon.BeltFeedGun`), parked seats turned as the
+   reload holds them, a swapped weapon's ground copy without its magazine; the weapon's arms' trigger finger
+   (`ArmFingers.Pull`) and empty-hand arms from a carried weapon at the start; soldier grabs (a body caught in its slow-motion
+   flight, one taken by the second hand, a strapped grenade on a soldier who gets up); four settings to try for the frame rate,
+   each said in the frame rate line and `frame_report`'s try column: `GameCamerasOnePixel`, `ScopeHalfRate`,
+   `GarbageCollectionSliceMs`, `SmallObjectsNoShadows` (`SmallShadows`); offline tests for the copy box, the belt's rounds,
+   the holster band and the shell port; the export check `magazine_pieces_rule.py`. Each batch read by a Haiku reviewer and its
+   findings fixed.
