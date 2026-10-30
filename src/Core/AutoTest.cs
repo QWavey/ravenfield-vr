@@ -364,6 +364,7 @@ namespace RavenfieldVR.Core
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
+                    yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
                     Write();
@@ -427,6 +428,7 @@ namespace RavenfieldVR.Core
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
+                    yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                 }
                 PerfProbe.Reset();
@@ -2558,11 +2560,52 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>Aims the laser at the pause menu's button with this label and clicks it with the trigger, wobbling 1.5 degrees.</summary>
-        private static IEnumerator ClickMenuButton(Rig.VRHand dom, string label, List<string> lines)
+        /// <summary>
+        /// The VR settings panel's two pages, by its own buttons pressed with the laser: "More settings" shows the second page
+        /// (the controls, gloves and menus), "Back" the first again, each pictured (2026-10-30).
+        /// </summary>
+        private static IEnumerator SettingsPagesCheck()
+        {
+            UI.VRSettingsPanel panel = UI.UISystem.Instance != null ? UI.UISystem.Instance.Settings : null;
+            Rig.VRHand dom = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Dominant : null;
+            if (panel == null || dom == null)
+            {
+                Results.Add("VR settings pages: skipped (no settings panel)");
+                yield break;
+            }
+            var lines = new List<string>();
+            panel.Open();
+            try
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("vr-settings-1");
+                yield return ClickMenuButton(dom, "More settings", lines, panel.Canvas.transform);
+                yield return new WaitForSecondsRealtime(0.3f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("vr-settings-2");
+                bool more = panel.ShownPage == 1;
+                yield return ClickMenuButton(dom, "Back", lines, panel.Canvas.transform);
+                yield return new WaitForSecondsRealtime(0.3f);
+                bool back = panel.ShownPage == 0;
+                Results.Add($"VR settings pages: {(more ? "More settings showed the second page" : "MORE SETTINGS DID NOT SHOW THE SECOND PAGE")}, "
+                            + $"{(back ? "Back the first" : "BACK DID NOT SHOW THE FIRST PAGE")}{(lines.Count > 0 ? "; " + string.Join("; ", lines.ToArray()) : "")}");
+                if (!more || !back)
+                {
+                    Problem("[ui] the VR settings panel's pages do not switch");
+                }
+            }
+            finally
+            {
+                panel.Close();
+            }
+        }
+
+        private static IEnumerator ClickMenuButton(Rig.VRHand dom, string label, List<string> lines, Transform root = null)
         {
             int side = (int)dom.Side;
             UnityEngine.UI.Button button = null;
-            foreach (UnityEngine.UI.Button b in IngameMenuUi.instance.GetComponentsInChildren<UnityEngine.UI.Button>(false))
+            foreach (UnityEngine.UI.Button b in (root != null ? root : IngameMenuUi.instance.transform).GetComponentsInChildren<UnityEngine.UI.Button>(false))
             {
                 UnityEngine.UI.Text t = b.GetComponentInChildren<UnityEngine.UI.Text>();
                 if (t != null && t.text.Trim().Equals(label, StringComparison.OrdinalIgnoreCase))

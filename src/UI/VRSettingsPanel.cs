@@ -188,9 +188,13 @@ namespace RavenfieldVR.UI
             return rt;
         }
 
+        /// <summary>The page shown (0: the first, 1: More settings).</summary>
+        internal int ShownPage { get; private set; }
+
         /// <summary>Shows one page (0: the first, 1: More settings).</summary>
         private void ShowPage(int page)
         {
+            ShownPage = page;
             for (int i = 0; i < _pages.Length; i++)
             {
                 if (_pages[i] != null)
