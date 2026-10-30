@@ -1124,3 +1124,13 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    five-skill Haiku sweep (Tasks 354, reports in `reports/sweeps/`): the lens glow only at the held gun, the scene change's
    steps guarded one by one, the pouch tick, all four pouch places and Grab reach on the panel, Calibrate now's notice, the
    mud splash from the headset's projection, the autotest's skipped-check count and the canvas's cached CanvasGroup.
+
+19. **After 1.15.0** (2026-10-29/30, not published): the second Haiku sweep's fixes: machine-gun boxes measured, hidden and
+   copied without the belt links hanging under them (`WeaponAnalyzer.DetachedMagazinePieces`: the PKM/PKP/Type 80/MK46), the K13's
+   spare behind the stock grouped on its own in `ParkedAmmo`, the belt strip drawn to the hand's reach and eased onto the tray, a
+   pump's let-go a stroke past its stops and its TRIGGER TO PUMP cue, the tube port estimate at 0.6 of the way to the forend, parked
+   seats turned as the reload holds them. Weapon's arms: the free hand's fingers from the controller (`ArmFingers`), and arms on
+   empty hands (`EmptyArms`: the last held gun's arm skeleton and meshes copied as it is put away, both arms IK'd to the
+   controllers by `ArmIK.FreeTarget`/`SolveArm`, the gloves hidden). The settings panel's second page (More settings), holster
+   copies easing out when reached, a swapped weapon's ground copy without its magazine when it was out, and autotest checks for
+   the free fingers, the empty-hand arms and the settings pages.
