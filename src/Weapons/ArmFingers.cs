@@ -22,10 +22,6 @@ namespace RavenfieldVR.Weapons
         private readonly Vector3[] _dir = new Vector3[3];
         private readonly float[] _baseAngle = new float[3];
 
-        /// <summary>
-        /// The joints' rotations now as this frame's last write: called after something else turned them on top of <see cref="Pose"/>
-        /// (ArmIK's magazine hold), so the next frame does not take that for an animator's pose and keep it as the base.
-        /// </summary>
         /// <summary>How far each joint of a pulled finger bends past the animation's pose at a full pull (degrees, knuckle to tip).</summary>
         private static readonly float[] PullBend = { 14f, 18f, 12f };
 
@@ -77,6 +73,10 @@ namespace RavenfieldVR.Weapons
             _fingersWritten = true;
         }
 
+        /// <summary>
+        /// The joints' rotations now as this frame's last write: called after something else turned them on top of <see cref="Pose"/>
+        /// (ArmIK's magazine hold), so the next frame does not take that for an animator's pose and keep it as the base.
+        /// </summary>
         public void Remember()
         {
             for (int f = 0; f < 5; f++)
