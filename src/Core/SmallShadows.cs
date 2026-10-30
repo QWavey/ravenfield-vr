@@ -25,6 +25,9 @@ namespace RavenfieldVR.Core
 
         private static bool On => Bench ?? VRConfig.SmallObjectsNoShadows.Value;
 
+        /// <summary>How many objects have their shadow off now (said in the frame rate line, so a session's log shows it took).</summary>
+        internal static int Count => Trimmed.Count;
+
         /// <summary>
         /// A level loaded: its objects scanned a few seconds in (they are still being made), the old level's forgotten; one that
         /// lives on (DontDestroyOnLoad) is kept, to be given its shadow back when the setting is turned off (review, 2026-10-30).

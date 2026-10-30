@@ -164,7 +164,7 @@ namespace RavenfieldVR.Core
                      $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}" +
                      // The settings to try said when on, so a log shows them against the minutes before (GameCamerasOnePixel, ScopeHalfRate).
                      $"{(VRConfig.GameCamerasOnePixel.Value ? ", game cameras into 1 px" : "")}{(VRConfig.ScopeHalfRate.Value ? ", scope lens every other frame" : "")}"
-                     + $"{(VRConfig.SmallObjectsNoShadows.Value ? ", small objects without shadows" : "")}; " +
+                     + $"{(VRConfig.SmallObjectsNoShadows.Value ? $", small objects without shadows ({SmallShadows.Count})" : "")}; " +
                      $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame; "
                      + CpuSpeed() + "; "
                      + FramePhases.TakeReport());
