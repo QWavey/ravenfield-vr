@@ -161,7 +161,9 @@ namespace RavenfieldVR.Core
                      $"({_budgetMs:0.0} ms), median {Percentile(Buckets, _frames, 0.5f):0.0} ms, 95th {Percentile(Buckets, _frames, 0.95f):0.0} ms, {gpu}; " +
                      $"{preset}, {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight} per eye (render scale {XRSettings.eyeTextureResolutionScale:0.0#}), " +
                      $"MSAA {QualitySettings.antiAliasing}x, shadows " +
-                     $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}; " +
+                     $"{(QualitySettings.shadows == ShadowQuality.Disable ? "off" : $"{QualitySettings.shadowDistance:0} m")}, LOD bias {QualitySettings.lodBias:0.0#}" +
+                     // The settings to try said when on, so a log shows them against the minutes before (GameCamerasOnePixel, ScopeHalfRate).
+                     $"{(VRConfig.GameCamerasOnePixel.Value ? ", game cameras into 1 px" : "")}{(VRConfig.ScopeHalfRate.Value ? ", scope lens every other frame" : "")}; " +
                      $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame; "
                      + CpuSpeed() + "; "
                      + FramePhases.TakeReport());
