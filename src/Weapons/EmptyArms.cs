@@ -264,12 +264,15 @@ namespace RavenfieldVR.Weapons
             HandError = Mathf.Max(right, left);
         }
 
-        /// <summary>One arm on its hand; returns how far its hand bone ended from the target (m; 0 when the hand has no pose).</summary>
+        /// <summary>
+        /// One arm on its hand; returns how far its hand bone ended from its target (m: the IK's reach, the placement itself is the
+        /// autotest's picture), -1 when it was not solved (no arm, the hand with no pose: a 0 read as on target; review).
+        /// </summary>
         private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones)
         {
             if (arm == null || fingers == null || chain == null)
             {
-                return 0f; // (a copy that failed part way: never hide a glove for an arm that is not there)
+                return -1f; // (a copy that failed part way: never hide a glove for an arm that is not there)
             }
             if (hand.Model != null)
             {
@@ -277,7 +280,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!hand.HasPose || arm[0] == null || arm[1] == null || arm[2] == null || arm[3] == null)
             {
-                return 0f; // (held where it was: the glove holds its last pose too)
+                return -1f; // (held where it was: the glove holds its last pose too)
             }
             RigidPose target = ArmIK.FreeTarget(hand, chain);
             Vector3 pole = shoulder + Vector3.down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;

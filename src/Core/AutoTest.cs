@@ -3003,9 +3003,9 @@ namespace RavenfieldVR.Core
         {
             Actor actor = LocalPlayer.actor;
             int slot = actor != null && actor.weapons != null ? Array.IndexOf(actor.weapons, weapon) : -1;
-            if (slot < 0 || VRConfig.Hands.Value == HandsMode.WeaponArms)
+            if (slot < 0)
             {
-                yield break;
+                yield break; // (run with Weapon's arms already chosen too: it left no line and checked nothing then; review)
             }
             try
             {
@@ -3085,6 +3085,8 @@ namespace RavenfieldVR.Core
                 // in the air): squeezed, they close. Not two-handed for it (the handguard step set it: the hand counted as on the gun).
                 held.SetTwoHanded(false);
                 yield return new WaitForSecondsRealtime(0.3f);
+                // (The controller's own finger tracking, when it has it, wins over the squeeze simulated here: not a fault then.)
+                bool tracking = Input.VRInput.HasSkeleton(off.Side);
                 float open = arms.OffFingerBend;
                 Input.VRInput.SimulatedGrip[(int)off.Side] = 1f;
                 Input.VRInput.SimulatedTrigger[(int)off.Side] = 1f;
@@ -3098,6 +3100,10 @@ namespace RavenfieldVR.Core
                     if (open < 0f || fist < 0f)
                     {
                         fingerNote = "; the weapon's left hand has no fingers found by name (left as its animation has them)";
+                    }
+                    else if (tracking)
+                    {
+                        fingerNote = $"; the free hand's fingers {open:0} deg open, {fist:0} squeezed (the controller's finger tracking: the squeeze not simulated)";
                     }
                     else
                     {
@@ -3131,10 +3137,16 @@ namespace RavenfieldVR.Core
                     {
                         gloves &= h.Model == null || h.Model.Suppressed;
                     }
-                    Metric("weapon's arms: cm the empty-hand arms are off the controllers", empty.HandError * 100f);
+                    // (The hand bone against its IK target: the reach; where the target sits on the controller is the picture's to show.)
+                    bool solved = empty.HandError >= 0f;
+                    if (solved)
+                    {
+                        Metric("weapon's arms: cm the empty-hand arms' hands are off their targets", empty.HandError * 100f);
+                    }
                     bool off2 = empty.HandError > 0.02f;
                     torn |= off2 || !gloves;
-                    emptyNote = $"; put away, the arms stay on the empty hands, {empty.HandError * 100f:0.0} cm off the controllers"
+                    emptyNote = $"; put away, the arms stay on the empty hands, "
+                                + (solved ? $"{empty.HandError * 100f:0.0} cm off their targets on the controllers" : "not solved (a hand with no pose)")
                                 + $"{(off2 ? " (NOT ON THE CONTROLLERS)" : "")}{(gloves ? "" : " (GLOVES NOT HIDDEN)")}";
                     // With no copy (spawned empty-handed, respawned): taken from a carried weapon within its 2 s retry.
                     empty.Destroy();
@@ -3148,6 +3160,10 @@ namespace RavenfieldVR.Core
             }
             finally
             {
+                if (Rig.VRRig.Instance != null)
+                {
+                    Input.VRInput.SimulatedGrab[(int)Rig.VRRig.Instance.Off.Side] = false; // (a step that stopped between its set and clear)
+                }
                 if (VRConfig.TestHands.HasValue)
                 {
                     actor.HolsterActiveWeapon();
