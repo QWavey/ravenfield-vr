@@ -1103,7 +1103,7 @@ namespace RavenfieldVR.Weapons
                         {
                             _lastBlow = Time.time;
                             _lastBlowBy[i] = Time.time;
-                            LastHandBlow[i] = Time.time;
+                            LastHandBlow[i] = Time.unscaledTime; // (real time: a grab's 0.6 s after a punch lasted 3 s in slow motion)
                             h.Haptic(0.08f, 60f, 0.9f);
                         }
                     }

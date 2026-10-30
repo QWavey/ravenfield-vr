@@ -4994,7 +4994,7 @@ namespace RavenfieldVR.Core
                     yield return LetGo();
                     report($"quick reach squeezed on the way (3 m/s, slowing to him): {(reachTook ? "took hold of him" : "NOT TAKEN: the reach grabbed the air")}"
                            + (reachTook ? "" : $" [{BodyGrab.WhyNot}; {(reachedFor.health < reachHp - 0.5f ? "a blow landed on the way" : "no blow")}, "
-                                               + $"{Time.time - MeleeHandler.LastHandBlow[os]:0.00} s since the hand's last blow; {(reachedFor.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm]"));
+                                               + $"{Time.unscaledTime - MeleeHandler.LastHandBlow[os]:0.00} s since the hand's last blow; {(reachedFor.CenterPosition() - off.PalmCentre).magnitude:0.00} m from the palm]"));
                 }
                 else
                 {

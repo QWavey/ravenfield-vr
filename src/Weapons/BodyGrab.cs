@@ -337,7 +337,7 @@ namespace RavenfieldVR.Weapons
                         _squeezedNear[i] = false;
                     }
                     // (Nor a fist that just landed a blow: its squeeze was the punch's, and it stopped on him after it.)
-                    if (canHold && _squeezedNear[i] && Time.time - MeleeHandler.LastHandBlow[i] > 0.6f
+                    if (canHold && _squeezedNear[i] && Time.unscaledTime - MeleeHandler.LastHandBlow[i] > 0.6f
                         && hand.Role == HandRole.Free && hand.Held == null && hand.Tracked && !VRGameInput.GunInputBlocked
                         && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow))
                     {
@@ -601,12 +601,21 @@ namespace RavenfieldVR.Weapons
             // or running and then flinged around in my hand and formed themselves long bodys" (user, 2026-10-25).
             // (in game units: in slow motion the real-time hand's velocity is so much faster in the slowed world)
             Vector3 handVelocity = hand.Velocity / SlowMotion();
+            // Caught again in his flight (thrown in slow motion, flying as in real time until he touches something): back at the
+            // world's pace before he is held, as a magazine caught in the air is. The flight's lift went on in the hand, 24 g a bone
+            // at 0.2, and he sagged out of his joints (bug hunt, 2026-10-30). And one the other hand already holds keeps its motion:
+            // set to this hand's, a body carried at 3 m/s stopped in one step and the first hand's joint yanked it back.
+            bool heldByOther = _holds[1 - i] != null && _holds[1 - i].Actor == best;
             foreach (Rigidbody rb in best.ragdoll.rigidbodies)
             {
                 if (rb != null)
                 {
-                    rb.velocity = handVelocity;
-                    rb.angularVelocity = Vector3.zero;
+                    RealTimeFlight.Stop(rb);
+                    if (!heldByOther)
+                    {
+                        rb.velocity = handVelocity;
+                        rb.angularVelocity = Vector3.zero;
+                    }
                 }
             }
             BodyImpacts.Arm(best, float.PositiveInfinity, GameContext.PlayerActor); // (its bones' speed kept in check while armed)
@@ -2158,9 +2167,11 @@ namespace RavenfieldVR.Weapons
                 {
                     _carrierDied = true;
                 }
-                else if (_carrierDied)
+                else if (_carrierDied || _carrier.ragdoll != null && !_carrier.ragdoll.IsRagdoll())
                 {
-                    // Respawned elsewhere before it went off (the game reuses its soldiers): it stays where the body was.
+                    // Respawned elsewhere before it went off (the game reuses its soldiers), or got up: his ragdoll is put away when he
+                    // stands, and the grenade stayed frozen on its bone where he lay while its going off killed him wherever he had
+                    // walked (bug hunt, 2026-10-30). It stays where the body was, a grenade like any other.
                     _carrier = null;
                     Destroy(this);
                     return;
