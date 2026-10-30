@@ -53,6 +53,11 @@ for n in names:
     notes = rig.get('notes') or ''
     found = FOUND.findall(notes)
     hidden = set(HIDDEN.findall(notes))
+    # An export with the hidden parts' names (rig.json "spareParts"): what the held gun hides, by name, whatever the notes say.
+    spare = rig.get('spareParts')
+    if spare is not None:
+        hidden = {h for h in FOUND.findall(notes) if h in spare}
+        new_export = True
     new_export |= bool(hidden)
     for helper in found:
         rows.append((n, helper, hides(helper), helper in hidden))
