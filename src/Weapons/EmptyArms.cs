@@ -11,8 +11,8 @@ namespace RavenfieldVR.Weapons
     /// Hands = Weapon's arms with no weapon in the hand: arms all the time, not only while a gun is held (user, 2026-10-29: "i
     /// wanna have the arms the whole time and not just when i touch the gun"). The arms are each gun's own (a mesh skinned to
     /// the gun's arm bones), so with nothing in the hand there were none to draw and the VR gloves showed. When a gun whose
-    /// arms were drawn is put away, its arm skeleton and arm meshes are copied (only those: no gun part, no script, no
-    /// animator), and the copy follows both controllers while the hands are empty, both arms as the weapon's off arm does off
+    /// arms were drawn is put away (with none yet: a carried weapon's, from its holstered object), its arm skeleton and arm
+    /// meshes are copied (only those: no gun part, no script, no animator), and the copy follows both controllers while the hands are empty, both arms as the weapon's off arm does off
     /// the gun (<see cref="ArmIK.FreeTarget"/>), the fingers from the controllers (<see cref="ArmFingers"/>), the gloves hidden.
     /// A gun drawn again takes over with its own arms as before: the gun hand on its grip, the support hand on the foregrip,
     /// a magazine as its reload holds it (user: "the gun held and support hand held weapon positions need to stay").
@@ -42,12 +42,57 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            WeaponRigData d = held.Rig.Data;
+            Copy(held.Weapon, held.Rig);
+        }
+
+        /// <summary>When the next try at <see cref="TakeFromLoadout"/> may be (Time.unscaledTime).</summary>
+        private float _nextLoadoutTry;
+
+        /// <summary>
+        /// No copy yet (spawned empty-handed, just respawned, or Weapon's arms chosen with nothing drawn since): the arms of a weapon
+        /// the player carries, from its holstered object, whose analysis is already made (never one run here; the loadout's are
+        /// made in the loading screen). At most every 2 s while none is found. Before, the gloves showed until a gun had been drawn
+        /// and put away once.
+        /// </summary>
+        private void TakeFromLoadout(WeaponSystem sys)
+        {
+            if (Time.unscaledTime < _nextLoadoutTry)
+            {
+                return;
+            }
+            _nextLoadoutTry = Time.unscaledTime + 2f;
+            Actor actor = Util.GameContext.PlayerActor;
+            if (actor == null || actor.weapons == null)
+            {
+                return;
+            }
+            foreach (Weapon w in actor.weapons)
+            {
+                if (w == null || !WeaponAnalyzer.IsCached(w, null))
+                {
+                    continue;
+                }
+                WeaponRig rig = sys.RigFor(w);
+                if (rig.Data.ArmRight != null && rig.Data.ArmLeft != null && rig.ArmRenderers.Length > 0)
+                {
+                    Copy(w, rig);
+                    if (_root != null)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
+        /// <summary>The arm skeleton and arm meshes of <paramref name="weapon"/> copied (only those), its bones in their pose now.</summary>
+        private void Copy(Weapon weapon, WeaponRig rig)
+        {
+            WeaponRigData d = rig.Data;
             if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && _renderers.TrueForAll(HasMesh))
             {
                 return;
             }
-            Transform weaponRoot = held.Weapon.transform;
+            Transform weaponRoot = weapon.transform;
             Transform[] right = Chain(weaponRoot, d.ArmRight), left = Chain(weaponRoot, d.ArmLeft);
             if (right == null || left == null)
             {
@@ -56,7 +101,7 @@ namespace RavenfieldVR.Weapons
             // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
             var renderers = new List<Renderer>();
             var needed = new List<Transform>();
-            foreach (Renderer r in held.Rig.ArmRenderers)
+            foreach (Renderer r in rig.ArmRenderers)
             {
                 if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
                 {
@@ -165,6 +210,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void BeforeRender(WeaponSystem sys, bool show)
         {
+            if (show && _root == null)
+            {
+                TakeFromLoadout(sys);
+            }
             // Not while a hand holds a soldier: that glove is on him, drawn (as with a gun in the other hand: HeldWeapon keeps it), and an
             // arm sent to the controller left it hidden and the hand off the body (review, 2026-10-30).
             show &= _root != null && _renderers.TrueForAll(HasMesh) && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
