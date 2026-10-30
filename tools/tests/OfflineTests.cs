@@ -169,7 +169,7 @@ namespace RavenfieldVR.Tests
             {
                 return;
             }
-            foreach (string n in new[] { "zZ008 MAG", "QBZ95_Mag", "1911 10r mag", "dan    xia", "\u5355\u72ec\u5b50\u5f39.001", "QJB201_AmmoBox", "RFB Magazine.001" })
+            foreach (string n in new[] { "zZ008 MAG", "QBZ95_Mag", "1911 10r mag", "dan    xia", "\u5355\u72ec\u5b50\u5f39.001", "QJB201_AmmoBox", "RFB Magazine.001", "Spare_Mag" })
             {
                 Check((bool)helper.Invoke(null, new object[] { n, false }), $"Ammo names: helper '{n}' hidden while held");
             }

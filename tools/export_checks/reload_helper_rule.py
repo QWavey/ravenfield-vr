@@ -30,9 +30,10 @@ ARM = re.compile(r"arm(?!ature|or)|hand(?!guard|le)|glove|sleeve|finger|wrist|bo
 
 def hides(name):
     """Whether the rule hides a helper of this name while held (the launcher words left out: a launcher's rockets stay drawn)."""
-    unspaced = re.sub(r'\s+', '', name)  # (the P220's 'dan    xia': 弹匣's pinyin spaced out)
-    named = any(MAG.search(n) for n in (name, unspaced)) or ROUND.search(name) or AMMO.search(name)
-    return bool(named) and not NOT_MAG.search(name) and not OPTIC.search(name)
+    as_named = re.sub('spare', '', name, flags=re.I)  # (a spare one is a reload's fresh magazine: NOT_MAG's 'spare' is the seat's rule)
+    unspaced = re.sub(r'\s+', '', as_named)  # (the P220's 'dan    xia': 弹匣's pinyin spaced out)
+    named = any(MAG.search(n) for n in (as_named, unspaced)) or ROUND.search(name) or AMMO.search(name)
+    return bool(named) and not NOT_MAG.search(as_named) and not OPTIC.search(name)
 
 
 def arm_ammo(name):

@@ -480,12 +480,16 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// A reload helper the held gun hides: named as ammunition (a magazine, a round, a shell, an ammo box; on a launcher its
         /// rocket), its name also read with the spaces taken out (the P220's 'dan    xia', 弹匣's pinyin spaced out), never an optic,
-        /// never one named as no magazine (a release, a catch: 弹匣释放 has the 弹 of AmmoPartName; review)
+        /// never one named as no magazine (a release, a catch: 弹匣释放 has the 弹 of AmmoPartName; review), though a spare one is
+        /// (NotMagName's "spare" keeps a spare from being taken for the seated magazine; a reload's fresh one is just that)
         /// (tools/export_checks/reload_helper_rule.py runs the same rule over an export).
         /// </summary>
-        internal static bool HelperNamedAsAmmunition(string name, bool launcher) =>
-            (IsMagName(name, launcher) || IsMagName(Regex.Replace(name, @"\s+", ""), launcher) || RoundName.IsMatch(name) || AmmoPartName.IsMatch(name))
-            && !IsNotMag(name, launcher) && !OpticName.IsMatch(name);
+        internal static bool HelperNamedAsAmmunition(string name, bool launcher)
+        {
+            string asNamed = Regex.Replace(name, "spare", "", RegexOptions.IgnoreCase);
+            return (IsMagName(asNamed, launcher) || IsMagName(Regex.Replace(asNamed, @"\s+", ""), launcher) || RoundName.IsMatch(name) || AmmoPartName.IsMatch(name))
+                   && !IsNotMag(asNamed, launcher) && !OpticName.IsMatch(name);
+        }
 
         /// <summary>
         /// The magazine's pieces that hang apart from its body at rest, this analysis's (left out of its shape and its vertex axis;
