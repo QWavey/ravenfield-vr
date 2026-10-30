@@ -19,6 +19,34 @@ namespace RavenfieldVR.Weapons
         private readonly Quaternion[][] _fingerBase, _fingerWritten;
         private bool _fingersWritten;
 
+        /// <summary>Self-test: how far the fingers are bent, on average (degrees summed over each finger's joints; -1: none found).</summary>
+        internal float MeanBend()
+        {
+            float sum = 0f;
+            int n = 0;
+            foreach (Transform[] j in _fingers)
+            {
+                if (j == null)
+                {
+                    continue;
+                }
+                float bend = 0f;
+                for (int s = 0; s + 1 < j.Length; s++)
+                {
+                    Vector3 a = j[s + 1].position - j[s].position;
+                    Vector3 b = s + 2 < j.Length ? j[s + 2].position - j[s + 1].position
+                        : j[s + 1].childCount > 0 ? j[s + 1].GetChild(0).position - j[s + 1].position : Vector3.zero;
+                    if (a.sqrMagnitude > 1e-10f && b.sqrMagnitude > 1e-10f)
+                    {
+                        bend += Vector3.Angle(a, b);
+                    }
+                }
+                sum += bend;
+                n++;
+            }
+            return n > 0 ? sum / n : -1f;
+        }
+
         public ArmFingers(Transform hand)
         {
             _fingers = Chains(hand);

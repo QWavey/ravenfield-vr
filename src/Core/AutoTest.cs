@@ -3028,8 +3028,64 @@ namespace RavenfieldVR.Core
                         }
                     }
                 }
+                // Off the gun the weapon's hand moves its fingers with the controller (ArmFingers; user, 2026-10-29: its handguard grip held
+                // in the air): squeezed, they close. Not two-handed for it (the handguard step set it: the hand counted as on the gun).
+                held.SetTwoHanded(false);
+                yield return new WaitForSecondsRealtime(0.3f);
+                float open = arms.OffFingerBend;
+                Input.VRInput.SimulatedGrip[(int)off.Side] = 1f;
+                Input.VRInput.SimulatedTrigger[(int)off.Side] = 1f;
+                string fingerNote;
+                try
+                {
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    yield return new WaitForEndOfFrame();
+                    Shots.Capture(name + "-free-hand-fist");
+                    float fist = arms.OffFingerBend;
+                    if (open < 0f || fist < 0f)
+                    {
+                        fingerNote = "; the weapon's left hand has no fingers found by name (left as its animation has them)";
+                    }
+                    else
+                    {
+                        Metric("weapon's arms: degrees the free hand's fingers close with the grip", fist - open);
+                        bool closing = fist - open >= 15f;
+                        torn |= !closing;
+                        fingerNote = $"; the free hand's fingers {open:0} deg open, {fist:0} squeezed{(closing ? "" : " (FINGERS NOT CLOSING)")}";
+                    }
+                }
+                finally
+                {
+                    Input.VRInput.SimulatedGrip[(int)off.Side] = 0f;
+                    Input.VRInput.SimulatedTrigger[(int)off.Side] = 0f;
+                }
+                // Put away: the arms stay on the empty hands (EmptyArms; user, 2026-10-29: "i wanna have the arms the whole time").
+                actor.HolsterActiveWeapon();
+                yield return new WaitForSecondsRealtime(0.6f);
+                yield return new WaitForEndOfFrame();
+                Shots.Capture(name + "-empty-hands");
+                EmptyArms empty = WeaponSystem.Instance != null ? WeaponSystem.Instance.EmptyHandArms : null;
+                string emptyNote;
+                if (empty == null || !empty.Shown)
+                {
+                    emptyNote = "; put away: THE EMPTY-HAND ARMS NOT SHOWN";
+                    torn = true;
+                }
+                else
+                {
+                    bool gloves = true;
+                    foreach (Rig.VRHand h in Rig.VRRig.Instance.Hands)
+                    {
+                        gloves &= h.Model == null || h.Model.Suppressed;
+                    }
+                    Metric("weapon's arms: cm the empty-hand arms are off the controllers", empty.HandError * 100f);
+                    bool off2 = empty.HandError > 0.02f;
+                    torn |= off2 || !gloves;
+                    emptyNote = $"; put away, the arms stay on the empty hands, {empty.HandError * 100f:0.0} cm off the controllers"
+                                + $"{(off2 ? " (NOT ON THE CONTROLLERS)" : "")}{(gloves ? "" : " (GLOVES NOT HIDDEN)")}";
+                }
                 report($"weapon's arms: gun hand {gunErr * 100f:0.0} cm off its grip, off hand {gripErr * 100f:0.0} cm off the handguard and {freeErr * 100f:0.0} cm off the controller"
-                       + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{magNote}{(torn ? " (NOT ON TARGET)" : "")}");
+                       + $"{(arms.Stretched ? " (a shoulder slid to reach)" : "")}{magNote}{fingerNote}{emptyNote}{(torn ? " (NOT ON TARGET)" : "")}");
             }
             finally
             {

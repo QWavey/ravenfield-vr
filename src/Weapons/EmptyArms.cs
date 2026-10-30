@@ -28,6 +28,10 @@ namespace RavenfieldVR.Weapons
         private ArmFingers _rightFingers, _leftFingers;
         private bool _shown;
 
+        /// <summary>Self-test: the arms are drawn on the empty hands, and the farther hand bone's distance from its target (m).</summary>
+        internal bool Shown => _shown;
+        internal float HandError { get; private set; } = -1f;
+
         /// <summary>
         /// The arms of <paramref name="held"/>, copied as it is put away (its bones in this frame's pose), when they were drawn
         /// and both arms are there; the copy of the last such weapon is kept until another one's is taken.
@@ -183,11 +187,13 @@ namespace RavenfieldVR.Weapons
             BodyZones zones = sys.Zones;
             Vector3 neck = sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
             // The model's right arm on the right controller, its left on the left (as ArmIK's shoulders, both sides).
-            Solve(sys.Rig.Hand(Input.Hand.Right), _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * 0.17f, 1f, zones);
-            Solve(sys.Rig.Hand(Input.Hand.Left), _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * 0.17f, -1f, zones);
+            float right = Solve(sys.Rig.Hand(Input.Hand.Right), _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * 0.17f, 1f, zones);
+            float left = Solve(sys.Rig.Hand(Input.Hand.Left), _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * 0.17f, -1f, zones);
+            HandError = Mathf.Max(right, left);
         }
 
-        private static void Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones)
+        /// <summary>One arm on its hand; returns how far its hand bone ended from the target (m; 0 when the hand has no pose).</summary>
+        private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones)
         {
             if (hand.Model != null)
             {
@@ -195,12 +201,13 @@ namespace RavenfieldVR.Weapons
             }
             if (!hand.HasPose || arm[0] == null || arm[1] == null || arm[2] == null || arm[3] == null)
             {
-                return; // (held where it was: the glove holds its last pose too)
+                return 0f; // (held where it was: the glove holds its last pose too)
             }
             RigidPose target = ArmIK.FreeTarget(hand, chain);
             Vector3 pole = shoulder + Vector3.down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
             ArmIK.SolveArm(arm[0], arm[1], arm[2], arm[3], shoulder, target, pole);
             fingers.Pose(hand, arm[3], chain, 0f);
+            return Vector3.Distance(arm[3].position, target.position);
         }
 
         public void Destroy()

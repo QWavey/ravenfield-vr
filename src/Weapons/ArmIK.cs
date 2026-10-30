@@ -49,6 +49,9 @@ namespace RavenfieldVR.Weapons
 
         public bool Active => _right.Valid || _left.Valid;
 
+        /// <summary>Self-test: the off hand's fingers' mean bend (degrees; -1 with none found).</summary>
+        internal float OffFingerBend => _fingers != null ? _fingers.MeanBend() : -1f;
+
         public ArmIK(WeaponSystem sys, HeldWeapon held)
         {
             _sys = sys;

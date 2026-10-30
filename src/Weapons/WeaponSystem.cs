@@ -496,6 +496,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Weapon's arms with no weapon in the hand: the last held gun's arms on both hands.</summary>
         private readonly EmptyArms _emptyArms = new EmptyArms();
 
+        /// <summary>Self-test: the empty-hand arms.</summary>
+        internal EmptyArms EmptyHandArms => _emptyArms;
+
         // ---------------------------------------------------------------------------------------------
 
         // Weapons whose VR handling could not be set up: not retried every frame (the game keeps handling them).
