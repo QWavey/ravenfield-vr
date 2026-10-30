@@ -83,6 +83,7 @@ namespace RavenfieldVR.Weapons
         private static void AnalyzeMagazine(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
             Transform muzzle, Transform slide, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
         {
+            _reloadHelper = null; // (an earlier analysis that returned before its choice leaves none behind)
             // Belt-fed by its size (the feed cover is found after this): a box of 40 rounds or more on an automatic gun.
             // (As authored, not the live fire mode: analysed while the player had it on semi, its belt was taken for its magazine and
             // kept for the session, as the rest of the analysis reads it since 251.12; round-7 scout.)
@@ -167,6 +168,7 @@ namespace RavenfieldVR.Weapons
                 {
                     d.Notes += $"'{skippedHelper.name}' moves in the reload but is hidden at rest (helper, not the magazine) ";
                 }
+                _reloadHelper = skippedHelper; // (hidden while held once the magazine is chosen; below)
                 bool roundsMagazine = false;
                 if (mag != null && MagazineSizedReload(d, w) && RoundName.IsMatch(mag.name))
                 {
@@ -328,6 +330,17 @@ namespace RavenfieldVR.Weapons
 
             int mi = index[mag];
             d.MagazinePath = WeaponRig.PathOf(root, mag);
+            // The reload's helper hidden at rest (the M4A1 family's second 'zZ008 MAG', the fresh one the flat view's hand brings in) is
+            // hidden while held too: wherever the game's reload animation plays it (Assisted reloading, or a reload the game starts),
+            // it showed where the flat game's hidden hand would be, a second magazine floating by the gun (user, 2026-10-29: "some guns
+            // such like m4s also have a 2nd mag behind the gun floating"). Never one that holds the magazine or the gun.
+            Transform helper = _reloadHelper;
+            _reloadHelper = null;
+            if (helper != null && helper != mag && !mag.IsChildOf(helper) && !helper.IsChildOf(mag) && (gunBody == null || !gunBody.IsChildOf(helper)))
+            {
+                d.SparePartPaths.Add(WeaponRig.PathOf(root, helper));
+                d.Notes += $"the reload helper '{helper.name}' hidden while held ";
+            }
             d.MagazineName = mag.name;
             CollectSpareMagazines(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler);
             d.MagazineToggles = toggles;
@@ -452,6 +465,9 @@ namespace RavenfieldVR.Weapons
                 }
             }
         }
+
+        /// <summary>The reload's helper this analysis found hidden at rest (between the magazine's search and its choice).</summary>
+        private static Transform _reloadHelper;
 
         /// <summary>
         /// The magazine's pieces that hang apart from its body at rest, this analysis's (left out of its shape and its vertex axis;
