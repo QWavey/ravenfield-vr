@@ -2829,6 +2829,14 @@ array (debug option only).
       controllers, fingers move, shoulders sit right; draw again, the gun's own arms take over with no glove flash; a soldier
       grabbed, a pistol in the free hand, a vehicle seat; the log line "Empty-hand arms: ...".
 
+- [ ] (2026-10-30, work-until-limit 60) Also built, to check in a game run: the empty-hand arms from a carried weapon at the start
+      (spawned empty-handed: arms at once, not after a first draw), put aside while a hand holds a soldier, on the gun hand's
+      side left-handed; the settings panel's two pages (about 1.8 m each; autotest SettingsPagesCheck); holster copies easing
+      out when reached; the PKM family's belt laid at its model belt's feed (log: "the belt is laid at its model belt's feed").
+- [ ] Settings to try in a headset, each said in the frame rate line when on: GameCamerasOnePixel (the game's screen cameras
+      into 1 px: compare "Camera", "FP Camera", "Global Post-processing" in the line; check the desktop mirror and aiming) and
+      ScopeHalfRate (aim through a magnified scope: does the lens picture judder?). Keep on by default only if they hold.
+
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
 inserted"; "shotguns ... pullback shotguns ... handling is ass and reloading shells goes in the wrong magfeeder sometimes";
