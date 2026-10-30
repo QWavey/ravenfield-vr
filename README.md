@@ -5,7 +5,7 @@ A VR mod for Ravenfield (Steam, Unity 2020.3 build) that runs through SteamVR. B
 What you get:
 
 - Stereo rendering through Valve's OpenVR XR plugin, roomscale tracking, snap or smooth turning, comfort vignette, graphics presets made for VR.
-- Free hands. The gun sits in your hand and fires where its barrel points; nothing is glued to anything. Each weapon's own finger pose (from its mod's arm rig) shapes your hand around its grip, or switch to the weapon's own first-person arms, moved to your controllers by IK.
+- Free hands. The gun sits in your hand and fires where its barrel points; nothing is glued to anything. Each weapon's own finger pose (from its mod's arm rig) shapes your hand around its grip, or switch to the weapon's own first-person arms, moved to your controllers by IK: the gun hand holds the grip as the gun's animation does, the other hand its foregrip and its magazines as the reload does, and off the gun its fingers follow your controller. With your hands empty the arms of the last gun you held stay on both hands.
 - Manual reloading for every gun, modded ones included: magazines slide in and out along the well, slides, bolts, charging handles and pumps move with your hand, break-action shotguns and revolvers open, machine guns have feed covers. Your ammo pouch shows what the gun takes.
 - The mod's own sounds for each action (magazine out, magazine in, rack back, slam home), cut out of its reload audio, so a reload sounds like what your hands are doing instead of the whole reload clip playing at once.
 - Semi/auto switching on guns that have it, and the fire-mode, flashlight, laser, bipod and inspect keys of weapon and mutator scripts reachable from the controllers.
@@ -56,7 +56,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 
 Other gestures:
 
-- **Holsters** (laid out like Boneworks): weapons are carried by what they are. Rifles, launchers and other long weapons hang down your back from the shoulders, grip up (weapon side first, then the other shoulder); pistols sit under your arms; grenades, kits and tools at the small of your back, then on the front of your belt. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it. Put a gun back where it lives and let go to have both hands free. `HolsterLayout = Classic` (or "Holsters: Classic" on the panel) brings back the earlier layout: pistols on the hips, gear on the chest.
+- **Holsters** (laid out like Boneworks): weapons are carried by what they are. Rifles, launchers and other long weapons hang down your back from the shoulders, grip up (weapon side first, then the other shoulder); pistols sit under your arms; grenades, kits and tools at the small of your back, then on the front of your belt. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it, and the weapon there eases out a little. Put a gun back where it lives and let go to have both hands free. `HolsterLayout = Classic` (or "Holsters: Classic" on the panel) brings back the earlier layout: pistols on the hips, gear on the chest.
 - **Night vision:** grip with your off hand at the side of your head.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
