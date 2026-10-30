@@ -2833,6 +2833,10 @@ array (debug option only).
       (spawned empty-handed: arms at once, not after a first draw), put aside while a hand holds a soldier, on the gun hand's
       side left-handed; the settings panel's two pages (about 1.8 m each; autotest SettingsPagesCheck); holster copies easing
       out when reached; the PKM family's belt laid at its model belt's feed (log: "the belt is laid at its model belt's feed").
+- [ ] (2026-10-30 evening) The empty-hand arms carried with the head and solved from their copied pose every frame (d9782c9):
+      walk and turn with empty hands, nothing of the arms stretched back to where the gun was put away, no twist building up
+      over a minute; only the arm meshes the gun drew are copied (a reload's magazine on the arm never), and an arm mesh named
+      as ammunition is not drawn on Weapon's arms (5578c36).
 - [ ] The weapon's own gun hand: its index follows the trigger (up to 44 degrees on top of the animation's pose; ArmFingers.Pull).
       Check it bends toward the trigger, not away, on a few guns.
 - [ ] Settings to try in a headset, each said in the frame rate line when on: GameCamerasOnePixel (the game's screen cameras
