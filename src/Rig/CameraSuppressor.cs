@@ -206,6 +206,12 @@ namespace RavenfieldVR.Rig
             _rectDuringRender.Clear();
         }
 
+        /// <summary>
+        /// A game camera's own culling mask: the one saved while its render zeroes it (a post-render that never came left it 0 until
+        /// the eyes' next pre-cull, and the head camera, copying the game camera's mask, drew no world for that frame).
+        /// </summary>
+        internal int RealMask(Camera c) => _maskDuringRender.TryGetValue(c, out int saved) ? saved : c.cullingMask;
+
         /// <summary>Culling masks whose post-render never came put back (as <see cref="RestoreRects"/>).</summary>
         private void RestoreMasks()
         {

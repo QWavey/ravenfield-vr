@@ -1087,7 +1087,7 @@ namespace RavenfieldVR.Rig
         private void CopyCameraSettings(Camera reference, FpsActorController player)
         {
             // UI (layer 5) is drawn by the UI camera on top of the world; the weapon layer is drawn here with real depth.
-            int mask = (reference.cullingMask | (1 << FirstPersonLayer)) & ~(1 << UiLayer);
+            int mask = ((Suppressor != null ? Suppressor.RealMask(reference) : reference.cullingMask) | (1 << FirstPersonLayer)) & ~(1 << UiLayer);
             CameraClearFlags clear = reference.clearFlags;
             Color background = reference.backgroundColor;
             float far = Mathf.Max(reference.farClipPlane, VRConfig.MinFarClip.Value);
@@ -1098,7 +1098,7 @@ namespace RavenfieldVR.Rig
                 Camera backgroundCam = BackgroundCamera.instance != null ? BackgroundCamera.instance.camera : null;
                 if (backgroundCam != null)
                 {
-                    mask |= (backgroundCam.cullingMask | (1 << BackgroundLayer)) & ~(1 << UiLayer);
+                    mask |= ((Suppressor != null ? Suppressor.RealMask(backgroundCam) : backgroundCam.cullingMask) | (1 << BackgroundLayer)) & ~(1 << UiLayer);
                     far = Mathf.Max(far, backgroundCam.farClipPlane);
                 }
                 Camera scenery = SceneryCamera.instance != null ? SceneryCamera.instance.camera : null;
