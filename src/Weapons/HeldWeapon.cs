@@ -452,6 +452,47 @@ namespace RavenfieldVR.Weapons
         /// <summary>How many belt parts the model has (0: the mod's own strip shows a laid belt).</summary>
         internal int BeltPartCount => Rig.Data.BeltPartPaths.Count;
 
+        /// <summary>
+        /// Where the model's own belt feeds (the gun's frame): its link nearest the bore, ahead of the grip, measured once as the
+        /// parts are first taken (before they are hidden). The belt is laid by bringing its end there; the guess from the cover's
+        /// hinge put that point 7 cm back and above the PKM's feed (sweep round 2). Null for a model without a belt.
+        /// </summary>
+        internal Vector3? BeltFeedGun { get; private set; }
+
+        private Vector3? BeltFeed()
+        {
+            WeaponRigData d = Rig.Data;
+            Vector3? best = null;
+            float bestOff = float.MaxValue;
+            foreach (Transform part in _beltParts)
+            {
+                if (part == null || part.lossyScale.sqrMagnitude < 1e-6f)
+                {
+                    continue;
+                }
+                foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r is ParticleSystemRenderer || r.bounds.size.sqrMagnitude < 1e-8f)
+                    {
+                        continue;
+                    }
+                    Vector3 p = Rig.ToGun(r.bounds.center);
+                    float off = Vector3.ProjectOnPlane(p - d.MuzzlePoint, d.AimAxis).magnitude;
+                    if (Vector3.Dot(p - d.GripPoint, d.AimAxis) > 0.02f && off < bestOff && off < 0.15f)
+                    {
+                        bestOff = off;
+                        best = p;
+                    }
+                }
+            }
+            if (best.HasValue)
+            {
+                Log.InfoOnce("beltfeed:" + d.Key, $"{d.Key}: the belt is laid at its model belt's feed, {Vector3.Dot(best.Value - d.GripPoint, d.AimAxis) * 100f:0} cm ahead "
+                                                + $"of the grip, {bestOff * 100f:0.0} cm off the bore.");
+            }
+            return best;
+        }
+
         /// <summary>The model's belt shows only while a box is in and its belt lies on the feed tray.</summary>
         private void ApplyBeltParts(AmmoState ammo)
         {
@@ -468,6 +509,7 @@ namespace RavenfieldVR.Weapons
                     _beltParts[i] = WeaponRig.Resolve(Weapon.transform, Rig.Data.BeltPartPaths[i]);
                     _beltScales[i] = _beltParts[i] != null ? _beltParts[i].localScale : Vector3.one;
                 }
+                BeltFeedGun = BeltFeed();
             }
             bool hide = !ammo.MagInserted || !ammo.BeltLaid;
             if (hide == _beltHidden)

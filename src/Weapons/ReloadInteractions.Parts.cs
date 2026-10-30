@@ -385,8 +385,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>The feed tray: under the closed cover, between its hinge and its latch.</summary>
-        private Vector3 FeedTrayWorld => Rig.ToWorld(Vector3.Lerp(Data.HingePivot, Data.HingeGrabPoint, 0.5f) - Data.Up * 0.012f);
+        /// <summary>The feed tray: the model's own belt's feed where it has one (<see cref="HeldWeapon.BeltFeedGun"/>), else under the closed cover, between its hinge and its latch.</summary>
+        private Vector3 FeedTrayWorld => _held.BeltFeedGun.HasValue && ReferenceEquals(Rig, _held.Rig) ? Rig.ToWorld(_held.BeltFeedGun.Value)
+            : Rig.ToWorld(Vector3.Lerp(Data.HingePivot, Data.HingeGrabPoint, 0.5f) - Data.Up * 0.012f);
 
         private void BeginBelt(VRHand off)
         {
