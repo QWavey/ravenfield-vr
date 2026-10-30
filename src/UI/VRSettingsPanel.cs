@@ -13,7 +13,9 @@ namespace RavenfieldVR.UI
 {
     /// <summary>
     /// In-headset settings: turning, comfort, height, reloading, gun angle, rendering, handedness, plus recenter
-    /// and the SteamVR binding UI. Changes write straight to the BepInEx config and apply live.
+    /// and the SteamVR binding UI; a second page ("More settings") for the controls, the gloves and the menus, which were only
+    /// in the config file (the first page was already about 1.5 m tall; sweep, 2026-10-29). Changes write straight to the
+    /// BepInEx config and apply live (the few that do not say when they do).
     /// Visual language: gunmetal panel, off-white type, one signal-amber accent for the active choice, square
     /// flat controls; the game's own UI font when it can be found.
     /// </summary>
@@ -34,6 +36,9 @@ namespace RavenfieldVR.UI
         private readonly GameObject _root;
         public readonly Canvas Canvas;
         private readonly RectTransform _content;
+        /// <summary>The two pages (the first, and "More settings"), the one rows are built into, and the one shown.</summary>
+        private readonly RectTransform[] _pages = new RectTransform[2];
+        private RectTransform _page;
         private readonly List<Action> _refreshers = new List<Action>();
         private RigidPose _localPose;
         private float _height;
@@ -56,6 +61,7 @@ namespace RavenfieldVR.UI
 
         private void Build()
         {
+            _page = _pages[0] = Page("Main");
             _height = 28f;
             Label("Ravenfield VR", 40, FontStyle.Bold, TextColor, 34f, 64f);
             Label("Settings apply immediately and are saved to the mod's config file.", 20, FontStyle.Normal, MutedText, 34f, 40f);
@@ -115,9 +121,84 @@ namespace RavenfieldVR.UI
                 d => VRConfig.LensFlashStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.LensFlashStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 3f));
             Stepper("Scope picture (next scope)", () => $"{VRConfig.ScopeResolution.Value} px",
                 d => VRConfig.ScopeResolution.Value = Mathf.Clamp(VRConfig.ScopeResolution.Value + d * 256, 256, 2048)); // next scope drawn
+            float mainHeight = _height + 18f;
 
-            _height += 18f;
-            Footer();
+            BuildMore();
+            float pagesHeight = Mathf.Max(mainHeight, _height + 18f);
+            // The footer at the same height on both pages (the shorter page's rows end above it).
+            for (int i = 0; i < _pages.Length; i++)
+            {
+                _page = _pages[i];
+                _height = pagesHeight;
+                Footer(i);
+                _pages[i].sizeDelta = new Vector2(0f, _height);
+            }
+            ShowPage(0);
+        }
+
+        /// <summary>
+        /// The second page: the settings the first had no room for, which only the config file could change before (sweep: the
+        /// controls, the comfort details, the gloves, the menus).
+        /// </summary>
+        private void BuildMore()
+        {
+            _page = _pages[1] = Page("More settings");
+            _height = 28f;
+            Label("More settings", 40, FontStyle.Bold, TextColor, 34f, 64f);
+            Label("Controls, gloves and menus. (restart): applies when the game starts again.", 20, FontStyle.Normal, MutedText, 34f, 40f);
+            _height += 10f;
+
+            Section("Controls and comfort");
+            Choice("Sprint button", VRConfig.Sprint, new[] { SprintMode.Toggle, SprintMode.Hold }, new[] { "Toggle", "Hold" });
+            Choice("Mounted guns aim with", VRConfig.TurretAim, new[] { TurretAimMode.Head, TurretAimMode.Hand }, new[] { "Head", "Weapon hand" });
+            Stepper("Stick dead zone", () => $"{VRConfig.StickDeadzone.Value * 100f:0}%",
+                d => VRConfig.StickDeadzone.Value = Mathf.Clamp(Mathf.Round((VRConfig.StickDeadzone.Value + d * 0.05f) * 20f) / 20f, 0f, 0.6f));
+            Stepper("Vibration", () => VRConfig.HapticStrength.Value <= 0f ? "off" : $"{VRConfig.HapticStrength.Value * 100f:0}%",
+                d => VRConfig.HapticStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.HapticStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
+            Stepper("Crouch below (of eye height)", () => $"{VRConfig.PhysicalCrouchRatio.Value * 100f:0}%",
+                d => VRConfig.PhysicalCrouchRatio.Value = Mathf.Clamp(Mathf.Round((VRConfig.PhysicalCrouchRatio.Value + d * 0.05f) * 20f) / 20f, 0.5f, 0.9f));
+            TogglePair("Roomscale walking", VRConfig.RoomscaleMovement, "Level vehicle horizon", VRConfig.SmoothVehicleHorizon);
+            TogglePair("Stick jump / crouch", VRConfig.StickJumpCrouch, "Magazine round count", VRConfig.MagazineReadout);
+
+            Section("Hands and weapons");
+            Choice("Glove (restart)", VRConfig.Glove, new[] { GloveStyle.Tactical, GloveStyle.Simple }, new[] { "Tactical", "Simple" });
+            Stepper("Glove size (restart)", () => $"{VRConfig.GloveSize.Value * 100f:0}%",
+                d => VRConfig.GloveSize.Value = Mathf.Clamp(Mathf.Round((VRConfig.GloveSize.Value + d * 0.02f) * 50f) / 50f, 0.7f, 1.1f));
+            TogglePair("Scope lenses (next draw)", VRConfig.VRScopes, "Shot view flash", VRConfig.ShotViewFlash);
+
+            Section("Menus");
+            Stepper("Menu distance (next open)", () => $"{VRConfig.MenuDistance.Value:0.0} m",
+                d => VRConfig.MenuDistance.Value = Mathf.Clamp(Mathf.Round((VRConfig.MenuDistance.Value + d * 0.1f) * 10f) / 10f, 0.6f, 4f));
+            Stepper("Menu width", () => $"{VRConfig.MenuWidth.Value:0.0} m",
+                d => VRConfig.MenuWidth.Value = Mathf.Clamp(Mathf.Round((VRConfig.MenuWidth.Value + d * 0.1f) * 10f) / 10f, 0.6f, 5f));
+        }
+
+        /// <summary>A page of rows under the panel's content, from its top.</summary>
+        private RectTransform Page(string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.layer = 5;
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(_content, false);
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+            return rt;
+        }
+
+        /// <summary>Shows one page (0: the first, 1: More settings).</summary>
+        private void ShowPage(int page)
+        {
+            for (int i = 0; i < _pages.Length; i++)
+            {
+                if (_pages[i] != null)
+                {
+                    _pages[i].gameObject.SetActive(i == page);
+                }
+            }
+            Changed = true;
         }
 
         private RectTransform Row(float height)
@@ -125,7 +206,7 @@ namespace RavenfieldVR.UI
             var go = new GameObject("Row", typeof(RectTransform));
             go.layer = 5;
             var rt = (RectTransform)go.transform;
-            rt.SetParent(_content, false);
+            rt.SetParent(_page, false);
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
@@ -275,9 +356,11 @@ namespace RavenfieldVR.UI
             _refreshers.Add(() => v.text = value());
         }
 
-        private void Footer()
+        private void Footer(int page)
         {
             RectTransform row = Row(RowHeight + 10f);
+            // The other page, at the footer's left end.
+            MakeButton(row, page == 0 ? "More settings" : "Back", 752f, 194f, () => ShowPage(page == 0 ? 1 : 0), out _);
             MakeButton(row, "Close", 34f, 140f, Close, out _);
             MakeButton(row, "SteamVR bindings", 186f, 230f, VRInput.OpenBindingUI, out _);
             MakeButton(row, "Mod keys", 428f, 150f, () =>
@@ -310,6 +393,7 @@ namespace RavenfieldVR.UI
         public void Open()
         {
             _root.SetActive(true);
+            ShowPage(0);
             Place();
             Refresh();
         }
