@@ -167,6 +167,37 @@ namespace RavenfieldVR.Weapons
             return chains;
         }
 
+        /// <summary>One finger bent in its plane to <paramref name="curl"/> of a fist, eased back into the animation's pose by <paramref name="onGun"/>.</summary>
+        private void Bend(int f, Transform[] j, Vector3 axis, Vector3 palm, Vector3 fingerDir, float curl, float onGun)
+        {
+            Vector3[] dir = _dir;
+            float[] baseAngle = _baseAngle;
+            if (Vector3.Dot(Vector3.Cross(axis, dir[0]), palm) < 0f && f != 0)
+            {
+                axis = -axis;
+            }
+            float[] fist = f == 0 ? ThumbFist : FingerFist;
+            for (int s = 0; s < j.Length; s++)
+            {
+                Vector3 incoming = s > 0 ? dir[s - 1] : Vector3.ProjectOnPlane(fingerDir, axis);
+                baseAngle[s] = Vector3.SignedAngle(Vector3.ProjectOnPlane(incoming, axis), Vector3.ProjectOnPlane(dir[s], axis), axis);
+            }
+            // Each joint by its difference from the animation's (a turn about the shared axis keeps the joints after it as
+            // they are relative to it). The thumb's root stays where the animation has it (it does not bend in that plane).
+            for (int s = 0; s < j.Length; s++)
+            {
+                if (f == 0 && s == 0)
+                {
+                    continue;
+                }
+                j[s].rotation = Quaternion.AngleAxis(curl * fist[Mathf.Min(s, 2)] - baseAngle[s], axis) * j[s].rotation;
+            }
+            for (int s = 0; s < j.Length; s++)
+            {
+                j[s].localRotation = Quaternion.Slerp(j[s].localRotation, _fingerBase[f][s], onGun);
+            }
+        }
+
         /// <summary>How far each joint bends in a full fist (degrees): the fingers' knuckle, middle and end joints, the thumb's.</summary>
         private static readonly float[] FingerFist = { 80f, 95f, 70f }, ThumbFist = { 0f, 45f, 45f };
         /// <summary>A hand at rest is never ruler-straight (the VR glove's rest curls, thumb to little finger).</summary>
@@ -189,7 +220,6 @@ namespace RavenfieldVR.Weapons
             float grip = Input.VRInput.GetGrip(side), trigger = Input.VRInput.GetTrigger(side);
             Vector3 fingerDir = hand.rotation * c.FingerDir, palm = -(hand.rotation * c.BackDir);
             Vector3[] dir = _dir;
-            float[] baseAngle = _baseAngle;
             for (int f = 0; f < 5; f++)
             {
                 Transform[] j = _fingers[f];
@@ -221,34 +251,10 @@ namespace RavenfieldVR.Weapons
                     {
                         axis = Vector3.Cross(dir[0], palm);
                     }
-                    if (axis.sqrMagnitude < 1e-10f)
+                    // (No plane to bend in: the animation's pose, recorded as written below all the same; a skip left last frame's.)
+                    if (axis.sqrMagnitude >= 1e-10f)
                     {
-                        continue;
-                    }
-                    axis.Normalize();
-                    if (Vector3.Dot(Vector3.Cross(axis, dir[0]), palm) < 0f && f != 0)
-                    {
-                        axis = -axis;
-                    }
-                    float[] fist = f == 0 ? ThumbFist : FingerFist;
-                    for (int s = 0; s < j.Length; s++)
-                    {
-                        Vector3 incoming = s > 0 ? dir[s - 1] : Vector3.ProjectOnPlane(fingerDir, axis);
-                        baseAngle[s] = Vector3.SignedAngle(Vector3.ProjectOnPlane(incoming, axis), Vector3.ProjectOnPlane(dir[s], axis), axis);
-                    }
-                    // Each joint by its difference from the animation's (a turn about the shared axis keeps the joints after it as
-                    // they are relative to it). The thumb's root stays where the animation has it (it does not bend in that plane).
-                    for (int s = 0; s < j.Length; s++)
-                    {
-                        if (f == 0 && s == 0)
-                        {
-                            continue;
-                        }
-                        j[s].rotation = Quaternion.AngleAxis(curl * fist[Mathf.Min(s, 2)] - baseAngle[s], axis) * j[s].rotation;
-                    }
-                    for (int s = 0; s < j.Length; s++)
-                    {
-                        j[s].localRotation = Quaternion.Slerp(j[s].localRotation, _fingerBase[f][s], onGun);
+                        Bend(f, j, axis.normalized, palm, fingerDir, curl, onGun);
                     }
                 }
                 for (int s = 0; s < j.Length; s++)

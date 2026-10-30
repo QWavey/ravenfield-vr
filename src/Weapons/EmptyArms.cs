@@ -26,10 +26,11 @@ namespace RavenfieldVR.Weapons
         private Transform[] _right, _left; // root, upper arm, forearm, hand
         private ArmChain _rightChain, _leftChain;
         private ArmFingers _rightFingers, _leftFingers;
-        private bool _shown;
+        /// <summary>This class hid the gloves (and gives them back when it stops showing, whatever made it stop).</summary>
+        private bool _glovesHidden;
 
         /// <summary>Self-test: the arms are drawn on the empty hands, and the farther hand bone's distance from its target (m).</summary>
-        internal bool Shown => _shown;
+        internal bool Shown => _root != null && _root.activeSelf;
         internal float HandError { get; private set; } = -1f;
 
         /// <summary>
@@ -92,115 +93,123 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Transform weaponRoot = weapon.transform;
-            Transform[] right = Chain(weaponRoot, d.ArmRight), left = Chain(weaponRoot, d.ArmLeft);
-            if (right == null || left == null)
+            try
             {
-                return;
-            }
-            // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
-            var renderers = new List<Renderer>();
-            var needed = new List<Transform>();
-            foreach (Renderer r in rig.ArmRenderers)
-            {
-                if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
+                Transform weaponRoot = weapon.transform;
+                Transform[] right = Chain(weaponRoot, d.ArmRight), left = Chain(weaponRoot, d.ArmLeft);
+                if (right == null || left == null)
                 {
-                    continue;
+                    return;
                 }
-                if (r is SkinnedMeshRenderer s)
+                // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
+                var renderers = new List<Renderer>();
+                var needed = new List<Transform>();
+                foreach (Renderer r in rig.ArmRenderers)
                 {
-                    if (s.bones == null || !System.Array.TrueForAll(s.bones, b => b == null || b.IsChildOf(weaponRoot)))
+                    if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
                     {
-                        continue; // a bone outside the weapon (it would stay behind with it)
+                        continue;
                     }
-                    needed.AddRange(s.bones);
-                    if (s.rootBone != null && s.rootBone.IsChildOf(weaponRoot))
+                    if (r is SkinnedMeshRenderer s)
                     {
-                        needed.Add(s.rootBone); // (one outside it would be mirrored as loose objects outside the copy; review)
+                        if (s.bones == null || !System.Array.TrueForAll(s.bones, b => b == null || b.IsChildOf(weaponRoot)))
+                        {
+                            continue; // a bone outside the weapon (it would stay behind with it)
+                        }
+                        needed.AddRange(s.bones);
+                        if (s.rootBone != null && s.rootBone.IsChildOf(weaponRoot))
+                        {
+                            needed.Add(s.rootBone); // (one outside it would be mirrored as loose objects outside the copy; review)
+                        }
                     }
+                    renderers.Add(r);
+                    needed.Add(r.transform);
                 }
-                renderers.Add(r);
-                needed.Add(r.transform);
-            }
-            if (renderers.Count == 0)
-            {
-                return;
-            }
-            needed.AddRange(right);
-            needed.AddRange(left);
-            Destroy();
-            var root = new GameObject("RavenfieldVR empty-hand arms");
-            root.SetActive(false);
-            Object.DontDestroyOnLoad(root);
-            _root = root; // at once: a step below that throws leaves it to the next Destroy, not an orphan (review)
-            root.transform.SetPositionAndRotation(weaponRoot.position, weaponRoot.rotation);
-            root.transform.localScale = weaponRoot.lossyScale;
-            int layer = renderers[0].gameObject.layer;
-            var map = new Dictionary<Transform, Transform> { [weaponRoot] = root.transform };
-            Transform Mirror(Transform t)
-            {
-                if (t == null)
+                if (renderers.Count == 0)
                 {
-                    return null;
+                    return;
                 }
-                if (map.TryGetValue(t, out Transform m))
+                needed.AddRange(right);
+                needed.AddRange(left);
+                Destroy();
+                var root = new GameObject("RavenfieldVR empty-hand arms");
+                root.SetActive(false);
+                Object.DontDestroyOnLoad(root);
+                _root = root; // at once: a step below that throws leaves it to the next Destroy, not an orphan (review)
+                root.transform.SetPositionAndRotation(weaponRoot.position, weaponRoot.rotation);
+                root.transform.localScale = weaponRoot.lossyScale;
+                int layer = renderers[0].gameObject.layer;
+                var map = new Dictionary<Transform, Transform> { [weaponRoot] = root.transform };
+                Transform Mirror(Transform t)
                 {
-                    return m;
-                }
-                var go = new GameObject(t.name) { layer = layer };
-                go.transform.SetParent(Mirror(t.parent), false);
-                go.transform.localPosition = t.localPosition;
-                go.transform.localRotation = t.localRotation;
-                go.transform.localScale = t.localScale;
-                map[t] = go.transform;
-                return go.transform;
-            }
-            foreach (Transform t in needed)
-            {
-                Mirror(t);
-            }
-            _renderers.Clear();
-            foreach (Renderer r in renderers)
-            {
-                GameObject at = Mirror(r.transform).gameObject;
-                at.layer = r.gameObject.layer;
-                Renderer copy;
-                if (r is SkinnedMeshRenderer s)
-                {
-                    var skin = at.AddComponent<SkinnedMeshRenderer>();
-                    var bones = new Transform[s.bones.Length];
-                    for (int i = 0; i < bones.Length; i++)
+                    if (t == null)
                     {
-                        bones[i] = Mirror(s.bones[i]);
+                        return null;
                     }
-                    skin.sharedMesh = s.sharedMesh;
-                    skin.bones = bones;
-                    skin.rootBone = s.rootBone != null && s.rootBone.IsChildOf(weaponRoot) ? Mirror(s.rootBone) : null;
-                    skin.quality = s.quality;
-                    skin.updateWhenOffscreen = true; // its bones go wherever the hands are: the bind-pose bounds culled it
-                    copy = skin;
+                    if (map.TryGetValue(t, out Transform m))
+                    {
+                        return m;
+                    }
+                    var go = new GameObject(t.name) { layer = layer };
+                    go.transform.SetParent(Mirror(t.parent), false);
+                    go.transform.localPosition = t.localPosition;
+                    go.transform.localRotation = t.localRotation;
+                    go.transform.localScale = t.localScale;
+                    map[t] = go.transform;
+                    return go.transform;
                 }
-                else
+                foreach (Transform t in needed)
                 {
-                    at.AddComponent<MeshFilter>().sharedMesh = r.GetComponent<MeshFilter>().sharedMesh;
-                    copy = at.AddComponent<MeshRenderer>();
+                    Mirror(t);
                 }
-                copy.sharedMaterials = r.sharedMaterials;
-                copy.shadowCastingMode = ShadowCastingMode.Off;
-                copy.receiveShadows = r.receiveShadows;
-                _renderers.Add(copy);
+                _renderers.Clear();
+                foreach (Renderer r in renderers)
+                {
+                    GameObject at = Mirror(r.transform).gameObject;
+                    at.layer = r.gameObject.layer;
+                    Renderer copy;
+                    if (r is SkinnedMeshRenderer s)
+                    {
+                        var skin = at.AddComponent<SkinnedMeshRenderer>();
+                        var bones = new Transform[s.bones.Length];
+                        for (int i = 0; i < bones.Length; i++)
+                        {
+                            bones[i] = Mirror(s.bones[i]);
+                        }
+                        skin.sharedMesh = s.sharedMesh;
+                        skin.bones = bones;
+                        skin.rootBone = s.rootBone != null && s.rootBone.IsChildOf(weaponRoot) ? Mirror(s.rootBone) : null;
+                        skin.quality = s.quality;
+                        skin.updateWhenOffscreen = true; // its bones go wherever the hands are: the bind-pose bounds culled it
+                        copy = skin;
+                    }
+                    else
+                    {
+                        at.AddComponent<MeshFilter>().sharedMesh = r.GetComponent<MeshFilter>().sharedMesh;
+                        copy = at.AddComponent<MeshRenderer>();
+                    }
+                    copy.sharedMaterials = r.sharedMaterials;
+                    copy.shadowCastingMode = ShadowCastingMode.Off;
+                    copy.receiveShadows = r.receiveShadows;
+                    _renderers.Add(copy);
+                }
+                _right = System.Array.ConvertAll(right, Mirror);
+                _left = System.Array.ConvertAll(left, Mirror);
+                _rightChain = d.ArmRight;
+                _leftChain = d.ArmLeft;
+                _rightFingers = new ArmFingers(_right[3]);
+                _leftFingers = new ArmFingers(_left[3]);
+                _root = root;
+                _key = d.Key;
+                Log.Info($"Empty-hand arms: {d.Key}'s arms ({renderers.Count} renderer(s), {map.Count - 1} bone(s) and holders) drawn on both hands "
+                         + "while no weapon is in the hand.");
             }
-            _right = System.Array.ConvertAll(right, Mirror);
-            _left = System.Array.ConvertAll(left, Mirror);
-            _rightChain = d.ArmRight;
-            _leftChain = d.ArmLeft;
-            _rightFingers = new ArmFingers(_right[3]);
-            _leftFingers = new ArmFingers(_left[3]);
-            _root = root;
-            _key = d.Key;
-            _shown = false;
-            Log.Info($"Empty-hand arms: {d.Key}'s arms ({renderers.Count} renderer(s), {map.Count - 1} bone(s) and holders) drawn on both hands "
-                     + "while no weapon is in the hand.");
+            catch (System.Exception e)
+            {
+                // A step that threw leaves no partial copy (its arms unset, it showed and hid the gloves with nothing drawn; review).
+                Destroy();
+                Log.ExceptionOnce("EmptyArms.Copy", e);
+            }
         }
 
         /// <summary>
@@ -221,15 +230,17 @@ namespace RavenfieldVR.Weapons
             // Not while a hand holds a soldier: that glove is on him, drawn (as with a gun in the other hand: HeldWeapon keeps it), and an
             // arm sent to the controller left it hidden and the hand off the body (review, 2026-10-30).
             show &= _root != null && AllMeshes() && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
-            if (show != _shown)
+            // Shown by its own state, and the gloves given back by whether this class hid them: a copy made again in the frame the
+            // old one went (a mesh gone) cleared a shown flag, and a soldier taken then left the gloves hidden with no arms (review).
+            if (_root != null && _root.activeSelf != show)
             {
-                _shown = show;
-                if (_root != null)
+                _root.SetActive(show);
+            }
+            if (!show)
+            {
+                if (_glovesHidden)
                 {
-                    _root.SetActive(show);
-                }
-                if (!show)
-                {
+                    _glovesHidden = false;
                     foreach (VRHand h in sys.Rig.Hands)
                     {
                         if (h.Model != null)
@@ -238,11 +249,9 @@ namespace RavenfieldVR.Weapons
                         }
                     }
                 }
-            }
-            if (!show)
-            {
                 return;
             }
+            _glovesHidden = true;
             BodyZones zones = sys.Zones;
             Vector3 neck = sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
             // As ArmIK places them with a gun: the model's right arm (the gun arm) on the gun hand, its shoulder on that side. On the
@@ -256,6 +265,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>One arm on its hand; returns how far its hand bone ended from the target (m; 0 when the hand has no pose).</summary>
         private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones)
         {
+            if (arm == null || fingers == null || chain == null)
+            {
+                return 0f; // (a copy that failed part way: never hide a glove for an arm that is not there)
+            }
             if (hand.Model != null)
             {
                 hand.Model.Suppressed = true;
