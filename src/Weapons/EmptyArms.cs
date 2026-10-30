@@ -43,7 +43,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            Copy(held.Weapon, held.Rig, true);
+            Copy(held.Weapon, held.Rig);
         }
 
         /// <summary>When the next try at <see cref="TakeFromLoadout"/> may be (Time.unscaledTime).</summary>
@@ -76,7 +76,7 @@ namespace RavenfieldVR.Weapons
                 WeaponRig rig = sys.RigFor(w);
                 if (rig.Data.ArmRight != null && rig.Data.ArmLeft != null && rig.ArmRenderers.Length > 0)
                 {
-                    Copy(w, rig, false);
+                    Copy(w, rig);
                     if (_root != null)
                     {
                         return;
@@ -85,11 +85,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>
-        /// The arm skeleton and arm meshes of <paramref name="weapon"/> copied (only those), its bones in their pose now.
-        /// <paramref name="drawnNow"/>: held with Weapon's arms, so each arm mesh's own enabled state is the gun's animation's.
-        /// </summary>
-        private void Copy(Weapon weapon, WeaponRig rig, bool drawnNow)
+        /// <summary>The arm skeleton and arm meshes of <paramref name="weapon"/> copied (only those), its bones in their pose now.</summary>
+        private void Copy(Weapon weapon, WeaponRig rig)
         {
             WeaponRigData d = rig.Data;
             if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && AllMeshes())
@@ -107,8 +104,11 @@ namespace RavenfieldVR.Weapons
                 // What to copy: the arm renderers (skinned ones with every bone they use), the two arm chains, and their parents.
                 var renderers = new List<Renderer>();
                 var needed = new List<Transform>();
-                // (Not while the gun's main arm mesh is off itself: the flat view's scope picture switches the arms off with the gun.)
-                bool byEnabled = drawnNow && (weapon.arms == null || weapon.arms.enabled);
+                // Each arm mesh's own enabled state: the gun's animation's on a gun held with Weapon's arms (the mod leaves the arms to
+                // it there), the model's own on a carried one never held (and every arm on again on one that was: the hold's end puts
+                // them back). Not while the gun's main arm mesh is off itself: the game's Hide and the flat view's scope picture switch
+                // the arms off with the gun (review, 2026-10-30).
+                bool byEnabled = weapon.arms == null || weapon.arms.enabled;
                 foreach (Renderer r in rig.ArmRenderers)
                 {
                     if (!HasMesh(r) || !r.transform.IsChildOf(weaponRoot))
@@ -116,9 +116,8 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     // Only what the arms draw: a piece the gun's animation hides (a reload's fresh magazine on the hand, the flat view's)
-                    // was copied shown and stayed on the empty hand for good (Tasks 355). Its enabled state counts only off a gun held
-                    // with Weapon's arms (the mod leaves it to the animation there; with gloves the mod hid every arm mesh); a part
-                    // switched off in the model, and an arm mesh named as ammunition, never.
+                    // was copied shown and stayed on the empty hand for good (Tasks 355); a part switched off in the model, and an arm
+                    // mesh named as ammunition, never.
                     if (byEnabled && !r.enabled || !ActiveInWeapon(r.transform, weaponRoot) || WeaponAnalyzer.NamedAsAmmunition(r.name))
                     {
                         continue;
