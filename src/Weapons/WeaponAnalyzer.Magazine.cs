@@ -1513,8 +1513,20 @@ namespace RavenfieldVR.Weapons
             HashSet<Transform> armRelated, PoseSampler sampler, RigidPose gunIdle, Weapon w)
         {
             Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
-            if (mag == null || !index.TryGetValue(mag, out int mi) || !ShellSized(d.MagBounds))
+            if (mag == null || !index.TryGetValue(mag, out int mi))
             {
+                return;
+            }
+            if (!ShellSized(d.MagBounds))
+            {
+                // A tube gun whose reload part is no shell's size (a loader, a bundle of shells) kept its seat where that part waits
+                // at rest, out of the gun (the R870's waits 33 cm off the bore), and every shell went in there, silently (sweep round
+                // 2). Off the bore by more than 12 cm, it loads at the estimated port instead; a handgun's (a revolver's cylinder) is
+                // left as it is.
+                if (d.Action == ActionType.ShellFed && !d.Handgun && Vector3.ProjectOnPlane(d.MagSeat.position - d.MuzzlePoint, d.AimAxis).magnitude > 0.12f)
+                {
+                    SeatAtEstimatedPort(d, $"its reload part, {d.MagBounds.size.magnitude * 100f:0} cm, is no shell's size and waits out of the gun");
+                }
                 return;
             }
             if (d.Action == ActionType.BreakOpen && d.Hinge == HingeKind.BreakAction)
@@ -1649,6 +1661,12 @@ namespace RavenfieldVR.Weapons
                            + $"{-Vector3.Dot(c - d.MuzzlePoint, d.Up) * 100f:0.0} cm under the bore), {Vector3.Angle(insert, d.AimAxis):0} deg off the bore ";
                 return;
             }
+            SeatAtEstimatedPort(d, "the reload's shell never comes under the bore by the grip");
+        }
+
+        /// <summary>The shell seated at the estimated loading port (<see cref="EstimatedPort"/>), lying along the bore, said in the warnings.</summary>
+        private static void SeatAtEstimatedPort(WeaponRigData d, string why)
+        {
             Vector3 port = EstimatedPort(d);
             // Lying along the bore: its long side turned onto it.
             Quaternion lying = d.MagSeat.rotation;
@@ -1662,7 +1680,7 @@ namespace RavenfieldVR.Weapons
             Quaternion along = Quaternion.FromToRotation(longGun, d.AimAxis) * lying;
             d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
             d.MagEjectAxis = -d.AimAxis;
-            d.Warnings.Add($"loading port estimated (the reload's shell never comes under the bore by the grip): {Vector3.Dot(port - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
+            d.Warnings.Add($"loading port estimated ({why}): {Vector3.Dot(port - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
                            + $"3 cm under the bore{(d.HasSupportPoint ? "" : " (no forend found: taken 35 cm ahead of the grip)")}");
         }
 
