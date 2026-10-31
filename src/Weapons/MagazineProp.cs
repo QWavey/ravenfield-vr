@@ -408,6 +408,7 @@ namespace RavenfieldVR.Weapons
             _body = go.AddComponent<Rigidbody>();
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
+            RestingBodies.Add(_body); // (no interpolation while it lies still)
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             // A knocked-out magazine is given 6 to 9 rad/s end over end; Unity's default cap of 7 cut the faster half of that
             // (prop physics hunt, 2026-10-21).

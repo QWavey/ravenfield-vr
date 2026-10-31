@@ -117,6 +117,7 @@ namespace RavenfieldVR.Tests
             InstancedObjectTests(mod);
             PresetTerrainTests(mod);
             ImageEffectTests(mod);
+            RestingBodyTests(mod);
         }
 
         /// <summary>
@@ -155,6 +156,24 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// The mod's loose bodies (RestingBodies.Interpolated, 2026-10-31): drawn without interpolation only while they lie asleep and
+        /// nothing holds them; awake, or kinematic in a hand, interpolated.
+        /// </summary>
+        private static void RestingBodyTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo smooth = mod.GetType("RavenfieldVR.Weapons.RestingBodies")?.GetMethod("Interpolated",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(smooth != null, "Resting bodies: Interpolated found");
+            if (smooth == null)
+            {
+                return;
+            }
+            bool Smooth(bool kinematic, bool sleeping) => (bool)smooth.Invoke(null, new object[] { kinematic, sleeping });
+            Check(!Smooth(false, true), "Resting bodies: asleep on the ground: not interpolated");
+            Check(Smooth(false, false) && Smooth(true, true) && Smooth(true, false), "Resting bodies: awake, or held (kinematic): interpolated");
         }
 
         /// <summary>Stand-ins for a camera's scripts: an image effect (it has OnRenderImage, private as Unity's are) and a plain one.</summary>
