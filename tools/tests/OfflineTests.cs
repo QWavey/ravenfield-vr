@@ -216,6 +216,17 @@ namespace RavenfieldVR.Tests
             Check(Next(true, 1f, 210f) && !Next(true, 1f, 190f), "Tiny objects: drawn again only inside 200 m (hidden between 200 and 250 m stays so)");
             Check(!Next(false, 10f, 2000f), "Tiny objects: a 10 m wall is never hidden within the far clip");
             Check(!Next(false, 0.3f, 1f) && !Next(true, 0.3f, 0f), "Tiny objects: at arm's length (and at the head) always drawn");
+            System.Reflection.MethodInfo angle = mod.GetType("RavenfieldVR.Core.TinyObjects")?.GetMethod("AngleFor",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(angle != null, "Tiny objects: AngleFor found");
+            if (angle != null)
+            {
+                float At(int px, float fov) => (float)angle.Invoke(null, new object[] { px, fov });
+                Check(Math.Abs(At(1357, 1.75f) - 0.00387f) < 0.0001f, $"Tiny objects: three pixels of the user's Medium eye ({At(1357, 1.75f):0.00000} rad)");
+                Check(At(2600, 1.75f) < At(1357, 1.75f), "Tiny objects: a bigger eye hides smaller angles only");
+                Check(At(0, 1.75f) == 0.004f && At(1357, 0f) == 0.004f, "Tiny objects: no eyes known: the default");
+                Check(At(100, 3f) == 0.008f && At(100000, 1f) == 0.002f, "Tiny objects: kept between 0.002 and 0.008");
+            }
         }
 
         /// <summary>

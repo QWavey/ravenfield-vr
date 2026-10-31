@@ -18,11 +18,17 @@ namespace RavenfieldVR.Core
     internal static class TinyObjects
     {
         /// <summary>
-        /// Hidden under this size against its distance (its bounds' diagonal over the distance from the head, radians: 0.004 is a
-        /// 1 m crate past 250 m, about three pixels of the user's Medium eye), drawn again over <see cref="ShowAbove"/>, so one
-        /// on the line does not blink.
+        /// Hidden under about this many pixels of an eye across (its bounds' diagonal against its distance from the head), drawn again
+        /// a quarter over it, so one on the line does not blink.
         /// </summary>
-        internal const float HideBelow = 0.004f, ShowAbove = 0.005f;
+        internal const float Pixels = 3f;
+
+        /// <summary>
+        /// The angle (radians) under which an object is hidden: <see cref="Pixels"/> of the eyes as they are drawn now (0.004, a 1 m
+        /// crate past 250 m, on the user's Medium eye of 1357 px across 100 degrees; less on bigger eyes, so Ultra hides no object of
+        /// 4-5 px), until the eyes are known.
+        /// </summary>
+        private static float _hideBelow = 0.004f;
 
         private const int UiLayer = 5, FirstPersonLayer = 18;
 
@@ -51,12 +57,31 @@ namespace RavenfieldVR.Core
 
         /// <summary>
         /// Whether an object of <paramref name="size"/> (m) at <paramref name="distance"/> (m) is hidden next, from whether it is now:
-        /// hidden under <see cref="HideBelow"/>, shown again over <see cref="ShowAbove"/>.
+        /// hidden under the angle of <see cref="Pixels"/>, shown again a quarter over it.
         /// </summary>
         internal static bool NextHidden(bool hidden, float size, float distance)
         {
             float angle = size / Mathf.Max(distance, 0.01f);
-            return hidden ? angle < ShowAbove : angle < HideBelow;
+            return hidden ? angle < _hideBelow * 1.25f : angle < _hideBelow;
+        }
+
+        /// <summary>
+        /// The angle of <see cref="Pixels"/> on an eye <paramref name="eyePixels"/> wide across <paramref name="fovRadians"/> (its
+        /// horizontal field of view), kept between 0.002 and 0.008 (a reading gone wrong hides nothing much, nor everything).
+        /// </summary>
+        internal static float AngleFor(int eyePixels, float fovRadians) =>
+            eyePixels > 0 && fovRadians > 0.1f ? Mathf.Clamp(Pixels * fovRadians / eyePixels, 0.002f, 0.008f) : 0.004f;
+
+        /// <summary>The threshold from the eyes as drawn now (their texture's width, the head camera's field of view and aspect).</summary>
+        private static void TakeThreshold(Camera eyes)
+        {
+            int width = UnityEngine.XR.XRSettings.eyeTextureWidth;
+            if (eyes == null || width <= 0)
+            {
+                return;
+            }
+            float half = Mathf.Tan(eyes.fieldOfView * 0.5f * Mathf.Deg2Rad) * Mathf.Max(0.5f, eyes.aspect);
+            _hideBelow = AngleFor(width, 2f * Mathf.Atan(half));
         }
 
         /// <summary>A level loaded: the old level's forgotten (one that lives on is drawn again), the new one scanned a few seconds in.</summary>
@@ -150,7 +175,8 @@ namespace RavenfieldVR.Core
             // Bigger than this is never so small within the eyes' far clip (2 km on Medium: past 8 m an object is always drawn, and
             // watching it only lengthened each pass).
             Camera eyes = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Camera : null;
-            float farthest = HideBelow * (eyes != null && eyes.farClipPlane > 1f ? eyes.farClipPlane : 4000f);
+            TakeThreshold(eyes);
+            float farthest = _hideBelow * 1.25f * (eyes != null && eyes.farClipPlane > 1f ? eyes.farClipPlane : 4000f);
             foreach (MeshRenderer r in Object.FindObjectsOfType<MeshRenderer>())
             {
                 int layer = r.gameObject.layer;
@@ -194,6 +220,7 @@ namespace RavenfieldVR.Core
                 return;
             }
             Vector3 head = rig.Head.position;
+            TakeThreshold(rig.Camera); // (the render scale may have changed: the frame rate hold, the panel)
             // A magnified lens on: everything drawn (a crate hidden as three pixels of an eye is twelve through a 4x scope).
             bool scoped = Time.unscaledTime - Weapons.VRScope.LensDrawnAt < 0.5f;
             int hidden = 0;
