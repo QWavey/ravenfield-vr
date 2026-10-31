@@ -2843,7 +2843,8 @@ array (debug option only).
       into 1 px: compare "Camera", "FP Camera", "Global Post-processing" in the line; check the desktop mirror and aiming) and
       ScopeHalfRate (aim through a magnified scope: does the lens picture judder?), and GarbageCollectionSliceMs (2 or 1 against
       Unity's 3: the minute's on-time share and collections), and SmallObjectsNoShadows (Medium: the eyes' ms in the line, and
-      whether missing small shadows show). Keep on by default only if they hold. The autotest's graphics bench measures the
+      whether missing small shadows show), HideTinyDistantObjects (whether far props are missed; the count in the line) and
+      InstanceRepeatedObjects (whether anything looks lit differently). Keep on by default only if they hold. The autotest's graphics bench measures the
       last one too ("Medium, small objects without shadows" beside "Medium"; SmallShadows.Bench); tools/bench_report.py prints each
       bench variant against its own preset, a difference inside the two rounds' GPU spread marked as noise; the bench prints
       the frame interval's rounds too (7ff47d3), so a CPU-side saving (the user's Medium) is weighed by its own spread.
