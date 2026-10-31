@@ -115,6 +115,7 @@ namespace RavenfieldVR.Tests
             AmmoNameTests(mod);
             TinyObjectTests(mod);
             InstancedObjectTests(mod);
+            PresetTerrainTests(mod);
         }
 
         /// <summary>
@@ -153,6 +154,28 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// Every preset of the mod's draws the terrain instanced (GraphicsPresets.Profile.TerrainInstanced, 2026-10-31), as the game's own
+        /// top terrain quality does: a preset added or edited later keeps it unless it says otherwise.
+        /// </summary>
+        private static void PresetTerrainTests(System.Reflection.Assembly mod)
+        {
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public
+                                                       | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance;
+            Type presets = mod.GetType("RavenfieldVR.Core.GraphicsPresets");
+            var profiles = presets?.GetField("Profiles", any)?.GetValue(null) as System.Collections.IDictionary;
+            Check(profiles != null && profiles.Count >= 4, "Presets: the profiles read");
+            if (profiles == null)
+            {
+                return;
+            }
+            foreach (System.Collections.DictionaryEntry kv in profiles)
+            {
+                object instanced = kv.Value.GetType().GetField("TerrainInstanced", any)?.GetValue(kv.Value);
+                Check(instanced is bool b && b, $"Presets: {kv.Key} draws the terrain instanced");
+            }
         }
 
         /// <summary>
