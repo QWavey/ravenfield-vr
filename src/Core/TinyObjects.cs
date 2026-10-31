@@ -147,7 +147,10 @@ namespace RavenfieldVR.Core
                     }
                 }
             }
-            float farthest = HideBelow * 4000f; // (bigger than this is never so small within the far clip)
+            // Bigger than this is never so small within the eyes' far clip (2 km on Medium: past 8 m an object is always drawn, and
+            // watching it only lengthened each pass).
+            Camera eyes = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Camera : null;
+            float farthest = HideBelow * (eyes != null && eyes.farClipPlane > 1f ? eyes.farClipPlane : 4000f);
             foreach (MeshRenderer r in Object.FindObjectsOfType<MeshRenderer>())
             {
                 int layer = r.gameObject.layer;
