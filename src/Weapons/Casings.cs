@@ -226,6 +226,7 @@ namespace RavenfieldVR.Weapons
             c.Collider.radius = own != null ? Mathf.Max(b.extents[(axis + 1) % 3], b.extents[(axis + 2) % 3]) : Mathf.Max(b.extents.x, 0.003f);
             c.Collider.height = b.size[axis];
             c.Body.mass = kind == Kind.Shell ? 0.03f : 0.012f;
+            c.Body.interpolation = RigidbodyInterpolation.Interpolate; // (in flight smooth again; a resting one had it off, below)
             c.Sound.Rearm();
             go.SetActive(true);
             c.Body.velocity = velocity;
@@ -285,6 +286,13 @@ namespace RavenfieldVR.Weapons
                     c.Go.SetActive(false);
                     Alive.RemoveAt(i);
                     Idle.Add(c);
+                }
+                else if (checkFall && c.Body.interpolation != RigidbodyInterpolation.None && c.Body.IsSleeping())
+                {
+                    // Lying still: no interpolation for it (the physics' interpolated bodies are reset every frame, the 40 lying cases
+                    // with them; 0.33 ms of the user's Medium frames went to that step). A case knocked awake again moves unsmoothed
+                    // at the physics' rate until it is thrown out anew.
+                    c.Body.interpolation = RigidbodyInterpolation.None;
                 }
             }
         }
