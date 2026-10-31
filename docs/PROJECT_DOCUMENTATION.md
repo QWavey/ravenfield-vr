@@ -1159,3 +1159,11 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    distance put back after every suppressed camera's render, an arm mesh on bones outside the weapon copied with stand-ins
    (`EmptyArms`). Still open, needing the game or the user: the first magazine after a dry draw on the un-fitted line
    (Tasks 355's plan), which guns insert magazines in the wrong place, which shotgun loads at the wrong opening.
+22. **FPS, after 1.16.0** (2026-10-31, the game not started; read against the user's 10-27 Medium session, where the eyes took
+   3.5 ms of main thread, the mod's UI camera 1.1 ms and the mod itself about 1 ms): the UI and scope lens cameras take the shadow
+   distance away at their pre-cull (`VRScope.ScopeNoShadows`; at OnPreRender the level's shadow casters were still culled for them),
+   a gun shape's measuring views render without shadows, the suppressed game cameras' image effects are off while VR runs
+   (`CameraSuppressor._effects`), and the mod's presets draw the terrain instanced as the game's own top terrain quality does.
+   Two more settings to try, each in the bench, the frame rate line and `frame_report`'s try column: `HideTinyDistantObjects`
+   (`TinyObjects`: standing props a few pixels across not drawn, everything while a scope is magnified) and
+   `InstanceRepeatedObjects` (`InstancedObjects`). The bench prints each round's frame interval; `bench_report.py` weighs both.
