@@ -73,10 +73,19 @@ namespace RavenfieldVR.Core
             // How many eligible renderers draw each material, and the materials any ineligible one draws (left alone).
             var uses = new Dictionary<Material, int>();
             var barred = new HashSet<Material>();
-            foreach (MeshRenderer r in Object.FindObjectsOfType<MeshRenderer>())
+            var counted = new HashSet<Material>();
+            // Every renderer of the loaded scenes, switched off ones too: one switched on later (a lightmapped part) still bars its
+            // material (review); only the ones drawn now count toward "drawn by several".
+            foreach (MeshRenderer r in Resources.FindObjectsOfTypeAll<MeshRenderer>())
             {
+                if (r == null || !r.gameObject.scene.isLoaded)
+                {
+                    continue; // (a prefab or another asset)
+                }
                 bool eligible = Eligible(r.gameObject.layer, r.isPartOfStaticBatch, r.lightmapIndex)
                                && (r.realtimeLightmapIndex < 0 || r.realtimeLightmapIndex >= 0xFFFE); // (nor lit by realtime GI's maps)
+                bool drawn = r.enabled && r.gameObject.activeInHierarchy;
+                counted.Clear();
                 foreach (Material m in r.sharedMaterials)
                 {
                     if (m == null)
@@ -87,7 +96,7 @@ namespace RavenfieldVR.Core
                     {
                         barred.Add(m);
                     }
-                    else
+                    else if (drawn && counted.Add(m)) // (once a renderer: one using it in two slots is no second object)
                     {
                         uses.TryGetValue(m, out int n);
                         uses[m] = n + 1;

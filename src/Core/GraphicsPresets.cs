@@ -447,12 +447,40 @@ namespace RavenfieldVR.Core
                 t.detailObjectDistance = Mathf.Min(o.DetailDistance, p.DetailDistance);
                 t.treeDistance = Mathf.Min(o.TreeDistance, p.TreeDistance);
                 t.heightmapPixelError = Mathf.Max(o.PixelError, p.MinPixelError);
-                bool instanced = p.TerrainInstanced || o.Instanced;
+                bool instanced = o.Instanced || p.TerrainInstanced && !OlderMap();
                 if (t.drawInstanced != instanced)
                 {
                     t.drawInstanced = instanced;
                 }
             }
+        }
+
+        /// <summary>
+        /// A map made with an engine before 2020.3: the game gives its terrains a fallback material (Options.Apply, the same test) and
+        /// draws them instanced only at its own top terrain quality; the mod leaves them as the game set them (review, 2026-10-31).
+        /// </summary>
+        private static bool OlderMap()
+        {
+            try
+            {
+                ModManager.EngineVersionInfo v = GameManager.instance != null ? GameManager.instance.sceneContentInfo.versionInfo : default;
+                return GameManager.instance != null && (v.majorVersion < 2020 || v.minorVersion < 3);
+            }
+            catch (System.Exception)
+            {
+                return true; // (unknown: as the game set it)
+            }
+        }
+
+        /// <summary>
+        /// VR stopping: the level's terrains and the game's quality settings as the game had them (a preset's stayed for the rest of
+        /// the level in flat play: the terrain's detail, trees, pixel error and instancing, the shadows, MSAA and LOD; review).
+        /// </summary>
+        internal static void OnVrStopped()
+        {
+            RestoreTerrains();
+            RestoreGameQuality();
+            _gameQuality = null;
         }
 
         private static void RestoreTerrains()

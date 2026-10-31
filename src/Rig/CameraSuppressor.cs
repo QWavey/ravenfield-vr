@@ -228,8 +228,15 @@ namespace RavenfieldVR.Rig
         {
             if (!IsImageEffect.TryGetValue(t, out bool yes))
             {
-                yes = t.GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                                                   | System.Reflection.BindingFlags.NonPublic) != null;
+                try
+                {
+                    yes = t.GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                                                       | System.Reflection.BindingFlags.NonPublic) != null;
+                }
+                catch (System.Reflection.AmbiguousMatchException)
+                {
+                    yes = false; // (one hiding another's with new: left alone rather than the whole scan stopped; review)
+                }
                 IsImageEffect[t] = yes;
             }
             return yes;

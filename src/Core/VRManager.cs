@@ -542,6 +542,7 @@ namespace RavenfieldVR.Core
                 _subscribed = false;
             }
             // (Outside: a start-up that threw before it subscribed still ran Update, and their objects were left as set; review.)
+            Log.Guard("GraphicsPresets.OnVrStopped", GraphicsPresets.OnVrStopped);
             Log.Guard("SmallShadows.Restore", SmallShadows.Restore);
             Log.Guard("TinyObjects.Restore", TinyObjects.Restore);
             Log.Guard("InstancedObjects.Restore", InstancedObjects.Restore);
