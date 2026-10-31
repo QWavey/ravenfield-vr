@@ -58,6 +58,10 @@ kept = bench_report.worth_keeping(bench_report.table(bench_report.rows(HEAD + ro
                                                                         + row('Medium, tiny distant objects hidden', 8.0, 5.9, 5.8, 6.0, 7.9, 8.1)
                                                                         + row('Medium, repeated objects instanced', 8.95, 6.0, 5.9, 6.1, 8.6, 9.2))))
 check(kept == ['Tiny distant objects hidden (-1.00 ms frame)'], f"worth keeping: the tiny-object setting only ({kept!r})")
+# A bench without the frame's rounds (before 2026-10-30): a GPU saving is kept by its GPU figure.
+old_kept = bench_report.worth_keeping(bench_report.table(bench_report.rows(HEAD + row('Medium', 9.0, 6.0, 5.9, 6.1)
+                                                                            + row('Medium, tiny distant objects hidden', 9.2, 5.0, 4.9, 5.1))))
+check(old_kept == ['Tiny distant objects hidden (-1.00 ms GPU)'], f"worth keeping: an older bench's GPU saving by its GPU figure ({old_kept!r})")
 # The bench's run names bench_report knows the settings by are the autotest's own (a renamed run would drop out of the summary).
 autotest = open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'src', 'Core', 'AutoTest.cs'),
                 encoding='utf-8').read()
