@@ -352,6 +352,10 @@ namespace RavenfieldVR.Weapons
                 render &= (Time.frameCount & 1) == 0; // the last picture stays on the lens in between
             }
             _camera.enabled = render;
+            if (render)
+            {
+                LensDrawnAt = Time.unscaledTime;
+            }
             // Without shadows unless asked for (the second set of shadow cascades was most of the lens's cost: 14.2 ms frames
             // aimed through the RECON LRR's lens, 11.3 without its shadows, 10.8 with no lens at all; 255.P1.2). The bench
             // measures its own modes.
@@ -371,6 +375,9 @@ namespace RavenfieldVR.Weapons
             Vector3 left = head.position - side, right = head.position + side;
             return Vector3.ProjectOnPlane(left - eyePoint, axis).sqrMagnitude <= Vector3.ProjectOnPlane(right - eyePoint, axis).sqrMagnitude ? left : right;
         }
+
+        /// <summary>When a lens last drew its picture (Time.unscaledTime): a magnified view is on (TinyObjects draws everything then).</summary>
+        internal static float LensDrawnAt = -10f;
 
         /// <summary>
         /// Autotest bench of the lens's cost (255.P1.2): 0 as set (shadows as ScopeShadows says, every frame whatever ScopeHalfRate

@@ -113,6 +113,7 @@ namespace RavenfieldVR.Tests
             HolsterEyeTests(mod);
             ShellPortTests(mod);
             AmmoNameTests(mod);
+            TinyObjectTests(mod);
         }
 
         /// <summary>
@@ -151,6 +152,26 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// The level's tiny distant objects (TinyObjects.NextHidden, 2026-10-31): a 1 m crate hidden past 250 m and drawn again only
+        /// inside 200 m (no blinking on the line), a 10 m wall never hidden at 2 km, a crate at arm's length always drawn.
+        /// </summary>
+        private static void TinyObjectTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo next = mod.GetType("RavenfieldVR.Core.TinyObjects")?.GetMethod("NextHidden",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(next != null, "Tiny objects: NextHidden found");
+            if (next == null)
+            {
+                return;
+            }
+            bool Next(bool hidden, float size, float distance) => (bool)next.Invoke(null, new object[] { hidden, size, distance });
+            Check(!Next(false, 1f, 240f) && Next(false, 1f, 260f), "Tiny objects: a 1 m crate hidden past 250 m, not before");
+            Check(Next(true, 1f, 210f) && !Next(true, 1f, 190f), "Tiny objects: drawn again only inside 200 m (hidden between 200 and 250 m stays so)");
+            Check(!Next(false, 10f, 2000f), "Tiny objects: a 10 m wall is never hidden within the far clip");
+            Check(!Next(false, 0.3f, 1f) && !Next(true, 0.3f, 0f), "Tiny objects: at arm's length (and at the head) always drawn");
         }
 
         /// <summary>

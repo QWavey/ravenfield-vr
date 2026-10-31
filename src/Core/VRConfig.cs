@@ -100,6 +100,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> GameCamerasOnePixel;
         public static ConfigEntry<float> GcSliceMs;
         public static ConfigEntry<bool> SmallObjectsNoShadows;
+        public static ConfigEntry<bool> HideTinyDistantObjects;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -281,6 +282,10 @@ namespace RavenfieldVR.Core
             SmallObjectsNoShadows = cfg.Bind("Rendering", "SmallObjectsNoShadows", false,
                 "To try: the level's small objects (under 40 cm corner to corner) cast no shadow, so the shadow passes, drawn once per eye, have fewer "
                 + "objects to draw (with shadows on: Medium, High, Ultra). Applies at once; soldiers keep theirs.");
+            HideTinyDistantObjects = cfg.Bind("Rendering", "HideTinyDistantObjects", false,
+                "To try: the level's objects that would be only a few pixels across (a 1 m crate past 250 m) are not drawn, so each eye's passes "
+                + "have fewer objects to draw. Standing props only (soldiers, weapons, vehicles and anything moving stay); everything is drawn "
+                + "while a magnified scope is. Applies at once; the frame rate line says how many are hidden.");
             GcSliceMs = cfg.Bind("Rendering", "GarbageCollectionSliceMs", 3f,
                 new ConfigDescription("To try: how much of a frame (ms) the game's incremental garbage collector may take while a collection runs "
                                       + "(Unity's own is 3, of the 11.1 ms a 90 Hz frame has). Lower spreads the same work over more frames, so a frame near "

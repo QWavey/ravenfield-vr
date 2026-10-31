@@ -2847,6 +2847,11 @@ array (debug option only).
       last one too ("Medium, small objects without shadows" beside "Medium"; SmallShadows.Bench); tools/bench_report.py prints each
       bench variant against its own preset, a difference inside the two rounds' GPU spread marked as noise; the bench prints
       the frame interval's rounds too (7ff47d3), so a CPU-side saving (the user's Medium) is weighed by its own spread.
+- [ ] (2026-10-31, FPS) Built, to measure: the UI and scope lens cameras drop shadows before they cull (a2b717c: the level's
+      shadow casters were culled for every render, per eye for the UI camera; compare "VR UI Camera" in the frame rate line
+      with the 10-27 session's 1.0-1.1 ms on Medium); gun-shape measuring views without shadows; HideTinyDistantObjects (to
+      try: objects a few pixels across not drawn, standing props only, everything while a scope is magnified; the bench's
+      "Medium, tiny distant objects hidden"; the frame rate line says how many).
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when

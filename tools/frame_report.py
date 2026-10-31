@@ -62,7 +62,8 @@ def rows(path):
             'depth': 'yes' if 'the eyes draw a' in text else '',
             # The settings to try (GameCamerasOnePixel, ScopeHalfRate), said in the line when on: their minutes against the others.
             'try': ', '.join([short for short, said in (('cams 1px', 'game cameras into 1 px'), ('scope 1/2', 'scope lens every other frame'),
-                                                        ('no small shadows', 'small objects without shadows')) if said in text] + gc_slice(text)),
+                                                        ('no small shadows', 'small objects without shadows'),
+                                                        ('tiny far hidden', 'tiny distant objects hidden')) if said in text] + gc_slice(text)),
         }
 
 
