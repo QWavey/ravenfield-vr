@@ -1171,3 +1171,5 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    state read from the scene (`AutoTest.RenderingStateCheck`). From two Haiku reviews: an older map's (pre-2020.3) fallback
    terrain is left as the game sets it (`GraphicsPresets.OlderMap`), the game's quality and terrains go back when VR stops
    (`OnVrStopped`), the game's own scope pictures count as magnified for the tiny objects, animated props are left out of it.
+   The tiny objects' threshold is three pixels of the eyes as drawn (`TinyObjects.AngleFor`: the eye texture's width over the
+   head camera's horizontal field of view), so a bigger eye (Ultra) hides only smaller angles (272 checks).
