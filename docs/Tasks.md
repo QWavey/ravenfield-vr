@@ -2856,6 +2856,8 @@ array (debug option only).
       instanced; the bench's "Medium, repeated objects instanced"; the frame rate line says how many materials).
       The suppressed game cameras' image effects off while VR runs (00b4d78), and the terrain drawn instanced in the mod's
       presets as at the game's top terrain quality (the bench's "Medium, terrain not instanced" shows what it saves).
+      The bench's first line now reads the rendering state from the scene (AutoTest.RenderingStateCheck): terrain drawn
+      instanced N/M, image effects left on the game's cameras, the UI camera without shadows; each a problem when not so.
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
