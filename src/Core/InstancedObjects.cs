@@ -38,7 +38,7 @@ namespace RavenfieldVR.Core
         internal static void OnSceneChanged()
         {
             Restore();
-            _scanAt = Time.unscaledTime + 3f;
+            _scanAt = Time.unscaledTime + 5f; // (after SmallShadows' and TinyObjects' scans, not in the same frame)
         }
 
         /// <summary>Each frame: the setting applied or undone when it changes, and the scan after a level load.</summary>
@@ -75,7 +75,8 @@ namespace RavenfieldVR.Core
             var barred = new HashSet<Material>();
             foreach (MeshRenderer r in Object.FindObjectsOfType<MeshRenderer>())
             {
-                bool eligible = Eligible(r.gameObject.layer, r.isPartOfStaticBatch, r.lightmapIndex);
+                bool eligible = Eligible(r.gameObject.layer, r.isPartOfStaticBatch, r.lightmapIndex)
+                               && (r.realtimeLightmapIndex < 0 || r.realtimeLightmapIndex >= 0xFFFE); // (nor lit by realtime GI's maps)
                 foreach (Material m in r.sharedMaterials)
                 {
                     if (m == null)

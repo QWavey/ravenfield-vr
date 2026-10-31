@@ -63,7 +63,7 @@ namespace RavenfieldVR.Core
         internal static void OnSceneChanged()
         {
             Restore();
-            _scanAt = Time.unscaledTime + 3f;
+            _scanAt = Time.unscaledTime + 4f; // (a second after SmallShadows' scan, a second before InstancedObjects': not all in one frame)
         }
 
         /// <summary>Each frame: the setting applied or undone when it changes, the scans, and every fifth of a second a pass.</summary>
