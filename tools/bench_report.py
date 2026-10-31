@@ -84,6 +84,27 @@ def table(bench):
     return lines
 
 
+# The bench's runs of the settings to try, by the settings panel's names for them (its second page, Performance).
+TRY_SETTINGS = {
+    'Game, game cameras 1 px': 'Game cameras into 1 px',
+    'Medium, small objects without shadows': 'Small objects without shadows',
+    'Medium, tiny distant objects hidden': 'Tiny distant objects hidden',
+    'Medium, repeated objects instanced': 'Repeated objects instanced',
+}
+
+
+def worth_keeping(lines):
+    """The settings to try whose run saved time beyond its noise (the frame's where the bench printed its rounds, else the GPU's)."""
+    keep = []
+    for name, b, d_frame, d_gpu, verdict in lines:
+        if name not in TRY_SETTINGS:
+            continue
+        said = verdict.split('frame: ')[-1] if 'frame: ' in verdict else verdict
+        if said.startswith('saves') or said == 'GPU: saves':
+            keep.append(f'{TRY_SETTINGS[name]} ({d_frame:+.2f} ms frame)')
+    return keep
+
+
 def main(argv):
     path = argv[1] if len(argv) > 1 else os.path.join(GAME, 'RavenfieldVR-autotest.txt')
     if not os.path.exists(path):
@@ -94,9 +115,12 @@ def main(argv):
         print(f'No graphics bench in {path}')
         return 1
     print(f'{"variant":<40} {"against":<20} {"frame":>8} {"GPU":>8}')
-    for name, b, d_frame, d_gpu, verdict in table(bench):
+    lines = table(bench)
+    for name, b, d_frame, d_gpu, verdict in lines:
         gpu = f'{d_gpu:+.2f}' if d_gpu is not None else 'n/a'
         print(f'{name:<40} {b:<20} {d_frame:+8.2f} {gpu:>8}  {verdict}')
+    keep = worth_keeping(lines)
+    print('Settings to try that saved time here: ' + (', '.join(keep) if keep else 'none beyond the noise'))
     return 0
 
 

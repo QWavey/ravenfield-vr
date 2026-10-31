@@ -53,6 +53,11 @@ check(flines.get('Medium, MSAA off') == 'GPU: noise (inside the rounds\' spread)
       f"frame rounds: a frame saving outside their spread with the GPU inside its own ({flines.get('Medium, MSAA off')!r})")
 check((flines.get('Medium, LOD bias 0.3') or '').endswith('frame: noise'), f"frame rounds: inside their spread is noise ({flines.get('Medium, LOD bias 0.3')!r})")
 check('frame:' not in (lines.get('Medium, MSAA off', (0, 0, 0, ''))[3]), "an older bench without the frame's rounds says nothing of the frame")
+# The summary line's settings: one that saves beyond the noise named by its panel name, one inside the noise left out.
+kept = bench_report.worth_keeping(bench_report.table(bench_report.rows(HEAD + row('Medium', 9.0, 6.0, 5.9, 6.1, 8.9, 9.1)
+                                                                        + row('Medium, tiny distant objects hidden', 8.0, 5.9, 5.8, 6.0, 7.9, 8.1)
+                                                                        + row('Medium, repeated objects instanced', 8.95, 6.0, 5.9, 6.1, 8.6, 9.2))))
+check(kept == ['Tiny distant objects hidden (-1.00 ms frame)'], f"worth keeping: the tiny-object setting only ({kept!r})")
 with tempfile.TemporaryDirectory() as root:
     path = os.path.join(root, 'autotest.txt')
     with open(path, 'w', encoding='utf-8') as f:
