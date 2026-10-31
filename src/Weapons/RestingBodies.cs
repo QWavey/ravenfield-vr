@@ -7,8 +7,8 @@ namespace RavenfieldVR.Weapons
     /// The mod's loose bodies (cases, magazines and weapons on the ground, duds) drawn without interpolation while they lie still:
     /// the physics resets every interpolated body each frame, sleeping or not (PhysicsResetInterpolatedTransformPosition, 0.33 ms
     /// of the user's Medium frames with some 260 bodies in the scene, up to 40 cases, 16 weapons and the magazines among them).
-    /// Smoothed again a quarter of a second at most after one wakes (knocked, picked up), and at once while it is kinematic (in a
-    /// hand, its owner moves it); each body as it was when VR stops.
+    /// Smoothed again a quarter of a second at most after one wakes (knocked) or turns kinematic (taken in a hand); each body as it
+    /// was when VR stops.
     /// </summary>
     internal static class RestingBodies
     {
