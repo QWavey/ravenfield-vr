@@ -402,7 +402,13 @@ namespace RavenfieldVR.Weapons
             private float _distance;
             private bool _held;
 
-            private void OnPreCull()
+            private void OnPreCull() => Hold();
+
+            // And before each render: a stereo camera's second eye, after the first eye's post-render gave the distance back, drew
+            // with shadows if its cull was the first eye's alone (review).
+            private void OnPreRender() => Hold();
+
+            private void Hold()
             {
                 if (!_held)
                 {
