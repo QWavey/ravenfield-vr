@@ -1166,4 +1166,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`CameraSuppressor._effects`), and the mod's presets draw the terrain instanced as the game's own top terrain quality does.
    Two more settings to try, each in the bench, the frame rate line and `frame_report`'s try column: `HideTinyDistantObjects`
    (`TinyObjects`: standing props a few pixels across not drawn, everything while a scope is magnified) and
-   `InstanceRepeatedObjects` (`InstancedObjects`). The bench prints each round's frame interval; `bench_report.py` weighs both.
+   `InstanceRepeatedObjects` (`InstancedObjects`). The bench prints each round's frame interval; `bench_report.py` weighs both,
+   names the settings worth keeping and gives the "every setting to try" run's figure; the bench opens with the rendering
+   state read from the scene (`AutoTest.RenderingStateCheck`). From two Haiku reviews: an older map's (pre-2020.3) fallback
+   terrain is left as the game sets it (`GraphicsPresets.OlderMap`), the game's quality and terrains go back when VR stops
+   (`OnVrStopped`), the game's own scope pictures count as magnified for the tiny objects, animated props are left out of it.
