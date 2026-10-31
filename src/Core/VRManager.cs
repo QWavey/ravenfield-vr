@@ -539,11 +539,12 @@ namespace RavenfieldVR.Core
                 VRConfig.Mirror.SettingChanged -= OnRenderSettingChanged;
                 VRConfig.GcSliceMs.SettingChanged -= OnGcSliceChanged;
                 FrameBudget.RestoreGcSlice();
-                Log.Guard("SmallShadows.Restore", SmallShadows.Restore);
-                Log.Guard("TinyObjects.Restore", TinyObjects.Restore);
-                Log.Guard("InstancedObjects.Restore", InstancedObjects.Restore);
                 _subscribed = false;
             }
+            // (Outside: a start-up that threw before it subscribed still ran Update, and their objects were left as set; review.)
+            Log.Guard("SmallShadows.Restore", SmallShadows.Restore);
+            Log.Guard("TinyObjects.Restore", TinyObjects.Restore);
+            Log.Guard("InstancedObjects.Restore", InstancedObjects.Restore);
             _active = false;
             if ((_pausedForDashboard || _pausedForHeadset) && GameManager.instance != null && GameManager.IsPaused() && !(IngameMenuUi.instance != null && IngameMenuUi.IsOpen()))
             {

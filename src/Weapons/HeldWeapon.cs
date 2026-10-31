@@ -669,6 +669,10 @@ namespace RavenfieldVR.Weapons
                 cam.enabled = shown;
                 _scopeCameraGated = cam;
             }
+            if (shown)
+            {
+                VRScope.LensDrawnAt = Time.unscaledTime; // (the game's own scope picture: magnified too, everything drawn; TinyObjects)
+            }
             if (_scopeNoShadows == null || _scopeNoShadows.gameObject != cam.gameObject)
             {
                 _scopeNoShadows = cam.GetComponent<VRScope.ScopeNoShadows>() ?? cam.gameObject.AddComponent<VRScope.ScopeNoShadows>();

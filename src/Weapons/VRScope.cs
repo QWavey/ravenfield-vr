@@ -376,7 +376,10 @@ namespace RavenfieldVR.Weapons
             return Vector3.ProjectOnPlane(left - eyePoint, axis).sqrMagnitude <= Vector3.ProjectOnPlane(right - eyePoint, axis).sqrMagnitude ? left : right;
         }
 
-        /// <summary>When a lens last drew its picture (Time.unscaledTime): a magnified view is on (TinyObjects draws everything then).</summary>
+        /// <summary>
+        /// When a lens last drew its picture, the mod's or the game's own scope camera (Time.unscaledTime): a magnified view is on
+        /// (TinyObjects draws everything then).
+        /// </summary>
         internal static float LensDrawnAt = -10f;
 
         /// <summary>

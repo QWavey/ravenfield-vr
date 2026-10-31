@@ -8,11 +8,12 @@ namespace RavenfieldVR.Core
     /// Each eye draws everything it sees twice in multi-pass (with shadows on, a depth pass and then the colour pass), and the eyes'
     /// render was most of Medium's main thread in the user's session (3.5 ms against the Game preset's 0.97; Tasks 348). A prop with
     /// no LOD group is drawn all the way to the far clip (2 km on Medium) however small it has become: a 1 m crate at 300 m is about
-    /// two pixels of an eye, four draws a frame. Mesh renderers only, standing still (none under a rigid body, a soldier, a weapon
-    /// or a vehicle), not static-batched (switching one member off splits its batch into more draws), not in a LOD group (its LOD
+    /// two pixels of an eye, four draws a frame. Mesh renderers only, standing still (none under a rigid body, an animator or
+    /// animation, a soldier, a weapon or a vehicle), not static-batched (switching one member off splits its batch into more draws), not in a LOD group (its LOD
     /// culls it), not the mod's layers. Everything is drawn while a magnified scope lens is (its view is many times larger), and when
-    /// the setting is turned off or VR stops. Scanned a few seconds after a level loads and every minute after (what the level made
-    /// since); the frame rate line says how many are hidden.
+    /// the setting is turned off or VR stops. Scanned a few seconds after a level loads (or when turned on), once: a level's standing
+    /// props are there from its start, and a scan again every minute was a frame's hitch of its own (review); the frame rate line
+    /// says how many are hidden.
     /// </summary>
     internal static class TinyObjects
     {
@@ -38,7 +39,7 @@ namespace RavenfieldVR.Core
         private static readonly HashSet<Transform> Skip = new HashSet<Transform>();
         private static readonly HashSet<Renderer> InLod = new HashSet<Renderer>();
         private static bool _applied;
-        private static float _scanAt = -1f, _rescanAt, _nextPass;
+        private static float _scanAt = -1f, _nextPass;
 
         /// <summary>The graphics bench's own choice while it runs (null: the setting's).</summary>
         internal static bool? Bench;
@@ -85,9 +86,9 @@ namespace RavenfieldVR.Core
                 }
                 Scan();
             }
-            else if (!_applied || now >= _rescanAt)
+            else if (!_applied)
             {
-                Scan(); // (again every minute: what the level made since)
+                Scan();
             }
             if (now >= _nextPass)
             {
@@ -100,7 +101,6 @@ namespace RavenfieldVR.Core
         {
             _scanAt = -1f;
             _applied = true;
-            _rescanAt = Time.unscaledTime + 60f;
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int before = Tracked.Count;
             ShowAll(); // (shown and scanned again in the same frame: nothing is drawn in between)
@@ -124,6 +124,15 @@ namespace RavenfieldVR.Core
             foreach (Vehicle v in Object.FindObjectsOfType<Vehicle>())
             {
                 Skip.Add(v.transform);
+            }
+            // (Moved by an animator or an animation, a door or a lift: its place taken at the scan would go stale; review.)
+            foreach (Animator an in Object.FindObjectsOfType<Animator>())
+            {
+                Skip.Add(an.transform);
+            }
+            foreach (Animation an in Object.FindObjectsOfType<Animation>())
+            {
+                Skip.Add(an.transform);
             }
             foreach (LODGroup g in Object.FindObjectsOfType<LODGroup>())
             {
