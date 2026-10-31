@@ -20,6 +20,7 @@ LABEL_FILES = {'src/Weapons/AmmoState.cs', 'src/Weapons/MagLineTable.cs', 'src/W
 # Phrases that are no failure, or a failure the code raises itself with Problem(...) next to it.
 NOT_BY_PATTERN = {
     'THE EMPTY POSE': 'a diagnostic: which animator state the gun is in',
+    'WITH SHADOWS': 'AutoTest.RenderingStateCheck raises it with Problem(...)',
     '(TOO FAST': 'AutoTest raises it with Problem(line)',
     '(TOO FEW LENS FLASHES)': 'AutoTest raises the flash count with Problem(...)',
     'LIVE GRENADE WITH THE PIN IN': 'AutoTest raises it as a grenade pin problem',

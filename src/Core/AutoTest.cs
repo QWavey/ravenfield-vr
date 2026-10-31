@@ -701,6 +701,60 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// What the frame rate work of 2026-10-31 leaves on by default, read as the scene has it (not from the code that set it): the
+        /// terrain drawn instanced with the mod's presets (as at the game's own top terrain quality), no image effect left on a game
+        /// camera that draws nothing in VR, and the UI camera without shadows.
+        /// </summary>
+        private static void RenderingStateCheck(UI.UISystem ui)
+        {
+            int terrains = 0, instanced = 0;
+            foreach (Terrain t in Terrain.activeTerrains)
+            {
+                if (t != null)
+                {
+                    terrains++;
+                    instanced += t.drawInstanced ? 1 : 0;
+                }
+            }
+            int effects = 0;
+            var names = new List<string>();
+            Camera eyes = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Camera : null;
+            foreach (Camera c in Camera.allCameras)
+            {
+                if (c == null || c == eyes || c.targetTexture != null || ui != null && c == ui.UiCamera)
+                {
+                    continue;
+                }
+                foreach (MonoBehaviour mb in c.GetComponents<MonoBehaviour>())
+                {
+                    if (mb != null && mb.enabled && mb.GetType().GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance
+                            | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic) != null)
+                    {
+                        effects++;
+                        names.Add($"{mb.GetType().Name} on {c.name}");
+                    }
+                }
+            }
+            bool uiNoShadows = ui != null && ui.UiCamera != null && ui.UiCamera.GetComponent<Weapons.VRScope.ScopeNoShadows>() != null;
+            bool ownPreset = VRConfig.Graphics.Value != GraphicsPreset.Game;
+            Results.Add($"Rendering state: terrain drawn instanced {instanced}/{terrains}{(ownPreset ? "" : " (the Game preset: as the game set it)")}, "
+                        + $"image effects on the game's cameras {effects}{(effects > 0 ? " (" + string.Join(", ", names.ToArray()) + ")" : "")}, "
+                        + $"UI camera {(uiNoShadows ? "without shadows" : "WITH SHADOWS")}");
+            if (ownPreset && instanced < terrains)
+            {
+                Problem($"[rendering] {terrains - instanced} of {terrains} terrains not drawn instanced with the {VRConfig.Graphics.Value} preset");
+            }
+            if (effects > 0)
+            {
+                Problem($"[rendering] image effects still on the game's cameras: {string.Join(", ", names.ToArray())}");
+            }
+            if (!uiNoShadows)
+            {
+                Problem("[rendering] the UI camera renders with shadows");
+            }
+        }
+
+        /// <summary>
         /// The graphics bench (task 215): standing still in the match with the world frozen, each preset and its variants, 1.5 s
         /// to settle and 4 s measured, the whole list twice: the frame time and the GPU time SteamVR's compositor measured
         /// (medians). The saved settings are never changed (the player's are put back at the end).
@@ -708,6 +762,7 @@ namespace RavenfieldVR.Core
         private static IEnumerator PerfBench()
         {
             UI.UISystem ui = UI.UISystem.Instance;
+            RenderingStateCheck(ui);
             // The game's own quality first (what the user plays smoothly), each preset beside its version before 2026-10-24 (the
             // old values, as near as the bench can set them: terrain detail and draw distances stay the new preset's), then what
             // High's parts cost one by one, and Low again at the end (the scene drifting during the bench shows there).
