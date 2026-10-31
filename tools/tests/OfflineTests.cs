@@ -116,6 +116,7 @@ namespace RavenfieldVR.Tests
             TinyObjectTests(mod);
             InstancedObjectTests(mod);
             PresetTerrainTests(mod);
+            ImageEffectTests(mod);
         }
 
         /// <summary>
@@ -154,6 +155,39 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>Stand-ins for a camera's scripts: an image effect (it has OnRenderImage, private as Unity's are) and a plain one.</summary>
+        private sealed class FakeImageEffect
+        {
+            private void OnRenderImage(UnityEngine.RenderTexture source, UnityEngine.RenderTexture destination)
+            {
+            }
+        }
+
+        private sealed class FakePlainScript
+        {
+            private void Update()
+            {
+            }
+        }
+
+        /// <summary>
+        /// Which scripts on a suppressed game camera are image effects (CameraSuppressor.ImageEffect, 2026-10-31): one with OnRenderImage,
+        /// private or not, is; one without is not; the answer is the same when asked again (kept a kind).
+        /// </summary>
+        private static void ImageEffectTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo effect = mod.GetType("RavenfieldVR.Rig.CameraSuppressor")?.GetMethod("ImageEffect",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(effect != null, "Image effects: ImageEffect found");
+            if (effect == null)
+            {
+                return;
+            }
+            bool Is(Type t) => (bool)effect.Invoke(null, new object[] { t });
+            Check(Is(typeof(FakeImageEffect)) && Is(typeof(FakeImageEffect)), "Image effects: a script with OnRenderImage is one (and again from the kept answer)");
+            Check(!Is(typeof(FakePlainScript)), "Image effects: a script without it is not");
         }
 
         /// <summary>
