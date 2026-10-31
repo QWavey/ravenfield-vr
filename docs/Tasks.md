@@ -2859,6 +2859,8 @@ array (debug option only).
       presets as at the game's top terrain quality (the bench's "Medium, terrain not instanced" shows what it saves).
       The bench's first line now reads the rendering state from the scene (AutoTest.RenderingStateCheck): terrain drawn
       instanced N/M, image effects left on the game's cameras, the UI camera without shadows; each a problem when not so.
+      The mod's cases, magazines and weapons lying asleep drawn without interpolation (RestingBodies, ae7d575): check a magazine
+      picked up off the ground and a case knocked by a hand move smoothly (a quarter second at most unsmoothed).
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when
