@@ -152,9 +152,17 @@ namespace RavenfieldVR.Rig
                 {
                     GoneEffects.Add(mb);
                 }
+                else if (mb.TryGetComponent(out Camera own) && own.targetTexture != null)
+                {
+                    GoneEffects.Add(mb); // (its camera draws into a picture now, a minimap or a scope's: its effect given back; review)
+                }
             }
             foreach (MonoBehaviour mb in GoneEffects)
             {
+                if (mb != null && _effects.TryGetValue(mb, out bool was))
+                {
+                    mb.enabled = was;
+                }
                 _effects.Remove(mb);
             }
         }
