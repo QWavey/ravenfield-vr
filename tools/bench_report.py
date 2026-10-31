@@ -121,6 +121,9 @@ def main(argv):
         print(f'{name:<40} {b:<20} {d_frame:+8.2f} {gpu:>8}  {verdict}')
     keep = worth_keeping(lines)
     print('Settings to try that saved time here: ' + (', '.join(keep) if keep else 'none beyond the noise'))
+    for name, b, d_frame, d_gpu, verdict in lines:
+        if name == 'Medium, every setting to try':
+            print(f'All of them together on Medium: {d_frame:+.2f} ms frame' + (f', {d_gpu:+.2f} ms GPU' if d_gpu is not None else '') + f' ({verdict})')
     return 0
 
 
