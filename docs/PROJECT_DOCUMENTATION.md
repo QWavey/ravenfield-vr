@@ -1177,3 +1177,5 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    interpolation while they lie asleep (`RestingBodies`). A third review: one image-effect test by name for the suppressor and
    the autotest, post-processing given back to a camera that starts drawing into a picture, the bench's state read a few frames
    in (278 checks).
+23. **1.16.1** (2026-10-31, built and installed, not published; notes in `dist/notes-1.16.1.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.1.exe`): item 22's frame rate work, not yet measured in the game.
