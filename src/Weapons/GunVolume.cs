@@ -1468,7 +1468,18 @@ namespace RavenfieldVR.Weapons
             cam.transform.SetPositionAndRotation(position, rotation);
             RenderTexture rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
             cam.targetTexture = rt;
-            cam.RenderWithShader(shader, "");
+            // No shadows for a gun's own view (its replacement shader draws depth and parts, nothing lit): with a preset's shadows on,
+            // the level's shadow casters were culled for each of a measure's renders, two a view.
+            float shadows = QualitySettings.shadowDistance;
+            QualitySettings.shadowDistance = 0f;
+            try
+            {
+                cam.RenderWithShader(shader, "");
+            }
+            finally
+            {
+                QualitySettings.shadowDistance = shadows;
+            }
             cam.targetTexture = null;
             return rt;
         }

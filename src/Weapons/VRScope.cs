@@ -381,21 +381,37 @@ namespace RavenfieldVR.Weapons
 
         private ScopeNoShadows _noShadows;
 
-        /// <summary>On the lens camera: shadows off while it renders (the shadow distance is global; put back after).</summary>
+        /// <summary>
+        /// On the lens camera and the mod's UI camera: no shadows while it renders (the shadow distance is global; put back after).
+        /// Taken away before the camera culls, not only before it draws: from OnPreRender the shadow maps were left out but the
+        /// level's shadow casters were still culled for it, a whole set per render (per eye for the UI camera) with a preset's
+        /// shadows on; the suppressed game cameras' come off at their pre-cull too (CameraSuppressor).
+        /// </summary>
         internal sealed class ScopeNoShadows : MonoBehaviour
         {
             private float _distance;
+            private bool _held;
 
-            private void OnPreRender()
+            private void OnPreCull()
             {
-                _distance = QualitySettings.shadowDistance;
+                if (!_held)
+                {
+                    _distance = QualitySettings.shadowDistance; // (once: a render whose post-render never came would save its own 0)
+                    _held = true;
+                }
                 QualitySettings.shadowDistance = 0f;
             }
 
             private void OnPostRender()
             {
-                QualitySettings.shadowDistance = _distance;
+                if (_held)
+                {
+                    QualitySettings.shadowDistance = _distance;
+                    _held = false;
+                }
             }
+
+            private void OnDisable() => OnPostRender(); // (switched off between its cull and its post-render: the distance given back)
         }
 
         /// <summary>

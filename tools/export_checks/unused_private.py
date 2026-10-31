@@ -12,7 +12,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'src')
 
 DECL = re.compile(r'^\s*private\s+(?:static\s+|readonly\s+|unsafe\s+|override\s+)*(?:[\w<>\[\],.? ]+?)\s+(\w+)\s*(\(|=>|\{|;|=)', re.M)
-UNITY = {'Awake', 'Start', 'Update', 'LateUpdate', 'FixedUpdate', 'OnEnable', 'OnDisable', 'OnDestroy', 'OnGUI', 'OnPreRender',
+UNITY = {'Awake', 'Start', 'Update', 'LateUpdate', 'FixedUpdate', 'OnEnable', 'OnDisable', 'OnDestroy', 'OnGUI', 'OnPreCull', 'OnPreRender',
          'OnPostRender', 'OnWillRenderObject', 'OnRenderImage', 'OnApplicationQuit', 'OnTriggerEnter', 'OnTriggerStay', 'OnTriggerExit',
          'OnCollisionEnter', 'OnCollisionStay', 'OnCollisionExit', 'Main'}
 HARMONY = {'Prefix', 'Postfix', 'Transpiler', 'Finalizer', 'TargetMethod', 'TargetMethods', 'Prepare', 'Cleanup'}
