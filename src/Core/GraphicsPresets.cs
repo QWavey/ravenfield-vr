@@ -117,7 +117,8 @@ namespace RavenfieldVR.Core
 
         /// <summary>
         /// The preset held down <see cref="HoldLevel"/> steps, the costliest for the CPU in multi-pass first (each is paid once per eye;
-        /// the user's Medium ran at half rate with the GPU at 7 ms, Tasks 348): the shadow distance shortened, then shadows off, the LOD
+        /// the user's Medium ran at half rate with the GPU at 7 ms, Tasks 348): the shadow distance shortened and the level's tiny distant
+        /// objects hidden (<see cref="TinyObjects"/>, which looks at the hold itself), then shadows off, the LOD
         /// bias lowered toward the game's own 0.3, the grass thinned, no pixel lights; last the render scale (<see cref="EffectiveRenderScale"/>).
         /// </summary>
         private static Profile Adapted(Profile p)

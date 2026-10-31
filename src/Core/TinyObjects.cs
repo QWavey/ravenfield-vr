@@ -50,7 +50,11 @@ namespace RavenfieldVR.Core
         /// <summary>The graphics bench's own choice while it runs (null: the setting's).</summary>
         internal static bool? Bench;
 
-        private static bool On => Bench ?? VRConfig.HideTinyDistantObjects.Value;
+        // (Also the frame rate hold's first step, with its shorter shadows: three pixels of an object are the cheapest thing it can give up.)
+        private static bool On => Bench ?? (VRConfig.HideTinyDistantObjects.Value || VRConfig.HoldFrameRate.Value && GraphicsPresets.HoldLevel >= 1);
+
+        /// <summary>Whether tiny distant objects are being hidden now (the setting, the frame rate hold's first step, or the bench).</summary>
+        internal static bool Active => On;
 
         /// <summary>How many objects are hidden now (said in the frame rate line).</summary>
         internal static int Count { get; private set; }
@@ -102,9 +106,11 @@ namespace RavenfieldVR.Core
         {
             if (!On)
             {
-                if (_applied || Tracked.Count > 0)
+                // Everything drawn again, the scan kept: the frame rate hold goes in and out of its first step, and a scan each time
+                // would be a hitch each time (a level change or VR stopping forgets it: Restore).
+                if (Count > 0)
                 {
-                    Restore();
+                    ShowAll();
                 }
                 return;
             }
@@ -254,9 +260,14 @@ namespace RavenfieldVR.Core
             for (int i = 0; i < Tracked.Count; i++)
             {
                 Entry e = Tracked[i];
-                if (e.Hidden && e.Renderer != null)
+                if (e.Hidden)
                 {
-                    e.Renderer.forceRenderingOff = false;
+                    if (e.Renderer != null)
+                    {
+                        e.Renderer.forceRenderingOff = false;
+                    }
+                    e.Hidden = false; // (so the next pass hides it again if it is still so small)
+                    Tracked[i] = e;
                 }
             }
             Count = 0;
