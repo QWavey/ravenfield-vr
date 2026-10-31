@@ -1172,4 +1172,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    terrain is left as the game sets it (`GraphicsPresets.OlderMap`), the game's quality and terrains go back when VR stops
    (`OnVrStopped`), the game's own scope pictures count as magnified for the tiny objects, animated props are left out of it.
    The tiny objects' threshold is three pixels of the eyes as drawn (`TinyObjects.AngleFor`: the eye texture's width over the
-   head camera's horizontal field of view), so a bigger eye (Ultra) hides only smaller angles (272 checks).
+   left eye's projection, `GetStereoProjectionMatrix`, as the head camera's own fieldOfView stays Unity's 60 in VR), so a bigger
+   eye (Ultra) hides only smaller angles. The mod's loose bodies (cases, magazines, weapons on the ground) are drawn without
+   interpolation while they lie asleep (`RestingBodies`). A third review: one image-effect test by name for the suppressor and
+   the autotest, post-processing given back to a camera that starts drawing into a picture, the bench's state read a few frames
+   in (278 checks).
