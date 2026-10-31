@@ -74,6 +74,7 @@ namespace RavenfieldVR.Weapons
             var body = root.AddComponent<Rigidbody>();
             body.mass = 0.45f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
+            RestingBodies.Add(body); // (no interpolation while it lies still)
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
@@ -393,6 +394,7 @@ namespace RavenfieldVR.Weapons
             var body = ring.AddComponent<Rigidbody>();
             body.mass = 0.01f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
+            RestingBodies.Add(body); // (no interpolation while it lies still)
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = Random.insideUnitSphere * 8f;
