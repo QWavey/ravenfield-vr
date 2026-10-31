@@ -20,6 +20,17 @@ namespace RavenfieldVR.Rig
         private readonly HashSet<Camera> _suppressed = new HashSet<Camera>();
         private readonly Dictionary<Camera, StereoTargetEyeMask> _originalEye = new Dictionary<Camera, StereoTargetEyeMask>();
         private readonly Dictionary<PostProcessLayer, bool> _ppLayers = new Dictionary<PostProcessLayer, bool>();
+
+        /// <summary>
+        /// The image effects on the suppressed cameras (a script with OnRenderImage: the Standard Assets' global fog, the game's
+        /// outline and generic effects a map puts on its camera), switched off while VR runs as their post-processing is: a camera
+        /// with one renders into a picture of its own at full size and hands it through the effect every frame, though it draws
+        /// nothing in VR (the head camera never had them). Given back when VR stops.
+        /// </summary>
+        private readonly Dictionary<MonoBehaviour, bool> _effects = new Dictionary<MonoBehaviour, bool>();
+        private static readonly Dictionary<System.Type, bool> IsImageEffect = new Dictionary<System.Type, bool>();
+        private static readonly List<MonoBehaviour> Behaviours = new List<MonoBehaviour>();
+        private static readonly List<MonoBehaviour> GoneEffects = new List<MonoBehaviour>();
         private Camera[] _buffer = new Camera[32];
         private readonly HashSet<Camera> _ignored = new HashSet<Camera>();
 
@@ -91,6 +102,18 @@ namespace RavenfieldVR.Rig
                     }
                     pp.enabled = false;
                 }
+                c.GetComponents(Behaviours);
+                foreach (MonoBehaviour mb in Behaviours)
+                {
+                    if (mb != null && mb.enabled && ImageEffect(mb.GetType()))
+                    {
+                        if (!_effects.ContainsKey(mb))
+                        {
+                            _effects[mb] = true;
+                        }
+                        mb.enabled = false;
+                    }
+                }
             }
             if (!lookAround)
             {
@@ -121,6 +144,18 @@ namespace RavenfieldVR.Rig
             foreach (PostProcessLayer p in GoneLayers)
             {
                 _ppLayers.Remove(p);
+            }
+            GoneEffects.Clear();
+            foreach (MonoBehaviour mb in _effects.Keys)
+            {
+                if (mb == null)
+                {
+                    GoneEffects.Add(mb);
+                }
+            }
+            foreach (MonoBehaviour mb in GoneEffects)
+            {
+                _effects.Remove(mb);
             }
         }
 
@@ -186,6 +221,18 @@ namespace RavenfieldVR.Rig
                 // distance at 0 until the eyes, and a scope's or map's camera drawn meanwhile had no shadows (rig scout, 2026-10-30).
                 RestoreShadows();
             }
+        }
+
+        /// <summary>Whether this kind of script is an image effect (it has OnRenderImage), looked up once a kind.</summary>
+        private static bool ImageEffect(System.Type t)
+        {
+            if (!IsImageEffect.TryGetValue(t, out bool yes))
+            {
+                yes = t.GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                                                   | System.Reflection.BindingFlags.NonPublic) != null;
+                IsImageEffect[t] = yes;
+            }
+            return yes;
         }
 
         /// <summary>Viewports whose post-render never came (a camera switched off in its render) put back.</summary>
@@ -254,6 +301,14 @@ namespace RavenfieldVR.Rig
                     kv.Key.enabled = kv.Value;
                 }
             }
+            foreach (KeyValuePair<MonoBehaviour, bool> kv in _effects)
+            {
+                if (kv.Key != null)
+                {
+                    kv.Key.enabled = kv.Value;
+                }
+            }
+            _effects.Clear();
             _suppressed.Clear();
             _maskDuringRender.Clear();
             _ppLayers.Clear();
