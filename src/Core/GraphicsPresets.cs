@@ -37,6 +37,13 @@ namespace RavenfieldVR.Core
             /// <summary>HDR colour targets (false: 8-bit ones, half the bandwidth; the same picture with post-processing off).</summary>
             public bool Hdr = true;
 
+            /// <summary>
+            /// The terrain drawn instanced (Terrain.drawInstanced): its patches in a few draws instead of one each, in every pass of
+            /// both eyes. The game itself turns it on at its own top terrain quality, for every map's terrain (Options.Apply), so its
+            /// terrain shaders take it; below that the terrain drew patch by patch. Never turned off where the game turned it on.
+            /// </summary>
+            public bool TerrainInstanced = true;
+
             public Profile MemberwiseCloneProfile() => (Profile)MemberwiseClone();
         }
 
@@ -80,6 +87,7 @@ namespace RavenfieldVR.Core
         private struct TerrainOriginal
         {
             public float DetailDensity, DetailDistance, TreeDistance, PixelError;
+            public bool Instanced;
         }
 
         // What the game itself set for each terrain (after its own options), so presets can go up again as well as down.
@@ -280,7 +288,7 @@ namespace RavenfieldVR.Core
         internal static string ApplyForBench(GraphicsPreset preset, float? renderScale = null, int? msaa = null, float? shadowDistance = null,
             int? cascades = null, bool? reflections = null, int? pixelLights = null, float? lodBias = null, ShadowResolution? shadowResolution = null,
             ShadowQuality? shadows = null, bool? softParticles = null, bool? hdr = null, GraphicsPreset? terrainOf = null,
-            AnisotropicFiltering? anisotropic = null)
+            AnisotropicFiltering? anisotropic = null, bool? terrainInstanced = null)
         {
             if (!Profiles.TryGetValue(preset, out Profile src))
             {
@@ -299,6 +307,7 @@ namespace RavenfieldVR.Core
             p.SoftParticles = softParticles ?? p.SoftParticles;
             p.Hdr = hdr ?? p.Hdr;
             p.Anisotropic = anisotropic ?? p.Anisotropic;
+            p.TerrainInstanced = terrainInstanced ?? p.TerrainInstanced;
             if (terrainOf.HasValue && Profiles.TryGetValue(terrainOf.Value, out Profile t))
             {
                 // Grass, trees, terrain detail and view distance of another preset.
@@ -430,7 +439,7 @@ namespace RavenfieldVR.Core
                     o = new TerrainOriginal
                     {
                         DetailDensity = t.detailObjectDensity, DetailDistance = t.detailObjectDistance,
-                        TreeDistance = t.treeDistance, PixelError = t.heightmapPixelError
+                        TreeDistance = t.treeDistance, PixelError = t.heightmapPixelError, Instanced = t.drawInstanced
                     };
                     Originals[t] = o;
                 }
@@ -438,6 +447,11 @@ namespace RavenfieldVR.Core
                 t.detailObjectDistance = Mathf.Min(o.DetailDistance, p.DetailDistance);
                 t.treeDistance = Mathf.Min(o.TreeDistance, p.TreeDistance);
                 t.heightmapPixelError = Mathf.Max(o.PixelError, p.MinPixelError);
+                bool instanced = p.TerrainInstanced || o.Instanced;
+                if (t.drawInstanced != instanced)
+                {
+                    t.drawInstanced = instanced;
+                }
             }
         }
 
@@ -453,6 +467,7 @@ namespace RavenfieldVR.Core
                 kv.Key.detailObjectDistance = kv.Value.DetailDistance;
                 kv.Key.treeDistance = kv.Value.TreeDistance;
                 kv.Key.heightmapPixelError = kv.Value.PixelError;
+                kv.Key.drawInstanced = kv.Value.Instanced;
             }
         }
 

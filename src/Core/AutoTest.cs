@@ -746,6 +746,9 @@ namespace RavenfieldVR.Core
                 new KeyValuePair<string, Func<string>>("Medium, Low's grass and trees", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, terrainOf: GraphicsPreset.Low)),
                 new KeyValuePair<string, Func<string>>("Medium, no pixel lights", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, pixelLights: 0)),
                 new KeyValuePair<string, Func<string>>("Medium, MSAA off", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, msaa: 0)),
+                // What the terrain drawn instanced (on in the presets since 2026-10-31, as at the game's own top terrain quality) saves:
+                // Medium with it off, as the game's lower terrain qualities draw it.
+                new KeyValuePair<string, Func<string>>("Medium, terrain not instanced", () => GraphicsPresets.ApplyForBench(GraphicsPreset.Medium, terrainInstanced: false)),
                 // The level's small objects without their shadows (SmallObjectsNoShadows, to try): fewer casters in the shadow
                 // passes Medium draws once per eye.
                 new KeyValuePair<string, Func<string>>("Medium, small objects without shadows", () =>
