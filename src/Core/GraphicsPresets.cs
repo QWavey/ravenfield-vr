@@ -459,7 +459,7 @@ namespace RavenfieldVR.Core
         /// A map made with an engine before 2020.3: the game gives its terrains a fallback material (Options.Apply, the same test) and
         /// draws them instanced only at its own top terrain quality; the mod leaves them as the game set them (review, 2026-10-31).
         /// </summary>
-        private static bool OlderMap()
+        internal static bool OlderMap()
         {
             try
             {

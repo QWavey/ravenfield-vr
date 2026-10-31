@@ -736,11 +736,11 @@ namespace RavenfieldVR.Core
                 }
             }
             bool uiNoShadows = ui != null && ui.UiCamera != null && ui.UiCamera.GetComponent<Weapons.VRScope.ScopeNoShadows>() != null;
-            bool ownPreset = VRConfig.Graphics.Value != GraphicsPreset.Game;
-            Results.Add($"Rendering state: terrain drawn instanced {instanced}/{terrains}{(ownPreset ? "" : " (the Game preset: as the game set it)")}, "
+            bool ownPreset = VRConfig.Graphics.Value != GraphicsPreset.Game, older = GraphicsPresets.OlderMap();
+            Results.Add($"Rendering state: terrain drawn instanced {instanced}/{terrains}{(!ownPreset ? " (the Game preset: as the game set it)" : older ? " (a map before engine 2020.3: as the game set it)" : "")}, "
                         + $"image effects on the game's cameras {effects}{(effects > 0 ? " (" + string.Join(", ", names.ToArray()) + ")" : "")}, "
                         + $"UI camera {(uiNoShadows ? "without shadows" : "WITH SHADOWS")}");
-            if (ownPreset && instanced < terrains)
+            if (ownPreset && !older && instanced < terrains)
             {
                 Problem($"[rendering] {terrains - instanced} of {terrains} terrains not drawn instanced with the {VRConfig.Graphics.Value} preset");
             }
