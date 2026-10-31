@@ -826,6 +826,17 @@ namespace RavenfieldVR.Core
                     InstancedObjects.Bench = true;
                     return d + ", repeated objects instanced";
                 }),
+                // All of the settings to try at once on Medium (the game's cameras into 1 px, small objects without shadows, tiny distant
+                // objects hidden, repeated objects instanced): what they save together, beside each one alone above.
+                new KeyValuePair<string, Func<string>>("Medium, every setting to try", () =>
+                {
+                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.Medium);
+                    Rig.CameraSuppressor.TinyRect = true;
+                    SmallShadows.Bench = true;
+                    TinyObjects.Bench = true;
+                    InstancedObjects.Bench = true;
+                    return d + ", every setting to try";
+                }),
                 new KeyValuePair<string, Func<string>>("High, no UI camera", () =>
                 {
                     string d = GraphicsPresets.ApplyForBench(GraphicsPreset.High);
