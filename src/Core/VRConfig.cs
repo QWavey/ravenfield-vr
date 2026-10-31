@@ -284,7 +284,7 @@ namespace RavenfieldVR.Core
                 "To try: the level's small objects (under 40 cm corner to corner) cast no shadow, so the shadow passes, drawn once per eye, have fewer "
                 + "objects to draw (with shadows on: Medium, High, Ultra). Applies at once; soldiers keep theirs.");
             HideTinyDistantObjects = cfg.Bind("Rendering", "HideTinyDistantObjects", false,
-                "To try: the level's objects that would be only a few pixels across (a 1 m crate past 250 m) are not drawn, so each eye's passes "
+                "To try: the level's objects that would be only about three pixels of an eye across (a 1 m crate past about 250 m on Medium) are not drawn, so each eye's passes "
                 + "have fewer objects to draw. Standing props only (soldiers, weapons, vehicles and anything moving stay); everything is drawn "
                 + "while a magnified scope is. Applies at once; the frame rate line says how many are hidden.");
             InstanceRepeatedObjects = cfg.Bind("Rendering", "InstanceRepeatedObjects", false,
