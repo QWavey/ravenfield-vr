@@ -140,9 +140,17 @@ namespace RavenfieldVR.Rig
                 {
                     GoneLayers.Add(p);
                 }
+                else if (p.TryGetComponent(out Camera own) && own.targetTexture != null)
+                {
+                    GoneLayers.Add(p); // (its camera draws into a picture now, as the loading view's: its post-processing given back; review)
+                }
             }
             foreach (PostProcessLayer p in GoneLayers)
             {
+                if (p != null && _ppLayers.TryGetValue(p, out bool was))
+                {
+                    p.enabled = was;
+                }
                 _ppLayers.Remove(p);
             }
             GoneEffects.Clear();
@@ -232,18 +240,21 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>Whether this kind of script is an image effect (it has OnRenderImage), looked up once a kind.</summary>
-        private static bool ImageEffect(System.Type t)
+        internal static bool ImageEffect(System.Type t)
         {
             if (!IsImageEffect.TryGetValue(t, out bool yes))
             {
-                try
+                // By name over all its methods: GetMethod threw on a kind with two of them (overloads, or one hiding another's), and
+                // that effect stayed on (review).
+                yes = false;
+                foreach (System.Reflection.MethodInfo m in t.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                                                                         | System.Reflection.BindingFlags.NonPublic))
                 {
-                    yes = t.GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                                                       | System.Reflection.BindingFlags.NonPublic) != null;
-                }
-                catch (System.Reflection.AmbiguousMatchException)
-                {
-                    yes = false; // (one hiding another's with new: left alone rather than the whole scan stopped; review)
+                    if (m.Name == "OnRenderImage")
+                    {
+                        yes = true;
+                        break;
+                    }
                 }
                 IsImageEffect[t] = yes;
             }

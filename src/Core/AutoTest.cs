@@ -727,8 +727,7 @@ namespace RavenfieldVR.Core
                 }
                 foreach (MonoBehaviour mb in c.GetComponents<MonoBehaviour>())
                 {
-                    if (mb != null && mb.enabled && mb.GetType().GetMethod("OnRenderImage", System.Reflection.BindingFlags.Instance
-                            | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic) != null)
+                    if (mb != null && mb.enabled && Rig.CameraSuppressor.ImageEffect(mb.GetType()))
                     {
                         effects++;
                         names.Add($"{mb.GetType().Name} on {c.name}");
@@ -737,7 +736,7 @@ namespace RavenfieldVR.Core
             }
             bool uiNoShadows = ui != null && ui.UiCamera != null && ui.UiCamera.GetComponent<Weapons.VRScope.ScopeNoShadows>() != null;
             bool ownPreset = VRConfig.Graphics.Value != GraphicsPreset.Game, older = GraphicsPresets.OlderMap();
-            Results.Add($"Rendering state: terrain drawn instanced {instanced}/{terrains}{(!ownPreset ? " (the Game preset: as the game set it)" : older ? " (a map before engine 2020.3: as the game set it)" : "")}, "
+            Results.Add($"Rendering state: terrain drawn instanced {instanced}/{terrains}{(!ownPreset ? " (the Game preset: as the game set it)" : older ? " (a map the game gives its fallback terrain material: as the game set it)" : "")}, "
                         + $"image effects on the game's cameras {effects}{(effects > 0 ? " (" + string.Join(", ", names.ToArray()) + ")" : "")}, "
                         + $"UI camera {(uiNoShadows ? "without shadows" : "WITH SHADOWS")}");
             if (ownPreset && !older && instanced < terrains)
@@ -762,6 +761,11 @@ namespace RavenfieldVR.Core
         private static IEnumerator PerfBench()
         {
             UI.UISystem ui = UI.UISystem.Instance;
+            // (A few frames in: the suppressor looks at the game's cameras every 15 frames, and a level's first frames still set them up.)
+            for (int f = 0; f < 16; f++)
+            {
+                yield return null;
+            }
             RenderingStateCheck(ui);
             // The game's own quality first (what the user plays smoothly), each preset beside its version before 2026-10-24 (the
             // old values, as near as the bench can set them: terrain detail and draw distances stay the new preset's), then what

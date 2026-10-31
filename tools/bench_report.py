@@ -99,9 +99,11 @@ def worth_keeping(lines):
     for name, b, d_frame, d_gpu, verdict in lines:
         if name not in TRY_SETTINGS:
             continue
-        said = verdict.split('frame: ')[-1] if 'frame: ' in verdict else verdict
-        if said.startswith('saves') or said == 'GPU: saves':
-            keep.append(f'{TRY_SETTINGS[name]} ({d_frame:+.2f} ms frame)')
+        if 'frame: ' in verdict:
+            if verdict.split('frame: ')[-1].startswith('saves'):
+                keep.append(f'{TRY_SETTINGS[name]} ({d_frame:+.2f} ms frame)')
+        elif verdict == 'GPU: saves' and d_gpu is not None:
+            keep.append(f'{TRY_SETTINGS[name]} ({d_gpu:+.2f} ms GPU)')
     return keep
 
 
@@ -123,7 +125,8 @@ def main(argv):
     print('Settings to try that saved time here: ' + (', '.join(keep) if keep else 'none beyond the noise'))
     for name, b, d_frame, d_gpu, verdict in lines:
         if name == 'Medium, every setting to try':
-            print(f'All of them together on Medium: {d_frame:+.2f} ms frame' + (f', {d_gpu:+.2f} ms GPU' if d_gpu is not None else '') + f' ({verdict})')
+            print(f'All of them together on Medium: {d_frame:+.2f} ms frame' + (f', {d_gpu:+.2f} ms GPU' if d_gpu is not None else '')
+                  + (f' ({verdict})' if verdict else ''))
     return 0
 
 

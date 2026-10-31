@@ -456,7 +456,8 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// A map made with an engine before 2020.3: the game gives its terrains a fallback material (Options.Apply, the same test) and
+        /// A map the game gives its fallback terrain material (Options.Apply's own test, the same one: an engine version under 2020, or
+        /// any with a minor version under 3, as 2021.1 too) and
         /// draws them instanced only at its own top terrain quality; the mod leaves them as the game set them (review, 2026-10-31).
         /// </summary>
         internal static bool OlderMap()

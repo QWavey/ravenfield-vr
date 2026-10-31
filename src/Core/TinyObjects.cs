@@ -7,7 +7,7 @@ namespace RavenfieldVR.Core
     /// HideTinyDistantObjects (to try, off by default): the level's objects that would be only a few pixels across are not drawn.
     /// Each eye draws everything it sees twice in multi-pass (with shadows on, a depth pass and then the colour pass), and the eyes'
     /// render was most of Medium's main thread in the user's session (3.5 ms against the Game preset's 0.97; Tasks 348). A prop with
-    /// no LOD group is drawn all the way to the far clip (2 km on Medium) however small it has become: a 1 m crate at 300 m is about
+    /// no LOD group is drawn all the way to the far clip (2 km on Medium) however small it has become: 1 m corner to corner at 300 m is about
     /// two pixels of an eye, four draws a frame. Mesh renderers only, standing still (none under a rigid body, an animator or
     /// animation, a soldier, a weapon or a vehicle), not static-batched (switching one member off splits its batch into more draws), not in a LOD group (its LOD
     /// culls it), not the mod's layers. Everything is drawn while a magnified scope lens is (its view is many times larger), and when
@@ -24,8 +24,8 @@ namespace RavenfieldVR.Core
         internal const float Pixels = 3f;
 
         /// <summary>
-        /// The angle (radians) under which an object is hidden: <see cref="Pixels"/> of the eyes as they are drawn now (0.004, a 1 m
-        /// crate past 250 m, on the user's Medium eye of 1357 px across 100 degrees; less on bigger eyes, so Ultra hides no object of
+        /// The angle (radians) under which an object is hidden: <see cref="Pixels"/> of the eyes as they are drawn now (0.004, 1 m
+        /// corner to corner past 250 m, its bounds' diagonal as measured, on the user's Medium eye of 1357 px across 100 degrees; less on bigger eyes, so Ultra hides no object of
         /// 4-5 px), until the eyes are known.
         /// </summary>
         private static float _hideBelow = 0.004f;
@@ -72,7 +72,10 @@ namespace RavenfieldVR.Core
         internal static float AngleFor(int eyePixels, float fovRadians) =>
             eyePixels > 0 && fovRadians > 0.1f ? Mathf.Clamp(Pixels * fovRadians / eyePixels, 0.002f, 0.008f) : 0.004f;
 
-        /// <summary>The threshold from the eyes as drawn now (their texture's width, the head camera's field of view and aspect).</summary>
+        /// <summary>
+        /// The threshold from the eyes as drawn now: their texture's width over the left eye's horizontal field of view, read from its
+        /// own projection (the head camera's fieldOfView stays Unity's default 60 and its aspect is the desktop window's in VR; review).
+        /// </summary>
         private static void TakeThreshold(Camera eyes)
         {
             int width = UnityEngine.XR.XRSettings.eyeTextureWidth;
@@ -80,8 +83,11 @@ namespace RavenfieldVR.Core
             {
                 return;
             }
-            float half = Mathf.Tan(eyes.fieldOfView * 0.5f * Mathf.Deg2Rad) * Mathf.Max(0.5f, eyes.aspect);
-            _hideBelow = AngleFor(width, 2f * Mathf.Atan(half));
+            Matrix4x4 m = eyes.GetStereoProjectionMatrix(Camera.StereoscopicEye.Left);
+            if (m.m00 > 0.05f)
+            {
+                _hideBelow = AngleFor(width, 2f * Mathf.Atan(1f / m.m00));
+            }
         }
 
         /// <summary>A level loaded: the old level's forgotten (one that lives on is drawn again), the new one scanned a few seconds in.</summary>
