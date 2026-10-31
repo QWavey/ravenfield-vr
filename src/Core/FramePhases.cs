@@ -272,8 +272,18 @@ namespace RavenfieldVR.Core
                     {
                         awake += b != null && !b.isKinematic && !b.IsSleeping() ? 1 : 0;
                     }
+                    int terrains = 0, instanced = 0;
+                    foreach (Terrain t in Terrain.activeTerrains)
+                    {
+                        if (t != null)
+                        {
+                            terrains++;
+                            instanced += t.drawInstanced ? 1 : 0;
+                        }
+                    }
                     s.Append($"; scene: {bodies.Length} bodies ({awake} awake), {Object.FindObjectsOfType<Renderer>().Length} renderers, "
-                             + $"{Camera.allCamerasCount} cameras on, {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB managed");
+                             + $"{Camera.allCamerasCount} cameras on, {System.GC.GetTotalMemory(false) / (1024 * 1024)} MB managed"
+                             + (terrains > 0 ? $", terrain drawn instanced {instanced}/{terrains}" : ""));
                     UI.CanvasManager canvases = UI.UISystem.Instance != null ? UI.UISystem.Instance.Canvases : null;
                     if (canvases != null)
                     {
