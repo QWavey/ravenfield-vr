@@ -30,6 +30,12 @@ def bound(text):
     return 'GPU' if gpu >= 0.7 * interval else 'CPU'
 
 
+def counted(said, text):
+    """' 1290' when the line gives a count right after the setting's words ("tiny distant objects hidden (1290)"), else ''."""
+    m = re.search(re.escape(said) + r' \((\d+)', text)
+    return f' {m.group(1)}' if m else ''
+
+
 def gc_slice(text):
     """The collector's slice when it is not the game's 3 ms (GarbageCollectionSliceMs), as ['gc 1 ms'], else []."""
     m = re.search(r'incremental, ([\d.,]+) ms a frame', text)
@@ -60,11 +66,13 @@ def rows(path):
             'awake': number(r'\((\d+) awake\)', text),
             'faded': number(r'(\d+) faded out', text),
             'depth': 'yes' if 'the eyes draw a' in text else '',
-            # The settings to try (GameCamerasOnePixel, ScopeHalfRate), said in the line when on: their minutes against the others.
-            'try': ', '.join([short for short, said in (('cams 1px', 'game cameras into 1 px'), ('scope 1/2', 'scope lens every other frame'),
-                                                        ('no small shadows', 'small objects without shadows'),
-                                                        ('tiny far hidden', 'tiny distant objects hidden'),
-                                                        ('instanced', 'repeated objects instanced')) if said in text] + gc_slice(text)),
+            # The settings to try, said in the line when on: their minutes against the others (with the count the line gives).
+            'try': ', '.join([short + counted(said, text) for short, said in (('cams 1px', 'game cameras into 1 px'),
+                                                                               ('scope 1/2', 'scope lens every other frame'),
+                                                                               ('no small shadows', 'small objects without shadows'),
+                                                                               ('tiny far hidden', 'tiny distant objects hidden'),
+                                                                               ('instanced', 'repeated objects instanced')) if said in text]
+                             + gc_slice(text)),
         }
 
 

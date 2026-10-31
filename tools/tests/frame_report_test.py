@@ -55,7 +55,7 @@ def main():
             f.write(line(90, '3.0').replace('(render scale 0.9); ', '(render scale 0.9), MSAA 2x, shadows 30 m, LOD bias 0.7, small objects without shadows (412), '
                                             'tiny distant objects hidden (1290), repeated objects instanced (37 materials); '))
         more_rows = list(frame_report.rows(more_log))
-        check(more_rows[0]['try'] == 'no small shadows, tiny far hidden, instanced',
+        check(more_rows[0]['try'] == 'no small shadows 412, tiny far hidden 1290, instanced 37',
               f"try column: the shadow, tiny-object and instancing settings with their counts ({more_rows[0]['try']!r})")
         gc_log = os.path.join(root, 'gc.log')
         with open(gc_log, 'w', encoding='utf-8') as f:
