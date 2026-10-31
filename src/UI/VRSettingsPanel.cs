@@ -177,6 +177,7 @@ namespace RavenfieldVR.UI
             Choice("Scope lens every other frame", VRConfig.ScopeHalfRate, new[] { false, true }, new[] { "Off", "On" });
             Choice("Small objects without shadows", VRConfig.SmallObjectsNoShadows, new[] { false, true }, new[] { "Off", "On" });
             Choice("Tiny distant objects hidden", VRConfig.HideTinyDistantObjects, new[] { false, true }, new[] { "Off", "On" });
+            Choice("Repeated objects instanced", VRConfig.InstanceRepeatedObjects, new[] { false, true }, new[] { "Off", "On" });
             Stepper("Garbage collection slice", () => $"{VRConfig.GcSliceMs.Value:0.0} ms",
                 d => VRConfig.GcSliceMs.Value = Mathf.Clamp(Mathf.Round((VRConfig.GcSliceMs.Value + d * 0.5f) * 2f) / 2f, 0.5f, 3f));
 

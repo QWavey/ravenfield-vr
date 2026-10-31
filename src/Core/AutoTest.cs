@@ -761,6 +761,13 @@ namespace RavenfieldVR.Core
                     TinyObjects.Bench = true;
                     return d + ", tiny distant objects hidden";
                 }),
+                // The level's repeated objects drawn instanced (InstanceRepeatedObjects, to try): fewer draws for copies of one mesh.
+                new KeyValuePair<string, Func<string>>("Medium, repeated objects instanced", () =>
+                {
+                    string d = GraphicsPresets.ApplyForBench(GraphicsPreset.Medium);
+                    InstancedObjects.Bench = true;
+                    return d + ", repeated objects instanced";
+                }),
                 new KeyValuePair<string, Func<string>>("High, no UI camera", () =>
                 {
                     string d = GraphicsPresets.ApplyForBench(GraphicsPreset.High);
@@ -810,6 +817,7 @@ namespace RavenfieldVR.Core
                         Rig.CameraSuppressor.TinyRect = false; // (only its own run sets it)
                         SmallShadows.Bench = false;
                         TinyObjects.Bench = false;
+                        InstancedObjects.Bench = false;
                         string applied = run.Value();
                         yield return new WaitForSecondsRealtime(1.5f);
                         PerfProbe.Reset();
@@ -838,6 +846,7 @@ namespace RavenfieldVR.Core
                 Rig.CameraSuppressor.TinyRect = null; // (the config's again)
                 SmallShadows.Bench = null;
                 TinyObjects.Bench = null;
+                InstancedObjects.Bench = null;
                 GraphicsPresets.Apply();
                 Runtime.OpenVRRuntime.ApplyLiveSettings();
             }

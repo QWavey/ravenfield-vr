@@ -165,7 +165,8 @@ namespace RavenfieldVR.Core
                      // The settings to try said when on, so a log shows them against the minutes before (GameCamerasOnePixel, ScopeHalfRate).
                      $"{(VRConfig.GameCamerasOnePixel.Value ? ", game cameras into 1 px" : "")}{(VRConfig.ScopeHalfRate.Value ? ", scope lens every other frame" : "")}"
                      + $"{(VRConfig.SmallObjectsNoShadows.Value ? $", small objects without shadows ({SmallShadows.Count})" : "")}"
-                     + $"{(VRConfig.HideTinyDistantObjects.Value ? $", tiny distant objects hidden ({TinyObjects.Count})" : "")}; " +
+                     + $"{(VRConfig.HideTinyDistantObjects.Value ? $", tiny distant objects hidden ({TinyObjects.Count})" : "")}"
+                     + $"{(VRConfig.InstanceRepeatedObjects.Value ? $", repeated objects instanced ({InstancedObjects.Count} materials)" : "")}; " +
                      $"{System.GC.CollectionCount(0) - _gcAtStart} garbage collections ({GcMode()}); the mod's own work {VRManager.ModMsPerFrameSince(ref _modMs, ref _modFrames):0.0} ms a frame; "
                      + CpuSpeed() + "; "
                      + FramePhases.TakeReport());

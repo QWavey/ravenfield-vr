@@ -114,6 +114,7 @@ namespace RavenfieldVR.Tests
             ShellPortTests(mod);
             AmmoNameTests(mod);
             TinyObjectTests(mod);
+            InstancedObjectTests(mod);
         }
 
         /// <summary>
@@ -152,6 +153,26 @@ namespace RavenfieldVR.Tests
             Check(N(false, 0.25f, 0.5f) && !N(false, 0.31f, 0.5f) && !N(false, 0.25f, 0.15f), "Holster: hidden within the distance while faced only");
             Check(N(true, 0.32f, 0.5f) && N(true, 0.25f, 0.15f), "Holster: a hidden copy stays hidden inside the band");
             Check(!N(true, 0.34f, 0.5f) && !N(true, 0.25f, 0.05f), "Holster: shown again 3 cm farther or a tenth less faced");
+        }
+
+        /// <summary>
+        /// Which renderers leave their materials to instancing (InstancedObjects.Eligible, 2026-10-31): a plain prop's do; a static-batched
+        /// one's, a lightmapped one's (index 0-65533) and the mod's UI and first-person layers' never.
+        /// </summary>
+        private static void InstancedObjectTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo eligible = mod.GetType("RavenfieldVR.Core.InstancedObjects")?.GetMethod("Eligible",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(eligible != null, "Instanced objects: Eligible found");
+            if (eligible == null)
+            {
+                return;
+            }
+            bool Eligible(int layer, bool batched, int lightmap) => (bool)eligible.Invoke(null, new object[] { layer, batched, lightmap });
+            Check(Eligible(0, false, -1) && Eligible(0, false, 0xFFFE), "Instanced objects: a plain prop, not lightmapped");
+            Check(!Eligible(0, true, -1), "Instanced objects: never a static-batched one");
+            Check(!Eligible(0, false, 0) && !Eligible(0, false, 3), "Instanced objects: never a lightmapped one");
+            Check(!Eligible(5, false, -1) && !Eligible(18, false, -1), "Instanced objects: never the mod's UI or first-person layer");
         }
 
         /// <summary>

@@ -2852,6 +2852,8 @@ array (debug option only).
       with the 10-27 session's 1.0-1.1 ms on Medium); gun-shape measuring views without shadows; HideTinyDistantObjects (to
       try: objects a few pixels across not drawn, standing props only, everything while a scope is magnified; the bench's
       "Medium, tiny distant objects hidden"; the frame rate line says how many).
+      Also InstanceRepeatedObjects (to try: materials drawn by several non-batched, non-lightmapped renderers drawn
+      instanced; the bench's "Medium, repeated objects instanced"; the frame rate line says how many materials).
 
 ### 355. Five-skill Haiku sweep 2, FPS and the user's gun complaints (user, 2026-10-29; the game not started; nothing pushed)
 User: "Concentrate on FPS"; "some guns still have issues with the mag insertion being on the wrong place but on the real when

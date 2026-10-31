@@ -101,6 +101,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> GcSliceMs;
         public static ConfigEntry<bool> SmallObjectsNoShadows;
         public static ConfigEntry<bool> HideTinyDistantObjects;
+        public static ConfigEntry<bool> InstanceRepeatedObjects;
         public static ConfigEntry<bool> HolsterSwitching;
         public static ConfigEntry<bool> GripToHoldWeapon;
         public static ConfigEntry<bool> SpawnEmptyHanded;
@@ -286,6 +287,10 @@ namespace RavenfieldVR.Core
                 "To try: the level's objects that would be only a few pixels across (a 1 m crate past 250 m) are not drawn, so each eye's passes "
                 + "have fewer objects to draw. Standing props only (soldiers, weapons, vehicles and anything moving stay); everything is drawn "
                 + "while a magnified scope is. Applies at once; the frame rate line says how many are hidden.");
+            InstanceRepeatedObjects = cfg.Bind("Rendering", "InstanceRepeatedObjects", false,
+                "To try: the level's materials drawn by several objects are drawn instanced, so copies of one mesh go in one draw instead of "
+                + "one each (in each eye's passes). Not for static-batched or lightmapped objects (their look stays as it is). Applies at once; "
+                + "the frame rate line says how many materials it changed.");
             GcSliceMs = cfg.Bind("Rendering", "GarbageCollectionSliceMs", 3f,
                 new ConfigDescription("To try: how much of a frame (ms) the game's incremental garbage collector may take while a collection runs "
                                       + "(Unity's own is 3, of the 11.1 ms a 90 Hz frame has). Lower spreads the same work over more frames, so a frame near "

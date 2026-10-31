@@ -275,6 +275,7 @@ namespace RavenfieldVR.Core
             Log.Guard("Frame budget", FrameBudgetTick);
             Log.Guard("Small shadows", SmallShadowsTick);
             Log.Guard("Tiny objects", TinyObjectsTick);
+            Log.Guard("Instanced objects", InstancedObjectsTick);
             // Guarded as the rest: one that threw ended the frame's Update before the input, rig and weapons ran.
             Log.Guard("VR events", PumpVREvents);
             if (_pauseAfterLoad)
@@ -315,7 +316,7 @@ namespace RavenfieldVR.Core
         private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
         private Action[] _handApply;
         private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame,
-            SmallShadowsTick = SmallShadows.Frame, TinyObjectsTick = TinyObjects.Frame;
+            SmallShadowsTick = SmallShadows.Frame, TinyObjectsTick = TinyObjects.Frame, InstancedObjectsTick = InstancedObjects.Frame;
 
         // Input's parts timed apart (the frame rate line's mod sections): the whole was the mod's costliest section in the user's play
         // of 2026-10-28 (0.16-0.24 ms a frame) with nothing to say which part. Each guarded on its own, so one that throws leaves the
@@ -397,6 +398,7 @@ namespace RavenfieldVR.Core
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
             SmallShadows.OnSceneChanged();
             TinyObjects.OnSceneChanged();
+            InstancedObjects.OnSceneChanged();
             Log.Guard("Weapons.OnSceneChanged", () => Weapons?.OnSceneChanged()); // (a throw there skipped the UI's)
             Log.Guard("UI.OnSceneChanged", () => UI?.OnSceneChanged());
         }
@@ -539,6 +541,7 @@ namespace RavenfieldVR.Core
                 FrameBudget.RestoreGcSlice();
                 Log.Guard("SmallShadows.Restore", SmallShadows.Restore);
                 Log.Guard("TinyObjects.Restore", TinyObjects.Restore);
+                Log.Guard("InstancedObjects.Restore", InstancedObjects.Restore);
                 _subscribed = false;
             }
             _active = false;
