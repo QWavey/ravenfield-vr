@@ -2819,6 +2819,23 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 359. From the user's play of 1.16.3 (2026-11-03 evening; then /work-until-limit 40 with /bug-hunt, the game not started)
+
+Reports: (a) "mags are sometimes trying to keep up with the speed of the weapons arms and are sometimes flying in the air trying to
+correct their positions"; (b) "i dont see the bullet to manual load and my mags are still infinite under the manual load bullet
+setting"; (c) "sometimes when i take a mag and look at them they are empty but when i take a mag and dont look at them and just
+insert they are full (when i take from the mag stock)". The user's config: Hands = WeaponArms, SlowMotionHands = Normal,
+ReloadMode = Manual, LoadMagazinesByHand = false.
+- (b) The setup of 1.16.3 ran at 20:47:06 (install-manifest) and set LoadMagazinesByHand off, as the user asked for the experimental
+  option ("by default and on installation off when installed with the setup"); the game started at 20:47:43 with it off, so the pouch
+  gave full magazines and no round. To switch it on again in the settings after each install (or ask the setup to keep it).
+- (c) The gun's magazine was copied "as it looks loaded" the first frame a full magazine was in the held gun, at the draw, before the
+  gun's animation had run: a mod that animates its magazine's rounds on (Suzuya's AR-15 HAMR: its empty pose hides 2 pieces) was copied
+  with them off, and every magazine from the pouch looked empty in the hand while it went in full. Fixed (999f122): copied only once the
+  gun has settled loaded (HeldWeapon.SettledLoaded: unholstered, not reloading, slide home, a round counted, 0.6 s after a shot, the
+  animator in one state for a third of a second, not the empty pose nor a transition); the held gun's loaded magazine pieces the same
+  way; the pouch's magazine is built again once the loaded look is kept (d9dd4a7).
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
