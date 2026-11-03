@@ -890,7 +890,9 @@ namespace RavenfieldVR.Weapons
             }
             // A slow, firm push: the fresh magazine's top pressed past the old one's base (where the old one would have to
             // give way), held there a moment or pushed on, and not being pulled back out.
-            bool pressing = lateral <= pushReach && along >= 0.012f && along <= into && speed > -0.05f;
+            // Roughly in line (a strike may come in tilted, a push may not): a magazine held beside the old one, tilted 66 degrees and not
+            // moving at all, knocked it out and sent it flying (log of 2026-11-03: 0.02 m/s, 4.9 cm aside).
+            bool pressing = lateral <= pushReach && along >= 0.012f && along <= into && speed > -0.05f && angle <= MaxPushAngle;
             if (!pressing)
             {
                 _kickPushSince = -1f;
@@ -957,6 +959,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How far (degrees) a fresh magazine may be tilted off the well's axis and still knock the old one out.</summary>
         private const float MaxKickAngle = 75f;
+        /// <summary>The same for a slow push: it has to bear on the old one's base.</summary>
+        private const float MaxPushAngle = 35f;
 
         private bool _kickTicked;
         /// <summary>When the fresh magazine started pressing past the old one's base (-1: not pressing).</summary>
