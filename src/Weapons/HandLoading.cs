@@ -152,7 +152,17 @@ namespace RavenfieldVR.Weapons
                 // hand's trigger never let a round out.
                 DigitalAction trigger = h.Side == VRInput.GunHand ? DigitalAction.Fire : DigitalAction.Use;
                 if (sys.Held != null && h == sys.Rig.Dominant || !h.Tracked || !(h.Held is MagazineProp mag) || mag.Go == null
-                    || mag.Kind != PropKind.Magazine || !VRInput.GetPressed(trigger, h.Side))
+                    || mag.Kind != PropKind.Magazine)
+                {
+                    continue;
+                }
+                if (trigger == DigitalAction.Use)
+                {
+                    // The trigger is the magazine's while it holds one: not the game's Use too (a vehicle beside entered as a round came out).
+                    VRGameInput.SupportTriggerOwned = true;
+                    VRGameInput.SupportTriggerLightsOnly = false;
+                }
+                if (!VRInput.GetPressed(trigger, h.Side))
                 {
                     continue;
                 }
