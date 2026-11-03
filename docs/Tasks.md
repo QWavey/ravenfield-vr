@@ -2880,6 +2880,12 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   arm on its own side (as meant); the pouch stow with the gun away for all kinds (as the drawn gun's). Unverified: whether Unity ramps
   AudioSource.volume inside a frame (SliceFader's fade-in).
 
+- After 1.16.6, in the code until the next install: a Haiku scout of seats, deaths and pauses found the detent's own bug: a magazine at its
+  latch with another seated past it was forgotten, frozen in the well, its rounds lost; it falls out now (bcc242e). Also the detent under a
+  menu, the seated hold healed, DrivingWeapons reset at a scene change. Loading by hand: the pouch shown with the gun away (2451f80), lying
+  rounds taken with a gun drawn (73bc096), a hand half open on a round (9ef0db3). The tactical reload's old magazine in 0.12 s (dcb5c15).
+  The first off-gun pose of a hand bone is logged once per gun and hand ("held on the gun, its bone N cm away"): to read after a play.
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
