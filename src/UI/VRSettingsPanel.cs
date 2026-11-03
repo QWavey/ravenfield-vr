@@ -149,6 +149,7 @@ namespace RavenfieldVR.UI
             Stepper("Glove size (restart)", () => $"{VRConfig.GloveSize.Value * 100f:0}%",
                 d => VRConfig.GloveSize.Value = Mathf.Clamp(Mathf.Round((VRConfig.GloveSize.Value + d * 0.02f) * 50f) / 50f, 0.7f, 1.1f));
             TogglePair("Scope lenses (next draw)", VRConfig.VRScopes, "Shot view flash", VRConfig.ShotViewFlash);
+            Choice("Load magazines by hand (experimental)", VRConfig.LoadMagazinesByHand, new[] { false, true }, new[] { "Off", "On" });
 
             // (From the first page, which was about 2.4 m tall with them: the two pages are about 1.8 m each now; review, 2026-10-30.)
             Section("Aiming and throwing");

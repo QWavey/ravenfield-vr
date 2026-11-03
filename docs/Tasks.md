@@ -2848,6 +2848,13 @@ Built and checked offline (282 checks), each to be checked in a game run:
 - Scopes and launchers: HeldWeapon.RaiseScopeTexture (the gun's own picture at least ScopeResolution), LiftBlackLauncherParts.
 - Hold where held: WeaponSystem.PassToOtherHand keeps the grip's pose against the new gun hand (PassHoldNow), no steer, sag
   or grip snap of the glove meanwhile; RegripPassedWeapon takes it back by the grip with the free hand (10 cm).
+- Experimental, magazines loaded by hand (Weapons/LoadMagazinesByHand, off; the setup sets it off on every install): HandLoading
+  (three magazines a box-fed gun, two empty in the pouch kept in AmmoState.SpareMagazines; the pouch gives the fullest, stowed or
+  cleared magazines go back in with their rounds; a round from the pouch with a magazine in the other hand, both hands free;
+  a live round touched to the magazine's top goes in; a magazine's trigger lets one out; cases and rounds taken with a free hand
+  (Casings.Take, Follow, LetGo); bullets push them (Projectile.ProjectileRaycast postfix on the props' layer); live rounds put
+  away unused go back to their reserve). Not machine guns, clips, shell-fed, assisted. Check in a game run: a magazine's look
+  does not change as rounds go in or out (its copy is made as it was taken).
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for

@@ -141,6 +141,7 @@ namespace RavenfieldVR.Weapons
                 AttachHeld(weapon);
             }
             RegripPassedWeapon();
+            HandLoading.Update(this); // (a magazine's trigger before the gun's: the gun hand's own is never taken)
 
             if (Held != null)
             {
@@ -338,6 +339,11 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 palm = h.Palm.position;
+                if (HandLoading.RoundFromPouch(this, h))
+                {
+                    VRInput.Consume(DigitalAction.Grab, h.Side);
+                    continue;
+                }
                 // (By the pouch an empty one is passed over, as the gun's own reload does: a squeeze there wants a full one.)
                 bool byPouch = Vector3.Distance(palm, Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
                 MagazineProp prop = MagazineProp.NearestDropped(palm, 0.13f, null, byPouch ? (System.Func<MagazineProp, bool>)(p => p.Rounds > 0) : null);
@@ -359,6 +365,10 @@ namespace RavenfieldVR.Weapons
                 }
                 if (prop == null)
                 {
+                    if (HandLoading.TakeLying(h)) // (loaded by hand: a case or round on the ground)
+                    {
+                        VRInput.Consume(DigitalAction.Grab, h.Side);
+                    }
                     continue;
                 }
                 VRInput.Consume(DigitalAction.Grab, h.Side);
@@ -491,6 +501,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            HandLoading.BeforeRender(this); // a round in a hand, after the magazine it may go into has its pose
             _readout.BeforeRender(); // after every magazine has its pose for this frame
             _lensFlash?.BeforeRender(); // after the gun is placed: the flash sits at its muzzle
         }

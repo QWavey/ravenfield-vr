@@ -20,7 +20,7 @@ namespace RavenfieldVR.Weapons
         private enum Kind { Pistol, Rifle, Heavy, Shell }
 
         /// <summary>One case object, made once and used again (a shot used to build and later destroy six objects).</summary>
-        private sealed class Case
+        internal sealed class Case
         {
             public GameObject Go;
             public float Born;
@@ -29,6 +29,14 @@ namespace RavenfieldVR.Weapons
             public CapsuleCollider Collider;
             public Rigidbody Body;
             public CaseSound Sound;
+            /// <summary>A live round (it can be loaded into a magazine by hand: HandLoading), not a fired case.</summary>
+            public bool Live;
+            /// <summary>In a hand (HandLoading): kinematic, its collider off, not put away for its age.</summary>
+            public bool Held;
+            /// <summary>Whose a live round is (the weapon's analysis key): it goes into that weapon's magazines only; null for none.</summary>
+            public string Key;
+            /// <summary>The reserve a live round came out of: it goes back there when it is put away unused (null: lost, as one racked out).</summary>
+            public AmmoState Owner;
         }
 
         private static readonly List<Case> Alive = new List<Case>();
@@ -129,7 +137,10 @@ namespace RavenfieldVR.Weapons
             return p != null && p.Length > 0 && p[0] != null;
         }
 
-        /// <summary>Throws one spent case (or a live round) out of the held weapon's ejection port.</summary>
+        /// <summary>
+        /// Throws one spent case (or a live round) out of the held weapon's ejection port. With magazines loaded by hand a live
+        /// round racked out (and lost by the rack, LoseRoundOnRack) is that weapon's: picked up, it can be loaded again.
+        /// </summary>
         public static void Eject(HeldWeapon held, bool live = false)
         {
             if (held == null || !Ejects(held) || held.ActiveRig.GunBody == null)
@@ -147,8 +158,12 @@ namespace RavenfieldVR.Weapons
             // motion over a frame, or on a swing the case came out a couple of centimetres behind the port (visual hunt, 2026-10-20).
             Vector3 lead = hand * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             Kind kind = KindOf(held);
-            Spawn(kind, live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
+            Case c = Spawn(kind, live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
                 Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f, OwnShellOf(held, kind));
+            if (live && HandLoading.Enabled && VRConfig.LoseRoundOnRack.Value && kind != Kind.Shell)
+            {
+                c.Key = d.Key;
+            }
         }
 
         /// <summary>Fired cases falling out of an opened cylinder or break-action, straight down out of the chambers.</summary>
@@ -186,18 +201,35 @@ namespace RavenfieldVR.Weapons
                 return Kind.Pistol;
             }
             float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
+            return KindOf(d);
+        }
+
+        /// <summary>The round of a magazine-fed weapon by its analysis alone (no gun drawn: a magazine in a free hand).</summary>
+        private static Kind KindOf(WeaponRigData d)
+        {
+            if (d == null)
+            {
+                return Kind.Rifle;
+            }
+            if (d.Handgun)
+            {
+                return Kind.Pistol;
+            }
+            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
             return d.IsMachineGun || d.Action == ActionType.Manual && length > 0.55f ? Kind.Heavy : Kind.Rifle;
         }
 
-        private static void Spawn(Kind kind, bool live, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 spin, OwnShell own = null)
+        private static Case Spawn(Kind kind, bool live, Vector3 position, Quaternion rotation, Vector3 velocity, Vector3 spin, OwnShell own = null)
         {
             EnsureAssets();
             Cull();
             Case c;
-            if (Alive.Count >= Max)
+            int oldest = Alive.FindIndex(a => !a.Held); // (never one in a hand)
+            if (Alive.Count >= Max && oldest >= 0)
             {
-                c = Alive[0]; // the oldest one lying around is taken
-                Alive.RemoveAt(0);
+                c = Alive[oldest]; // the oldest one lying around is taken
+                Alive.RemoveAt(oldest);
+                GiveBack(c);
             }
             else if (Idle.Count > 0)
             {
@@ -226,6 +258,12 @@ namespace RavenfieldVR.Weapons
             c.Collider.radius = own != null ? Mathf.Max(b.extents[(axis + 1) % 3], b.extents[(axis + 2) % 3]) : Mathf.Max(b.extents.x, 0.003f);
             c.Collider.height = b.size[axis];
             c.Body.mass = kind == Kind.Shell ? 0.03f : 0.012f;
+            c.Body.isKinematic = false;
+            c.Collider.enabled = true;
+            c.Live = live;
+            c.Held = false;
+            c.Key = null;
+            c.Owner = null;
             c.Body.interpolation = RigidbodyInterpolation.Interpolate; // (in flight smooth again: lying still it had it off, RestingBodies)
             c.Sound.Rearm();
             go.SetActive(true);
@@ -237,7 +275,115 @@ namespace RavenfieldVR.Weapons
             c.Born = Time.time;
             Alive.Add(c);
             Spawned++;
+            return c;
         }
+
+        /// <summary>A live round put away unused goes back to the reserve it came out of (HandLoading: from the pouch, or out of a magazine).</summary>
+        private static void GiveBack(Case c)
+        {
+            if (c.Live && c.Owner != null && c.Owner.Weapon != null)
+            {
+                c.Owner.ReturnSpareCapped(1);
+            }
+            c.Owner = null;
+        }
+
+        // ---- in the hand (HandLoading) ---------------------------------------------------------------------
+
+        /// <summary>Where a held case or round sits against the palm (palm frame): its middle between the thumb and the fingers' first joints.</summary>
+        private static readonly Vector3 HeldAt = new Vector3(0f, 0.012f, 0.05f);
+
+        /// <summary>Whether a collider is one of the cases or rounds lying around (bullets push them).</summary>
+        internal static bool IsCase(Collider c) => c != null && c.GetComponent<CaseSound>() != null;
+
+        /// <summary>The nearest case or round lying within <paramref name="radius"/> of <paramref name="point"/>, taken into a hand; null for none.</summary>
+        internal static Case Take(Vector3 point, float radius)
+        {
+            Case best = null;
+            float bestSq = radius * radius;
+            foreach (Case c in Alive)
+            {
+                if (c.Held || c.Go == null || !c.Go.activeSelf)
+                {
+                    continue;
+                }
+                float d = (CentreOf(c) - point).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = c;
+                }
+            }
+            if (best != null)
+            {
+                Hold(best);
+            }
+            return best;
+        }
+
+        private static void Hold(Case c)
+        {
+            c.Held = true;
+            c.Body.isKinematic = true;
+            c.Collider.enabled = false;
+        }
+
+        /// <summary>A live round of the weapon <paramref name="d"/> (key <paramref name="key"/>, out of <paramref name="owner"/>'s reserve) made in a hand.</summary>
+        internal static Case RoundInHand(WeaponRigData d, string key, AmmoState owner, Rig.VRHand hand)
+        {
+            Case c = Spawn(KindOf(d), true, hand.Palm.position, hand.Palm.rotation, Vector3.zero, Vector3.zero);
+            c.Key = key;
+            c.Owner = owner;
+            Hold(c);
+            Follow(c, hand);
+            return c;
+        }
+
+        /// <summary>A live round of the weapon <paramref name="d"/> let out of a magazine's top, flying.</summary>
+        internal static Case RoundOut(WeaponRigData d, string key, AmmoState owner, Vector3 position, Quaternion rotation, Vector3 velocity)
+        {
+            Case c = Spawn(KindOf(d), true, position, rotation, velocity, Random.insideUnitSphere * 6f);
+            c.Key = key;
+            c.Owner = owner;
+            return c;
+        }
+
+        /// <summary>A held case or round in the hand's fingers, pointing along them.</summary>
+        internal static void Follow(Case c, Rig.VRHand hand)
+        {
+            Quaternion rot = hand.Palm.rotation;
+            Vector3 at = hand.Palm.position + rot * HeldAt;
+            Transform t = c.Go.transform;
+            t.SetPositionAndRotation(at - rot * Vector3.Scale(c.Collider.center, t.localScale), rot);
+        }
+
+        /// <summary>A held case or round let go: flying again with the hand's throw, put away for its age from now.</summary>
+        internal static void LetGo(Case c, Vector3 velocity, Vector3 spin)
+        {
+            c.Held = false;
+            c.Collider.enabled = true;
+            c.Body.isKinematic = false;
+            c.Body.interpolation = RigidbodyInterpolation.Interpolate;
+            c.Body.velocity = velocity;
+            c.Body.angularVelocity = spin;
+            PropPhysics.IgnorePlayer(c.Collider); // (switched off and on, the collider forgot its ignored pairs)
+            c.Born = Time.time;
+        }
+
+        /// <summary>A round loaded into a magazine: put away, nothing back to the reserve (it is in the magazine now).</summary>
+        internal static void LoadedAway(Case c)
+        {
+            c.Held = false;
+            c.Owner = null;
+            c.Body.isKinematic = false;
+            c.Collider.enabled = true;
+            c.Go.SetActive(false);
+            Alive.Remove(c);
+            Idle.Add(c);
+        }
+
+        /// <summary>Where a case or round's middle is.</summary>
+        internal static Vector3 CentreOf(Case c) => c.Go.transform.TransformPoint(c.Collider.center);
 
         /// <summary>A new case object (made only until the pool holds <see cref="Max"/>).</summary>
         private static Case Build()
@@ -282,8 +428,9 @@ namespace RavenfieldVR.Weapons
                 {
                     Alive.RemoveAt(i); // gone with its scene
                 }
-                else if (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f))
+                else if (!c.Held && (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f)))
                 {
+                    GiveBack(c);
                     c.Go.SetActive(false);
                     Alive.RemoveAt(i);
                     Idle.Add(c);

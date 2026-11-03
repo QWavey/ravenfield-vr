@@ -191,6 +191,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `HideGameWeaponHud` | on | Hide the game's weapon panel (name, ammo, slots); the gun, pouch and wrist show ammo |
 | `SkipDrawAnimation` | on | Skip the weapon's draw animation in VR (you draw it with your hand) |
 | `ReturnRoundsOnMagDrop` | on | Rounds in magazines that get cleared away return to your reserve |
+| `LoadMagazinesByHand` | off | Experimental: three magazines per gun (two empty in the pouch), your reserve is loose rounds you load by hand: gun put away, a magazine in one hand, squeeze at the pouch with the other for a round and touch it to the magazine's top; a magazine's trigger lets its rounds out one by one; cases and rounds can be picked up and are pushed by bullets |
 | `MagSlapReleasesSlide` | on | A loaded magazine slammed home sends a locked slide or bolt forward; off leaves it for A or a rack |
 | `HudDistance` / `HudHorizontalFov` | 4 m / 72° | Where the HUD frame sits and how wide it is |
 

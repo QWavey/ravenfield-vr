@@ -194,6 +194,48 @@ namespace RavenfieldVR.Setup
             _log = log;
         }
 
+        /// <summary>
+        /// The experimental settings start off with every install (user, 2026-11-03: "experimental, by default and on installation
+        /// off when installed with the setup"): one switched on in the kept settings is set off again, the rest of the file as it
+        /// was. A fresh install has no file yet, and the mod writes them off.
+        /// </summary>
+        private static readonly string[] ExperimentalSettings = { "LoadMagazinesByHand" };
+
+        private void ExperimentalOff(string game)
+        {
+            string cfg = Path.Combine(game, @"BepInEx\config\com.qwavey.ravenfieldvr.cfg");
+            try
+            {
+                if (!File.Exists(cfg))
+                {
+                    return;
+                }
+                string[] lines = File.ReadAllLines(cfg);
+                bool changed = false;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    foreach (string key in ExperimentalSettings)
+                    {
+                        string[] kv = lines[i].Split(new[] { '=' }, 2);
+                        if (kv.Length == 2 && kv[0].Trim() == key && kv[1].Trim().Equals("true", StringComparison.OrdinalIgnoreCase))
+                        {
+                            lines[i] = key + " = false";
+                            changed = true;
+                            _log("Set the experimental " + key + " off (it starts off with every install; switch it on again in the settings).");
+                        }
+                    }
+                }
+                if (changed)
+                {
+                    File.WriteAllLines(cfg, lines);
+                }
+            }
+            catch (Exception e)
+            {
+                _log("Could not check the experimental settings in " + cfg + ": " + e.Message);
+            }
+        }
+
         public static string Version
         {
             get
@@ -484,6 +526,7 @@ namespace RavenfieldVR.Setup
                 // The final record inside the try: written after it, a failed write (a scanner holding the file, a full disk) left the
                 // earlier version's record, which did not name what this update added or replaced (round-7 scout).
                 WriteRecord(added, versionLabel);
+                ExperimentalOff(game);
             }
             catch (Exception)
             {

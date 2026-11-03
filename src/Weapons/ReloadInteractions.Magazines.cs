@@ -228,7 +228,20 @@ namespace RavenfieldVR.Weapons
         {
             PropKind kind;
             int rounds;
-            if (Ammo.UsesDetachableMag)
+            bool fromBag = false;
+            if (Ammo.UsesDetachableMag && HandLoading.Applies(Ammo))
+            {
+                // Loaded by hand: the fullest of the weapon's own magazines in the pouch, as it is (empty too), not one filled from the reserve.
+                kind = PropKind.Magazine;
+                if (!HandLoading.TakeMagazine(Ammo, out rounds))
+                {
+                    off.Haptic(0.15f, 35f, 0.7f);
+                    _sys.FlashMessage("NO MAGAZINES");
+                    return;
+                }
+                fromBag = true;
+            }
+            else if (Ammo.UsesDetachableMag)
             {
                 kind = PropKind.Magazine;
                 rounds = Ammo.RoundsForFreshMagazine();
@@ -245,7 +258,7 @@ namespace RavenfieldVR.Weapons
                     ? Ammo.ShellChunk()
                     : Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
             }
-            if (rounds <= 0)
+            if (rounds <= 0 && !fromBag)
             {
                 if (kind == PropKind.Rocket)
                 {
@@ -255,7 +268,10 @@ namespace RavenfieldVR.Weapons
                 _sys.FlashMessage(Ammo.SpareAmmo <= 0 && !Ammo.InfiniteSpare ? "NO AMMO" : "FULL");
                 return;
             }
-            Ammo.TakeSpare(rounds);
+            if (!fromBag)
+            {
+                Ammo.TakeSpare(rounds);
+            }
             MagazineProp prop = MagazineProp.Create(Rig, kind, rounds);
             prop.Owner = Ammo;
             prop.Attach(off);
@@ -987,7 +1003,10 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (Stows(off))
                 {
-                    _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
+                    if (!HandLoading.PutBack(palmed)) // (loaded by hand: into the pouch with its rounds)
+                    {
+                        _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
+                    }
                     palmed.Rounds = 0;
                     palmed.Destroy();
                 }
@@ -998,8 +1017,12 @@ namespace RavenfieldVR.Weapons
             }
             if (Stows(off))
             {
-                // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
-                _sys.ReturnRounds(prop, prop.Rounds, prop.WeaponKey == Data.Key ? Ammo : null);
+                // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to (loaded by hand: the
+                // magazine goes back into the pouch with its rounds).
+                if (!HandLoading.PutBack(prop))
+                {
+                    _sys.ReturnRounds(prop, prop.Rounds, prop.WeaponKey == Data.Key ? Ammo : null);
+                }
                 prop.Rounds = 0;
                 prop.Destroy();
                 _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.5f);

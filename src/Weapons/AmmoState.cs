@@ -62,6 +62,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public AmmoState MagazineOf;
 
+        /// <summary>Magazines loaded by hand (<see cref="HandLoading"/>): the weapon's magazines in the pouch, their rounds each; null until asked.</summary>
+        internal System.Collections.Generic.List<int> SpareMagazines;
+
         public bool MagInserted
         {
             get => MagazineOf != null && !ReferenceEquals(MagazineOf, this) ? MagazineOf.MagInserted : _magInserted;
