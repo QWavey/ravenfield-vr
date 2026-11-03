@@ -127,7 +127,8 @@ namespace RavenfieldVR.Weapons
                 // seated, a jump of the hand on the magazine (user, 2026-11-03: "the hand positions on some mags are sometimes bugged").
                 Transform seated = off.Role == HandRole.Magazine && ReferenceEquals(off.Held, ReloadInteractions.SeatedHold)
                                    && ReferenceEquals(_held.ActiveRig, _held.Rig) ? _held.Rig.Magazine : null;
-                bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key
+                // (A made stand-in is not the part the hold was taken on: the hand would sit off it, turned as the seat is.)
+                bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key && mag.OwnCopy
                                               || seated != null);
                 bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
                 RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip

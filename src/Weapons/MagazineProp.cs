@@ -41,6 +41,11 @@ namespace RavenfieldVR.Weapons
         public readonly GameObject Go;
         public readonly PropKind Kind;
         public readonly string WeaponKey;
+        /// <summary>
+        /// A copy of the gun's own part (its frame the part's: the reload's hold of it, MagHoldPose, fits it), not a made stand-in
+        /// (built in the seat's frame, turned off the part's where the analysis lined the seat up).
+        /// </summary>
+        public readonly bool OwnCopy;
         public int Rounds;
         /// <summary>
         /// The ammo the rounds came from. A dropped magazine keeps its rounds (pick it up and seat it to use them);
@@ -330,6 +335,7 @@ namespace RavenfieldVR.Weapons
             Go = go;
             Kind = kind;
             WeaponKey = key;
+            OwnCopy = fitKey != null;
             Rounds = rounds;
             InsertDirLocal = insertDir.normalized;
             FrontLocal = Vector3.ProjectOnPlane(front, InsertDirLocal).sqrMagnitude > 1e-4f
