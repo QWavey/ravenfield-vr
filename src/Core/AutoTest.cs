@@ -1974,8 +1974,9 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// The gun hand lets go while the other hand holds the handguard: the weapon stays drawn, in the other hand, taken
-        /// by its grip, and that hand is the gun hand. Then given back.
+        /// The gun hand lets go while the other hand holds the handguard: the weapon stays drawn, in the other hand, held where
+        /// that hand holds it (its grip where it was against that hand: user, 2026-11-03, it is not snapped into the hand by its
+        /// grip any more), and that hand is the gun hand. Then given back.
         /// </summary>
         private static IEnumerator PassHandCheck(HeldWeapon held, string name, Action<string> report)
         {
@@ -1991,6 +1992,7 @@ namespace RavenfieldVR.Core
             bool passed;
             Input.VRInput.SimulatedGrab[toSide] = true; // the other hand's grip closed on the handguard
             to.Role = Rig.HandRole.Foregrip;
+            Vector3 gripBefore = Quaternion.Inverse(to.Palm.rotation) * (held.GripWorld.position - to.Palm.position);
             passed = sys.TestPassToOtherHand();
             yield return null;
             yield return null;
@@ -1998,15 +2000,17 @@ namespace RavenfieldVR.Core
             HeldWeapon now = sys.Held;
             bool same = now != null && now.Weapon == weapon;
             bool roles = rig.Dominant == to && to.Role == Rig.HandRole.Weapon && from.Role == Rig.HandRole.Free;
-            float gap = same ? Vector3.Distance(now.GripWorld.position, to.PalmCentre) : -1f;
+            // How far the grip moved against the hand that took it (it stays where it was: held there, not by the grip).
+            float gap = same ? Vector3.Distance(Quaternion.Inverse(to.Palm.rotation) * (now.GripWorld.position - to.Palm.position), gripBefore) : -1f;
             yield return new WaitForEndOfFrame();
             Shots.Capture($"pass-{name}");
             report($"passed to the other hand: {(passed ? "yes" : "NO")}, {(same ? "the weapon still drawn" : "THE WEAPON WAS PUT AWAY")}, "
-                   + $"{(roles ? "that hand holds it" : $"HANDS WRONG (gun hand {rig.Dominant.Side} {rig.Dominant.Role}, other {rig.Off.Role})")}, grip {gap * 100f:0.0} cm from its palm");
-            Metric("weapon passed to the other hand: grip cm from the palm", gap * 100f);
-            if (!passed || !same || !roles || gap > 0.06f)
+                   + $"{(roles ? "that hand holds it" : $"HANDS WRONG (gun hand {rig.Dominant.Side} {rig.Dominant.Role}, other {rig.Off.Role})")}, "
+                   + $"the grip moved {gap * 100f:0.0} cm against that hand");
+            Metric("weapon passed to the other hand: grip moved cm against that hand", gap * 100f);
+            if (!passed || !same || !roles || gap > 0.03f)
             {
-                Problem($"[{name}] passing the weapon to the other hand failed (passed {passed}, still drawn {same}, hands right {roles}, grip {gap * 100f:0.0} cm)");
+                Problem($"[{name}] passing the weapon to the other hand failed (passed {passed}, still drawn {same}, hands right {roles}, grip moved {gap * 100f:0.0} cm)");
             }
             // Given back: the first hand takes it again.
             Input.VRInput.SimulatedGrab[toSide] = false;
