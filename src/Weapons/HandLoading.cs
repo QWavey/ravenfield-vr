@@ -63,9 +63,19 @@ namespace RavenfieldVR.Weapons
         /// <summary>The fullest of the weapon's magazines in the pouch, taken out: its rounds; false with none there (all in the gun or out).</summary>
         internal static bool TakeMagazine(AmmoState a, out int rounds)
         {
-            List<int> bag = BagOf(a);
+            if (!TakeFullest(BagOf(a), out rounds))
+            {
+                return false;
+            }
+            PouchVersion++;
+            return true;
+        }
+
+        /// <summary>The fullest magazine out of <paramref name="bag"/> (each entry its rounds). Pure: the offline tests check it.</summary>
+        internal static bool TakeFullest(List<int> bag, out int rounds)
+        {
             rounds = 0;
-            if (bag.Count == 0)
+            if (bag == null || bag.Count == 0)
             {
                 return false;
             }
@@ -79,7 +89,20 @@ namespace RavenfieldVR.Weapons
             }
             rounds = bag[best];
             bag.RemoveAt(best);
-            PouchVersion++;
+            return true;
+        }
+
+        /// <summary>
+        /// A magazine of <paramref name="rounds"/> into <paramref name="bag"/>, its rounds kept to 0..<paramref name="capacity"/>;
+        /// false with <see cref="MagazinesCarried"/> in it already. Pure: the offline tests check it.
+        /// </summary>
+        internal static bool PutInto(List<int> bag, int rounds, int capacity)
+        {
+            if (bag == null || bag.Count >= MagazinesCarried)
+            {
+                return false;
+            }
+            bag.Add(Mathf.Clamp(rounds, 0, Mathf.Max(0, capacity)));
             return true;
         }
 
@@ -95,12 +118,10 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            List<int> bag = BagOf(prop.Owner);
-            if (bag.Count >= MagazinesCarried)
+            if (!PutInto(BagOf(prop.Owner), prop.Rounds, prop.Owner.Capacity))
             {
                 return false;
             }
-            bag.Add(Mathf.Clamp(prop.Rounds, 0, prop.Owner.Capacity));
             PouchVersion++;
             return true;
         }

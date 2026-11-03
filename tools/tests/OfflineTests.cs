@@ -107,6 +107,7 @@ namespace RavenfieldVR.Tests
             RenderScaleHoldTests(mod);
             StaticInitTests(mod);
             SlowedHandTests(mod);
+            HandLoadingBagTests(mod);
             HandPushTests(mod);
             CopyBoxTests(mod);
             BeltRoundTests(mod);
@@ -415,6 +416,34 @@ namespace RavenfieldVR.Tests
                 "Copy box: a 21 cm copy 10 cm off is taken, the analysed box kept");
             adopt.Invoke(null, new object[] { far, new UnityEngine.Bounds(UnityEngine.Vector3.zero, UnityEngine.Vector3.one * 0.05f) });
             Check(Box(far).size == copy.size, "Copy box: a later copy is not compared again");
+        }
+
+        /// <summary>
+        /// Magazines loaded by hand (HandLoading, 2026-11-03): the pouch hands out its fullest magazine and none when empty; a
+        /// magazine goes back in with its rounds kept to the magazine's size, up to three in it.
+        /// </summary>
+        private static void HandLoadingBagTests(System.Reflection.Assembly mod)
+        {
+            Type t = mod.GetType("RavenfieldVR.Weapons.HandLoading");
+            System.Reflection.MethodInfo take = t?.GetMethod("TakeFullest", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            System.Reflection.MethodInfo put = t?.GetMethod("PutInto", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(take != null && put != null, "Hand loading: TakeFullest and PutInto found");
+            if (take == null || put == null)
+            {
+                return;
+            }
+            var bag = new System.Collections.Generic.List<int> { 0, 12, 5 };
+            object[] a = { bag, 0 };
+            bool took = (bool)take.Invoke(null, a);
+            Check(took && (int)a[1] == 12 && bag.Count == 2 && !bag.Contains(12), "Hand loading: the pouch hands out its fullest magazine (12 of 0, 12, 5)");
+            take.Invoke(null, new object[] { bag, 0 });
+            take.Invoke(null, new object[] { bag, 0 });
+            object[] none = { bag, 7 };
+            Check(!(bool)take.Invoke(null, none) && (int)none[1] == 0, "Hand loading: an empty pouch hands out nothing");
+            bool p1 = (bool)put.Invoke(null, new object[] { bag, 40, 30 }), p2 = (bool)put.Invoke(null, new object[] { bag, -3, 30 });
+            bool p3 = (bool)put.Invoke(null, new object[] { bag, 9, 30 }), p4 = (bool)put.Invoke(null, new object[] { bag, 9, 30 });
+            Check(p1 && p2 && p3 && !p4 && bag.Count == 3 && bag[0] == 30 && bag[1] == 0,
+                  $"Hand loading: magazines go back with their rounds kept to their size, three at most ({string.Join(", ", bag)})");
         }
 
         /// <summary>
