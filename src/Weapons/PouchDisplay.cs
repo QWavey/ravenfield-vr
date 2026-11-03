@@ -34,17 +34,23 @@ namespace RavenfieldVR.Weapons
             _sys = sys;
         }
 
-        public void BeforeRender(HeldWeapon held)
+        public void BeforeRender(HeldWeapon held, Weapon away)
         {
             AmmoState ammo = held != null ? held.ActiveAmmo : null;
-            bool show = VRConfig.ShowPouch.Value && VRConfig.ReloadNow == ReloadMode.Manual && held != null && ammo != null && ammo.Participates
-                        && held.ActiveRig.Data.Action != ActionType.Throwable && GameContextOnFoot() && !Util.GameContext.GameMenuOpen;
+            WeaponRig rig = held != null ? held.ActiveRig : null;
+            if (held == null && HandLoading.CarriedStill(away))
+            {
+                // Loading by hand the gun is put away: the pouch still shows where the magazines and rounds are, its last gun's.
+                ammo = _sys.StateFor(away, create: false);
+                rig = HandLoading.Applies(ammo) ? _sys.RigFor(away) : null;
+            }
+            bool show = VRConfig.ShowPouch.Value && VRConfig.ReloadNow == ReloadMode.Manual && rig != null && ammo != null && ammo.Participates
+                        && rig.Data.Action != ActionType.Throwable && GameContextOnFoot() && !Util.GameContext.GameMenuOpen;
             if (!show)
             {
                 SetVisible(false);
                 return;
             }
-            WeaponRig rig = held.ActiveRig;
             PropKind kind = ammo.UsesDetachableMag ? PropKind.Magazine : rig.Data.Action == ActionType.SingleShot ? PropKind.Rocket : PropKind.Shell;
             // Loaded by hand with the reserve out, the pouch hands out empty magazines: it shows an empty one (it showed a full one).
             bool empty = kind == PropKind.Magazine && HandLoading.Applies(ammo) && !ammo.InfiniteSpare && ammo.SpareAmmo <= 0;
@@ -65,6 +71,12 @@ namespace RavenfieldVR.Weapons
             BodyZones zones = _sys.Zones;
             VRHand off = _sys.Rig.Off;
             bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
+            if (held == null && !reaching)
+            {
+                // (With the gun away the other hand reaches it as well.)
+                off = _sys.Rig.Dominant;
+                reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
+            }
             if (reaching && !_reachingLast)
             {
                 off.Haptic(0.012f, 220f, 0.3f); // a tick on reaching it, as a holster gives: the pouch is found by feel too (sweep)

@@ -501,7 +501,7 @@ namespace RavenfieldVR.Weapons
             // were skipped for that frame, and every frame while it kept throwing (second-weapon hunt).
             try
             {
-                _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
+                _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null, _lastHeldWeapon);
             }
             catch (System.Exception e)
             {

@@ -128,6 +128,13 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        /// <summary>The gun last held is put away and still carried: the pouch works for it (<see cref="MagazineFromPouch"/>, the pouch shown).</summary>
+        internal static bool CarriedStill(Weapon last)
+        {
+            Actor player = GameContext.PlayerActor;
+            return Enabled && last != null && player != null && player.weapons != null && System.Array.IndexOf(player.weapons, last) >= 0;
+        }
+
         /// <summary>
         /// With the gun put away, a free hand's squeeze at the pouch, the other hand holding no magazine: a magazine of the gun last held
         /// (<paramref name="last"/>, still carried) out of the pouch into the hand, as the drawn gun's reload hands one out
@@ -141,8 +148,7 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             VRHand other = sys.Rig.Hands[0] == hand ? sys.Rig.Hands[1] : sys.Rig.Hands[0];
-            Actor player = GameContext.PlayerActor;
-            if (other.Held is MagazineProp || player == null || player.weapons == null || System.Array.IndexOf(player.weapons, last) < 0)
+            if (other.Held is MagazineProp || !CarriedStill(last))
             {
                 return false;
             }
