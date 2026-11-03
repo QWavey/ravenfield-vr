@@ -29,6 +29,7 @@ NOT_BY_PATTERN = {
     'STILL COUNTS AS POINTING': 'AutoTest raises it as a squad problem',
     'THE SLIDE STAYED BACK': 'the pattern has "STAYED BACK after", which the line goes on with',
     'OPEN COVER': "the gun counter's message (FlashCounter) when a box is held by its belt",
+    'EMPTY MAG': "the message (FlashMessage) as the pouch hands out an empty magazine, loading by hand with the reserve out",
     'TRIGGER TO PUMP': "the pump's cue to the player (FlashMessage) on a grip-only pull, no check result",
     '(OVER THE FLASH LIMIT)': 'AutoTest raises the limiter with Problem(...) beside it',
     'LET GO': "AutoTest raises the support pull's failures with Problem(...)",

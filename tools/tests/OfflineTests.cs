@@ -109,6 +109,7 @@ namespace RavenfieldVR.Tests
             SlowedHandTests(mod);
             SteadyGripTests(mod);
             BeltRoundBoxTests(mod);
+            StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
             HandPushTests(mod);
             CopyBoxTests(mod);
@@ -506,6 +507,37 @@ namespace RavenfieldVR.Tests
                 Check(points >= 3 && (path[0] - from).magnitude < 1e-4f && (path[points - 1] - to).magnitude < 1e-4f, $"Belt round the box: a way of {points} points from the mouth to the hand");
                 Check(outside && joined, $"Belt round the box: {total * 100f:0} cm, in one piece and out of the box all the way (to {end})");
             }
+        }
+
+        /// <summary>
+        /// A long gun's magazine taken off the well's line at the mouth flies round under the well only when it has to (user, 2026-11-03:
+        /// "mags ... flying in the air"): pulled straight down it eases straight to the hand; turned at the mouth with the hand barely below
+        /// it, a corner would come up through the mouth, and it goes round. Far aside, it is no longer under the well at all.
+        /// </summary>
+        private static void StraightOffLineTests(System.Reflection.Assembly mod)
+        {
+            Type prop = mod.GetType("RavenfieldVR.Weapons.MagazineProp");
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            System.Reflection.MethodInfo cuts = prop?.GetMethod("StraightCutsMouth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(cuts != null && pose != null, "Off the line: StraightCutsMouth found");
+            if (cuts == null || pose == null)
+            {
+                return;
+            }
+            // A magazine 20 cm long, its tip at its pivot, going in along +y; on the line with its tip at the mouth (the origin).
+            var up = new UnityEngine.Vector3(0f, 1f, 0f);
+            var q0 = new UnityEngine.Quaternion(0f, 0f, 0f, 1f);
+            float s = (float)Math.Sin(Math.PI / 180 * 25), c = (float)Math.Cos(Math.PI / 180 * 25);
+            var turned = new UnityEngine.Quaternion(0f, 0f, s, c); // 50 degrees about z
+            object from = Activator.CreateInstance(pose, UnityEngine.Vector3.zero, q0);
+            bool Cuts(UnityEngine.Vector3 at, UnityEngine.Quaternion rot) => (bool)cuts.Invoke(null, new[]
+            {
+                from, Activator.CreateInstance(pose, at, rot), UnityEngine.Vector3.zero, up, UnityEngine.Vector3.zero, up, 0.03f, 0.012f
+            });
+            Check(!Cuts(new UnityEngine.Vector3(0f, -0.1f, 0f), q0), "Off the line: pulled straight down it eases straight to the hand");
+            Check(!Cuts(new UnityEngine.Vector3(0.01f, -0.2f, 0f), turned), "Off the line: pulled well down while turning it clears the mouth");
+            Check(Cuts(new UnityEngine.Vector3(0.01f, -0.005f, 0f), turned), "Off the line: turned at the mouth a corner comes up through it, and it goes round");
+            Check(!Cuts(new UnityEngine.Vector3(0.5f, 0f, 0f), q0), "Off the line: straight aside and unturned it stays at the mouth's level");
         }
 
         /// <summary>

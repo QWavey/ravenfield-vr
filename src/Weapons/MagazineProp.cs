@@ -260,7 +260,7 @@ namespace RavenfieldVR.Weapons
                     // line went the long way round under the well and reached the hand a quarter second late, flying after it (user,
                     // 2026-11-03: "mags are sometimes trying to keep up ... flying in the air trying to correct their positions").
                     _routed = _pistolGun || RailDepth > 0.005f || StraightCutsMouth(switchFrom, target, tip0 - (switchFrom.rotation * InsertDirLocal) * RailDepth,
-                                                                                         switchFrom.rotation * InsertDirLocal);
+                                                                                         switchFrom.rotation * InsertDirLocal, TipLocal, InsertDirLocal, _frontHalf, _sideHalf);
                 }
                 // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20). At most a
                 // fifth of a second: the hand it ends on does not wait (up to 0.3 s, it trailed the hand by a quarter metre at 1 m/s).
@@ -328,20 +328,25 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// Whether easing straight from <paramref name="from"/> (on the line, at the mouth) to <paramref name="to"/> lifts a corner of
         /// the magazine's top face over the mouth (<paramref name="mouth"/>, the line going in along <paramref name="insert"/>) while
-        /// it is still under the well: the hand turned it more than it drew it down. Checked at a few points of the ease.
+        /// it is still under the well: the hand turned it more than it drew it down. Checked at a few points of the ease. Pure: the
+        /// offline tests check it.
         /// </summary>
-        private bool StraightCutsMouth(RigidPose from, RigidPose to, Vector3 mouth, Vector3 insert)
+        internal static bool StraightCutsMouth(RigidPose from, RigidPose to, Vector3 mouth, Vector3 insert, Vector3 tipLocal, Vector3 insertLocal, float frontHalf, float sideHalf)
         {
-            float corner = Mathf.Sqrt(_frontHalf * _frontHalf + _sideHalf * _sideHalf);
-            float under = Mathf.Max(_frontHalf, _sideHalf) + 0.01f; // aside within this, it is under the well's opening
+            float corner = Mathf.Sqrt(frontHalf * frontHalf + sideHalf * sideHalf);
+            float under = Mathf.Max(frontHalf, sideHalf) + 0.01f; // aside within this, it is under the well's opening
             for (int i = 1; i <= 4; i++)
             {
                 float k = i / 5f;
-                RigidPose at = new RigidPose(Vector3.Lerp(from.position, to.position, k), Quaternion.Slerp(from.rotation, to.rotation, k));
-                Vector3 tip = at.position + at.rotation * TipLocal;
+                float d = Quaternion.Dot(from.rotation, to.rotation) < 0f ? -1f : 1f; // (a blend, not a slerp: a native call, and this is an estimate)
+                Quaternion a = from.rotation, b = to.rotation;
+                var blend = new Quaternion(a.x + (d * b.x - a.x) * k, a.y + (d * b.y - a.y) * k, a.z + (d * b.z - a.z) * k, a.w + (d * b.w - a.w) * k);
+                float size = Mathf.Sqrt(Quaternion.Dot(blend, blend));
+                var at = new RigidPose(Vector3.Lerp(from.position, to.position, k), new Quaternion(blend.x / size, blend.y / size, blend.z / size, blend.w / size));
+                Vector3 tip = at.position + at.rotation * tipLocal;
                 float depth = Vector3.Dot(tip - mouth, insert);
                 float aside = Vector3.ProjectOnPlane(tip - mouth, insert).magnitude;
-                float lift = Mathf.Sin(Mathf.Min(Vector3.Angle(at.rotation * InsertDirLocal, insert), 90f) * Mathf.Deg2Rad) * corner;
+                float lift = Mathf.Sin(Mathf.Min(Vector3.Angle(at.rotation * insertLocal, insert), 90f) * Mathf.Deg2Rad) * corner;
                 if (aside < under && depth + lift > 0.001f)
                 {
                     return true;
