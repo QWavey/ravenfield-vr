@@ -556,6 +556,14 @@ namespace RavenfieldVR.Tests
             Check(!Cuts(new UnityEngine.Vector3(0.01f, -0.2f, 0f), turned), "Off the line: pulled well down while turning it clears the mouth");
             Check(Cuts(new UnityEngine.Vector3(0.01f, -0.005f, 0f), turned), "Off the line: turned at the mouth a corner comes up through it, and it goes round");
             Check(!Cuts(new UnityEngine.Vector3(0.5f, 0f, 0f), q0), "Off the line: straight aside and unturned it stays at the mouth's level");
+            System.Reflection.MethodInfo shaped = prop.GetMethod("RoundShaped", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static, null, new[] { typeof(UnityEngine.Vector3) }, null);
+            Check(shaped != null, "Round shape: RoundShaped found");
+            if (shaped != null)
+            {
+                bool Shaped(float x, float y, float z) => (bool)shaped.Invoke(null, new object[] { new UnityEngine.Vector3(x, y, z) });
+                Check(Shaped(0.0095f, 0.057f, 0.0095f) && Shaped(0.03f, 0.0095f, 0.0095f), "Round shape: a rifle's round and a pistol's");
+                Check(!Shaped(0.065f, 0.008f, 0.025f) && !Shaped(0.05f, 0.02f, 0.01f) && !Shaped(0.03f, 0.2f, 0.09f), "Round shape: a base plate, a follower and a magazine are not");
+            }
         }
 
         /// <summary>

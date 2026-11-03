@@ -282,7 +282,8 @@ namespace RavenfieldVR.Weapons
             }
             // Down clear of the mouth, turned, across, then to where it goes: each leg over a share of the route, the next one
             // starting before the last ends (one after the other, a quarter each, the hand was reached only in the last quarter).
-            // The turn begins once most of the drop is done, and the last leg once most of the way across is.
+            // The turn begins with the drop over half done (it starts slowly: its corners stay under the mouth), the last leg once most
+            // of the way across is.
             float Phase(int i)
             {
                 float x = Mathf.Clamp01((t - PhaseStart[i]) / PhaseLength[i]);
@@ -323,7 +324,7 @@ namespace RavenfieldVR.Weapons
             return true;
         }
         /// <summary>The route's legs (down, turn, across, to the target): where each starts and how long it takes, in shares of the route.</summary>
-        private static readonly float[] PhaseStart = { 0f, 0.15f, 0.35f, 0.7f }, PhaseLength = { 0.35f, 0.4f, 0.4f, 0.3f };
+        private static readonly float[] PhaseStart = { 0f, 0.2f, 0.4f, 0.72f }, PhaseLength = { 0.35f, 0.35f, 0.35f, 0.28f };
 
         /// <summary>
         /// Whether easing straight from <paramref name="from"/> (on the line, at the mouth) to <paramref name="to"/> lifts a corner of

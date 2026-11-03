@@ -229,7 +229,9 @@ namespace RavenfieldVR.Weapons
             // A full one with no loaded look kept yet (the gun not yet seen settled with a full magazine, as one taken from a soldier
             // nearly empty): the round-sized pieces the gun has switched off now go in too (RoundSized), or a see-through magazine's
             // rounds were left out and a full magazine looked empty in the hand (the G BRN180 EO S, 2026-11-03: 32 of its 62 pieces).
-            go = CopyVisuals(rig, roundsToo: kind == PropKind.Magazine && loaded);
+            // And an empty one with no empty look kept yet (the gun not yet seen shot dry, the reserve out while it still holds rounds): the
+            // rounds it shows now left out, or it showed the rounds of the magazine still in the gun (RoundShaped).
+            go = CopyVisuals(rig, roundsToo: kind == PropKind.Magazine && loaded, roundsOut: kind == PropKind.Magazine && !loaded);
             if (go == null)
             {
                 return null;
@@ -734,13 +736,13 @@ namespace RavenfieldVR.Weapons
         /// Copies the magazine's look: its own meshes, the pieces that travel with it, and for skinned guns the
         /// triangles of the gun mesh that the magazine bones drive. Everything is expressed in magazine space.
         /// </summary>
-        private static GameObject CopyVisuals(WeaponRig rig, bool roundsToo = false)
+        private static GameObject CopyVisuals(WeaponRig rig, bool roundsToo = false, bool roundsOut = false)
         {
             // While the magazine is out of the gun its parts are scaled to nothing: copy them at their real size.
             Vector3[] hidden = rig.ShowMagazineForCopy();
             try
             {
-                return CopyVisualsShown(rig, roundsToo);
+                return CopyVisualsShown(rig, roundsToo, roundsOut);
             }
             finally
             {
@@ -779,7 +781,25 @@ namespace RavenfieldVR.Weapons
             return size > 0.003f && size < 0.08f;
         }
 
-        private static GameObject CopyVisualsShown(WeaponRig rig, bool roundsToo = false)
+        /// <summary>
+        /// A piece shaped like a round (a plain mesh as drawn): long and thin, its two smaller sides under 1.6 cm, its longest at least twice
+        /// the next. A magazine's base plate or follower is wider than that (2 cm and more): an empty magazine keeps those.
+        /// </summary>
+        private static bool RoundShaped(Renderer r)
+        {
+            MeshFilter mf = r is MeshRenderer ? r.GetComponent<MeshFilter>() : null;
+            return mf != null && mf.sharedMesh != null && RoundShaped(Vector3.Scale(mf.sharedMesh.bounds.size, r.transform.lossyScale));
+        }
+
+        /// <summary>The test on a piece's size (m). Pure: the offline tests check it.</summary>
+        internal static bool RoundShaped(Vector3 size)
+        {
+            float a = Mathf.Abs(size.x), b = Mathf.Abs(size.y), c = Mathf.Abs(size.z);
+            float longest = Mathf.Max(a, Mathf.Max(b, c)), shortest = Mathf.Min(a, Mathf.Min(b, c)), middle = a + b + c - longest - shortest;
+            return shortest > 0.002f && middle < 0.016f && longest >= middle * 2f && longest < 0.09f;
+        }
+
+        private static GameObject CopyVisualsShown(WeaponRig rig, bool roundsToo = false, bool roundsOut = false)
         {
             int roundsAdded = 0;
             Transform source = rig.Magazine;
@@ -831,6 +851,10 @@ namespace RavenfieldVR.Weapons
                     if ((r.transform.position - source.position).sqrMagnitude > ParkedAway * ParkedAway)
                     {
                         continue; // parked out of sight by the mod (a PKM box's belt links wait 25 m away): not on the magazine
+                    }
+                    if (roundsOut && RoundShaped(r))
+                    {
+                        continue;
                     }
                     if (PoseSampler.UnderAny(r.transform, rig.SpareParts))
                     {
