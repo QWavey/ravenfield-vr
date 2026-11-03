@@ -337,6 +337,9 @@ namespace RavenfieldVR.Weapons
         private float Travel => Mathf.Max(0.005f, Data.SlideTravel.magnitude);
         private Vector3 TravelDir => Data.SlideTravel.normalized;
 
+        /// <summary>The magazine release only unlatches this gun's magazine (AkMagazinesStayIn: a curved magazine on a rifle).</summary>
+        private bool StaysInOnRelease => VRConfig.AkMagazinesStayIn.Value && Data.MagCurved && !Data.IsPistol && !Data.IsMachineGun && !Data.EnBloc;
+
         public void Update()
         {
             VRHand dom = _sys.Rig.Dominant;
@@ -379,6 +382,13 @@ namespace RavenfieldVR.Weapons
                     {
                         _held.FlashCounter("OPEN COVER"); // the belt is in the feed: the box will not come off
                         dom.Haptic(0.08f, 40f, 0.4f);
+                    }
+                    else if (Ammo.UsesDetachableMag && Ammo.MagInserted && StaysInOnRelease)
+                    {
+                        // An AK-style magazine does not drop free: the release only unlatches it, and the hand rocks it out
+                        // (AkMagazinesStayIn, idea 10). Heard and felt as the latch lets go.
+                        GameSounds.PlayPart(Data, MechSound.MagOut, SeatPose.position, 0f, 0.2f, 0.35f);
+                        dom.Haptic(0.02f, 140f, 0.4f);
                     }
                     else if (Ammo.UsesDetachableMag && Ammo.MagInserted)
                     {
@@ -932,6 +942,11 @@ namespace RavenfieldVR.Weapons
             }
             _wasLocked = locked;
             _lockSeen = true;
+            if (!_racking && BoltLifts)
+            {
+                // Not in the hand: up while the bolt is open, down once it is shut (let go at home it falls into its notch).
+                _held.BoltTurn = Ammo != null && Ammo.BoltOpen ? 1f : 0f;
+            }
             if (Ammo != null && Ammo.SlideLocked && !_racking)
             {
                 _held.SlideOffset = Travel;

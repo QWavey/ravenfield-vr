@@ -70,6 +70,112 @@ namespace RavenfieldVR.Weapons
         /// <summary>Bolt, pump and lever actions move only by hand: let go half way and they stay there.</summary>
         private bool HandDriven => Data.CyclesByHand;
 
+        // ---- a bolt action's lift (idea 9) --------------------------------------------------------------------------------
+
+        /// <summary>How far a bolt action's handle turns up about the bore before the bolt slides (degrees).</summary>
+        internal const float BoltLiftAngle = 60f;
+
+        private int _boltLifts = -1;
+        private float _boltLiftSign = 1f;
+
+        /// <summary>
+        /// A bolt action whose handle is turned up before it is pulled back (user, 2026-11-03, idea 9): worked by hand, not a pump, a long
+        /// gun with a bolt or handle part of its own, its rack point out to the side of the bore (2 to 12 cm, more to the side than up
+        /// or down: a lever below the gun is not one). Any other gun is pulled straight back as before.
+        /// </summary>
+        internal bool BoltLifts
+        {
+            get
+            {
+                if (_boltLifts < 0)
+                {
+                    _boltLifts = 0;
+                    if (Data.Action == ActionType.Manual && Data.CyclesByHand && !IsPump && !Data.Handgun && (Rig.Slide != null || Rig.Handle != null))
+                    {
+                        Vector3 off = Vector3.ProjectOnPlane(Data.RackPoint - Data.MuzzlePoint, Data.AimAxis);
+                        float up = Vector3.Dot(off, Data.Up);
+                        float side = Mathf.Sqrt(Mathf.Max(0f, off.sqrMagnitude - up * up));
+                        if (side >= 0.02f && off.magnitude <= 0.12f && Mathf.Abs(up) < side)
+                        {
+                            _boltLifts = 1;
+                            // The turn that takes the handle up (about the bore, toward the gun's up).
+                            _boltLiftSign = Vector3.Dot(Data.AimAxis, Vector3.Cross(off, Data.Up)) >= 0f ? 1f : -1f;
+                            Log.InfoOnce("boltlift:" + Data.Key, $"{Data.Key}: its bolt handle ({side * 100f:0.0} cm out to the side of the bore) is turned up before the bolt slides back.");
+                        }
+                    }
+                }
+                return _boltLifts == 1;
+            }
+        }
+
+        /// <summary>The way a lifted bolt turns about the bore's axis (the gun's aim axis): +1 or -1.</summary>
+        internal float BoltLiftSign => BoltLifts ? _boltLiftSign : 1f;
+
+        /// <summary>Turning the handle up (it is not pulled until it is up), or down at home after the bolt was pushed shut.</summary>
+        private bool _lifting, _turningDown;
+        /// <summary>Where the hand was about the bore when that turn began (gun space, off the bore's axis), and the turn then (0..1).</summary>
+        private Vector3 _liftFromGun;
+        private float _liftFrom;
+
+        /// <summary>The hand's turn about the bore since <see cref="_liftFromGun"/>, in shares of the lift (up positive).</summary>
+        private float HandTurn(Vector3 handGun)
+        {
+            Vector3 now = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
+            if (now.sqrMagnitude < 1e-6f || _liftFromGun.sqrMagnitude < 1e-6f)
+            {
+                return 0f;
+            }
+            return Vector3.SignedAngle(_liftFromGun, now, Data.AimAxis * _boltLiftSign) / BoltLiftAngle;
+        }
+
+        /// <summary>
+        /// The handle's turn while the hand holds it: up from home before the pull (the bolt does not slide until it is up), and down at
+        /// home after it was pushed shut. True while the turn holds the stroke (nothing else of the rack this frame).
+        /// </summary>
+        private bool UpdateBoltTurn(VRHand off, Vector3 handGun)
+        {
+            if (!BoltLifts)
+            {
+                return false;
+            }
+            if (_lifting)
+            {
+                float turn = Mathf.Clamp01(_liftFrom + HandTurn(handGun));
+                if (Mathf.Abs(turn - _held.BoltTurn) > 0.15f)
+                {
+                    off.Haptic(0.006f, 200f, 0.15f);
+                }
+                _held.BoltTurn = Mathf.Max(_held.BoltTurn * 0.5f, turn); // (eased: no jump back on a twitch)
+                _held.SlideOffset = 0f;
+                if (turn >= 0.9f)
+                {
+                    // Up: unlocked, it slides from here (the pull measured from where the hand is now).
+                    _held.BoltTurn = 1f;
+                    _lifting = false;
+                    _rackStartGun = handGun;
+                    _rackBase = 0f;
+                    GameSounds.PlayPart(Data, MechSound.SlideBack, RackPointWorld, 0f, 0.2f, 0.35f);
+                    off.Haptic(0.02f, 150f, 0.45f);
+                }
+                return _lifting;
+            }
+            if (_turningDown)
+            {
+                float turn = Mathf.Clamp01(1f + HandTurn(handGun));
+                _held.BoltTurn = Mathf.Min(_held.BoltTurn, Mathf.Max(turn, 0f));
+                if (turn <= 0.12f)
+                {
+                    // Down: locked shut.
+                    _held.BoltTurn = 0f;
+                    _turningDown = false;
+                    GameSounds.PlayPart(Data, MechSound.SlideForward, RackPointWorld, 0.7f, 0.3f, 0.3f);
+                    off.Haptic(0.02f, 130f, 0.45f);
+                }
+                return false;
+            }
+            return false;
+        }
+
         /// <summary>A pump at the handguard: holding it is also the support grip, so both hands aim while pumping.</summary>
         // A shotgun's pump up to 22 cm from the support point (one analysed as a charging handle is taken at its back end:
         // the R870 CQC's and the ARS M500's could not be worked from the pump; user, 2026-10-16).
@@ -99,6 +205,15 @@ namespace RavenfieldVR.Weapons
             // thrown out, and counted as already back it never was; a pull past the line always empties the chamber (RackBack), so
             // open past it with a round in comes only from that, and the round goes out as the hand takes it; round-5 scout.)
             _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && !Ammo.SpentInChamber && !Ammo.Chambered;
+            // A bolt action shut at home is turned up first; an open one is up already.
+            _turningDown = false;
+            _lifting = BoltLifts && !Ammo.BoltOpen && _held.SlideOffset <= Travel * 0.02f;
+            if (BoltLifts)
+            {
+                _liftFromGun = Vector3.ProjectOnPlane(_rackStartGun - Data.MuzzlePoint, Data.AimAxis);
+                _liftFrom = _lifting ? _held.BoltTurn : 1f;
+                _held.BoltTurn = _liftFrom;
+            }
             _lastTick = _rackBase * StrokeLength;
             _tugStroke = _lastTick;
             off.Role = HandRole.Slide;
@@ -126,6 +241,15 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Vector3 handGun = Rig.ToGun(off.Palm.position);
+            if (UpdateBoltTurn(off, handGun))
+            {
+                // Still turning the handle up: no pull yet. Let go, it stays as it is (it falls back down: StepParts).
+                if (!off.GrabHeld)
+                {
+                    EndRack(off, chamber: true);
+                }
+                return;
+            }
             // The hand's pull along the handle's (or slide's) own stroke; the slide or bolt carrier moves the same share
             // of its travel.
             float pull = Vector3.Dot(handGun - _rackStartGun, StrokeDir);
@@ -192,6 +316,12 @@ namespace RavenfieldVR.Weapons
                 _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, hard);
                 off.Haptic(0.04f, 120f, 0.3f + 0.3f * hard);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f * hard);
+                if (BoltLifts)
+                {
+                    // Shut, the handle still up: turned down by the hand from here (or by itself when let go).
+                    _turningDown = true;
+                    _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
+                }
             }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;

@@ -1901,6 +1901,7 @@ namespace RavenfieldVR.Weapons
                     {
                         d.Notes += $"curved magazine: in along its top ({bend:0}° off its chord) ";
                         axisLocal = top;
+                        d.MagCurved = true;
                     }
                 }
             }

@@ -682,8 +682,25 @@ namespace RavenfieldVR.Weapons
         public RigidPose RailPose(RigidPose seat)
         {
             Vector3 insert = seat.TransformDirection(InsertDirLocal);
-            return new RigidPose(seat.position - insert * (RailLength - RailDepth), seat.rotation);
+            var pose = new RigidPose(seat.position - insert * (RailLength - RailDepth), seat.rotation);
+            if (RockAngle > 0f && RailLength > 1e-3f)
+            {
+                // Rocked in (user, 2026-11-03, idea 11): at the mouth it hangs from its front lip with its base swung forward, and turns
+                // back about that lip as it goes in, straight by the last stretch before its seat. Turned about the front lip, its back
+                // edge stays below the well's.
+                float k = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(RailDepth / (RailLength * 0.85f)));
+                if (k > 1e-3f)
+                {
+                    Vector3 lip = pose.TransformPoint(TipLocal + FrontLocal * _frontHalf);
+                    Quaternion rock = Quaternion.AngleAxis(-RockAngle * k, pose.rotation * Vector3.Cross(InsertDirLocal, FrontLocal));
+                    pose = new RigidPose(lip + rock * (pose.position - lip), rock * pose.rotation);
+                }
+            }
+            return pose;
         }
+
+        /// <summary>How far a curved magazine hangs forward at the well's mouth as it rocks in (degrees; 0: straight in, as most).</summary>
+        internal float RockAngle;
 
         public Vector3 TipWorld => Go.transform.TransformPoint(TipLocal);
         public Vector3 InsertDirWorld => Go.transform.TransformDirection(InsertDirLocal);

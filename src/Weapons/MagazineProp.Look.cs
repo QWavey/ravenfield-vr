@@ -80,6 +80,7 @@ namespace RavenfieldVR.Weapons
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
             prop.Data = d;
+            prop.RockAngle = kind == PropKind.Magazine && d.MagCurved && !d.IsMachineGun && !d.IsPistol ? 14f : 0f;
             prop._pistolGun = d.IsPistol;
             if (kind == PropKind.Rocket)
             {

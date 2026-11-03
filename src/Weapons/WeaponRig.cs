@@ -311,6 +311,11 @@ namespace RavenfieldVR.Weapons
         /// and the bolt stays open.
         /// </summary>
         public bool EnBloc;
+        /// <summary>
+        /// Its magazine is curved (an AK's, a QBZ's: the analysis takes its line along its top): it rocks into the well, front lip
+        /// first (MagazineProp.RockAngle), and with AkMagazinesStayIn the release only unlatches it.
+        /// </summary>
+        public bool MagCurved;
         public bool IsPistol;
 
         /// <summary>

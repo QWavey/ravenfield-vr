@@ -81,6 +81,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> LoadMagazinesByHand;
         public static ConfigEntry<bool> MagazineDetent;
         public static ConfigEntry<bool> UnderSeatedMagazineFalls;
+        public static ConfigEntry<bool> AkMagazinesStayIn;
         public static ConfigEntry<bool> LoseRoundOnRack;
         public static ConfigEntry<PouchLocation> Pouch;
         public static ConfigEntry<float> MagPropLifetime;
@@ -252,6 +253,9 @@ namespace RavenfieldVR.Core
             UnderSeatedMagazineFalls = cfg.Bind("Weapons", "UnderSeatedMagazineFalls", false,
                 "Optional, with the magazine detent: a magazine let go before it clicks home goes in unlatched; it feeds, but drops out at the "
                 + "next shot unless its base is tapped home first.");
+            AkMagazinesStayIn = cfg.Bind("Weapons", "AkMagazinesStayIn", false,
+                "Optional: on rifles with a curved magazine (AK style; not pistols or machine guns) the magazine release only unlatches the "
+                + "magazine, it does not drop free: your hand rocks it out, as on the real thing.");
             LoadMagazinesByHand = cfg.Bind("Weapons", "LoadMagazinesByHand", false,
                 "Experimental: a gun fed from box magazines carries three, the one in it and two empty ones in the pouch, and your reserve is "
                 + "loose rounds you load into them by hand. Put the gun away, hold a magazine in one hand and squeeze at the pouch with the "

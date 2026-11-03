@@ -69,6 +69,7 @@ namespace RavenfieldVR.Weapons
                 _boltMoved = false;
             }
             _boltPiece?.SetOffset(Rig, d.SlideTravel * ((d.CarveHandle || d.AddedHandle) && d.SlidePath != null ? handle : fraction));
+            ApplyBoltTurn(d, slideShare, handle);
             ApplyHinge(d);
             ApplyChamberShells(d);
             ApplySightParts();
@@ -508,6 +509,53 @@ namespace RavenfieldVR.Weapons
             {
                 _magLoadedEnabled[i] = _magLoadedRenderers[i].enabled;
             }
+        }
+
+        /// <summary>How far a bolt action's handle is turned up (0 shut, 1 up: ReloadInteractions' lift).</summary>
+        internal float BoltTurn;
+        private Quaternion _slideTurnRest = Quaternion.identity, _handleTurnRest = Quaternion.identity;
+        private bool _turnRestTaken, _boltTurned;
+
+        /// <summary>
+        /// A bolt action's bolt and handle turned about the bore by <see cref="BoltTurn"/> (idea 9): put back where they are drawn this
+        /// frame, then swung about the bore's axis, so the handle comes up and over as the real one does. Their turn at rest is taken
+        /// the first time (as the animation has them), and given back when it is down again.
+        /// </summary>
+        private void ApplyBoltTurn(WeaponRigData d, float slideShare, float handle)
+        {
+            float angle = Reload != null ? BoltTurn * ReloadInteractions.BoltLiftAngle * Reload.BoltLiftSign : 0f;
+            bool turned = Mathf.Abs(angle) > 0.05f;
+            if (!turned && !_boltTurned)
+            {
+                return;
+            }
+            Transform slide = Rig.Slide, knob = Rig.Handle;
+            if (!_turnRestTaken)
+            {
+                _turnRestTaken = true;
+                _slideTurnRest = slide != null ? slide.localRotation : Quaternion.identity;
+                _handleTurnRest = knob != null ? knob.localRotation : Quaternion.identity;
+            }
+            Vector3 pivot = Rig.ToWorld(d.MuzzlePoint), axis = Rig.DirToWorld(d.AimAxis);
+            if (slide != null && !(knob != null && slide.IsChildOf(knob) && slide != knob))
+            {
+                MovePart(slide, d.SlideRestLocal, d.SlideTravel * slideShare);
+                slide.localRotation = _slideTurnRest;
+                if (turned)
+                {
+                    slide.RotateAround(pivot, axis, angle);
+                }
+            }
+            if (knob != null && knob != slide && !(slide != null && knob.IsChildOf(slide)))
+            {
+                MovePart(knob, d.HandleRestLocal, d.HandleTravel * Mathf.Clamp01(handle));
+                knob.localRotation = _handleTurnRest;
+                if (turned)
+                {
+                    knob.RotateAround(pivot, axis, angle);
+                }
+            }
+            _boltTurned = turned;
         }
 
         private void RestoreMagazine()
