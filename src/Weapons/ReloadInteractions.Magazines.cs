@@ -597,7 +597,11 @@ namespace RavenfieldVR.Weapons
             // A magazine still in its well is held by the well the same way: it slides out along it, never sideways out of it.
             bool inWell = prop.Kind == PropKind.Magazine && prop.RailDepth > 0.01f;
             float offLine = prop.Kind == PropKind.Rocket ? -RocketLineAhead - 0.03f : -0.03f;
-            if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
+            // Aside measured against the gun as drawn, which trails a swing by its weight (up to 8 cm, HeldWeapon.InertiaLag): that much
+            // more is allowed, or a swing with the magazine at the mouth took it off the line and on again, each time flown round under
+            // the well to the hand (user, 2026-11-03: "mags ... flying in the air trying to correct their positions").
+            float lag = _held.InertiaLag.magnitude;
+            if (along < offLine - lag || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0 + lag)
             {
                 prop.OnRail = false;
                 prop.RailOutOnly = false;

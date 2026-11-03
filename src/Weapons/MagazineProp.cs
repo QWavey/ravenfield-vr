@@ -252,17 +252,22 @@ namespace RavenfieldVR.Weapons
                     _routeFrom = inv.Multiply(switchFrom);
                     _routeLine = inv.Multiply(new RigidPose(tip0 - (switchFrom.rotation * InsertDirLocal) * RailDepth, switchFrom.rotation));
                     far = Vector3.Distance(tip0, tipTarget);
-                    // Always, at the mouth too: it leaves the rail 3 cm past the mouth with its drawn depth held at 0, its top 5 mm
-                    // under the grip, and the straight ease turned it the hand's 30 degrees on the way, its corners up through the
-                    // grip's bottom ("yanking out the mag with force ... glitch through the weapon handle a little", user,
-                    // 2026-11-03). The route drops it clear of the mouth before it turns.
-                    _routed = true;
+                    // A pistol's always, at the mouth too: it leaves the rail 3 cm past the mouth with its drawn depth held at 0, its top
+                    // 5 mm under the grip, and the straight ease turned it the hand's 30 degrees on the way, its corners up through the
+                    // grip's bottom ("yanking out the mag with force ... glitch through the weapon handle a little", user, 2026-11-03).
+                    // The route drops it clear of the mouth before it turns. Any other only when it is still up in the well, or when the
+                    // straight ease would lift a corner over the mouth while under it: routed every time, a magazine taken off its
+                    // line went the long way round under the well and reached the hand a quarter second late, flying after it (user,
+                    // 2026-11-03: "mags are sometimes trying to keep up ... flying in the air trying to correct their positions").
+                    _routed = _pistolGun || RailDepth > 0.005f || StraightCutsMouth(switchFrom, target, tip0 - (switchFrom.rotation * InsertDirLocal) * RailDepth,
+                                                                                         switchFrom.rotation * InsertDirLocal);
                 }
-                // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20).
-                _routeTime = Mathf.Clamp(0.12f + far * 0.7f, 0.14f, 0.3f);
+                // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20). At most a
+                // fifth of a second: the hand it ends on does not wait (up to 0.3 s, it trailed the hand by a quarter metre at 1 m/s).
+                _routeTime = Mathf.Clamp(0.08f + far * 0.45f, 0.1f, 0.2f);
                 if (!(_routeTime > 0f))
                 {
-                    _routeTime = 0.14f; // (a NaN distance passes the clamp, and the route would never end)
+                    _routeTime = 0.1f; // (a NaN distance passes the clamp, and the route would never end)
                 }
             }
             if (!_routed)
@@ -275,9 +280,12 @@ namespace RavenfieldVR.Weapons
                 _switchAt = -1f;
                 return false; // there: drawn where it goes as any other
             }
+            // Down clear of the mouth, turned, across, then to where it goes: each leg over a share of the route, the next one
+            // starting before the last ends (one after the other, a quarter each, the hand was reached only in the last quarter).
+            // The turn begins once most of the drop is done, and the last leg once most of the way across is.
             float Phase(int i)
             {
-                float x = Mathf.Clamp01(t * 4f - i);
+                float x = Mathf.Clamp01((t - PhaseStart[i]) / PhaseLength[i]);
                 return x * x * (3f - 2f * x);
             }
             RigidPose from, lineAt;
@@ -314,6 +322,34 @@ namespace RavenfieldVR.Weapons
             target = new RigidPose(tip - rot * TipLocal, rot);
             return true;
         }
+        /// <summary>The route's legs (down, turn, across, to the target): where each starts and how long it takes, in shares of the route.</summary>
+        private static readonly float[] PhaseStart = { 0f, 0.15f, 0.35f, 0.7f }, PhaseLength = { 0.35f, 0.4f, 0.4f, 0.3f };
+
+        /// <summary>
+        /// Whether easing straight from <paramref name="from"/> (on the line, at the mouth) to <paramref name="to"/> lifts a corner of
+        /// the magazine's top face over the mouth (<paramref name="mouth"/>, the line going in along <paramref name="insert"/>) while
+        /// it is still under the well: the hand turned it more than it drew it down. Checked at a few points of the ease.
+        /// </summary>
+        private bool StraightCutsMouth(RigidPose from, RigidPose to, Vector3 mouth, Vector3 insert)
+        {
+            float corner = Mathf.Sqrt(_frontHalf * _frontHalf + _sideHalf * _sideHalf);
+            float under = Mathf.Max(_frontHalf, _sideHalf) + 0.01f; // aside within this, it is under the well's opening
+            for (int i = 1; i <= 4; i++)
+            {
+                float k = i / 5f;
+                RigidPose at = new RigidPose(Vector3.Lerp(from.position, to.position, k), Quaternion.Slerp(from.rotation, to.rotation, k));
+                Vector3 tip = at.position + at.rotation * TipLocal;
+                float depth = Vector3.Dot(tip - mouth, insert);
+                float aside = Vector3.ProjectOnPlane(tip - mouth, insert).magnitude;
+                float lift = Mathf.Sin(Mathf.Min(Vector3.Angle(at.rotation * InsertDirLocal, insert), 90f) * Mathf.Deg2Rad) * corner;
+                if (aside < under && depth + lift > 0.001f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>How far along the rail (0 = at the well entry, RailLength = seated).</summary>
         public float RailDepth;
         /// <summary>How far off the line the held end was when it went onto the rail (a rocket taken loosely): the hand may keep it.</summary>
