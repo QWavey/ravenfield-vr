@@ -1195,7 +1195,7 @@ namespace RavenfieldVR.Weapons
             // Where the gun is now, against the hand that keeps it: it stays there in that hand (user, 2026-11-03: "when you release
             // its still held there and doesnt snap to the trigger ... when you switch hands or release or anything to bring out a
             // pistol"). Taken over by the grip, it jumped by the hands' spacing along the gun.
-            RigidPose kept = HeldWeapon.HoldFrame(to, Held.Rig.Data).Inverse().Multiply(Held.Rig.GunBodyPose.Multiply(HeldWeapon.GripFrame(Held.Rig.Data)));
+            RigidPose kept = HeldWeapon.HoldFrame(to, Held.Rig.Data).Inverse().Multiply(HandPose(Held).Multiply(HeldWeapon.GripFrame(Held.Rig.Data)));
             Weapon passed = Held.Weapon;
             ReleaseHeld(); // the support grip and reload state go with it; the weapon is taken up again next frame
             from.Role = HandRole.Free;
@@ -1268,7 +1268,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             WeaponRigData d = Held.Rig.Data;
-            RigidPose kept = HeldWeapon.HoldFrame(free, d).Inverse().Multiply(Held.Rig.GunBodyPose.Multiply(HeldWeapon.GripFrame(d)));
+            RigidPose kept = HeldWeapon.HoldFrame(free, d).Inverse().Multiply(HandPose(Held).Multiply(HeldWeapon.GripFrame(d)));
             Weapon weapon = Held.Weapon;
             VRInput.Consume(DigitalAction.Grab, free.Side);
             ReleaseHeld();
@@ -1283,6 +1283,12 @@ namespace RavenfieldVR.Weapons
             free.Haptic(0.04f, 140f, 0.5f);
             Log.InfoOnce("regrip", $"Weapon taken by its grip again in the {free.Side} hand.");
         }
+
+        /// <summary>The gun body where the hand put it last frame (not where a wall held it), or as drawn before it was ever placed.</summary>
+        private static RigidPose HandPose(HeldWeapon held) =>
+            held.HandGunBody.rotation.x == 0f && held.HandGunBody.rotation.y == 0f && held.HandGunBody.rotation.z == 0f && held.HandGunBody.rotation.w == 0f
+                ? held.Rig.GunBodyPose
+                : held.HandGunBody;
 
         /// <summary>
         /// How near (m) the free hand's palm must be to the grip to take a gun held where the other hand took it back by it: on the grip

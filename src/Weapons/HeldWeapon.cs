@@ -141,6 +141,12 @@ namespace RavenfieldVR.Weapons
 
         public RigidPose GripWorld { get; private set; }
 
+        /// <summary>
+        /// Where the hand puts the gun body this frame, before anything in the world holds it back (a wall, the ground): what a gun
+        /// passed to the other hand is held at against it (WeaponSystem), so a gun passed while pressed to a wall does not stay off.
+        /// </summary>
+        public RigidPose HandGunBody { get; private set; }
+
         /// <summary>The weapon that currently fires: the parent, or an active under-barrel/sub weapon.</summary>
         public Weapon ActiveWeapon { get; private set; }
         public WeaponRig ActiveRig { get; private set; }
@@ -1813,6 +1819,7 @@ namespace RavenfieldVR.Weapons
             Quaternion aimFrame = gunRot * gripInGun.rotation;
             Vector3 gripWorld = hand.position + _lagPos + boreFrame * _recoilPos;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
+            HandGunBody = desiredGunBody;
 
             // The world holds the gun back (a wall, a crate, the ground, a sandbag it rests on): it is drawn where its physics
             // stand-in is stopped, not inside the obstacle where the hand is; the glove on the weapon's own grip pose stays
