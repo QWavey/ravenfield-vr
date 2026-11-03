@@ -5842,12 +5842,6 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// Hands in slow motion: Slowed (the user, 2026-10-28: "when its on slowed the hands etc are delayed too in slowmo, like boneworks
-        /// does it"). In the game's slow motion (0.2) the free hand, moved 30 cm at once, trails the controller (under half way after a
-        /// tenth of a second) and catches up (over 90% in 1.5 s); a magazine it lets go of at 1 m/s moves at the world's pace (about
-        /// 0.2 m/s in real time, no real-time flight). The saved setting is left as it was.
-        /// </summary>
-        /// <summary>
         /// Magazines loaded by hand (experimental, switched on for the check only): with the gun's magazine in it, its pouch holds two
         /// empty magazines and then none; a magazine of it cleared away goes back into the pouch with its rounds, the reserve untouched.
         /// </summary>
@@ -5897,6 +5891,12 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>
+        /// Hands in slow motion: Slowed (the user, 2026-10-28: "when its on slowed the hands etc are delayed too in slowmo, like boneworks
+        /// does it"). In the game's slow motion (0.2) the free hand, moved 30 cm at once, trails the controller (under half way after a
+        /// tenth of a second) and catches up (over 90% in 1.5 s); a magazine it lets go of at 1 m/s moves at the world's pace (about
+        /// 0.2 m/s in real time, no real-time flight). The saved setting is left as it was.
+        /// </summary>
         private static IEnumerator SlowedHandsCheck(Action<string> report)
         {
             WeaponSystem sys = WeaponSystem.Instance;
