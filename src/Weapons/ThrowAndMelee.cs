@@ -193,9 +193,9 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                if (strapTo != null && p is GrenadeProjectile)
+                if (strapTo != null && p is GrenadeProjectile && TryStrap(p, strapTo, carrier, hand.Palm.position))
                 {
-                    StrappedGrenade.Strap(p, strapTo, carrier, hand.Palm.position);
+                    // strapped
                 }
                 else
                 {
@@ -217,6 +217,24 @@ namespace RavenfieldVR.Weapons
             // (Nothing thrown, a script took the throw: the grenade is still in the hand, its pin still pulled. Put back,
             // the next throw of that live grenade came out a dud.)
             return LastLiveCount > 0;
+        }
+
+        /// <summary>
+        /// Strapped to the bone, or false when that threw (thrown as let go instead): thrown out of the loop, the grenade the game had
+        /// already made kept the game's speed, the pin stayed pulled for the next one and the hand was not emptied (throw scout).
+        /// </summary>
+        private static bool TryStrap(Projectile p, Rigidbody bone, Actor carrier, Vector3 at)
+        {
+            try
+            {
+                StrappedGrenade.Strap(p, bone, carrier, at);
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("grenade strap", e);
+                return false;
+            }
         }
 
         /// <summary>Pin still in: the grenade leaves the hand as an inert, physical object.</summary>
