@@ -1302,7 +1302,10 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             int now = w.HasActiveAnimator() && w.animator.layerCount > 0 ? w.animator.GetCurrentAnimatorStateInfo(0).fullPathHash : 0;
-            bool moving = now != 0 && (w.animator.IsInTransition(0) || loaded && now == _emptyState);
+            // (The empty pose only when it is one of its own: a gun whose animator rests the same loaded and empty learned its rest as the
+            // empty pose once shot dry, and never counted as settled loaded again.)
+            bool emptyPose = loaded && now == _emptyState && _loadedRestState != 0 && _loadedRestState != _emptyState;
+            bool moving = now != 0 && (w.animator.IsInTransition(0) || emptyPose);
             if (moving || now != _settleState || loaded != _settleLoaded || _settleSince < 0f || Time.frameCount - _settleFrame > 1)
             {
                 _settleState = now;
