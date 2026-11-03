@@ -148,12 +148,15 @@ namespace RavenfieldVR.Weapons
             }
             foreach (VRHand h in sys.Rig.Hands)
             {
+                // Each hand's own trigger: the gun hand's is Fire, the other's Use (VRInput.Slot); read as Fire alone, the off
+                // hand's trigger never let a round out.
+                DigitalAction trigger = h.Side == VRInput.GunHand ? DigitalAction.Fire : DigitalAction.Use;
                 if (sys.Held != null && h == sys.Rig.Dominant || !h.Tracked || !(h.Held is MagazineProp mag) || mag.Go == null
-                    || mag.Kind != PropKind.Magazine || !VRInput.GetPressed(DigitalAction.Fire, h.Side))
+                    || mag.Kind != PropKind.Magazine || !VRInput.GetPressed(trigger, h.Side))
                 {
                     continue;
                 }
-                VRInput.Consume(DigitalAction.Fire, h.Side);
+                VRInput.Consume(trigger, h.Side);
                 if (mag.Rounds <= 0)
                 {
                     h.Haptic(0.05f, 40f, 0.4f); // empty: a dull tap
