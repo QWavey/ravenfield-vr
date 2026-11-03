@@ -84,12 +84,16 @@ namespace RavenfieldVR.Weapons
             GrabPoint = top - Vector3.up * Mathf.Min(0.03f, along * scale);
 
             int spare = ammo.InfiniteSpare ? -1 : ammo.SpareAmmo;
-            if (spare != _shownSpare || ammo.Capacity != _shownCapacity || kind != _shownKind)
+            // Loaded by hand, the pouch holds magazines as they are and loose rounds: both are shown (as reserve magazines, 90 loose
+            // rounds read "3+", magazines the pouch does not hold).
+            int bag = HandLoading.Applies(ammo) ? HandLoading.PouchVersion : -1;
+            if (spare != _shownSpare || ammo.Capacity != _shownCapacity || kind != _shownKind || bag != _shownBag)
             {
                 _shownSpare = spare;
                 _shownCapacity = ammo.Capacity;
                 _shownKind = kind; // a magazine at 30/30 reads "1", a shell gun at 30/30 "30"
-                _label.text = PouchText(spare, ammo.Capacity, kind);
+                _shownBag = bag;
+                _label.text = bag >= 0 ? HandLoading.PouchLabel(ammo) : PouchText(spare, ammo.Capacity, kind);
             }
             Color color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
             if (color != _label.color)
@@ -104,7 +108,7 @@ namespace RavenfieldVR.Weapons
             _label.transform.rotation = toHead.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(toHead, Vector3.up) : Quaternion.identity;
         }
 
-        private int _shownSpare = int.MinValue, _shownCapacity = -1;
+        private int _shownSpare = int.MinValue, _shownCapacity = -1, _shownBag = -1;
         private PropKind _shownKind;
 
         /// <summary>Where a hand takes the shown magazine: just under its top (world, last frame drawn).</summary>

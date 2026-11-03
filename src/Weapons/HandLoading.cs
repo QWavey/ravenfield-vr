@@ -129,6 +129,14 @@ namespace RavenfieldVR.Weapons
         /// <summary>Counts every change of any pouch's magazines: the wrist rebuilds its line only then.</summary>
         internal static int PouchVersion { get; private set; }
 
+        /// <summary>The pouch's own count, loaded by hand: its magazines, and the loose rounds of the reserve ("2 mags" over "90 rds").</summary>
+        internal static string PouchLabel(AmmoState a)
+        {
+            int mags = BagOf(a).Count;
+            string rounds = a.InfiniteSpare ? "\u221e rds" : a.SpareAmmo + " rds";
+            return (mags == 1 ? "1 mag" : mags + " mags") + "\n" + rounds;
+        }
+
         /// <summary>The magazines in the pouch, for the wrist: "Pouch: 0 · 12 rounds", or "Pouch: no magazines".</summary>
         internal static string PouchText(AmmoState a)
         {
