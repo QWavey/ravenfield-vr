@@ -587,6 +587,7 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Case c in Alive)
             {
+                GiveBack(c); // (a live round out of a reserve still carried: back into it, as when it is put away for its age)
                 if (c.Go != null)
                 {
                     Object.Destroy(c.Go);
