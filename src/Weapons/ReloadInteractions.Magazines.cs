@@ -918,7 +918,10 @@ namespace RavenfieldVR.Weapons
             }
             bool push = pressing && (along >= 0.03f || Time.unscaledTime - _kickPushSince >= 0.12f);
             // Crossing at 8 cm/s; compared a little under it (a push at exactly 0.08 m/s was a coin flip: 252 ae).
-            bool strike = inWindow && speed >= 0.2f || crossed && speed >= 0.075f;
+            // A strike coming in tilted has to mean it: 0.2 m/s straight, up to 0.5 at the most tilt (at 44 degrees a touch at 0.21 m/s knocked the
+            // old one out, flying; log of 2026-11-03). The tilted test strike is at 0.6.
+            float strikeSpeed = 0.2f + 0.3f * Mathf.Clamp01(angle / MaxKickAngle);
+            bool strike = inWindow && speed >= strikeSpeed || crossed && speed >= (angle <= MaxPushAngle ? 0.075f : strikeSpeed);
             if (!strike && !push)
             {
                 return false;
