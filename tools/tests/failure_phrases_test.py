@@ -42,6 +42,7 @@ NOT_BY_PATTERN = {
     '(INSIDE OUT)': "the flat self-test's report (WeaponSelfTest), read by eye",
     "THE PLAYER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
     "ITS OWN SOLDIER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
+    '(STILL SLOWED': "AutoTest's slowed hands check raises it with Problem(line) (slow motion off, the hand not caught up)",
 }
 CAPS = re.compile(r"\(?\b[A-Z][A-Z0-9'()]+(?:[ -]\(?[A-Z0-9'()]+\b\)?)+")
 
