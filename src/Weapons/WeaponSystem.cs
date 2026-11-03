@@ -140,6 +140,14 @@ namespace RavenfieldVR.Weapons
             {
                 AttachHeld(weapon);
             }
+            if (Held == null)
+            {
+                // Nothing taken up again (no weapon drawn, or its set-up failed): a gun held where a hand took it is not held so later
+                // (the same gun drawn again much later would have come back off the hand by the old offset).
+                _passHold = null;
+                _passEaseAt = -1f;
+                _regripSupport = null;
+            }
             if (_regripSupport != null)
             {
                 // The hand that held it where it took it keeps the handguard once the gun is taken up again by its grip.
