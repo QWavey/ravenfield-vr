@@ -107,6 +107,7 @@ namespace RavenfieldVR.Tests
             RenderScaleHoldTests(mod);
             StaticInitTests(mod);
             SlowedHandTests(mod);
+            SteadyGripTests(mod);
             HandLoadingBagTests(mod);
             HandPushTests(mod);
             CopyBoxTests(mod);
@@ -434,6 +435,36 @@ namespace RavenfieldVR.Tests
             int Of(int fresh) => (int)rounds.Invoke(null, new object[] { fresh });
             Check(Of(30) == 30 && Of(12) == 12, "Hand loading: a magazine from the pouch holds what the reserve gives (30, 12)");
             Check(Of(0) == 0 && Of(-1) == 0, "Hand loading: with the reserve out the pouch gives an empty magazine (0, not a refusal)");
+        }
+
+        /// <summary>
+        /// The weapon's arms' hand poses from the gun's animation, steadied (ArmIK.SteadyGrip, user 2026-11-03: the left arm away for a
+        /// moment after shooting): a jump for one frame is held off and the old pose kept, a move that lasts is taken on its fifth frame.
+        /// </summary>
+        private static void SteadyGripTests(System.Reflection.Assembly mod)
+        {
+            Type steady = mod.GetType("RavenfieldVR.Weapons.ArmIK+SteadyGrip");
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            System.Reflection.MethodInfo m = steady?.GetMethod("Steady");
+            Check(steady != null && pose != null && m != null, "Steady grip: ArmIK.SteadyGrip found");
+            if (steady == null || pose == null || m == null)
+            {
+                return;
+            }
+            object s = Activator.CreateInstance(steady, true);
+            object gun = Activator.CreateInstance(pose, new UnityEngine.Vector3(1f, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
+            object At(float x) => Activator.CreateInstance(pose, new UnityEngine.Vector3(1f + x, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
+            float Step(float x) => ((UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(x), gun }))).x - 1f;
+            Step(0.1f);
+            float blink = Step(0.5f), back = Step(0.1f);
+            Check(Math.Abs(blink - 0.1f) < 1e-4 && Math.Abs(back - 0.1f) < 1e-4, $"Steady grip: a jump for one frame is held off ({blink:0.000}, then {back:0.000})");
+            var lasting = new float[5];
+            for (int i = 0; i < lasting.Length; i++)
+            {
+                lasting[i] = Step(0.4f);
+            }
+            Check(Math.Abs(lasting[3] - 0.1f) < 1e-4 && Math.Abs(lasting[4] - 0.4f) < 1e-4,
+                  $"Steady grip: a move that lasts is taken on its fifth frame ({string.Join(", ", Array.ConvertAll(lasting, v => v.ToString("0.000")))})");
         }
 
         /// <summary>
