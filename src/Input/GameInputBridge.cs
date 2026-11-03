@@ -150,8 +150,16 @@ namespace RavenfieldVR.Input
             // Always available: menus and respawn. The double press is read on every frame: behind the Pause test it was skipped
             // on a frame that also had a Pause press, and that lower press was lost from the count (Tasks 160).
             bool lowerDouble = LowerButtonDoublePressed();
-            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause) || lowerDouble);
-            Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout));
+            if (lowerDouble)
+            {
+                _squadFromPanel = true; // (the second press opens the menu: its hold is no squad order too, until it is let go; input scout)
+            }
+            // The long and double outputs of a button stay where its binding is when the gun changes hands (Slot moves the single
+            // only): with the gun in the other hand, the magazine release's long press paused the match and its double opened the
+            // loadout. Not then (input scout, 2026-11-03; the menus stay on the other button's double press).
+            bool swapped = VRInput.GunHandSwapped;
+            Set(KeyBinds.TogglePauseMenu, VRInput.GetPressed(DigitalAction.Pause) && !swapped || lowerDouble);
+            Set(KeyBinds.OpenLoadout, VRInput.GetPressed(DigitalAction.Loadout) && !swapped);
             Set(KeyBinds.SquadLeaderKit, VRInput.GetPressed(DigitalAction.Map));
             // In VR the scoreboard only ever shows together with the map (the wrist look): on its own it covered the
             // view while aiming. The scoreboard button chooses whether it comes up with the map. The Vive wands have no scoreboard
@@ -173,10 +181,17 @@ namespace RavenfieldVR.Input
             {
                 _fireHand = dom;
                 _fireHeldThroughSwap = VRInput.GetHeld(DigitalAction.Fire, dom);
+                // And the old gun hand's trigger, still pulled, is the free hand's Use now: not a Use press until let go (the gun
+                // passed mid-burst set the game's use ray going; input scout, 2026-11-03).
+                _useHeldThroughSwap = VRInput.GetHeld(DigitalAction.Use, off);
             }
             else if (!VRInput.GetHeld(DigitalAction.Fire, dom))
             {
                 _fireHeldThroughSwap = false;
+            }
+            if (!VRInput.GetHeld(DigitalAction.Use, off))
+            {
+                _useHeldThroughSwap = false;
             }
             Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) && !_fireHeldThroughSwap || SupportFire) && !SuppressFire
                                && !((menu || PanelOpen) && PointerOverUI) && !GameManager.IsPaused());
@@ -249,7 +264,7 @@ namespace RavenfieldVR.Input
                 _leaveHeldSince = -1f;
                 _leaveArmed = false; // a seat taken with the trigger still held: let go once before it counts
             }
-            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned));
+            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned && !_useHeldThroughSwap));
             // (Next weapon, squad and countermeasures with the laser on a panel: its stick or trackpad click switched the weapon behind
             // it, started an order or fired the countermeasures; round-7 scout.)
             Set(KeyBinds.Call, squadHeld && !_squadFromPanel);
@@ -271,6 +286,8 @@ namespace RavenfieldVR.Input
         /// <summary>The gun hand the trigger was last read for, and whether its trigger was already held when it became the gun hand.</summary>
         private static Hand _fireHand = Hand.Right;
         private static bool _fireHeldThroughSwap;
+        /// <summary>The free hand's trigger was already held when the gun left that hand (it was the gun's trigger): no Use until let go.</summary>
+        private static bool _useHeldThroughSwap;
 
         /// <summary>When the gun hand's A was pressed for a fire-mode switch still waiting out the double press (-1: none).</summary>
         private static float _modePressAt = -1f;
@@ -575,7 +592,7 @@ namespace RavenfieldVR.Input
             // semi has delays"). A second press that turns slow motion on or off puts a semi / auto switch back.
             bool modeNow = false;
             float now = Time.unscaledTime;
-            bool longPress = VRInput.GetPressed(DigitalAction.FireMode);
+            bool longPress = VRInput.GetPressed(DigitalAction.FireMode) && !VRInput.GunHandSwapped; // (the free hand's button after a swap: see the menus)
             // On Touch the gun hand's A reaches the mod twice: its raw press at once (the SlowMotion click), and the slide release's
             // single only when A is let go (A's complex button has its long press bound). A switch a second press can put back is
             // made on the press now: taken on the release it lagged by as long as A was held (user, 2026-10-21 night: "theres still
@@ -1016,6 +1033,10 @@ namespace RavenfieldVR.Input
             _leaveHeldSince = -1f;
             _leaveArmed = false;
             _leaveTicks = 0;
+            // (And what was held: kept, the next session's first frame sent the game a release for a key let go while VR was down.)
+            System.Array.Clear(Held, 0, Held.Length);
+            System.Array.Clear(WasHeld, 0, WasHeld.Length);
+            _useHeldThroughSwap = false;
         }
 
         /// <summary>Resets toggles when the player respawns, gets into or out of a seat, or onto or off a ladder.</summary>
