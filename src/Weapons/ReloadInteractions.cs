@@ -359,8 +359,10 @@ namespace RavenfieldVR.Weapons
                 {
                     MagazineProp.KeepLoadedLook(Rig); // its rocket as it sits loaded: the one from the pouch is drawn with it
                 }
-                else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds >= Mathf.Max(1, Ammo.Capacity - 1))
+                else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds >= Mathf.Max(1, Ammo.Capacity - 1)
+                         && !MagazineProp.KeepsLoadedLook(Data.Key) && _held.SettledLoaded)
                 {
+                    // (Only once the gun has settled loaded: see HeldWeapon.SettledLoaded.)
                     // Its magazine as it sits full (one in the chamber at most): a full one from the pouch is drawn with it. With one
                     // round left the copy showed what that magazine's model shows then: an en-bloc clip whose rounds go as they are
                     // fired (the M1 GARRET's) was copied with none in it, and every clip from the pouch looked empty (user,

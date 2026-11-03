@@ -2818,6 +2818,11 @@ namespace RavenfieldVR.Weapons
                 return parts.Count == 0 ? "nothing" : string.Join(", ", parts.ToArray()) + (away.Count > 3 ? $" and {away.Count - 3} more" : "");
             }
             yield return new WaitForSecondsRealtime(0.3f);
+            // The loaded look is copied only once the gun has settled loaded (HeldWeapon.SettledLoaded): a moment given for it.
+            for (float waited = 0f; waited < 1.5f && inserted && rounds >= Mathf.Max(1, Ammo.Capacity - 1) && !MagazineProp.KeepsLoadedLook(Data.Key); waited += 0.1f)
+            {
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
             var home = _held.DrawnLayout();
             string homeState = _held.AnimatorStateText;
             // The last round fired: nothing chambered, the magazine empty, the slide caught back.

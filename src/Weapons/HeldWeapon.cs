@@ -1270,6 +1270,41 @@ namespace RavenfieldVR.Weapons
         private bool _wasEmpty;
         private float _lastShotAt = -10f;
 
+        /// <summary>The animator state <see cref="SettledLoaded"/> last saw, since when, and on which frame (the watch is frame to frame).</summary>
+        private int _settleState;
+        private float _settleSince = -1f;
+        private int _settleFrame = -10;
+
+        /// <summary>
+        /// The gun is drawn and sits at rest with a round in: drawn out (the game's unholster over), not reloading, the slide home, a
+        /// round counted by the game, half a second after a shot, and its animator in one state, not its empty pose nor a transition,
+        /// for a third of a second (watched frame to frame; with no animator, a second of the hold). Copied before that, at the first
+        /// frame of a draw, a mod whose animation switches its magazine's rounds on showed them off, and every magazine from the pouch
+        /// looked empty in the hand though it went in full (user, 2026-11-03: "when i take a mag and look at them they are empty but
+        /// when i ... just insert they are full").
+        /// </summary>
+        internal bool SettledLoaded
+        {
+            get
+            {
+                Weapon w = ActiveWeapon;
+                if (w == null || !w.unholstered || w.reloading || w.ammo <= 0 || SlideOffset > 0.002f || Time.unscaledTime - _lastShotAt < 0.6f)
+                {
+                    _settleSince = -1f;
+                    return false;
+                }
+                int now = w.HasActiveAnimator() && w.animator.layerCount > 0 ? w.animator.GetCurrentAnimatorStateInfo(0).fullPathHash : 0;
+                bool moving = now != 0 && (w.animator.IsInTransition(0) || now == _emptyState);
+                if (moving || now != _settleState || _settleSince < 0f || Time.frameCount - _settleFrame > 1)
+                {
+                    _settleState = now;
+                    _settleSince = moving ? -1f : Time.unscaledTime;
+                }
+                _settleFrame = Time.frameCount;
+                return _settleSince >= 0f && Time.unscaledTime - _settleSince >= (now != 0 ? 0.33f : 1f);
+            }
+        }
+
         /// <summary>
         /// Many pistols' animators go to an empty pose (slide back) when the last round is fired and leave it only through
         /// the game's reload animation, which a hand reload never plays: racked or released, the slide stayed back until the

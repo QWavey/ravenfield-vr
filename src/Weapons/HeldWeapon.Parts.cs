@@ -447,7 +447,7 @@ namespace RavenfieldVR.Weapons
             if (_magLoaded == null)
             {
                 if (_loadedRestState != 0 && now == _loadedRestState && now != _emptyState && !a.IsInTransition(0) && !ammo.SlideLocked
-                    && ammo.MagRounds >= Mathf.Max(1, ammo.Capacity - 1) && Time.unscaledTime - _lastShotAt > 0.6f)
+                    && ammo.MagRounds >= Mathf.Max(1, ammo.Capacity - 1) && Time.unscaledTime - _lastShotAt > 0.6f && SettledLoaded)
                 {
                     TakeMagazineLoaded();
                 }
