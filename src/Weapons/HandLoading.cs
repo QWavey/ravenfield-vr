@@ -55,6 +55,7 @@ namespace RavenfieldVR.Weapons
                 {
                     root.SpareMagazines.Add(0);
                 }
+                PouchVersion++;
             }
             return root.SpareMagazines;
         }
@@ -78,6 +79,7 @@ namespace RavenfieldVR.Weapons
             }
             rounds = bag[best];
             bag.RemoveAt(best);
+            PouchVersion++;
             return true;
         }
 
@@ -99,14 +101,18 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             bag.Add(Mathf.Clamp(prop.Rounds, 0, prop.Owner.Capacity));
+            PouchVersion++;
             return true;
         }
 
-        /// <summary>The magazines in the pouch, for the wrist and the log: "2 in the pouch (0, 12 rounds)".</summary>
+        /// <summary>Counts every change of any pouch's magazines: the wrist rebuilds its line only then.</summary>
+        internal static int PouchVersion { get; private set; }
+
+        /// <summary>The magazines in the pouch, for the wrist: "Pouch: 0 · 12 rounds", or "Pouch: no magazines".</summary>
         internal static string PouchText(AmmoState a)
         {
             List<int> bag = BagOf(a);
-            return bag.Count == 0 ? "none in the pouch" : $"{bag.Count} in the pouch ({string.Join(", ", bag)} rounds)";
+            return bag.Count == 0 ? "Pouch: no magazines" : "Pouch: " + string.Join(" \u00b7 ", bag) + " rounds";
         }
 
         /// <summary>

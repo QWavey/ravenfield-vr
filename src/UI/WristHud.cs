@@ -157,10 +157,15 @@ namespace RavenfieldVR.UI
             int gpu = rate < 0 ? -1 : FrameBudget.RecentGpuTenths;
             // And how far the frame rate hold has lowered the preset (HoldFrameRate): settings changed under the player are said.
             int holdSteps = GraphicsPresets.HoldLevel; // (also with the frame rate line off: the hold's own line is apart from it)
+            // Magazines loaded by hand: what is in the pouch (each magazine's rounds), when it changes.
+            int pouch = a != null && HandLoading.Applies(a) ? HandLoading.PouchVersion : -1;
             // Rebuilt only when what it shows changes: no string garbage every frame.
-            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu || holdSteps != _shownHeld)
+            if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu || holdSteps != _shownHeld
+                || pouch != _shownPouch || !ReferenceEquals(a, _shownAmmo))
             {
                 _shownHeld = holdSteps;
+                _shownPouch = pouch;
+                _shownAmmo = a;
                 _shownHp = hpWhole;
                 _shownCounter = counter;
                 _shownSpare = spare;
@@ -168,6 +173,7 @@ namespace RavenfieldVR.UI
                 _shownGpu = gpu;
                 string reserve = spare == -1 ? "\u221e" : spare.ToString();
                 _text.text = (a == null ? hpWhole + " HP" : hpWhole + " HP\n" + counter + "  \u00b7  " + reserve + " reserve")
+                             + (pouch < 0 ? "" : "\n" + HandLoading.PouchText(a))
                              + (rate < 0 ? "" : "\n" + FrameBudget.RecentHz + " Hz  \u00b7  " + FrameBudget.RecentPercent + "% on time")
                              + (gpu < 0 ? "" : "  \u00b7  GPU " + (gpu / 10) + "." + (gpu % 10) + " ms")
                              // Frames late with the GPU well inside the interval: said in words (fewer bots helps, a lower preset hardly).
@@ -201,6 +207,8 @@ namespace RavenfieldVR.UI
         private int _shownHp = int.MinValue;
         private string _shownCounter;
         private int _shownSpare = int.MinValue;
+        private int _shownPouch = int.MinValue;
+        private AmmoState _shownAmmo;
         private int _shownRate = int.MinValue;
         private int _shownGpu = int.MinValue;
         private int _shownHeld;
