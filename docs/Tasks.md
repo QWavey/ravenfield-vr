@@ -2863,6 +2863,13 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   empty ones without end once it is out, rounds from the pouch without end; "the bullets are invisible": with the weapon's arms the
   round sat inside their fist, now out at the fingertips (logged once). To check in a game run: all of (a)-(h).
 
+- 1.16.4 built after these (170df31), the DLL installed; the user plays it while the run goes on. After it, in the code only until the
+  next install: the real cause of (d): BeltStrip pushed each round out of the box by itself, through its nearest face, so a held belt
+  whose line ran through the box tore in two; it now goes round the box in one piece over its edges (BeltStrip.PathRound, b81a276), a
+  hanging one too when the tilted gun puts down through the box (99d9c87); the pouch on the hip shows an empty magazine when it hands
+  those out (3b23e8f); a held round at the weapon's fingers (0cd98ea). From the live log (not reported by the user): the G BRN180 EO S,
+  never settled with a full magazine, gave out full magazines copied empty (32 of 62 pieces): round-sized pieces go in (edfaf84, in 1.16.4).
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
