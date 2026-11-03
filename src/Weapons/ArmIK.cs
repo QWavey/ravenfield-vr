@@ -106,10 +106,15 @@ namespace RavenfieldVR.Weapons
             Vector3 down = Vector3.down;
 
             Stretched = false;
+            if (_right.Valid && _left.Valid && _sys.HeldWhereTaken(_held.Weapon))
+            {
+                SolveWhereTaken(neck, zones, down);
+                return;
+            }
             if (_right.Valid)
             {
-                // Gun hand: exactly where its animation holds the grip.
-                RigidPose target = RigidPose.Of(_right.Hand);
+                // Gun hand: exactly where its animation holds the grip (steadied against a frame's blink of it).
+                RigidPose target = _gunGrip.Steady(RigidPose.Of(_right.Hand), _held.Rig.GunBodyPose);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
                 GunHandError = Vector3.Distance(_right.Hand.position, target.position);
@@ -131,7 +136,7 @@ namespace RavenfieldVR.Weapons
                 bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key && mag.OwnCopy
                                               || seated != null);
                 bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
-                RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip
+                RigidPose grip = _supportGrip.Steady(RigidPose.Of(_left.Hand), _held.Rig.GunBodyPose); // the authored support grip, steadied
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
                 // Turned as the VR glove is (its tracked frame, the glove rotation setting included): fingers along its forward,
@@ -223,6 +228,71 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 _fingers?.Remember(); // (the magazine's turns are this frame's last write, not an animator's pose next frame)
+            }
+        }
+
+        /// <summary>
+        /// A gun passed to the other hand and held where that hand took it (WeaponSystem.HeldWhereTaken): each arm stays on its own side,
+        /// the model's left arm on the left controller and its right arm on the right, the one holding the gun where it holds it, the
+        /// other free, both as the glove is placed (<see cref="FreeTarget"/>), the fingers from their controllers. As the gun arm, the
+        /// model's right arm went from the left shoulder to the gun's own grip and its left arm to the right controller: the hands
+        /// swapped over (user, 2026-11-03: "my hand turns and the left hand becomes the right hand then and it looks weird on weapons
+        /// arms"). Taken by its grip again, the gun's right arm holds it as before.
+        /// </summary>
+        private void SolveWhereTaken(Vector3 neck, BodyZones zones, Vector3 down)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                bool leftSide = i == 0;
+                Arm arm = leftSide ? _left : _right;
+                VRHand hand = _sys.Rig.Hands[0].Side == (leftSide ? Input.Hand.Left : Input.Hand.Right) ? _sys.Rig.Hands[0] : _sys.Rig.Hands[1];
+                float s = leftSide ? -1f : 1f;
+                Vector3 shoulder = neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * s);
+                Vector3 pole = shoulder + down * 0.6f + zones.TorsoRight * (0.35f * s) - zones.TorsoForward * 0.2f;
+                RigidPose target = FreeTarget(hand, arm.Chain);
+                SolveArm(arm, shoulder, target, pole);
+                float error = Vector3.Distance(arm.Hand.position, target.position);
+                if (hand == _sys.Rig.Dominant)
+                {
+                    GunHandError = error;
+                }
+                else
+                {
+                    OffHandError = error;
+                }
+                ArmFingers fingers = leftSide ? _fingers : _gunFingers;
+                fingers?.Pose(hand, arm.Hand, arm.Chain, 0f);
+            }
+            _onGunBlend = 0f; // (taken by its grip again, the support hand eases onto the handguard from where it is)
+            _onMagBlend = 0f;
+        }
+
+        /// <summary>The gun hand's and the support hand's poses as the gun's animation holds them, each steadied (<see cref="SteadyGrip"/>).</summary>
+        private readonly SteadyGrip _gunGrip = new SteadyGrip(), _supportGrip = new SteadyGrip();
+
+        /// <summary>
+        /// A hand bone's pose as the gun's animation leaves it this frame, steadied against the gun: a jump of more than 3 cm or 20 degrees
+        /// is held off for up to four frames and taken only if it lasts. Between two of the game's own animations (a shot's and the idle
+        /// after it) a hand bone was left for a frame in another pose, and the weapon's arm went there and back (user, 2026-11-03:
+        /// "the left arm moves away after shooting full auto or semi ... for a short milisecond but teleports back").
+        /// </summary>
+        private sealed class SteadyGrip
+        {
+            private RigidPose _inGun;
+            private bool _known;
+            private int _odd;
+
+            public RigidPose Steady(RigidPose now, RigidPose gun)
+            {
+                RigidPose inGun = gun.Inverse().Multiply(now);
+                if (_known && (Vector3.Distance(inGun.position, _inGun.position) > 0.03f || Quaternion.Angle(inGun.rotation, _inGun.rotation) > 20f) && ++_odd <= 4)
+                {
+                    return gun.Multiply(_inGun);
+                }
+                _inGun = inGun;
+                _known = true;
+                _odd = 0;
+                return now;
             }
         }
 
