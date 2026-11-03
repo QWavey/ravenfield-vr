@@ -226,7 +226,10 @@ namespace RavenfieldVR.Weapons
                 Object.Destroy(go);
                 go = null;
             }
-            go = CopyVisuals(rig);
+            // A full one with no loaded look kept yet (the gun not yet seen settled with a full magazine, as one taken from a soldier
+            // nearly empty): the round-sized pieces the gun has switched off now go in too (RoundSized), or a see-through magazine's
+            // rounds were left out and a full magazine looked empty in the hand (the G BRN180 EO S, 2026-11-03: 32 of its 62 pieces).
+            go = CopyVisuals(rig, roundsToo: kind == PropKind.Magazine && loaded);
             if (go == null)
             {
                 return null;
@@ -731,13 +734,13 @@ namespace RavenfieldVR.Weapons
         /// Copies the magazine's look: its own meshes, the pieces that travel with it, and for skinned guns the
         /// triangles of the gun mesh that the magazine bones drive. Everything is expressed in magazine space.
         /// </summary>
-        private static GameObject CopyVisuals(WeaponRig rig)
+        private static GameObject CopyVisuals(WeaponRig rig, bool roundsToo = false)
         {
             // While the magazine is out of the gun its parts are scaled to nothing: copy them at their real size.
             Vector3[] hidden = rig.ShowMagazineForCopy();
             try
             {
-                return CopyVisualsShown(rig);
+                return CopyVisualsShown(rig, roundsToo);
             }
             finally
             {
@@ -761,8 +764,24 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
-        private static GameObject CopyVisualsShown(WeaponRig rig)
+        /// <summary>
+        /// A piece the size of a round (a plain mesh 3 mm to 8 cm across as drawn): switched off on the gun, it is a round its magazine
+        /// shows only while loaded; a second model of the magazine (an empty or a full one swapped in) is far bigger.
+        /// </summary>
+        private static bool RoundSized(Renderer r)
         {
+            MeshFilter mf = r is MeshRenderer ? r.GetComponent<MeshFilter>() : null;
+            if (mf == null || mf.sharedMesh == null)
+            {
+                return false;
+            }
+            float size = Vector3.Scale(mf.sharedMesh.bounds.size, r.transform.lossyScale).magnitude;
+            return size > 0.003f && size < 0.08f;
+        }
+
+        private static GameObject CopyVisualsShown(WeaponRig rig, bool roundsToo = false)
+        {
+            int roundsAdded = 0;
             Transform source = rig.Magazine;
             var root = new GameObject("mag");
             bool any = false;
@@ -803,7 +822,11 @@ namespace RavenfieldVR.Weapons
                 {
                     if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy) || loadedLook != null && !loadedLook.Contains(r))
                     {
-                        continue;
+                        if (!(roundsToo && anyShown && RoundSized(r)))
+                        {
+                            continue;
+                        }
+                        roundsAdded++;
                     }
                     if ((r.transform.position - source.position).sqrMagnitude > ParkedAway * ParkedAway)
                     {
@@ -842,6 +865,11 @@ namespace RavenfieldVR.Weapons
                 }
             }
 
+            if (roundsAdded > 0)
+            {
+                Log.InfoOnce("maglook-rounds:" + rig.Data.Key, $"Magazine of {rig.Data.Key}: {roundsAdded} round-sized piece(s) switched off on the gun drawn in a full one "
+                                                           + "(no loaded look kept yet).");
+            }
             // Skinned guns: the magazine is a bone; cut its triangles out of the gun mesh.
             if (!any && rig.Data.MagazineIsSkinned)
             {
