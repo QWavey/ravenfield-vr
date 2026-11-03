@@ -80,7 +80,7 @@ namespace RavenfieldVR.Weapons
         {
             Transform part = Part;
             return weapon != null && weapon == _held.Weapon && part != null && part.gameObject.activeInHierarchy
-                && ScriptKeys.Find(weapon, ScriptKeyPurpose.Magnifier) != null;
+                && HasMagnifierKey(); // (the cached answer: this is asked every frame on the grab's path)
         }
 
         /// <summary>A shot went off: the gun kicks under the hand, so the grip is re-based rather than read as a hand movement.</summary>

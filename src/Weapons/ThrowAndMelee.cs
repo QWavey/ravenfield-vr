@@ -740,11 +740,11 @@ namespace RavenfieldVR.Weapons
                 float speed = (tip - body.TransformPoint(_lastTipInRig)).magnitude / dt;
                 float cooldown = Mathf.Max(0.28f, melee.configuration.cooldown * 0.8f);
                 bool carried = (tip - _lastTip).sqrMagnitude > MaxSweep * MaxSweep; // the hit test would span the whole jump
-                if (!carried && speed > VRConfig.MeleeSwingSpeed.Value && Time.time - _lastHit > cooldown && !VRGameInput.GunInputBlocked)
+                if (!carried && speed > VRConfig.MeleeSwingSpeed.Value && Time.unscaledTime - _lastHit > cooldown && !VRGameInput.GunInputBlocked)
                 {
                     if (Swing(melee, _lastTip, tip, _lastBase, basePoint))
                     {
-                        _lastHit = Time.time;
+                        _lastHit = Time.unscaledTime; // (real time, as the swing's speed: in slow motion a game-time cooldown lasted five times as long)
                     }
                 }
             }
@@ -1016,7 +1016,7 @@ namespace RavenfieldVR.Weapons
             // needed its muzzle over 3.1 m/s (user, 2026-10-19 night: "when i punch things with objects such as weapons they dont
             // take damage", task 306). The knife's speed now (MeleeSwingSpeed, 2.6 m/s): a swing, not a walk or a turn.
             // (Not with the laser on one of the mod's panels either, as the trigger: review, 2026-10-20.)
-            if (_bashHas && !NoFrameTime && Time.time - _lastBash > 0.5f && Time.time - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
+            if (_bashHas && !NoFrameTime && Time.unscaledTime - _lastBash > 0.5f && Time.unscaledTime - _lastBlow > 0.5f && !VRGameInput.GunInputBlocked)
             {
                 bool carried = (muzzle - _bashAt[count - 1]).sqrMagnitude > MaxSweep * MaxSweep;
                 float need = BlowSpeed;
@@ -1043,7 +1043,7 @@ namespace RavenfieldVR.Weapons
                     }
                     if (BashCast(w, user, _bashAt[k], at, speed, d.Handgun ? 0.6f : d.IsMachineGun ? 1.4f : 1f, _bashName, d.Key))
                     {
-                        _lastBash = Time.time;
+                        _lastBash = Time.unscaledTime;
                         _sys.Rig.Dominant.Haptic(0.1f, 60f, 1f);
                         if (held.TwoHanded)
                         {
@@ -1116,11 +1116,11 @@ namespace RavenfieldVR.Weapons
                 if (RecordNotes && fist)
                 {
                     float measured = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
-                    FistNote = $"same fist {ReferenceEquals(what, _blowHeld[i])}, {Time.time - _lastBlowBy[i]:0.00} s since its blow, "
-                               + $"{Time.time - _lastBash:0.00} s since a bash, moved {(at - _blowAt[i]).magnitude * 100f:0} cm at {measured:0.0} m/s";
+                    FistNote = $"same fist {ReferenceEquals(what, _blowHeld[i])}, {Time.unscaledTime - _lastBlowBy[i]:0.00} s since its blow, "
+                               + $"{Time.unscaledTime - _lastBash:0.00} s since a bash, moved {(at - _blowAt[i]).magnitude * 100f:0} cm at {measured:0.0} m/s";
                 }
                 // Each hand on its own clock (a left-right combination), a fist sooner again than a swung magazine.
-                if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.time - _lastBlowBy[i] > (fist ? 0.3f : 0.5f) && Time.time - _lastBash > 0.5f
+                if (ReferenceEquals(what, _blowHeld[i]) && !NoFrameTime && Time.unscaledTime - _lastBlowBy[i] > (fist ? 0.3f : 0.5f) && Time.unscaledTime - _lastBash > 0.5f
                     && (at - _blowAt[i]).sqrMagnitude < MaxSweep * MaxSweep)
                 {
                     float speed = (at - body.TransformPoint(_blowInRig[i])).magnitude / dt;
@@ -1132,8 +1132,8 @@ namespace RavenfieldVR.Weapons
                         float weight = fist ? 0.4f : what is MagazineProp ? 0.45f : 0.55f;
                         if (BashCast(fist ? null : source, user, _blowAt[i], at, speed, weight, BlowLabels[kind], BlowKeys[kind]))
                         {
-                            _lastBlow = Time.time;
-                            _lastBlowBy[i] = Time.time;
+                            _lastBlow = Time.unscaledTime;
+                            _lastBlowBy[i] = Time.unscaledTime;
                             LastHandBlow[i] = Time.unscaledTime; // (real time: a grab's 0.6 s after a punch lasted 3 s in slow motion)
                             h.Haptic(0.08f, 60f, 0.9f);
                         }
