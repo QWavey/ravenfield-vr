@@ -266,7 +266,9 @@ namespace RavenfieldVR.Weapons
         private static void LookAgain(WeaponSystem sys, VRHand hand, MagazineProp mag)
         {
             bool kept = mag.Rounds > 0 ? MagazineProp.KeepsLoadedLook(mag.WeaponKey) : MagazineProp.KeepsEmptyLook(mag.WeaponKey);
-            if (sys.Held != null || mag.Owner == null || mag.Owner.Weapon == null || !kept || !ReferenceEquals(hand.Held, mag))
+            // (With the gun drawn too, but not on the well's line: the reload has it there. Only with the gun away, one emptied by its
+            // trigger with the gun drawn kept its rounds' look; scout, 2026-11-03.)
+            if (mag.OnRail || mag.Owner == null || mag.Owner.Weapon == null || !kept || !ReferenceEquals(hand.Held, mag))
             {
                 return;
             }
