@@ -967,7 +967,7 @@ namespace RavenfieldVR.Weapons
         private Weapon _bashWeapon;
         private string _bashName; // the weapon's name, read once: Object.name makes a new string each read, per point per fast frame
         private float _lastBash = -10f;
-        private static readonly RaycastHit[] BashHits = new RaycastHit[16];
+        private static readonly RaycastHit[] BashHits = new RaycastHit[32]; // (at 16, in a crowd of hitboxes a wall could fall off the unsorted list and a blow reach through it)
 
         /// <summary>
         /// A gun (not a melee weapon) swung into an enemy hits them, with its muzzle end or its butt: a muzzle strike or a

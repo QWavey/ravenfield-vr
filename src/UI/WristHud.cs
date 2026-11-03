@@ -118,6 +118,10 @@ namespace RavenfieldVR.UI
             }
             bool want = VRConfig.WristHud.Value && alive && VRGameInput.WristLookGesture;
             _alpha = Mathf.MoveTowards(_alpha, want ? 1f : 0f, Time.unscaledDeltaTime * 6f);
+            if (actor != null && actor.dead)
+            {
+                _alpha = 0f; // gone at once: fading out it was rebuilt, and flashed 0 HP
+            }
             bool visible = _alpha > 0.01f;
             if (_go.activeSelf != visible)
             {

@@ -94,16 +94,16 @@ namespace RavenfieldVR.UI
             TogglePair("Gun stops at walls", VRConfig.WorldCollision, "Weapon weight", VRConfig.WeaponWeight);
             TogglePair("Show pouch", VRConfig.ShowPouch, "Reduce flashing", VRConfig.ReduceFlashing);
             Stepper("Gun pitch", () => $"{VRConfig.GunPitchTrim.Value:+0.#;-0.#;0}°", d => VRConfig.GunPitchTrim.Value = Mathf.Clamp(VRConfig.GunPitchTrim.Value + d * 2.5f, -45f, 45f));
-            Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(VRConfig.RecoilStrength.Value + d * 0.25f, 0f, 3f));
+            Stepper("Recoil", () => $"{VRConfig.RecoilStrength.Value * 100f:0}%", d => VRConfig.RecoilStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.RecoilStrength.Value + d * 0.25f) * 100f) / 100f, 0f, 3f));
             // How close a hand must be to take a slide, a foregrip or a magazine (only in the config file before: grabs that miss by
             // a few centimetres on another controller or hand size had no fix in the headset; sweep).
-            Stepper("Grab reach", () => $"{VRConfig.GrabRadius.Value * 100f:0} cm", d => VRConfig.GrabRadius.Value = Mathf.Clamp(VRConfig.GrabRadius.Value + d * 0.01f, 0.03f, 0.25f));
+            Stepper("Grab reach", () => $"{VRConfig.GrabRadius.Value * 100f:0} cm", d => VRConfig.GrabRadius.Value = Mathf.Clamp(Mathf.Round((VRConfig.GrabRadius.Value + d * 0.01f) * 100f) / 100f, 0.03f, 0.25f));
 
             Section("Display");
             Choice("Graphics", VRConfig.Graphics, new[] { GraphicsPreset.Low, GraphicsPreset.Medium, GraphicsPreset.High, GraphicsPreset.Ultra, GraphicsPreset.Game },
                 new[] { "Low", "Medium", "High", "Ultra", "Game" });
-            Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(VRConfig.RenderScale.Value + d * 0.1f, 0.5f, 2f));
-            Choice("Hold the frame rate", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
+            Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(Mathf.Round((VRConfig.RenderScale.Value + d * 0.1f) * 100f) / 100f, 0.5f, 2f)); // (rounded: added up, 1.2000001 went into the config)
+            Choice("Hold the frame rate (not with Game)", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
             float mainHeight = _height + 18f;
 
