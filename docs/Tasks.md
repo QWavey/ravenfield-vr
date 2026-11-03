@@ -2819,6 +2819,33 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
+
+Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
+cues (MagIn, MagOut, SlideBack, SlideForward) or a vanilla donor's through the pool (ProceduralSounds.PlayGameClip), never the
+synthesised fallback. Built (a6d0f14, 6d198e3, ef1fa0d, 4684427), each to check in a game run:
+- 1 Scrape: MagazineProp.ContactSounds, at the well's mouth only (4.5 cm), MagIn's first 30% quiet and lower.
+- 2 Rack spring: tug and tick strength 0.35 -> 1 with the stroke (not for hand-driven bolts/pumps); a knock at the back stop.
+- 3 Return: StepParts accelerates the slide (250 m/s^2, top 8), the landing jolt by speed; the release's slam volume by how far it
+  has to go; a hand-closed bolt/pump by its push speed.
+- 5 Clatter: MagazineClatter on magazine props (MagIn's last 40%, lower; softer on CaseSound.IsSoft ground).
+- 6 Catch: ReloadInteractions.StepParts on SlideLocked false -> true: SlideBack's end at 1.12 pitch and a tap (no sound right after
+  a shot: OnShot plays the gun's own).
+- 7 Hand loading: rounds click in (MagIn's end) higher as the magazine fills; a round out (MagOut's start); the pouch's round
+  felt only.
+- 8 Detent (MagazineDetent on): DetentApplies (not WellInGrip, MG, en-bloc, boxes, autotest), latch 8% of the rail (4-8 mm),
+  firm = push 0.3 m/s or 1 cm past the seat; let go there: LetGoOnRail and _almostSeated (tap 0.45 m/s on the base, a squeeze takes
+  it, the release drops it); UnderSeatedMagazineFalls (off): AmmoState.MagLoose, ejected at the next shot, tap latches.
+- 9 Bolt lift: ReloadInteractions.BoltLifts (Manual, hand-driven, not a pump, a bolt/handle part, rack point 2-12 cm out to the
+  side), 60 degrees about the bore before the pull; HeldWeapon.ApplyBoltTurn turns the bolt and handle; down at home by hand or
+  when let go.
+- 10 AkMagazinesStayIn (off): WeaponRigData.MagCurved rifles, the release only unlatches (MagOut's start, a tap).
+- 11 Rock-in: MagazineProp.RailPose turns a curved magazine 14 degrees about its front lip at the mouth, straight by 85% of the
+  rail.
+Not done (the user's choice): 4 (magazine weight by rounds), 12 (muzzle smoke). Check in a game run: whether the slices of each
+gun's sounds read as the detail meant (a scrape, a clatter, a click) and their levels; the detent's feel (too firm or too light);
+the bolt lift's turn on the SL-DEFENDER and MRAD models; the rock-in on AKs and the QBZ.
+
 ### 357. The user's list of 2026-11-03 (fixes; then /bug-hunt and /work-until-limit 60; the game not started; nothing pushed)
 
 From the user: hand positions on some magazines; MG belts inside the box; natural hands off the gun, fading onto it; a full
