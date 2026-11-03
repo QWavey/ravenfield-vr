@@ -245,7 +245,11 @@ namespace RavenfieldVR.Weapons
                     _routeFrom = inv.Multiply(switchFrom);
                     _routeLine = inv.Multiply(new RigidPose(tip0 - (switchFrom.rotation * InsertDirLocal) * RailDepth, switchFrom.rotation));
                     far = Vector3.Distance(tip0, tipTarget);
-                    _routed = RailDepth > 0.005f;
+                    // Always, at the mouth too: it leaves the rail 3 cm past the mouth with its drawn depth held at 0, its top 5 mm
+                    // under the grip, and the straight ease turned it the hand's 30 degrees on the way, its corners up through the
+                    // grip's bottom ("yanking out the mag with force ... glitch through the weapon handle a little", user,
+                    // 2026-11-03). The route drops it clear of the mouth before it turns.
+                    _routed = true;
                 }
                 // Longer for a longer way round: at a fixed 0.14 s, 20 cm aside went past in two frames (review, 2026-10-20).
                 _routeTime = Mathf.Clamp(0.12f + far * 0.7f, 0.14f, 0.3f);

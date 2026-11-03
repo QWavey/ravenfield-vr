@@ -137,6 +137,25 @@ namespace RavenfieldVR.Tests
             Check(Math.Abs(T(0, 10, true)) < 1e-5f && Math.Abs(T(9, 10, true) - 9 * 0.0115f / 0.3f) < 1e-4f, "Belt: a short belt hanging starts at the box mouth");
             Check(Math.Abs(T(0, 10, false) - 1f) < 1e-5f && T(9, 10, false) > 0.6f, "Belt: a short belt held ends in the hand");
             Check(T(26, 27, true) > 0.99f && T(26, 27, false) < 0.01f, "Belt: a full belt spans the strip");
+
+            // Kept out of the box (BeltStrip.KeptOut, 2026-11-03: the belt hung through its box): a round 1 cm inside the box's +x face
+            // comes out 8 mm past it, turned with the box; one outside stays where it is.
+            System.Reflection.MethodInfo kept = mod.GetType("RavenfieldVR.Weapons.BeltStrip")?.GetMethod("KeptOut",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            Check(kept != null && pose != null, "Belt: KeptOut found");
+            if (kept == null || pose == null)
+            {
+                return;
+            }
+            object frame = Activator.CreateInstance(pose, new UnityEngine.Vector3(1f, 2f, 3f), new UnityEngine.Quaternion(0f, 0.70710678f, 0f, 0.70710678f));
+            var box = new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(0.1f, 0.2f, 0.4f));
+            // (The box turned 90 degrees about y: its +x face looks along world -z.)
+            UnityEngine.Vector3 K(UnityEngine.Vector3 p) => (UnityEngine.Vector3)kept.Invoke(null, new object[] { p, frame, box });
+            UnityEngine.Vector3 inside = K(new UnityEngine.Vector3(1f, 2.05f, 3f - 0.04f)), outside = new UnityEngine.Vector3(1f, 2f, 2.9f);
+            Check(Math.Abs(inside.z - (3f - 0.058f)) < 1e-4f && Math.Abs(inside.x - 1f) < 1e-4f && Math.Abs(inside.y - 2.05f) < 1e-4f,
+                  $"Belt: a round inside the box comes out through its nearest face ({inside.x:0.000}, {inside.y:0.000}, {inside.z:0.000})");
+            Check(K(outside) == outside, "Belt: a round outside the box stays where it is");
         }
 
         /// <summary>
@@ -421,6 +440,24 @@ namespace RavenfieldVR.Tests
             Check(Math.Max(f1, Math.Max(f2, f3)) <= 10.001f, $"Slowed hand: never over 10 m/s of game time ({Math.Max(f1, Math.Max(f2, f3)):0.00})");
             object[] zero = { UnityEngine.Vector3.zero, UnityEngine.Vector3.zero, target, 0f };
             Check((UnityEngine.Vector3)step.Invoke(null, zero) == UnityEngine.Vector3.zero, "Slowed hand: a zero time step does not move it (no NaN)");
+
+            // Slow motion over with the hand moving at 1 m/s: followed in the world (as it was) it trails the controller by about
+            // 10 cm and never lets go; its offset on the same spring (CatchUp) is under the 2 mm release within half a second.
+            UnityEngine.Vector3 hand0 = UnityEngine.Vector3.zero, vel0 = UnityEngine.Vector3.zero, off = new UnityEngine.Vector3(-0.3f, 0f, 0f), offVel = UnityEngine.Vector3.zero;
+            float dt = 1f / 90f;
+            for (int i = 0; i < 45; i++)
+            {
+                UnityEngine.Vector3 controller = new UnityEngine.Vector3((i + 1) * dt, 0f, 0f);
+                object[] world = { hand0, vel0, controller, dt };
+                hand0 = (UnityEngine.Vector3)step.Invoke(null, world);
+                vel0 = (UnityEngine.Vector3)world[1];
+                object[] own = { off, offVel, UnityEngine.Vector3.zero, dt };
+                off = (UnityEngine.Vector3)step.Invoke(null, own);
+                offVel = (UnityEngine.Vector3)own[1];
+            }
+            float trail = 45 * dt - hand0.x;
+            Check(trail > 0.05f && off.magnitude < 0.002f,
+                  $"Slowed hand: catching up while moving at 1 m/s, in the world it still trails {trail * 100f:0.0} cm after 0.5 s, by its own offset {off.magnitude * 1000f:0.00} mm");
         }
 
         /// <summary>

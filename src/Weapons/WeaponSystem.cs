@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
+using RavenfieldVR.Runtime;
 using RavenfieldVR.Util;
 using UnityEngine;
 
@@ -139,6 +140,7 @@ namespace RavenfieldVR.Weapons
             {
                 AttachHeld(weapon);
             }
+            RegripPassedWeapon();
 
             if (Held != null)
             {
@@ -336,7 +338,9 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 palm = h.Palm.position;
-                MagazineProp prop = MagazineProp.NearestDropped(palm, 0.13f, null);
+                // (By the pouch an empty one is passed over, as the gun's own reload does: a squeeze there wants a full one.)
+                bool byPouch = Vector3.Distance(palm, Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
+                MagazineProp prop = MagazineProp.NearestDropped(palm, 0.13f, null, byPouch ? (System.Func<MagazineProp, bool>)(p => p.Rounds > 0) : null);
                 GrenadeDud dud = GrenadeDud.Nearest(palm, 0.12f);
                 if (dud != null && (prop == null || dud.Distance(palm) < prop.DistanceTo(palm)))
                 {
@@ -543,6 +547,8 @@ namespace RavenfieldVR.Weapons
 
         private void ReleaseHeld()
         {
+            _passHold = null;
+            _passEaseAt = -1f;
             if (Held != null)
             {
                 Log.Guard("EmptyArms.TakeFrom", () => _emptyArms.TakeFrom(Held)); // its arms for the empty hands, in this frame's pose
@@ -1166,15 +1172,97 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
+            // Where the gun is now, against the hand that keeps it: it stays there in that hand (user, 2026-11-03: "when you release
+            // its still held there and doesnt snap to the trigger ... when you switch hands or release or anything to bring out a
+            // pistol"). Taken over by the grip, it jumped by the hands' spacing along the gun.
+            RigidPose kept = HeldWeapon.HoldFrame(to, Held.Rig.Data).Inverse().Multiply(Held.Rig.GunBodyPose.Multiply(HeldWeapon.GripFrame(Held.Rig.Data)));
+            Weapon passed = Held.Weapon;
             ReleaseHeld(); // the support grip and reload state go with it; the weapon is taken up again next frame
             from.Role = HandRole.Free;
             to.Role = HandRole.Free;
             to.Held = null;
             VRInput.SetGunHand(to.Side);
+            _passHold = kept;
+            _passWeapon = passed;
             to.Haptic(0.04f, 140f, 0.5f);
-            Log.InfoOnce("passhand", $"Weapon passed to the {to.Side} hand.");
+            Log.InfoOnce("passhand", $"Weapon passed to the {to.Side} hand, held where that hand holds it.");
             return true;
         }
+
+        /// <summary>
+        /// A weapon passed to the other hand is held where that hand took it (on the handguard, say), not by its grip: the gun hand's
+        /// frame to the grip's then. Eased away over <see cref="PassEase"/> once a hand takes the grip again; cleared when the weapon
+        /// is let go of, holstered or switched.
+        /// </summary>
+        private RigidPose? _passHold;
+        private Weapon _passWeapon;
+        private float _passEaseAt = -1f;
+        private const float PassEase = 0.2f;
+
+        /// <summary>
+        /// Where the held gun's grip is against its hand's grip frame (<see cref="HeldWeapon.HoldFrame"/>) while it is held where the
+        /// hand took it, or null for the grip in the hand as usual. Eased to the grip over a fifth of a second after a regrip.
+        /// </summary>
+        internal RigidPose? PassHoldNow(Weapon weapon)
+        {
+            if (!_passHold.HasValue || weapon == null || weapon != _passWeapon)
+            {
+                return null;
+            }
+            if (_passEaseAt < 0f)
+            {
+                return _passHold;
+            }
+            float t = (Time.unscaledTime - _passEaseAt) / PassEase;
+            if (t >= 1f)
+            {
+                _passHold = null;
+                _passEaseAt = -1f;
+                return null;
+            }
+            float e = t * t * (3f - 2f * t);
+            RigidPose from = _passHold.Value;
+            return new RigidPose(Vector3.Lerp(from.position, Vector3.zero, e), Quaternion.Slerp(from.rotation, Quaternion.identity, e));
+        }
+
+        /// <summary>Whether the held gun is held where a hand took it, not by its grip (<see cref="PassHoldNow"/>): the glove is not put on the grip.</summary>
+        internal bool HeldWhereTaken(Weapon weapon) => _passHold.HasValue && _passEaseAt < 0f && weapon != null && weapon == _passWeapon;
+
+        /// <summary>
+        /// The free hand squeezing at the grip of a gun held where the other hand took it: the gun goes back into that hand by its
+        /// grip, eased there from where it is (the other hand let go of it to it). Before the gun's own update, so the squeeze is
+        /// not also taken as a grab of its handguard or a part.
+        /// </summary>
+        private void RegripPassedWeapon()
+        {
+            if (!_passHold.HasValue || _passEaseAt >= 0f || Held == null || Held.Weapon != _passWeapon || Held.Rig.Data.Action == ActionType.Throwable)
+            {
+                return;
+            }
+            VRHand free = Rig.Off, holding = Rig.Dominant;
+            if (!free.Tracked || free.Role != HandRole.Free || !free.GrabPressed
+                || Vector3.Distance(free.Palm.position, Held.Rig.ToWorld(Held.Rig.Data.GripPoint)) > RegripReach)
+            {
+                return;
+            }
+            WeaponRigData d = Held.Rig.Data;
+            RigidPose kept = HeldWeapon.HoldFrame(free, d).Inverse().Multiply(Held.Rig.GunBodyPose.Multiply(HeldWeapon.GripFrame(d)));
+            Weapon weapon = Held.Weapon;
+            VRInput.Consume(DigitalAction.Grab, free.Side);
+            ReleaseHeld();
+            holding.Role = HandRole.Free;
+            holding.Held = null;
+            free.Role = HandRole.Free;
+            VRInput.SetGunHand(free.Side);
+            _passHold = kept;
+            _passWeapon = weapon;
+            _passEaseAt = Time.unscaledTime;
+            free.Haptic(0.04f, 140f, 0.5f);
+            Log.InfoOnce("regrip", $"Weapon taken by its grip again in the {free.Side} hand.");
+        }
+
+        /// <summary>How near (m) the free hand's palm must be to the grip to take a gun held where the other hand took it back by it.</summary>
+        private const float RegripReach = 0.1f;
 
         /// <summary>Autotest: passes the held weapon to the other hand as letting go while it holds the handguard does.</summary>
         internal bool TestPassToOtherHand() => PassToOtherHand();

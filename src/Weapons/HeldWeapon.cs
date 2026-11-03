@@ -173,6 +173,7 @@ namespace RavenfieldVR.Weapons
                 _magnifierFlip = new MagnifierFlip(system, this);
                 _magOriginalScales = rig.MagazinePartScales;
                 Step("draw: scope");
+                AdoptOwnScopeCamera(weapon, rig);
                 if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
                 {
                     _scope = new VRScope(system.Rig, rig);
@@ -185,6 +186,7 @@ namespace RavenfieldVR.Weapons
                 _counter = new AmmoCounter(rig);
                 Step("draw: lenses, muzzle, materials");
                 FindScopeLenses(weapon);
+                LiftBlackLauncherParts(weapon, rig);
                 GiveMuzzle(weapon, rig);
                 int repaired = Util.MaterialFix.ApplyAll(weapon.gameObject);
                 if (repaired > 0)
@@ -560,6 +562,36 @@ namespace RavenfieldVR.Weapons
         /// <summary>Renderers that show the weapon's own scope camera's picture (the lens of a magnifier or scope).</summary>
         private readonly List<Renderer> _scopeLenses = new List<Renderer>();
 
+        /// <summary>
+        /// A scope camera of the gun's own that the game did not take as its render-texture camera: the game looks for one on the
+        /// weapon's prefab among active objects only, and a scope model switched on later (the M417A2's rigged Razer Vortex) keeps
+        /// its working picture but is not known as the gun's. The mod then drew its own lens on the scope's eyepiece, a second
+        /// picture with the flat game's reticle in front of the working one (user, 2026-11-03: "On the M417A2 theres a Vanilla
+        /// scope placed infront the original scope ... the original scope works"). Taken as the gun's (no lens of the mod's then,
+        /// and its own lenses gated as any scope camera's): one drawing into a picture, not under the flat game's scope overlay
+        /// (switched off in VR, its camera would draw nothing), not the mod's.
+        /// </summary>
+        private static void AdoptOwnScopeCamera(Weapon weapon, WeaponRig rig)
+        {
+            if (weapon == null || weapon.renderTextureCamera != null || weapon.IsMountedWeapon())
+            {
+                return;
+            }
+            GameObject overlay = weapon.configuration != null ? weapon.configuration.scopeAimObject : null;
+            foreach (Camera c in weapon.GetComponentsInChildren<Camera>(true))
+            {
+                if (c == null || c.targetTexture == null || c.name == "Scope Camera"
+                    || overlay != null && (c.transform == overlay.transform || c.transform.IsChildOf(overlay.transform)))
+                {
+                    continue;
+                }
+                weapon.renderTextureCamera = c;
+                Log.InfoOnce("ownscopecam:" + rig.Data.Key, $"{rig.Data.Key}: its scope camera '{c.name}' (not known to the game) draws its scope's picture: "
+                                                           + "taken as the gun's, no lens of the mod's on it.");
+                return;
+            }
+        }
+
         private void FindScopeLenses(Weapon weapon)
         {
             Camera cam = weapon.renderTextureCamera;
@@ -607,6 +639,119 @@ namespace RavenfieldVR.Weapons
             {
                 Log.InfoOnce("scopelens:" + Rig.Data.Key, $"{Rig.Data.Key}: its scope picture ({_scopeLenses.Count} lens renderer(s)) is shown only in sight modes that look through it.");
             }
+            if (_scopeLenses.Count > 0)
+            {
+                RaiseScopeTexture(rt, Rig.Data.Key);
+            }
+        }
+
+        /// <summary>
+        /// The gun's own scope picture drawn at least at the scope picture setting (Weapons/ScopeResolution, the mod's own lens's,
+        /// 768 by default), its shape kept: mods draw theirs at what a flat screen's corner needs (the RPG-7V's 500 px, the HK416-B's
+        /// 512), and a lens held at the eye in VR spreads that over a third of the view (user, 2026-11-03: "their scopes are low
+        /// resolution"). The picture itself is made bigger (it is the gun's own, shared by its lenses: nothing else to repoint).
+        /// </summary>
+        private static void RaiseScopeTexture(RenderTexture rt, string key)
+        {
+            int want = VRConfig.ScopeResolution.Value, shortSide = Mathf.Min(rt.width, rt.height);
+            if (shortSide <= 0 || shortSide >= want)
+            {
+                return;
+            }
+            float k = want / (float)shortSide;
+            int w = Mathf.Min(2048, Mathf.RoundToInt(rt.width * k)), h = Mathf.Min(2048, Mathf.RoundToInt(rt.height * k));
+            bool created = rt.IsCreated();
+            if (created)
+            {
+                rt.Release(); // (its size can only change while released)
+            }
+            int wasW = rt.width, wasH = rt.height;
+            rt.width = w;
+            rt.height = h;
+            if (created)
+            {
+                rt.Create();
+            }
+            Log.InfoOnce("scopetex:" + key, $"{key}: its own scope picture drawn at {w}x{h} (it was {wasW}x{wasH}; the scope picture setting is {want}).");
+        }
+
+        /// <summary>A launcher's untextured pure black material's stand-in, a dark gunmetal (one per material).</summary>
+        private static readonly Dictionary<Material, Material> LiftedBlack = new Dictionary<Material, Material>();
+
+        /// <summary>
+        /// A launcher's parts drawn in an untextured, pure black material (the HYDRA's grip housing, "Dark Metal" at 0,0,0; the
+        /// AT-1K's controller) read in the headset as a black hole under the tube, no shape to it (user, 2026-11-03: "one rocket
+        /// launcher (not the rpg7 family) still has something black under them"): drawn in a dark gunmetal of the same shader
+        /// instead, so the part keeps its light and shade. The held weapon's own renderers only; a material with a texture,
+        /// any colour at all or a glow is left as it is.
+        /// </summary>
+        private static void LiftBlackLauncherParts(Weapon weapon, WeaponRig rig)
+        {
+            GameObject prefab = weapon != null && weapon.configuration != null ? weapon.configuration.projectilePrefab : null;
+            bool explosive = prefab != null && prefab.GetComponent<Projectile>() is ExplodingProjectile;
+            if (weapon == null || !IsLauncher(rig.Data, weapon) && !(explosive && rig.Data.Action == ActionType.SingleShot))
+            {
+                return;
+            }
+            int lifted = 0;
+            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer)
+                {
+                    continue;
+                }
+                Material[] mats = r.sharedMaterials;
+                Material[] result = mats;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    Material m = mats[i];
+                    if (!PureBlackUntextured(m))
+                    {
+                        continue;
+                    }
+                    if (!LiftedBlack.TryGetValue(m, out Material lift) || lift == null)
+                    {
+                        lift = new Material(m) { name = m.name + " (lifted)", color = new Color(0.12f, 0.12f, 0.13f, m.color.a) };
+                        LiftedBlack[m] = lift;
+                    }
+                    if (ReferenceEquals(result, mats))
+                    {
+                        result = (Material[])mats.Clone();
+                    }
+                    result[i] = lift;
+                    lifted++;
+                }
+                if (!ReferenceEquals(result, mats))
+                {
+                    r.sharedMaterials = result;
+                }
+            }
+            if (lifted > 0)
+            {
+                Log.InfoOnce("liftblack:" + rig.Data.Key, $"{rig.Data.Key}: {lifted} pure black untextured material slot(s) drawn in a dark gunmetal (a black hole in the headset).");
+            }
+        }
+
+        private static bool PureBlackUntextured(Material m)
+        {
+            if (m == null || !m.HasProperty("_Color") || m.HasProperty("_MainTex") && m.GetTexture("_MainTex") != null)
+            {
+                return false;
+            }
+            Color c = m.color;
+            if (Mathf.Max(c.r, Mathf.Max(c.g, c.b)) > 0.02f)
+            {
+                return false;
+            }
+            if (m.IsKeywordEnabled("_EMISSION") && m.HasProperty("_EmissionColor"))
+            {
+                Color e = m.GetColor("_EmissionColor");
+                if (Mathf.Max(e.r, Mathf.Max(e.g, e.b)) > 0.02f)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -1125,6 +1270,10 @@ namespace RavenfieldVR.Weapons
         /// first shot (FNX-45 family; user, 2026-10-16). A third of a second after the count goes from none to some, an
         /// animator still in the pose it held empty is sent to the one it last rested in loaded. Guns whose animator leaves
         /// that pose by itself, or never had one, are left alone (the states differ, or they are the same).
+        /// A magazine seated in the gun is sent at once: the gun's own magazine is drawn in the frame it seats, and the third of a
+        /// second in the empty pose (which hides a magazine's rounds on many mods) showed it empty between the full one in the hand
+        /// and the full one after (a see-through magazine's rounds, the BRN180 EO's; user, 2026-11-03: "put the full mag in but the
+        /// full mag glitches, becomes empty and then full again when inside the gun").
         /// </summary>
         private void LeaveEmptyPose()
         {
@@ -1164,14 +1313,16 @@ namespace RavenfieldVR.Weapons
             }
             if (_refilledAt >= 0f)
             {
-                if (Time.unscaledTime - _refilledAt < 0.3f)
+                bool magazineShown = ammo.UsesDetachableMag && ammo.MagInserted;
+                if (!magazineShown && Time.unscaledTime - _refilledAt < 0.3f)
                 {
                     return;
                 }
                 _refilledAt = -1f;
                 if (now == _emptyState && _loadedRestState != 0 && _loadedRestState != now && a.HasState(0, _loadedRestState))
                 {
-                    a.CrossFadeInFixedTime(_loadedRestState, 0.08f, 0);
+                    // (Before the animator's update this frame: at once, the magazine's rounds shown as it is drawn.)
+                    a.CrossFadeInFixedTime(_loadedRestState, magazineShown ? 0f : 0.08f, 0);
                     Log.InfoOnce($"empty-pose:{Rig.Data.Key}", $"{Rig.Data.Key}: the animator stayed in its empty pose with a round loaded; sent back to its loaded rest pose.");
                 }
                 return;
@@ -1574,10 +1725,17 @@ namespace RavenfieldVR.Weapons
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = HoldFrame(main, d);
-            var gripInGun = new RigidPose(d.GripPoint, d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
+            // Passed to this hand where it held it (WeaponSystem.PassHoldNow): the grip where it was against this hand, not in it.
+            RigidPose? passHold = _system.PassHoldNow(Weapon);
+            if (passHold.HasValue)
+            {
+                hand = hand.Multiply(passHold.Value);
+            }
+            var gripInGun = GripFrame(d);
             Quaternion gunRot = (hand.rotation * Runtime.RigidPose.Conjugate(gripInGun.rotation));
 
-            if (_twoHandBlend > 0f && d.HasSupportPoint && !d.IsPistol)
+            // (Not while held where the hand took it: steered about the grip behind that hand, the gun left it.)
+            if (_twoHandBlend > 0f && d.HasSupportPoint && !d.IsPistol && !passHold.HasValue)
             {
                 Vector3 dirGun = (d.SupportPoint - d.GripPoint).normalized;
                 Vector3 dirWorld = off.PalmCentre - hand.position; // palm centre to palm centre, as the support point is
@@ -1611,7 +1769,7 @@ namespace RavenfieldVR.Weapons
             // comes and goes over a quarter of a second: switched on and off at once, setting the stock in the shoulder or
             // taking the handguard snapped the gun up by the whole droop (up to 11 degrees), and a stock held at the edge
             // of the shoulder pocket made it flick.
-            float sagWant = VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f ? 1f : 0f;
+            float sagWant = VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f && !passHold.HasValue ? 1f : 0f;
             _sagWeight = _sagWeight < 0f ? sagWant : Mathf.MoveTowards(_sagWeight, sagWant, dt * 4f); // drawn: as it should be at once
             if (_sagWeight > 0f)
             {
@@ -1828,6 +1986,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Hand-sized throwables held by their middle, with their half thickness (m).</summary>
         private static readonly Dictionary<WeaponRigData, float> InFistHollow = new Dictionary<WeaponRigData, float>();
 
+        /// <summary>The grip's frame in the gun body: at the grip point, turned as the hand holds it (its saved turn, else along the bore).</summary>
+        internal static RigidPose GripFrame(WeaponRigData d) =>
+            new RigidPose(d.GripPoint, d.HasGripRotation ? d.GripRotation : Quaternion.LookRotation(d.AimAxis, d.Up));
+
         /// <summary>
         /// Where a hand holds a weapon by: its palm centre (a grip's), or for a hand-sized throwable held by its middle the fist's
         /// hollow. On the palm centre, which is on the palm's surface, half a grenade was in the palm (14 of 72 glove points in a
@@ -1976,7 +2138,8 @@ namespace RavenfieldVR.Weapons
                 // an inspect) must not pull the glove off the tracked hand.
                 // (The hand pose asked once a frame: a weapon with none asked twice, every frame, for the note below.)
                 RigidPose grip = default;
-                bool posed = _gripHand != null && main.Role == HandRole.Weapon && _gripHand.TryPose(Rig.Weapon.transform, out grip);
+                // (Not while it is held where the hand took it, off the grip: the glove stays on the hand, closing on the gun there.)
+                bool posed = _gripHand != null && main.Role == HandRole.Weapon && !_system.HeldWhereTaken(Weapon) && _gripHand.TryPose(Rig.Weapon.transform, out grip);
                 bool onGrip = posed && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f;
                 main.Model.SnapPose = onGrip
                     ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand

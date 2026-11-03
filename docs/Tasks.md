@@ -2819,6 +2819,36 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 357. The user's list of 2026-11-03 (fixes; then /bug-hunt and /work-until-limit 60; the game not started; nothing pushed)
+
+From the user: hand positions on some magazines; MG belts inside the box; natural hands off the gun, fading onto it; a full
+magazine flicking empty on insert (BRN180/AR18 see-through); a secondary SMG that cannot be racked; slow motion lingering on
+the hands; a yanked magazine through the grip; a launcher's black part and low-resolution scopes; the M1 Garand (rod does not
+stay back, empty clip from the pouch); a vanilla scope in front of the M417A2's own; the gun held where it is held when the
+gun hand lets go; and, experimental (off by default), magazines loaded round by round. Ten Haiku scouts read the code first.
+Built and checked offline (282 checks), each to be checked in a game run:
+- Fingers off the gun: ArmFingers.Relax (caa2b29).
+- Magazine hold: WeaponAnalyzer.MagHoldOf takes a step only with the palm within 4 cm of the magazine's box; ArmIK keeps the
+  hold on a seated magazine the hand still holds (ReloadInteractions.SeatedHold).
+- Slow motion: VRHand.CatchUp, the offset from the controller settled on the spring in the controller's frame (offline: in the
+  world frame a hand moving 1 m/s still trailed 9.5 cm after 0.5 s; by its offset under 0.01 mm).
+- Yanked magazine: MagazineProp.Routed always routes off the rail (the exit at the mouth skipped the route).
+- See-through magazine: HeldWeapon.LeaveEmptyPose sends the animator to its loaded rest pose at once when a magazine is in
+  (the 0.3 s wait showed the gun's own magazine in the empty pose, rounds hidden). A gentle seat into a locked gun still
+  shows it empty until the bolt is released (the empty pose is also the locked bolt's): check in a game run.
+- MP9 PDW: WeaponAnalyzer.AnalyzeHands takes a slot-1 gun held two-handed with a named charging handle (拉机柄, charging or
+  cocking handle) for a long gun.
+- M1 GARRET: the seated clip is not a grab target with the rod's handle in reach (en-bloc), the rod racks at half its stroke
+  (en-bloc), empties passed over within 10 cm of the pouch (the gun's reload and the free hand's pickup).
+- M417A2: HeldWeapon.AdoptOwnScopeCamera takes a camera drawing into a picture that the game missed (it looks among active
+  objects of the prefab only) as the gun's: no lens of the mod's then. If the M417A2's picture turns out to be only the
+  flat overlay's, the mod's lens is gone for it: check in a game run (the log says "taken as the gun's").
+- Belts: ReloadInteractions.BeltStartWorld 8 mm outside the box face, BeltHangEnd out over the box's side, BeltStrip.KeptOut
+  pushes any round out of the box (offline test).
+- Scopes and launchers: HeldWeapon.RaiseScopeTexture (the gun's own picture at least ScopeResolution), LiftBlackLauncherParts.
+- Hold where held: WeaponSystem.PassToOtherHand keeps the grip's pose against the new gun hand (PassHoldNow), no steer, sag
+  or grip snap of the glove meanwhile; RegripPassedWeapon takes it back by the grip with the free hand (10 cm).
+
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
       each weapon": off the gun the weapon's left hand moves its fingers with the controller (ArmFingers); on the foregrip and on

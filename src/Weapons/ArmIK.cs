@@ -122,7 +122,13 @@ namespace RavenfieldVR.Weapons
                 // not send the hand to the handguard while it holds the magazine.
                 MagHoldPose hold = _held.Rig.Data.MagHold;
                 MagazineProp mag = off.Role == HandRole.Magazine ? off.Held as MagazineProp : null;
-                bool onMag = hold != null && mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key;
+                // A magazine pushed home with the hand still on it (ReloadInteractions' seated hold): the hand stays on it as the reload
+                // holds it, on the gun's own magazine now. Dropped there, the hand went to the glove's grip each time a magazine
+                // seated, a jump of the hand on the magazine (user, 2026-11-03: "the hand positions on some mags are sometimes bugged").
+                Transform seated = off.Role == HandRole.Magazine && ReferenceEquals(off.Held, ReloadInteractions.SeatedHold)
+                                   && ReferenceEquals(_held.ActiveRig, _held.Rig) ? _held.Rig.Magazine : null;
+                bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key
+                                              || seated != null);
                 bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
                 RigidPose grip = RigidPose.Of(_left.Hand); // the authored support grip
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
@@ -177,7 +183,7 @@ namespace RavenfieldVR.Weapons
                 // 2026-10-29: the weapon's hand sat off the magazine with the handguard's grip). Eased on and off.
                 if (onMag)
                 {
-                    _lastOnMag = RigidPose.Of(mag.Go.transform).Multiply(hold.HandInMag);
+                    _lastOnMag = RigidPose.Of(mag != null && mag.Go != null ? mag.Go.transform : seated).Multiply(hold.HandInMag);
                 }
                 _onMagBlend = Mathf.MoveTowards(_onMagBlend, onMag ? 1f : 0f, Time.unscaledDeltaTime * 10f);
                 float m = _onMagBlend * _onMagBlend * (3f - 2f * _onMagBlend);

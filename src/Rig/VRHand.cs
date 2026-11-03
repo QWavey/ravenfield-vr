@@ -83,6 +83,11 @@ namespace RavenfieldVR.Rig
         // in game units, and whether it is following (it is not at full speed once it has caught up).
         private RigidPose _slowPose;
         private Vector3 _slowVelocity, _slowSpin;
+        // Catching up at full speed (CatchUp): the slowed hand's offset from the controller (tracking space) and its turn against
+        // it (the controller's own frame), settling to nothing on the slowed hand's spring, with the offset's velocity.
+        private bool _catching;
+        private Vector3 _catchOff, _catchVelocity;
+        private Quaternion _catchTurn = Quaternion.identity;
         /// <summary>The controller's place last frame (tracking space): a jump of it, not of the slowed hand, is a recentring.</summary>
         private Vector3 _slowTarget;
         private bool _slowActive;
@@ -138,20 +143,30 @@ namespace RavenfieldVR.Rig
             velocity = spin = Vector3.zero;
             // (Switched to Normal mid slow motion: caught up at full speed, as when slow motion ends, not snapped to the controller.)
             float s = Time.timeScale > 0f && !VRConfig.SlowedHands ? 1f : Time.timeScale, dt = Time.unscaledDeltaTime;
-            bool caughtUp = (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
+            // (Catching up: by the offset itself. Against the controller as it is now, a hand moving 11 mm a frame never came within 2 mm.)
+            bool caughtUp = _catching
+                ? _catchOff.sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_catchTurn, Quaternion.identity) < 0.5f
+                : (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
             bool jumped = _slowActive && (local.position - _slowTarget).sqrMagnitude > 0.5f * 0.5f;
             _slowTarget = local.position;
             if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || jumped)
             {
-                _slowActive = false;
+                _slowActive = _catching = false;
                 return false;
             }
             // (A long frame, a hitch or a load, is taken as a tenth of a second: it dropped the hand to the controller before.)
             dt = Mathf.Min(dt, 0.1f);
-            if (!_slowActive)
+            if (s >= 0.999f)
             {
-                _slowActive = true; // from where the hand is: no jump as slow motion starts
-                _slowPose = local;
+                CatchUp(ref local, dt, out velocity, out spin);
+                return true;
+            }
+            if (!_slowActive || _catching)
+            {
+                // From where the hand is drawn: no jump as slow motion starts (or starts again while catching up).
+                _slowPose = _slowActive ? _slowPose : local;
+                _slowActive = true;
+                _catching = false;
                 _slowVelocity = _slowSpin = Vector3.zero;
             }
             float step = dt * Mathf.Min(s, 1f); // the frame in game time
@@ -182,6 +197,53 @@ namespace RavenfieldVR.Rig
             velocity = _slowVelocity;
             spin = _slowSpin;
             return true;
+        }
+
+        /// <summary>
+        /// The slowed hand catching up at full speed (slow motion over, or the hands switched to Normal in it): its offset from the
+        /// controller settles on the same spring in the controller's own frame (<see cref="CatchStep"/>), so it closes whatever the
+        /// hand does. Followed in the world as in slow motion, the spring trailed a moving hand by 2v/20 (10 cm at 1 m/s, 30 at 3) and
+        /// let go only once the hand was held still: the slow motion stayed on the hands a little after it went off (user,
+        /// 2026-11-03). Its velocity and spin: the drawn hand's own over the frame, the controller's and the offset's together.
+        /// </summary>
+        private void CatchUp(ref RigidPose local, float dt, out Vector3 velocity, out Vector3 spin)
+        {
+            if (!_catching)
+            {
+                // From rest against the controller: the hand takes the controller's pace at once, as the world takes its own.
+                _catching = true;
+                _catchOff = _slowPose.position - local.position;
+                _catchTurn = Runtime.RigidPose.Conjugate(local.rotation) * _slowPose.rotation;
+                _catchVelocity = Vector3.zero;
+            }
+            CatchStep(ref _catchOff, ref _catchVelocity, ref _catchTurn, dt);
+            RigidPose was = _slowPose;
+            _slowPose = new RigidPose(local.position + _catchOff, local.rotation * _catchTurn);
+            velocity = (_slowPose.position - was.position) / dt;
+            (_slowPose.rotation * Runtime.RigidPose.Conjugate(was.rotation)).ToAngleAxis(out float turned, out Vector3 axis);
+            if (turned > 180f)
+            {
+                turned -= 360f;
+            }
+            spin = Mathf.Abs(turned) > 1e-4f && !float.IsNaN(axis.x) && !float.IsInfinity(axis.x) ? axis * (turned * Mathf.Deg2Rad / dt) : Vector3.zero;
+            _slowVelocity = velocity;
+            _slowSpin = spin;
+            local = _slowPose;
+        }
+
+        /// <summary>
+        /// One step (<paramref name="step"/> s) of a catching-up hand's offset from its controller: the position offset on the slowed
+        /// hand's spring toward none, the turn eased toward none as the slowed hand's is. The controller's motion is not in it, so
+        /// it settles while the hand moves. Pure: the offline tests check it closes a slow-motion trail within half a second.
+        /// </summary>
+        internal static void CatchStep(ref Vector3 off, ref Vector3 velocity, ref Quaternion turn, float step)
+        {
+            off = SpringStep(off, ref velocity, Vector3.zero, step);
+            float angle = Quaternion.Angle(turn, Quaternion.identity);
+            if (angle > 1e-3f)
+            {
+                turn = Quaternion.RotateTowards(turn, Quaternion.identity, Mathf.Min(angle * (1f - Mathf.Exp(-SlowSpring * step)), SlowTopTurn * Mathf.Rad2Deg * step));
+            }
         }
 
         public bool IsLeft => Side == Hand.Left;

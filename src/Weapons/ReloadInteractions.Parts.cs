@@ -343,8 +343,36 @@ namespace RavenfieldVR.Weapons
         /// <summary>When the belt was laid (Time.time), for that ease; -1 for none.</summary>
         private float _beltLaidAt = -1f;
 
-        /// <summary>Where the end of a belt hanging from the box mouth is.</summary>
-        private Vector3 BeltHangEnd => BeltStartWorld + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
+        /// <summary>
+        /// Where the end of a belt hanging from the box mouth is: out over the box's side (the gun's side the mouth is on), then
+        /// down beside it. Straight down from the mouth on the box's top, the belt hung through the box itself, each round half in
+        /// its wall, and a hand reaching for it took the box (user, 2026-11-03: "Magbelts from MGs are INSIDE the mag ... its not
+        /// grabbable").
+        /// </summary>
+        private Vector3 BeltHangEnd
+        {
+            get
+            {
+                Vector3 mouth = BeltStartWorld;
+                Bounds b = Data.MagBounds;
+                // Across the gun, toward the side of the box the mouth is on (the left where it is in the middle: most feed trays).
+                Vector3 across = Rig.DirToWorld(Vector3.Cross(Data.AimAxis, Data.Up));
+                Vector3 local = SeatPose.InverseTransformPoint(mouth) - b.center;
+                Vector3 acrossLocal = SeatPose.InverseTransformDirection(across);
+                if (Vector3.Dot(local, acrossLocal) < -0.005f)
+                {
+                    across = -across;
+                    acrossLocal = -acrossLocal;
+                }
+                // Past the box's side along it (its half width that way, less where the mouth already is) and 3 cm more.
+                float half = Mathf.Abs(acrossLocal.x) * b.extents.x + Mathf.Abs(acrossLocal.y) * b.extents.y + Mathf.Abs(acrossLocal.z) * b.extents.z;
+                float clear = Mathf.Max(0f, half - Vector3.Dot(local, acrossLocal)) + 0.03f;
+                return mouth + across * clear + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
+            }
+        }
+
+        /// <summary>How far outside the box's face the belt starts and its rounds are kept (a round is 12 mm across).</summary>
+        private const float BeltClear = 0.008f;
 
         /// <summary>
         /// Where the belt leaves the seated box: its feed mouth, the point of the insertion face nearest the feed tray (the belt
@@ -374,11 +402,12 @@ namespace RavenfieldVR.Weapons
                         lead = axis;
                     }
                 }
+                // Just outside that face (on it, the first round sat half inside the box's wall).
                 Vector3 mouth = b.center;
                 for (int axis = 0; axis < 3; axis++)
                 {
                     mouth[axis] = axis == lead
-                        ? b.center[axis] + Mathf.Sign(insertLocal[axis]) * b.extents[axis]
+                        ? b.center[axis] + Mathf.Sign(insertLocal[axis]) * (b.extents[axis] + BeltClear)
                         : Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis], b.center[axis] + b.extents[axis]);
                 }
                 return SeatPose.TransformPoint(mouth);
@@ -574,7 +603,7 @@ namespace RavenfieldVR.Weapons
             }
             // A nearly empty box has only a few rounds of belt: held, they end in the hand; hanging or laid, they start at the
             // box mouth (counted from the hand, they began in the air, 22 cm off the box for ten rounds; sweep round 2).
-            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld);
+            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: Data.MagBounds);
         }
     }
 }

@@ -656,11 +656,15 @@ namespace RavenfieldVR.Weapons
             // gun's parts: bending down to pick one up brings the pouch zone (it follows your head) down with you.
             // (In the pouch an empty one is passed over in the search itself: dropped beside a full one, it hid the full one
             // and the pouch spent spare rounds; 255.I1-5.)
-            System.Func<MagazineProp, bool> accept = _sys.Zones.InPouch(palm) ? NotEmpty : null;
+            // (By the pouch, not only in it: an empty one lying just outside its 17 cm, the M1 GARRET's clip thrown out by the hip,
+            // was the nearest thing to a squeeze at the pouch's edge and was handed over; user, 2026-11-03: "you take an empty mag
+            // from your pouch and not a full one". The one just thrown out too, caught there.)
+            bool byPouch = Vector3.Distance(palm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
+            System.Func<MagazineProp, bool> accept = byPouch ? NotEmpty : null;
             MagazineProp caught = _ejecting != null && _ejecting.DistanceTo(palm) < 0.13f
                 ? _ejecting
                 : MagazineProp.NearestDropped(palm, 0.13f, Data.Key, accept) ?? MagazineProp.NearestDropped(palm, 0.13f, null, accept);
-            if (caught != null && caught != _ejecting && caught.Rounds == 0 && _sys.Zones.InPouch(palm))
+            if (caught != null && caught.Rounds == 0 && byPouch)
             {
                 // Reaching into the pouch takes a full one from it, not the empty magazine just dropped by the hip: the
                 // emptied M1 GARRET clip lay there and was handed back (user, 2026-10-16: "I grab an empty mag from the pouch").
@@ -680,7 +684,11 @@ namespace RavenfieldVR.Weapons
                     Consider(2, d / rackRadius * 0.85f, ref choice, ref best);
                 }
             }
-            if (Manual && Ammo.UsesDetachableMag && Ammo.MagInserted && _ejecting == null && !Ammo.BoxLocked)
+            // (Not an en-bloc clip with the operating rod's handle in reach: the M1 GARRET's clip sits 5 cm from it, and a hand on the
+            // handle took the clip instead, so the rod could not be pulled back; user, 2026-11-03: "the m1garand ... the thing isnt
+            // able to be pulled back". A clip is not pulled out of an M1 by hand: the rod is worked and it pings out empty.)
+            if (Manual && Ammo.UsesDetachableMag && Ammo.MagInserted && _ejecting == null && !Ammo.BoxLocked
+                && !(Data.EnBloc && Ammo.UsesChamber && RackZoneDistance(palm) < radius * 1.3f))
             {
                 float d = Vector3.Distance(palm, SeatedMagBaseWorld);
                 if (d < radius * 1.1f)

@@ -13,7 +13,13 @@ namespace RavenfieldVR.Weapons
     {
         // ---- hands & sights ---------------------------------------------------------------------------
 
-        private static void AnalyzeHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, RigidPose gunIdle, Weapon w)
+        /// <summary>
+        /// A charging or cocking handle by an unmistakable name: a gun with one is no handgun whatever its slot. Narrower than
+        /// <see cref="ChargingName"/>, whose "charg" also takes a pistol's "Charge port".
+        /// </summary>
+        private static readonly Regex SubmachineHandleName = new Regex(@"拉机柄|charging ?handle|cocking ?handle", RegexOptions.IgnoreCase);
+
+        private static void AnalyzeHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, RigidPose gunIdle, Weapon w, Transform[] all)
         {
             d.IsPistol = d.Slot == 1;
             d.Handgun = d.IsPistol;
@@ -47,6 +53,16 @@ namespace RavenfieldVR.Weapons
                 d.IsPistol = false;
                 d.Handgun = false;
                 d.Notes += "a long gun in the secondary slot, held two-handed: a rifle ";
+            }
+            else if (d.IsPistol && handL != null && ahead > 0.1f && all != null && all.Any(t => t != null && SubmachineHandleName.IsMatch(t.name)))
+            {
+                // A compact submachine gun in the secondary slot, the left hand forward on it and a charging handle in its model (the
+                // MP9 PDW's "拉机柄", 13.7 cm ahead and 25 cm to the muzzle, under the long-gun rule above): as a handgun its handle
+                // was never taken and the rack was looked for on a slide top it does not have, so it could not be pulled back (user,
+                // 2026-11-03: "one handheld smg ... a 2ndary gun ... you cannot pull back the stuff"). Its slot-0 twin works so.
+                d.IsPistol = false;
+                d.Handgun = false;
+                d.Notes += "a submachine gun in the secondary slot, its charging handle named: a long gun ";
             }
             if (Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis) < 0.07f)
             {

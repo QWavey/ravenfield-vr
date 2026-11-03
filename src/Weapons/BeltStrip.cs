@@ -78,8 +78,11 @@ namespace RavenfieldVR.Weapons
         /// Lays the rounds along a slightly sagging curve from <paramref name="from"/> to <paramref name="to"/>, at most
         /// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box, or with
         /// <paramref name="fromMouth"/> (hanging or laid, no hand at its end) starts at the box and ends short of the far end.
+        /// A round that would lie in <paramref name="keepOutBox"/> (in <paramref name="keepOut"/>'s frame: the seated ammunition
+        /// box) is pushed out through its nearest face (<see cref="KeptOut"/>): the belt lies over the box, not through it.
         /// </summary>
-        public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false)
+        public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false,
+            Runtime.RigidPose? keepOut = null, Bounds keepOutBox = default)
         {
             // A belt whose shape has not changed keeps its last geometry: it is built round the box mouth, so a gun carried
             // along (walking, or held still) only moves it there. Within a millimetre and half a degree: compared exactly, any
@@ -117,6 +120,10 @@ namespace RavenfieldVR.Weapons
                 int b = i * n;
                 float t = RoundAt(i, count, length, fromMouth);
                 Vector3 p = span * t + sag * (4f * t * (1f - t));
+                if (keepOut.HasValue)
+                {
+                    p = KeptOut(from + p, keepOut.Value, keepOutBox) - from;
+                }
                 for (int k = 0; k < n; k++)
                 {
                     _verts[b + k] = rot * _roundVerts[k] + p;
@@ -139,6 +146,35 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
+
+        /// <summary>
+        /// <paramref name="world"/> moved out of <paramref name="box"/> (in <paramref name="frame"/>, grown by 8 mm, half a round and a
+        /// little) through the face it is nearest; as it was when outside. Pure: the offline tests check a point inside comes out
+        /// on the nearest face and one outside stays.
+        /// </summary>
+        internal static Vector3 KeptOut(Vector3 world, Runtime.RigidPose frame, Bounds box)
+        {
+            Vector3 d = frame.InverseTransformPoint(world) - box.center;
+            Vector3 ext = box.extents + Vector3.one * 0.008f;
+            float inX = ext.x - Mathf.Abs(d.x), inY = ext.y - Mathf.Abs(d.y), inZ = ext.z - Mathf.Abs(d.z);
+            if (inX <= 0f || inY <= 0f || inZ <= 0f)
+            {
+                return world;
+            }
+            if (inX <= inY && inX <= inZ)
+            {
+                d.x = (d.x < 0f ? -1f : 1f) * ext.x;
+            }
+            else if (inY <= inZ)
+            {
+                d.y = (d.y < 0f ? -1f : 1f) * ext.y;
+            }
+            else
+            {
+                d.z = (d.z < 0f ? -1f : 1f) * ext.z;
+            }
+            return frame.TransformPoint(box.center + d);
+        }
 
         /// <summary>
         /// Where round <paramref name="i"/> of <paramref name="count"/> sits along a strip <paramref name="length"/> long (0: the box

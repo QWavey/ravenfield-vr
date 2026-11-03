@@ -145,7 +145,10 @@ namespace RavenfieldVR.Weapons
                 _lastTick = stroke;
                 off.Haptic(0.006f, 220f, 0.15f);
             }
-            if (!_rackedBack && fraction >= 0.8f)
+            // An en-bloc rifle's rod at half its stroke: the M1 GARRET's 9 cm, pulled most of the way with the other hand on the
+            // stock, came short of 80% and sprang home instead of staying back for a clip (user, 2026-11-03: "it doesnt stay back
+            // when pulled back").
+            if (!_rackedBack && fraction >= (Data.EnBloc ? 0.5f : 0.8f))
             {
                 _rackedBack = true;
                 bool spent = Ammo.SpentInChamber;

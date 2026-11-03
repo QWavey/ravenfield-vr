@@ -936,8 +936,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// The support hand on the magazine as the reload animation holds it (the user, 2026-10-29: "cant we do the real poses on how
         /// the mag gets also held in the animations"): the step where the hand bone is nearest the magazine part while the magazine is
-        /// out of its seat (2 cm or more) and shown, within 20 cm; the hand bone's pose in the magazine part's frame then and its
-        /// fingers' local turns. Null when the reload never brings the hand to it (a magazine swapped by a second object, no reload).
+        /// out of its seat (2 cm or more) and shown, within 20 cm, and the palm on the magazine (within 4 cm of its box); the hand
+        /// bone's pose in the magazine part's frame then and its fingers' local turns. Null when the reload never brings the hand to
+        /// it (a magazine swapped by a second object, no reload): the hand then holds it as the glove does.
+        /// The palm on the box, not the hand bone near the part's pivot alone: a step with the hand beside the magazine, reaching
+        /// past it or on a second magazine the reload swaps in, was taken as the hold, and the weapon's hand sat off the magazine
+        /// in the player's hand, turned or beside it (user, 2026-11-03: "the hand positions on some mags are sometimes bugged").
         /// </summary>
         private static MagHoldPose MagHoldOf(WeaponRigData d, Transform root, Transform hand, Dictionary<Transform, int> index, PoseSampler sampler)
         {
@@ -958,23 +962,43 @@ namespace RavenfieldVR.Weapons
             }
             bool Set(Quaternion q) => q.x != 0f || q.y != 0f || q.z != 0f || q.w != 0f; // (zero before the part first moved)
             Vector3 seat = sampler.RelIdle[mi].position;
+            // The palm (hand-bone space, from the arm chain measured just before) against the magazine's box in its own frame.
+            Vector3? palmLocal = d.ArmLeft != null ? d.ArmLeft.PalmPoint : (Vector3?)null;
+            Bounds box = d.MagBounds;
             int best = -1;
-            float bestDistance = 0.2f;
+            float bestDistance = 0.2f, bestPalm = -1f;
             for (int s = 0; s < sampler.ReloadSteps; s++)
             {
                 if (!sampler.ReloadVisible[mi][s] || (magPos[s] - seat).sqrMagnitude < 0.02f * 0.02f || !Set(magRot[s]) || !Set(handRot[s]))
                 {
                     continue;
                 }
+                float palm = -1f;
+                if (palmLocal.HasValue)
+                {
+                    Vector3 inMag = Quaternion.Inverse(magRot[s]) * (handPos[s] + handRot[s] * palmLocal.Value - magPos[s]);
+                    Vector3 outside = Vector3.Max(Abs(inMag - box.center) - box.extents, Vector3.zero);
+                    palm = outside.magnitude;
+                    if (palm > MagHoldPalmReach)
+                    {
+                        continue;
+                    }
+                }
                 float distance = Vector3.Distance(handPos[s], magPos[s]);
                 if (distance < bestDistance)
                 {
                     bestDistance = distance;
+                    bestPalm = palm;
                     best = s;
                 }
             }
             if (best < 0)
             {
+                if (palmLocal.HasValue)
+                {
+                    Log.InfoOnce("maghold-none:" + d.Key, $"{d.Key}: its reload never has the support hand's palm on the magazine (within "
+                                                         + $"{MagHoldPalmReach * 100f:0} cm of it): the magazine is held as the glove holds it.");
+                }
                 return null;
             }
             var paths = new List<int[]>();
@@ -1002,9 +1026,13 @@ namespace RavenfieldVR.Weapons
                 Distance = bestDistance
             };
             Log.InfoOnce("maghold:" + d.Key, $"{d.Key}: the support hand holds the magazine as its reload does at {best * PoseSampler.Dt:0.00} s "
-                                            + $"({bestDistance * 100f:0} cm from the magazine part, {paths.Count} finger bone(s)).");
+                                            + $"({bestDistance * 100f:0} cm from the magazine part{(bestPalm >= 0f ? $", the palm {bestPalm * 100f:0.0} cm off its box" : "")}, "
+                                            + $"{paths.Count} finger bone(s)).");
             return hold;
         }
+
+        /// <summary>How far (m) the palm may be from the magazine's box at the step taken as the reload's hold of it.</summary>
+        private const float MagHoldPalmReach = 0.04f;
 
         /// <summary>
         /// Upper arm, forearm and hand of one first-person arm. The forearm is the first ancestor a bone-length above
