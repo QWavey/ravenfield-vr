@@ -703,9 +703,7 @@ namespace RavenfieldVR.Weapons
             // (By the pouch, not only in it: an empty one lying just outside its 17 cm, the M1 GARRET's clip thrown out by the hip,
             // was the nearest thing to a squeeze at the pouch's edge and was handed over; user, 2026-11-03: "you take an empty mag
             // from your pouch and not a full one". The one just thrown out too, caught there.)
-            // (With magazines loaded by hand only in the pouch itself: an empty one is one of the three, picked up to be loaded, and
-            // bent down to it the pouch, which follows the head, comes down with the hand.)
-            bool byPouch = HandLoading.Applies(Ammo) ? _sys.Zones.InPouch(palm) : Vector3.Distance(palm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
+            bool byPouch = Vector3.Distance(palm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
             System.Func<MagazineProp, bool> accept = byPouch ? NotEmpty : null;
             MagazineProp caught = _ejecting != null && _ejecting.DistanceTo(palm) < 0.13f
                 ? _ejecting
