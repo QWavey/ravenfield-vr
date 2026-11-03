@@ -150,7 +150,15 @@ namespace RavenfieldVR.Weapons
                 // rig built at 1/100 put its hand a palm's length off the controller (night bug hunt, 229).
                 Vector3 palmPoint = rot * c.PalmPoint;
                 Vector3 at = off.PalmCentre;
-                if (off.Model != null)
+                if (mag != null && mag.Go != null && !onMag && !mag.OnRail)
+                {
+                    // A magazine its reload does not hold (no hold of the reload for this gun, the G17's and BRN180's, or a made stand-in):
+                    // the tracked hand moved out of the gun as the magazine is, by the same amount in the same frame. From the glove's
+                    // place, which eases after a magazine kept out of the gun (at up to 4 m/s), the weapon's hand slid after the magazine
+                    // as it met the gun (user, 2026-11-03: "mags are sometimes trying to keep up with the speed of the weapons arms").
+                    at += mag.KeptOut;
+                }
+                else if (off.Model != null)
                 {
                     // Where the glove is placed off the tracked hand (holding a magazine on the well's line, kept out of the
                     // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
