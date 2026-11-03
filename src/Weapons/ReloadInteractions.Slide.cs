@@ -140,7 +140,15 @@ namespace RavenfieldVR.Weapons
             }
             if (_lifting)
             {
-                float turn = Mathf.Clamp01(_liftFrom + HandTurn(handGun));
+                // Either way about the bore: at home the handle can only go up, and the way up is worked out from the model, never
+                // seen in a game; turned the other way it would never have lifted and the rifle could not be worked.
+                float turn = Mathf.Clamp01(_liftFrom + Mathf.Abs(HandTurn(handGun)));
+                // Pulled straight back 2.5 cm without the turn: taken as lifted on the way (a VR hand pulls before it turns, and a
+                // bolt that stayed shut under a pull read as broken).
+                if (Vector3.Dot(handGun - _rackStartGun, StrokeDir) > 0.025f)
+                {
+                    turn = 1f;
+                }
                 if (Mathf.Abs(turn - _held.BoltTurn) > 0.15f)
                 {
                     off.Haptic(0.006f, 200f, 0.15f);
@@ -161,7 +169,7 @@ namespace RavenfieldVR.Weapons
             }
             if (_turningDown)
             {
-                float turn = Mathf.Clamp01(1f + HandTurn(handGun));
+                float turn = Mathf.Clamp01(1f - Mathf.Abs(HandTurn(handGun))); // (either way, as the lift: at home it can only go down)
                 _held.BoltTurn = Mathf.Min(_held.BoltTurn, Mathf.Max(turn, 0f));
                 if (turn <= 0.12f)
                 {
