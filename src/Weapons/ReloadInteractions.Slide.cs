@@ -44,6 +44,12 @@ namespace RavenfieldVR.Weapons
             return Data.MuzzlePoint + Quaternion.AngleAxis(turn * BoltLiftAngle * BoltLiftSign, Data.AimAxis) * (gun - Data.MuzzlePoint);
         }
 
+        /// <summary>
+        /// The hand on the slide in gun space, against the gun as the gun hand carries it: it trails a swing by its weight (up to 8 cm,
+        /// HeldWeapon.InertiaLag), and read against the gun as drawn a swing moved the bolt by the lag, as it moved a magazine in its well.
+        /// </summary>
+        private Vector3 HandInGun(VRHand off) => Rig.ToGun(off.Palm.position + _held.InertiaLag);
+
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
 
@@ -207,7 +213,7 @@ namespace RavenfieldVR.Weapons
         private void BeginRack(VRHand off)
         {
             _returning = false;
-            _rackStartGun = Rig.ToGun(off.Palm.position);
+            _rackStartGun = HandInGun(off);
             // How the hand takes a pistol's slide, for the whole stroke: the palm on it (over the top or on its side, the
             // fingers round it) when the palm faces the slide across it, else pinched (a slingshot from behind).
             Vector3 palmNormal = off.Palm.rotation * new Vector3(-off.Mirror, 0f, 0f);
@@ -262,7 +268,7 @@ namespace RavenfieldVR.Weapons
                 _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
                 return;
             }
-            Vector3 handGun = Rig.ToGun(off.Palm.position);
+            Vector3 handGun = HandInGun(off);
             if (UpdateBoltTurn(off, handGun))
             {
                 // Still turning the handle up: no pull yet. Let go, it stays as it is (it falls back down: StepParts).

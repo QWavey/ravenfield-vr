@@ -1414,7 +1414,7 @@ namespace RavenfieldVR.Weapons
             if (_racking)
             {
                 _rackBase = Travel > 1e-5f ? Mathf.Clamp01(_held.SlideOffset / Travel) : _rackBase;
-                _rackStartGun = Rig.ToGun(off.Palm.position);
+                _rackStartGun = HandInGun(off);
                 _tugStroke = _rackBase * StrokeLength;
                 _lastTick = _tugStroke;
             }
