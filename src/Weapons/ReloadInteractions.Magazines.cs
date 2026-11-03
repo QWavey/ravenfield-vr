@@ -367,6 +367,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Ammo.TakeSpare(rounds); // (none for an empty one)
+            if (emptyToo && rounds <= 0)
+            {
+                _sys.FlashMessage("EMPTY MAG"); // (the reserve is out: to be filled by hand, not a fault of the pouch)
+            }
             MagazineProp prop = MagazineProp.Create(Rig, kind, rounds);
             prop.Owner = Ammo;
             prop.Attach(off);

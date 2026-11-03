@@ -160,6 +160,10 @@ namespace RavenfieldVR.Weapons
                 return true;
             }
             a.TakeSpare(rounds);
+            if (rounds <= 0)
+            {
+                sys.FlashMessage("EMPTY MAG"); // (the reserve is out: to be filled by hand, not a fault of the pouch)
+            }
             prop.Owner = a;
             prop.Attach(hand);
             prop.FollowHand();
