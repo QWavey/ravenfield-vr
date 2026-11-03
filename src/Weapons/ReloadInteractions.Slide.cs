@@ -28,7 +28,21 @@ namespace RavenfieldVR.Weapons
         private float Fraction => Mathf.Clamp01(_held.SlideOffset / Travel);
 
         /// <summary>Where the hand takes the slide, handle or bolt, moving with it.</summary>
-        private Vector3 RackPointWorld => Rig.ToWorld(RackGun + StrokeDir * (StrokeLength * ((_held.BoltLockedAlone || _held.KnobLockedAlone || _held.HandleLockedAlone) && !_racking ? 0f : Fraction)));
+        private Vector3 RackPointWorld => Rig.ToWorld(TurnedWithBolt(RackGun + StrokeDir * (StrokeLength * ((_held.BoltLockedAlone || _held.KnobLockedAlone || _held.HandleLockedAlone) && !_racking ? 0f : Fraction))));
+
+        /// <summary>
+        /// A point of the bolt (gun space) turned about the bore as a bolt action's lifted handle is drawn (HeldWeapon.ApplyBoltTurn): the
+        /// hand on the handle, and the grab, stay on it as it comes up (left where it was, the hand held the air 5 cm off a handle lifted 60 degrees).
+        /// </summary>
+        private Vector3 TurnedWithBolt(Vector3 gun)
+        {
+            float turn = BoltLifts ? _held.BoltTurn : 0f;
+            if (turn <= 1e-3f)
+            {
+                return gun;
+            }
+            return Data.MuzzlePoint + Quaternion.AngleAxis(turn * BoltLiftAngle * BoltLiftSign, Data.AimAxis) * (gun - Data.MuzzlePoint);
+        }
 
         /// <summary>The rack point (gun space); for the held weapon's own rig it sits on the drawn model's surface.</summary>
         private Vector3 RackGun => ReferenceEquals(Rig, _held.Rig) ? _held.RackPointGun : Data.RackPoint;
