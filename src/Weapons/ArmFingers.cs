@@ -18,9 +18,6 @@ namespace RavenfieldVR.Weapons
         /// <summary>Each joint's pose from the animation, and what this class wrote to it last frame.</summary>
         private readonly Quaternion[][] _fingerBase, _fingerWritten;
         private bool _fingersWritten;
-        /// <summary>Scratch for a finger's joint directions and angles (kept: two new arrays a hand a frame before).</summary>
-        private readonly Vector3[] _dir = new Vector3[3];
-        private readonly float[] _baseAngle = new float[3];
 
         /// <summary>How far each joint of a pulled finger bends past the animation's pose at a full pull (degrees, knuckle to tip).</summary>
         private static readonly float[] PullBend = { 14f, 18f, 12f };
@@ -172,35 +169,69 @@ namespace RavenfieldVR.Weapons
             return chains;
         }
 
-        /// <summary>One finger bent in its plane to <paramref name="curl"/> of a fist, eased back into the animation's pose by <paramref name="onGun"/>.</summary>
-        private void Bend(int f, Transform[] j, Vector3 axis, Vector3 palm, Vector3 fingerDir, float curl, float onGun)
+        /// <summary>
+        /// One finger laid in a relaxed hand's shape and bent to <paramref name="curl"/> of a fist, then eased into the animation's
+        /// pose by <paramref name="onGun"/>. Off the gun the weapon's fingers kept their shape from its grip, only bent in the grip's
+        /// own plane: the thumb stayed wrapped round a handguard that was not there and the fingers spread as on the gun (user,
+        /// 2026-11-03: "on some hands the things are very glitched (thumb etc) because they lay in another position on the gun ...
+        /// cant we use the normal hand positions ... but when holding guns they fastly fade in the positions they are supposed to
+        /// stay in"). Each joint is aimed anew: a finger along the hand's way (wrist to knuckles), curling toward the palm; the
+        /// thumb out beside the index and a little toward the palm, curling across it. On the gun the animation's pose stays.
+        /// </summary>
+        private void Relax(int f, Transform[] j, Transform hand, Vector3 fingers, Vector3 palm, float curl, float onGun)
         {
-            Vector3[] dir = _dir;
-            float[] baseAngle = _baseAngle;
-            if (Vector3.Dot(Vector3.Cross(axis, dir[0]), palm) < 0f && f != 0)
+            Vector3 start = fingers;
+            if (f == 0)
             {
-                axis = -axis;
+                // Out to its own side (where its root sits against the hand's middle line), a little toward the palm.
+                Vector3 side = Vector3.ProjectOnPlane(Vector3.ProjectOnPlane(j[0].position - hand.position, fingers), palm);
+                start = (fingers * 0.75f + (side.sqrMagnitude > 1e-8f ? side.normalized : Vector3.zero) * 0.55f + palm * 0.35f).normalized;
             }
-            float[] fist = f == 0 ? ThumbFist : FingerFist;
-            for (int s = 0; s < j.Length; s++)
+            Vector3 axis = Vector3.Cross(start, palm); // (a positive turn about it takes the finger toward the palm)
+            if (axis.sqrMagnitude > 1e-8f)
             {
-                Vector3 incoming = s > 0 ? dir[s - 1] : Vector3.ProjectOnPlane(fingerDir, axis);
-                baseAngle[s] = Vector3.SignedAngle(Vector3.ProjectOnPlane(incoming, axis), Vector3.ProjectOnPlane(dir[s], axis), axis);
-            }
-            // Each joint by its difference from the animation's (a turn about the shared axis keeps the joints after it as
-            // they are relative to it). The thumb's root stays where the animation has it (it does not bend in that plane).
-            for (int s = 0; s < j.Length; s++)
-            {
-                if (f == 0 && s == 0)
+                axis.Normalize();
+                float[] fist = f == 0 ? ThumbFist : FingerFist;
+                float angle = 0f;
+                for (int s = 0; s < j.Length; s++)
                 {
-                    continue;
+                    angle += curl * fist[Mathf.Min(s, 2)];
+                    Transform next = s + 1 < j.Length ? j[s + 1] : j[s].childCount > 0 ? j[s].GetChild(0) : null;
+                    if (next == null)
+                    {
+                        continue;
+                    }
+                    Vector3 have = next.position - j[s].position;
+                    if (have.sqrMagnitude > 1e-10f)
+                    {
+                        j[s].rotation = Quaternion.FromToRotation(have, Quaternion.AngleAxis(angle, axis) * start) * j[s].rotation;
+                    }
                 }
-                j[s].rotation = Quaternion.AngleAxis(curl * fist[Mathf.Min(s, 2)] - baseAngle[s], axis) * j[s].rotation;
             }
             for (int s = 0; s < j.Length; s++)
             {
                 j[s].localRotation = Quaternion.Slerp(j[s].localRotation, _fingerBase[f][s], onGun);
             }
+        }
+
+        /// <summary>
+        /// The hand's way along its fingers: from the hand bone to the middle of the four fingers' first joints (their knuckles
+        /// stay put whatever the fingers do); the analysis's own finger direction where no finger was found.
+        /// </summary>
+        private Vector3 FingerWay(Transform hand, ArmChain c)
+        {
+            Vector3 sum = Vector3.zero;
+            int n = 0;
+            for (int f = 1; f < 5; f++)
+            {
+                if (_fingers[f] != null)
+                {
+                    sum += _fingers[f][0].position;
+                    n++;
+                }
+            }
+            Vector3 way = n > 0 ? sum / n - hand.position : Vector3.zero;
+            return way.sqrMagnitude > 1e-8f ? way.normalized : hand.rotation * c.FingerDir;
         }
 
         /// <summary>How far each joint bends in a full fist (degrees): the fingers' knuckle, middle and end joints, the thumb's.</summary>
@@ -210,9 +241,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// The fingers follow the controller as the VR glove's do (the trigger the index, the grip the others, or the controller's
-        /// own finger tracking), eased into the animation's pose by <paramref name="onGun"/> (1: the animation's grip as it is).
-        /// Each finger bends in its own plane (the animation's curl gives it, else across the palm), each joint to its share of
-        /// a fist. The animation's pose is read fresh whenever an animator wrote one, so nothing compounds frame to frame.
+        /// own finger tracking), in a relaxed hand's shape (<see cref="Relax"/>), eased into the animation's pose by
+        /// <paramref name="onGun"/> (1: the animation's grip as it is). The animation's pose is read fresh whenever an animator wrote
+        /// one, so nothing compounds frame to frame.
         /// </summary>
         public void Pose(VRHand vrHand, Transform hand, ArmChain c, float onGun)
         {
@@ -223,8 +254,9 @@ namespace RavenfieldVR.Weapons
             Input.Hand side = vrHand.Side;
             bool skeleton = Input.VRInput.HasSkeleton(side);
             float grip = Input.VRInput.GetGrip(side), trigger = Input.VRInput.GetTrigger(side);
-            Vector3 fingerDir = hand.rotation * c.FingerDir, palm = -(hand.rotation * c.BackDir);
-            Vector3[] dir = _dir;
+            Vector3 fingers = FingerWay(hand, c);
+            Vector3 palm = Vector3.ProjectOnPlane(-(hand.rotation * c.BackDir), fingers);
+            palm = palm.sqrMagnitude > 1e-8f ? palm.normalized : -(hand.rotation * c.BackDir);
             for (int f = 0; f < 5; f++)
             {
                 Transform[] j = _fingers[f];
@@ -245,22 +277,7 @@ namespace RavenfieldVR.Weapons
                 {
                     float curl = skeleton ? Input.VRInput.GetCurl(side, f) : f == 0 ? grip * 0.6f : f == 1 ? trigger : grip;
                     curl = Mathf.Clamp01(Mathf.Max(curl, RestCurl[f]));
-                    for (int s = 0; s < j.Length; s++)
-                    {
-                        Vector3 to = s + 1 < j.Length ? j[s + 1].position : j[s].childCount > 0 ? j[s].GetChild(0).position : j[s].position + (s > 0 ? dir[s - 1] : fingerDir) * 0.02f;
-                        dir[s] = to - j[s].position;
-                    }
-                    // The bend plane: the animation's own curl, else across the palm; turned so a positive angle closes the finger.
-                    Vector3 axis = j.Length >= 2 ? Vector3.Cross(dir[0], dir[1]) : Vector3.zero;
-                    if (axis.sqrMagnitude < 1e-10f || Vector3.Angle(dir[0], dir[1]) < 8f)
-                    {
-                        axis = Vector3.Cross(dir[0], palm);
-                    }
-                    // (No plane to bend in: the animation's pose, recorded as written below all the same; a skip left last frame's.)
-                    if (axis.sqrMagnitude >= 1e-10f)
-                    {
-                        Bend(f, j, axis.normalized, palm, fingerDir, curl, onGun);
-                    }
+                    Relax(f, j, hand, fingers, palm, curl, onGun);
                 }
                 for (int s = 0; s < j.Length; s++)
                 {
