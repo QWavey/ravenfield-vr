@@ -827,6 +827,13 @@ namespace RavenfieldVR.Weapons
                          + $"manual {Manual}, cover {(Ammo.HasCover ? Ammo.CoverOpen ? "open" : "shut" : "none")}, openness {_held.HingeOpenness:0.00}");
             }
 
+            if (choice == 0 && off.GrabPressed && HandLoading.TakeLying(off))
+            {
+                // Loading by hand: a case or round lying within reach, with a gun drawn too (only a hand no gun manages took them, and
+                // the user asked for them grabbable). HandLoading has it from here.
+                VRInput.Consume(DigitalAction.Grab, off.Side);
+                return;
+            }
             switch (choice)
             {
                 case 1:

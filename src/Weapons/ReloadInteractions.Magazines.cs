@@ -422,6 +422,10 @@ namespace RavenfieldVR.Weapons
                 UpdateSeatedHold(off);
                 return;
             }
+            if (off.Held is Casings.Case)
+            {
+                return; // a case or round in the fingers: HandLoading follows it and lets it go
+            }
             var prop = off.Held as MagazineProp;
             if (prop == null)
             {
