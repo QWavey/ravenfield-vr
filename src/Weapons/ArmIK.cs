@@ -106,7 +106,7 @@ namespace RavenfieldVR.Weapons
             Vector3 down = Vector3.down;
 
             Stretched = false;
-            if (_right.Valid && _left.Valid && _sys.HeldWhereTaken(_held.Weapon))
+            if (_right.Valid && _left.Valid && (_sys.HeldWhereTaken(_held.Weapon) || Input.VRInput.GunHandSwapped))
             {
                 SolveWhereTaken(neck, zones, down);
                 return;
@@ -241,9 +241,10 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// A gun passed to the other hand and held where that hand took it (WeaponSystem.HeldWhereTaken): each arm stays on its own side,
-        /// the model's left arm on the left controller and its right arm on the right, the one holding the gun where it holds it, the
-        /// other free, both as the glove is placed (<see cref="FreeTarget"/>), the fingers from their controllers. As the gun arm, the
+        /// A gun passed to the other hand and held where that hand took it (WeaponSystem.HeldWhereTaken), or in the hand that is not the
+        /// player's gun hand however it got there (drawn with it, say; the glove is mirrored onto the grip then): each arm stays on its own
+        /// side, the model's left arm on the left controller and its right arm on the right, the one holding the gun where it holds it,
+        /// the other free, both as the glove is placed (<see cref="FreeTarget"/>), the fingers from their controllers. As the gun arm, the
         /// model's right arm went from the left shoulder to the gun's own grip and its left arm to the right controller: the hands
         /// swapped over (user, 2026-11-03: "my hand turns and the left hand becomes the right hand then and it looks weird on weapons
         /// arms"). Taken by its grip again, the gun's right arm holds it as before.
