@@ -851,6 +851,7 @@ namespace RavenfieldVR.Weapons
             float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
             Vector3 oldBase = seat.TransformPoint(prop.TipLocal) - insert * length;
             RigidPose hold = prop.HoldPose(off);
+            hold = new RigidPose(hold.position + _held.InertiaLag, hold.rotation); // (as the rail: against the gun as carried, or a swing struck the old one)
             Vector3 rel = hold.TransformPoint(prop.TipLocal) - oldBase;
             float along = Vector3.Dot(rel, insert);
             float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
