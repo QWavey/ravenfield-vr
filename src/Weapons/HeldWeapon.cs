@@ -1736,6 +1736,7 @@ namespace RavenfieldVR.Weapons
             if (passHold.HasValue)
             {
                 hand = hand.Multiply(passHold.Value);
+                _twoHandBlend = 0f; // (the two-handed steer eases in once it is held by its grip again, not all at once)
             }
             var gripInGun = GripFrame(d);
             Quaternion gunRot = (hand.rotation * Runtime.RigidPose.Conjugate(gripInGun.rotation));
