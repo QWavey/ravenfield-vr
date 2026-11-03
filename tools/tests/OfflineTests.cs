@@ -457,7 +457,7 @@ namespace RavenfieldVR.Tests
             object s = Activator.CreateInstance(steady, true);
             object gun = Activator.CreateInstance(pose, new UnityEngine.Vector3(1f, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
             object At(float x) => Activator.CreateInstance(pose, new UnityEngine.Vector3(1f + x, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
-            float Step(float x, bool onGun = true) => ((UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(x), gun, onGun }))).x - 1f;
+            float Step(float x, bool onGun = true) => ((UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(x), gun, onGun, false }))).x - 1f;
             Step(0.1f);
             float blink = Step(0.5f), back = Step(0.1f);
             Check(Math.Abs(blink - 0.1f) < 1e-4 && Math.Abs(back - 0.1f) < 1e-4, $"Steady grip: a jump for one frame is held off ({blink:0.000}, then {back:0.000})");
@@ -474,6 +474,8 @@ namespace RavenfieldVR.Tests
                 far = Step(0.7f, false);
             }
             Check(Math.Abs(far - 0.4f) < 1e-4, $"Steady grip: a pose off the gun is held off however long it lasts ({far:0.000} after 20 frames)");
+            var passed = (UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(0.9f), gun, false, true }));
+            Check(Math.Abs(passed.x - 1.9f) < 1e-4, $"Steady grip: during the game's own reload a pose off the gun is taken as it comes ({passed.x - 1f:0.000})");
             object never = Activator.CreateInstance(steady, true);
             s = never;
             Step(0.1f, false);

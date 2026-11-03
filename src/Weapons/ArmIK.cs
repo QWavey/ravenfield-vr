@@ -116,7 +116,7 @@ namespace RavenfieldVR.Weapons
                 // Gun hand: exactly where its animation holds the grip (steadied: a frame's blink of it, or a pose off the grip altogether).
                 RigidPose animated = RigidPose.Of(_right.Hand);
                 bool onGrip = (animated.position - _held.Rig.ToWorld(_held.Rig.Data.GripPoint)).sqrMagnitude < 0.08f * 0.08f;
-                RigidPose target = _gunGrip.Steady(animated, _held.Rig.GunBodyPose, onGrip);
+                RigidPose target = _gunGrip.Steady(animated, _held.Rig.GunBodyPose, onGrip, GameReloading);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
                 GunHandError = Vector3.Distance(_right.Hand.position, target.position);
@@ -143,7 +143,7 @@ namespace RavenfieldVR.Weapons
                 RigidPose animatedGrip = RigidPose.Of(_left.Hand);
                 WeaponRigData data = _held.Rig.Data;
                 bool onSupport = !data.HasSupportPoint || (animatedGrip.position - _held.Rig.ToWorld(data.SupportPoint)).sqrMagnitude < 0.14f * 0.14f;
-                RigidPose grip = _supportGrip.Steady(animatedGrip, _held.Rig.GunBodyPose, onSupport);
+                RigidPose grip = _supportGrip.Steady(animatedGrip, _held.Rig.GunBodyPose, onSupport, GameReloading);
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
                 // Turned as the VR glove is (its tracked frame, the glove rotation setting included): fingers along its forward,
@@ -274,6 +274,9 @@ namespace RavenfieldVR.Weapons
             _onMagBlend = 0f;
         }
 
+        /// <summary>The game's own reload is playing (the assisted reload): the hands go where its animation takes them, off the gun too.</summary>
+        private bool GameReloading => _held.ActiveWeapon != null && _held.ActiveWeapon.reloading;
+
         /// <summary>The gun hand's and the support hand's poses as the gun's animation holds them, each steadied (<see cref="SteadyGrip"/>).</summary>
         private readonly SteadyGrip _gunGrip = new SteadyGrip(), _supportGrip = new SteadyGrip();
 
@@ -283,7 +286,8 @@ namespace RavenfieldVR.Weapons
         /// (<c>onGun</c> false: as far off as the glove's own rule, HeldWeapon.SnapHands) is held off for as long as it lasts. Between two of
         /// the game's own animations (a shot's and the idle after it) a hand bone was left in another pose, up to 31 cm off the gun, and
         /// the weapon's arm went there and back (user, 2026-11-03: "the left arm moves away after shooting full auto or semi ... for a
-        /// short milisecond but teleports back"). A gun whose bones never sit on its points keeps them as they are.
+        /// short milisecond but teleports back"). A gun whose bones never sit on its points keeps them as they are, and with
+        /// <c>pass</c> (the game's own reload playing) every pose is taken as it comes.
         /// </summary>
         private sealed class SteadyGrip
         {
@@ -291,8 +295,14 @@ namespace RavenfieldVR.Weapons
             private bool _known, _seenOnGun;
             private int _odd;
 
-            public RigidPose Steady(RigidPose now, RigidPose gun, bool onGun)
+            public RigidPose Steady(RigidPose now, RigidPose gun, bool onGun, bool pass)
             {
+                if (pass)
+                {
+                    _known = false; // (the reload over, the next pose is taken as the one to hold to)
+                    _odd = 0;
+                    return now;
+                }
                 RigidPose inGun = gun.Inverse().Multiply(now);
                 if (_seenOnGun && !onGun)
                 {
