@@ -2886,6 +2886,14 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   rounds taken with a gun drawn (73bc096), a hand half open on a round (9ef0db3). The tactical reload's old magazine in 0.12 s (dcb5c15).
   The first off-gun pose of a hand bone is logged once per gun and hand ("held on the gun, its bone N cm away"): to read after a play.
 
+- Still after 1.16.6: the hand against the gun as carried, not as drawn trailing by its weight (HeldWeapon.InertiaLag added to the hold) in
+  the rail (5dd0316, replacing e87c966's wider limits), the rack (4e59ce8) and the kick (c0052d0); a tilted strike needs 0.2-0.5 m/s by its
+  tilt (d14962b; the log's kicks at 0.21 and 0.24 m/s, 44 degrees); a gun in the non-dominant hand however it got there keeps each arm on its
+  side (19b43ce); melee cooldowns in real time (72f02d0, slow motion made them five times as long); the game's scope camera restored as it
+  was (fc2318a); from a scout of the panel: wrist map and scoreboard not under the panel, the wrist gone at once at death, the hold's row
+  says not with Game, steppers rounded, the panel as tall as the page shown (c628c66). The frame rate falling to 0-27% on time in the
+  user's second session was a heavier map (a new level at log line 839: GPU 13.5 ms at Ultra, 1.2, MSAA 4x; the mod's own work 1 ms), not a leak.
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
