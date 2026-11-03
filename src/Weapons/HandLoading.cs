@@ -282,9 +282,43 @@ namespace RavenfieldVR.Weapons
                         sys.Sounds.Play(MechSound.ShellIn, top, 0.5f);
                         h.Haptic(0.02f, 160f, 0.45f);
                         other.Haptic(0.02f, 160f, 0.45f);
+                        if (mag.Rounds == 1)
+                        {
+                            LookLoaded(sys, other, mag);
+                        }
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// An empty magazine given its first round: drawn as the gun's magazine looks loaded from now on. Made empty, it was a copy of
+        /// the gun's magazine as it showed then, and a see-through one (the BRN180 EO's) went on showing no rounds as it was filled.
+        /// The same magazine made again with its rounds, in the same hand, where it was; with no loaded look kept, it stays as it is.
+        /// </summary>
+        private static void LookLoaded(WeaponSystem sys, VRHand hand, MagazineProp mag)
+        {
+            if (sys.Held != null || mag.Owner == null || mag.Owner.Weapon == null || !MagazineProp.KeepsLoadedLook(mag.WeaponKey)
+                || !ReferenceEquals(hand.Held, mag))
+            {
+                return;
+            }
+            WeaponRig rig = sys.RigFor(mag.Owner.Weapon);
+            if (rig == null || rig.Data.Key != mag.WeaponKey)
+            {
+                return;
+            }
+            MagazineProp loaded = MagazineProp.Create(rig, PropKind.Magazine, mag.Rounds);
+            if (loaded == null || loaded.Go == null)
+            {
+                loaded?.Destroy();
+                return;
+            }
+            loaded.Owner = mag.Owner;
+            mag.Rounds = 0; // (its rounds are the new one's)
+            mag.Destroy(); // frees the hand
+            loaded.Attach(hand);
+            loaded.FollowHand();
         }
 
         private static void Free(VRHand h)
