@@ -254,6 +254,13 @@ namespace RavenfieldVR.Weapons
             Input.Hand side = vrHand.Side;
             bool skeleton = Input.VRInput.HasSkeleton(side);
             float grip = Input.VRInput.GetGrip(side), trigger = Input.VRInput.GetTrigger(side);
+            if (vrHand.Held is Casings.Case)
+            {
+                // A round or case in the fingers: held in a half-open hand, at the fingertips; the squeeze that holds it closed the fist
+                // over it (user, 2026-11-03: "the bullets are invisible").
+                grip = Mathf.Min(grip, 0.45f);
+                trigger = Mathf.Min(trigger, 0.45f);
+            }
             Vector3 fingers = FingerWay(hand, c);
             Vector3 palm = Vector3.ProjectOnPlane(-(hand.rotation * c.BackDir), fingers);
             palm = palm.sqrMagnitude > 1e-8f ? palm.normalized : -(hand.rotation * c.BackDir);
