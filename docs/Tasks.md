@@ -2893,10 +2893,10 @@ Then /bug-hunt with /work-until-limit 60 (the meter at 29% when it began), today
   order off; Held and WasHeld cleared in ResetSession. Not changed: a squad hold on the swapped hand reads the A's single,
   which comes on its release (needs a binding change), an unclaimed grip kept over a level load (low).
 - Round 8 (Haiku scout, holsters and pickup): UpdateLooseProps not while dead (a dud refunded to the dead soldier). Also a
-  grenade strap that throws falls back to the throw (round 5's third lead). Not changed: own weapons' return and drops' lifetime
-  in game time (slow motion stretches them: maybe meant), a holster lookup cached for the frame before a pick-up (one frame),
-  a failed equip leaving the gun hand moved (unreachable with a real prefab), restoring overlapping limb pairs at the 2 s
-  timeout (PhysX would push them apart: a jolt).
+  grenade strap that throws falls back to the throw (round 5's third lead); a pick-up's holster assigned in the same frame
+  (BodyZones.LoadoutChanged); a pick-up the game cannot spawn gives the gun hand back. Not changed: own weapons' return and
+  drops' lifetime in game time (slow motion stretches them: maybe meant), restoring overlapping limb pairs at the 2 s timeout
+  (PhysX would push them apart: a jolt).
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
