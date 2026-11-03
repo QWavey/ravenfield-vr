@@ -5926,6 +5926,24 @@ namespace RavenfieldVR.Core
                         }
                     }
                 }
+                // Slow motion off with the hand still moving (1 m/s along the side): it is back on the controller within half a second
+                // while moving (it trailed by 2v/20 and let the slow motion go only once the hand was held still; user, 2026-11-03).
+                GameManager.SetTimeScale(1f);
+                float exitGap = 0f;
+                for (float t0 = Time.realtimeSinceStartup, u = 0f; u < 0.7f; u = Time.realtimeSinceStartup - t0)
+                {
+                    Runtime.RigidPose moving = new Runtime.RigidPose(to.position + sideLocal * u, to.rotation);
+                    Rig.VRHand.Scripted[os] = Runtime.RigidPose.Of(root).Multiply(moving);
+                    yield return null;
+                    if (u > 0.5f)
+                    {
+                        exitGap = Mathf.Max(exitGap, Vector3.Distance(root.InverseTransformPoint(off.Raw.position), moving.position));
+                    }
+                }
+                Metric("slowed hands: behind the controller 0.5 s after slow motion ends, moving at 1 m/s (m)", exitGap);
+                bool lingers = exitGap > 0.02f;
+                line += $"; slow motion off while moving at 1 m/s: {exitGap * 100f:0.0} cm behind after 0.5 s{(lingers ? " (STILL SLOWED: the hand had not caught up)" : "")}";
+                stuck |= lingers;
                 if (instant || stuck)
                 {
                     Problem(line);
