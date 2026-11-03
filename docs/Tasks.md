@@ -2835,6 +2835,18 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   gun has settled loaded (HeldWeapon.SettledLoaded: unholstered, not reloading, slide home, a round counted, 0.6 s after a shot, the
   animator in one state for a third of a second, not the empty pose nor a transition); the held gun's loaded magazine pieces the same
   way; the pouch's magazine is built again once the loaded look is kept (d9dd4a7).
+  Also (fc26339): an empty magazine was a copy of the gun's own as it showed when taken, so with magazines loaded by hand an empty one
+  from the pouch showed the rounds of the full one still in the gun; each gun's magazine is now kept as it looks shot dry too
+  (HeldWeapon.SettledEmpty, MagazineProp.KeepEmptyMagazine) and an empty one is drawn with it; one emptied by its trigger is drawn
+  empty again.
+- (a) A read-only Haiku scout listed every eased or stale magazine pose. The likely one: since 1.16.2 every switch off the well's line
+  was routed round under the well (MagazineProp.Routed) over 0.14-0.3 s, its last leg on the live hand only in the last quarter, so a
+  magazine taken off its line flew after the hand; and the line's aside limit at the mouth (7 cm) was measured against the gun as
+  drawn, which trails a swing by up to 8 cm (HeldWeapon.InertiaLag), so a swing took it off the line and on again, routed each time.
+  Fixed (e87c966): a long gun's magazine is routed only when still up in the well or when a straight ease would lift a corner over
+  the mouth (StraightCutsMouth; a pistol's always, the 1.16.2 yank fix), routes take 0.1-0.2 s with overlapping legs, and the aside
+  and pull-out limits allow for the gun's lag. To check in a game run: magazines taken off and pulled away at the mouth while moving
+  the gun, and a yanked magazine on a rifle (no corner through the receiver).
 
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
