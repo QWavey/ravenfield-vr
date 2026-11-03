@@ -611,13 +611,6 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
-        /// Hides the parts of a weapon's analysis (paths in its first-person prefab) in a copy of its third-person model, where the
-        /// two share them (many mods' third-person model is the first-person gun itself): scaled to nothing and their meshes off
-        /// (at 1e-4 the vertices still sit at the pivot, and a dropped weapon's shape is fitted from the enabled renderers, so a
-        /// hidden part would leave an invisible collider beside the gun; Task 268). A part outside the third-person model is never
-        /// drawn in a copy. Returns how many were hidden.
-        /// </summary>
-        /// <summary>
         /// The magazine hidden on a copy of a weapon type's world model (<see cref="ModelFor"/>: a drop's, a holster's): its parts found
         /// from an analysis already made (never one run here). The number hidden; -1 when it cannot be told (no analysis, no model).
         /// </summary>
@@ -640,6 +633,13 @@ namespace RavenfieldVR.Weapons
             return HideInWorldModel(model.transform.GetChild(0), tpPath, paths); // (the template's third-person model)
         }
 
+        /// <summary>
+        /// Hides the parts of a weapon's analysis (paths in its first-person prefab) in a copy of its third-person model, where the
+        /// two share them (many mods' third-person model is the first-person gun itself): scaled to nothing and their meshes off
+        /// (at 1e-4 the vertices still sit at the pivot, and a dropped weapon's shape is fitted from the enabled renderers, so a
+        /// hidden part would leave an invisible collider beside the gun; Task 268). A part outside the third-person model is never
+        /// drawn in a copy. Returns how many were hidden.
+        /// </summary>
         private static int HideInWorldModel(Transform model, int[] tpPath, IEnumerable<int[]> paths)
         {
             Vector3 tiny = Vector3.one * 1e-4f;

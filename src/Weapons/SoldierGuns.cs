@@ -296,14 +296,16 @@ namespace RavenfieldVR.Weapons
                 return false; // a tube, a break action, a single shot: nothing comes out under it (or not known yet)
             }
             int rounds = gun.ammo;
-            gun.ammo = 0;
-            // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
-            // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
-            gun.OnAmmoChanged();
             MagazineProp prop = null;
             try
             {
+                // Made while his gun still has its rounds: emptied first, a mod whose model shows its magazine's rounds by the count
+                // (on the ammo change) was copied empty, a full magazine looking empty in the hand.
                 prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
+                gun.ammo = 0;
+                // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
+                // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
+                gun.OnAmmoChanged();
                 prop.Attach(hand);
                 prop.FollowHand();
             }
