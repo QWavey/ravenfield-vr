@@ -1192,3 +1192,10 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`MagazineDetent`, on; `UnderSeatedMagazineFalls`, off), bolt actions turned up before the pull, `AkMagazinesStayIn` (off)
    and curved magazines rocked in. Every new sound is a slice of the game's own weapon sounds (`GameSounds`). Not started in
    the game: every item waits for a game run.
+26. **1.16.4** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.4.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.4.exe`): the user's two plays of 1.16.3 (Tasks 359): magazines kept as they look loaded and empty
+   once the gun has settled (`HeldWeapon.SettledLoaded/SettledEmpty`), round-sized pieces drawn in a full magazine before that,
+   magazines taken off the well's line routed only when needed (`MagazineProp.StraightCutsMouth`), the line's limits allowing for the
+   gun's weight lag, the weapon's arms with magazines and passed guns (`ArmIK.SolveWhereTaken`, `SteadyGrip`), a machine gun's belt
+   (hanging with the cover shut, left out of the box's copy), magazines loaded by hand in the user's second version (reserve as
+   usual, empty magazines and rounds without end), holsters without an ejected magazine, game-sound slices faded.
