@@ -2883,6 +2883,15 @@ Then /bug-hunt with /work-until-limit 60 (the meter at 29% when it began), today
 - Between rounds: live rounds lying around when the cases are cleared go back to their reserve; the two-handed steer eases in
   after a regrip; autotest HandLoadingCheck (VRConfig.TestLoadByHand: the pouch's two empty magazines then none, a cleared one
   back with its rounds, the reserve untouched).
+- Round 6 (Haiku scout, soldier grabbing): BodyImpacts.DisarmExpired from BodyGrab.Update (a soldier up inside the armed 3 s
+  stayed limp and armed, his ragdoll off); held bodies re-ignore the player on each PlayerGeneration. Not changed: the game's
+  fall damage stacking with the mod's slam damage on one landing (the user's call whether both should count), the 2 s
+  self-pair timeout leaving overlapping limb pairs ignored (visual), the fist layer picked among active colliders only (low).
+- Round 7 (Haiku scout, input): with the gun swapped, Pause and Loadout (the magazine release's long and double) and FireMode
+  (the free hand's long) are not sent (Slot moves only the singles; the pause menu stays on the lower button's double press); a
+  trigger held through a hand swap is not the game's Use until let go; the double press's second press latches the squad
+  order off; Held and WasHeld cleared in ResetSession. Not changed: a squad hold on the swapped hand reads the A's single,
+  which comes on its release (needs a binding change), an unclaimed grip kept over a level load (low).
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
