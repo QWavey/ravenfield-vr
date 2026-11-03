@@ -134,16 +134,31 @@ namespace RavenfieldVR.Weapons
 
             float stroke = fraction * StrokeLength;
             // The pull tugs the gun toward the hand (and a push home toward the muzzle), a few millimetres, as in Boneworks.
+            // A spring-driven slide or handle pulls back harder the further it goes, as its spring is compressed: the tug and the
+            // ticks in the hand grow from a third at the start to full at the back (user, 2026-11-03, idea 2). A bolt or pump moved by
+            // hand has no spring: even all the way.
+            float spring = HandDriven ? 1f : 0.35f + 0.65f * fraction;
             float moved = stroke - _tugStroke;
             _tugStroke = stroke;
             if (Mathf.Abs(moved) > 1e-5f)
             {
-                _held.Nudge(Rig.DirToWorld(StrokeDir) * Mathf.Clamp(moved * 2.5f, -0.05f, 0.05f));
+                _held.Nudge(Rig.DirToWorld(StrokeDir) * Mathf.Clamp(moved * 2.5f * spring, -0.05f, 0.05f));
             }
             if (Mathf.Abs(stroke - _lastTick) > 0.01f)
             {
                 _lastTick = stroke;
-                off.Haptic(0.006f, 220f, 0.15f);
+                off.Haptic(0.006f, 230f - 60f * fraction * spring, 0.06f + 0.24f * spring);
+            }
+            // Against the back stop: a firm knock in the hand, once a stroke.
+            if (fraction >= 0.985f && !_atBackStop)
+            {
+                _atBackStop = true;
+                off.Haptic(0.03f, 90f, 0.75f);
+                _held.Nudge(Rig.DirToWorld(StrokeDir) * 0.006f);
+            }
+            else if (fraction < 0.9f)
+            {
+                _atBackStop = false;
             }
             // An en-bloc rifle's rod at half its stroke: the M1 GARRET's 9 cm, pulled most of the way with the other hand on the
             // stock, came short of 80% and sprang home instead of staying back for a clip (user, 2026-11-03: "it doesnt stay back
@@ -166,14 +181,17 @@ namespace RavenfieldVR.Weapons
             }
             else if (HandDriven && _rackedBack && fraction <= 0.1f)
             {
-                // Pushed home by hand: it strips and chambers a round as it closes.
+                // Pushed home by hand: it strips and chambers a round as it closes, as hard as it was pushed (slammed home it
+                // clacks and jolts the gun; eased home it closes softly: user, 2026-11-03, idea 3).
+                float closing = Mathf.Abs(moved) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f);
+                float hard = Mathf.Clamp01(0.25f + closing / 1.2f);
                 _rackedBack = false;
                 Ammo.BoltOpen = false;
                 Ammo.RackForward();
-                _held.Nudge(Rig.AimWorld * 0.1f, 10f); // the bolt or pump closing jolts the gun
-                _held.Sounds.Play(MechSound.SlideForward, RackPointWorld);
-                off.Haptic(0.04f, 120f, 0.6f);
-                _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
+                _held.Nudge(Rig.AimWorld * (0.1f * hard), 10f); // the bolt or pump closing jolts the gun
+                _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, hard);
+                off.Haptic(0.04f, 120f, 0.3f + 0.3f * hard);
+                _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f * hard);
             }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
@@ -233,9 +251,12 @@ namespace RavenfieldVR.Weapons
                 Ammo.RackForward();
                 if (!Ammo.SlideLocked)
                 {
-                    _held.Sounds.Play(MechSound.SlideForward, RackPointWorld);
-                    off.Haptic(0.04f, 120f, 0.6f);
-                    _sys.Rig.Dominant.Haptic(0.04f, 120f, 0.5f);
+                    // As loud as the run home it has left: let go from the back it slams, ridden most of the way home it only
+                    // clicks shut (idea 3).
+                    float slam = Mathf.Lerp(0.3f, 1f, Fraction);
+                    _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, slam);
+                    off.Haptic(0.04f, 120f, 0.3f + 0.3f * slam);
+                    _sys.Rig.Dominant.Haptic(0.04f, 120f, 0.5f * slam);
                 }
             }
             _rackedBack = false;

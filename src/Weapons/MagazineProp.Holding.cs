@@ -902,6 +902,19 @@ namespace RavenfieldVR.Weapons
 
         private bool _touchingGun;
         private Vector3 _lastScrapeAt;
+
+        /// <summary>Its tip within 4.5 cm of the well's mouth (where it goes in): against the edge of the well, not the gun's side.</summary>
+        private bool AtWellMouth(HeldWeapon gun)
+        {
+            WeaponRig rig = gun.Rig;
+            if (Kind != PropKind.Magazine || Go == null || rig == null || rig.GunBody == null)
+            {
+                return false;
+            }
+            RigidPose seat = rig.GunBodyPose.Multiply(rig.Data.MagSeat);
+            Vector3 mouth = seat.TransformPoint(TipLocal) - seat.TransformDirection(InsertDirLocal) * RailLength;
+            return (TipWorld - mouth).sqrMagnitude < 0.045f * 0.045f;
+        }
         // Each magazine's own: shared, the palmed one's knock silenced the fresh one's in the same frame (255.I1-6).
         private float _lastContactSound = -1f;
 
@@ -937,6 +950,14 @@ namespace RavenfieldVR.Weapons
                     HeldBy.Haptic(0.012f, 220f, 0.15f);
                     _lastContactSound = now;
                     _lastScrapeAt = drawn;
+                    if (AtWellMouth(gun))
+                    {
+                        // Ground along the well's edge, looking for the way in: heard too, quietly, as the gun's own magazine going in
+                        // starts (a slice of its game sound, a little lower; user, 2026-11-03, idea 1). Only there: elsewhere on the
+                        // gun a touch stays felt only (user, 2026-10-16).
+                        HeldBy.Haptic(0.02f, 240f, 0.25f);
+                        GameSounds.PlayPart(gun.Rig.Data, MechSound.MagIn, TipWorld, 0f, 0.3f, 0.12f + 0.18f * Mathf.Clamp01(speed), Random.Range(0.86f, 0.94f));
+                    }
                 }
             }
             _touchingGun = touching;

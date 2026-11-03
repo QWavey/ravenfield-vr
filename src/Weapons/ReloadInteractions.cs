@@ -33,6 +33,12 @@ namespace RavenfieldVR.Weapons
         private bool _rackPalm;
         /// <summary>Where along the stroke the hand was last frame (for the tug the pull gives the gun).</summary>
         private float _tugStroke;
+        /// <summary>The slide's speed home under its spring (m/s), from where it was let go (see StepParts).</summary>
+        private float _returnSpeed;
+        /// <summary>The spring's pull on a released slide (m/s per s), its top speed, and the speed whose landing jolts the gun fully.</summary>
+        private const float ReturnAccel = 250f, ReturnTop = 8f, ReturnSlam = 5f;
+        /// <summary>Against the back stop this stroke (its knock felt once).</summary>
+        private bool _atBackStop;
         private Vector3 _rackStartGun;
         /// <summary>Where the hand took the pump (gun space, the pump forward): the hand stays there as the pump moves.</summary>
         private Vector3 _pumpGraspRestGun;
@@ -901,6 +907,10 @@ namespace RavenfieldVR.Weapons
         internal void StepParts()
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            if (!_returning)
+            {
+                _returnSpeed = 0f; // (each return from a standing start)
+            }
             if (Ammo != null && Ammo.SlideLocked && !_racking)
             {
                 _held.SlideOffset = Travel;
@@ -916,12 +926,16 @@ namespace RavenfieldVR.Weapons
             }
             else if (_returning)
             {
-                // Spring-driven slides slam home in a few hundredths of a second, jolting the gun forward and down.
-                _held.SlideOffset = Mathf.MoveTowards(_held.SlideOffset, 0f, 6f * dt);
+                // Spring-driven slides slam home in a few hundredths of a second, jolting the gun forward and down: from where it was
+                // let go it speeds up all the way home (it went at a steady 6 m/s), and the jolt is as hard as it got fast, so one
+                // let go from the back slams and one ridden nearly home closes gently (user, 2026-11-03, idea 3).
+                _returnSpeed = Mathf.Min(_returnSpeed + ReturnAccel * dt, ReturnTop);
+                _held.SlideOffset = Mathf.MoveTowards(_held.SlideOffset, 0f, _returnSpeed * dt);
                 if (_held.SlideOffset <= 0f)
                 {
                     _returning = false;
-                    _held.Nudge(Rig.AimWorld * 0.22f, 25f);
+                    _held.Nudge(Rig.AimWorld * (0.22f * Mathf.Clamp01(_returnSpeed / ReturnSlam)), 25f);
+                    _returnSpeed = 0f;
                 }
             }
             else if (!_racking)

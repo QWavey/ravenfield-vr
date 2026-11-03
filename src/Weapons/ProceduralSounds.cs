@@ -155,6 +155,38 @@ namespace RavenfieldVR.Weapons
             src.PlayOneShot(_clips[(int)sound], volume);
         }
 
+        /// <summary>
+        /// A part of one of the game's own clips (GameSounds: a weapon's reload sound sliced to one detail) through a 3D voice of
+        /// the pool, from <paramref name="start"/> for <paramref name="length"/> seconds of it, at a level and pitch. False for a
+        /// clip it cannot play (none, or not loaded).
+        /// </summary>
+        public bool PlayGameClip(AudioClip clip, float start, float length, Vector3 position, float volume, float pitch)
+        {
+            if (clip == null || clip.loadState == AudioDataLoadState.Failed || length <= 0f)
+            {
+                return false;
+            }
+            int voice = TakeVoice();
+            AudioSource src = _pool[voice];
+            if (src.outputAudioMixerGroup == null)
+            {
+                RouteToMixer();
+            }
+            pitch = Mathf.Clamp(pitch, 0.5f, 2f);
+            src.Stop();
+            src.transform.position = position;
+            src.clip = clip;
+            src.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.01f));
+            src.pitch = pitch;
+            src.volume = Mathf.Clamp01(volume);
+            src.Play();
+            // (Cut at its end: a slice of a reload sound, not the rest of the reload after it.)
+            float real = length / pitch;
+            src.SetScheduledEndTime(AudioSettings.dspTime + real);
+            _busyUntil[voice] = Time.unscaledTime + real;
+            return true;
+        }
+
         // ---- synthesis helpers (t = seconds, n = white noise sample) --------------------------------
 
         private static AudioClip Build(string name, float seconds, System.Random rng, Func<float, float, float> fn)
