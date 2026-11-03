@@ -396,6 +396,7 @@ namespace RavenfieldVR.Core
             // it made the next headset or dashboard edge do the wrong thing (lifecycle hunt, 2026-10-21).
             _pausedForDashboard = false;
             _pausedForHeadset = false;
+            Input.VRInput.OnSceneChanged();
             _speedBeforePause = 1f;
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
             SmallShadows.OnSceneChanged();

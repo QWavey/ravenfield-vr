@@ -63,6 +63,12 @@ namespace RavenfieldVR.Input
         // before the hand reaches the part still takes it.
         private static readonly bool[,] Unclaimed = new bool[DigitalCount, 3];
 
+        /// <summary>
+        /// A level loaded: a squeeze still held from the last one claims nothing in this one (a grip closed on nothing and kept
+        /// closed through the load took the first cockpit rim the hand reached; input scout, 2026-11-03).
+        /// </summary>
+        internal static void OnSceneChanged() => System.Array.Clear(Unclaimed, 0, Unclaimed.Length);
+
         private static readonly float[] Trigger = new float[2];
         private static readonly float[] Grip = new float[2];
         public static Vector2 Move { get; private set; }
