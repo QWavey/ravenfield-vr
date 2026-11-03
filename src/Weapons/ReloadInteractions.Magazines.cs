@@ -604,11 +604,7 @@ namespace RavenfieldVR.Weapons
             // A magazine still in its well is held by the well the same way: it slides out along it, never sideways out of it.
             bool inWell = prop.Kind == PropKind.Magazine && prop.RailDepth > 0.01f;
             float offLine = prop.Kind == PropKind.Rocket ? -RocketLineAhead - 0.03f : -0.03f;
-            // Aside measured against the gun as drawn, which trails a swing by its weight (up to 8 cm, HeldWeapon.InertiaLag): that much
-            // more is allowed, or a swing with the magazine at the mouth took it off the line and on again, each time flown round under
-            // the well to the hand (user, 2026-11-03: "mags ... flying in the air trying to correct their positions").
-            float lag = _held.InertiaLag.magnitude;
-            if (along < offLine - lag || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0 + lag)
+            if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
                 prop.RailOutOnly = false;
@@ -729,7 +725,14 @@ namespace RavenfieldVR.Weapons
         /// How far along the well's rail the held prop's tip is (from the rail's mouth; the rail's length = seated), and how
         /// far off the rail's line.
         /// </summary>
-        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral) => PoseAlongRail(prop, prop.HoldPose(off), out lateral);
+        private float HandAlongRail(VRHand off, MagazineProp prop, out float lateral)
+        {
+            // Against the gun as the gun hand carries it, not as drawn: it trails a swing by its weight (up to 8 cm, HeldWeapon.InertiaLag)
+            // and the hand does not, so a swing moved a magazine in the well in or out by the lag, or took it off the line and on again,
+            // each time flown round to the hand (user, 2026-11-03: "mags ... flying in the air trying to correct their positions").
+            RigidPose hold = prop.HoldPose(off);
+            return PoseAlongRail(prop, new RigidPose(hold.position + _held.InertiaLag, hold.rotation), out lateral);
+        }
 
         /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>
         private float _gripWellDepth = -1f;
