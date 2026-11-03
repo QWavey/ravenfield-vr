@@ -2848,6 +2848,21 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   and pull-out limits allow for the gun's lag. To check in a game run: magazines taken off and pulled away at the mouth while moving
   the gun, and a yanked magazine on a rifle (no corner through the receiver).
 
+- More from the run (e87c966..): weapon's arms on a magazine the reload does not hold move out of the gun with it (3e6130b); a magazine
+  let go at the pouch with the gun away is stowed (ba3eb04); with the gun away a squeeze at the pouch takes a magazine (b04e6e6); the
+  bolt lift counts either way and a 2.5 cm pull lifts it (fd349da), the rack point turns with the handle (c866e5a); game-sound slices
+  fade in and out (915afde); settled loaded ignores an empty pose that is the rest pose (4d799b1).
+- From the user's second play, 2026-11-03 evening (still in the game): (d) "magbelt is getting split when reacting with the physics
+  of the MG mag": the box copied for the hand took the gun model's laid belt with it, a stiff bent length; left out now (45921b8).
+  (e) "magbelt is sometimes dissapearing when inserted": a box put in with the cover shut showed no belt; it hangs from the box now
+  whatever the cover (98a89b8). (f) "the left arm moves away after shooting ... for a short milisecond but teleports back": the hand
+  bones' poses from the gun's animation are steadied against a frame's blink (405ee48). (g) the gun passed to the other hand swapped
+  the weapon's arms over: each arm stays on its side while held where taken (405ee48). (h) Loading by hand, the user's second
+  version: "when this setting is on everything is normal but I have infinite bullets, so when i dont have any mags left that are full,
+  I can take infinite empty mags and fill them up with bullets myself" (9ef1eec): magazines from the reserve as without the option,
+  empty ones without end once it is out, rounds from the pouch without end; "the bullets are invisible": with the weapon's arms the
+  round sat inside their fist, now out at the fingertips (logged once). To check in a game run: all of (a)-(h).
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
