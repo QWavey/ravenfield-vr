@@ -424,6 +424,10 @@ namespace RavenfieldVR.Core
             {
                 VRConfig.RenderScale.Value = p.RenderScale;
             }
+            // The eyes back at the setting's own scale: the hold's last step lowers them, and only a changed render scale or a hold
+            // step writes them, so picking Game (no render scale of its own) from a held preset left them 15% under the setting
+            // for the rest of the session (graphics scout, 2026-11-03).
+            ApplyRenderScaleIfHeld();
             Apply();
         }
 

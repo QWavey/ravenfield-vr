@@ -112,6 +112,12 @@ namespace RavenfieldVR.Core
                 {
                     ShowAll();
                 }
+                // With the hold on, the level is scanned when it was meant to be, a few seconds in: left to the hold's first step,
+                // the scan's whole-scene searches came in the very frame the frames were already late (graphics scout, 2026-11-03).
+                if (_scanAt >= 0f && Time.unscaledTime >= _scanAt && VRConfig.HoldFrameRate.Value && Bench == null)
+                {
+                    Scan();
+                }
                 return;
             }
             float now = Time.unscaledTime;
