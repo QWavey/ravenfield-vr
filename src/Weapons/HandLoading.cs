@@ -324,7 +324,17 @@ namespace RavenfieldVR.Weapons
                 Casings.Follow(c, h);
                 if (!h.GrabHeld || !Enabled)
                 {
-                    Casings.LetGo(c, h.ThrowVelocity(), h.AngularVelocity);
+                    if (c.Live && c.Owner != null && c.Owner.Weapon != null && sys.Zones.InPouch(h.Palm.position) && h.BodyThrowVelocity().magnitude < 1.2f)
+                    {
+                        // A live round let go at the pouch goes back into it, as a magazine does (it fell to the ground, out of the reserve).
+                        c.Owner.ReturnSpareCapped(1);
+                        Casings.LoadedAway(c);
+                        h.Haptic(0.015f, 150f, 0.25f);
+                    }
+                    else
+                    {
+                        Casings.LetGo(c, h.ThrowVelocity(), h.AngularVelocity);
+                    }
                     Free(h);
                     continue;
                 }
