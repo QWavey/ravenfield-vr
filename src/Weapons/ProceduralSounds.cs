@@ -15,6 +15,8 @@ namespace RavenfieldVR.Weapons
         private const int Rate = 44100;
         private readonly AudioClip[] _clips;
         private readonly AudioSource[] _pool = new AudioSource[8];
+        /// <summary>Each voice's fade for a slice of a game clip (PlayGameClip): in and out, so its cut ends do not click.</summary>
+        private readonly SliceFader[] _faders = new SliceFader[8];
         private readonly GameObject _host;
         private int _next;
 
@@ -81,6 +83,8 @@ namespace RavenfieldVR.Weapons
                 src.rolloffMode = AudioRolloffMode.Linear;
                 src.dopplerLevel = 0f;
                 _pool[i] = src;
+                _faders[i] = child.AddComponent<SliceFader>();
+                _faders[i].Src = src;
             }
             RouteToMixer();
         }
@@ -136,6 +140,7 @@ namespace RavenfieldVR.Weapons
             int voice = TakeVoice();
             AudioSource src = _pool[voice];
             _busyUntil[voice] = 0f;
+            _faders[voice].Active = false; // (a slice's fade left on the voice would set this sound's level)
             if (src.outputAudioMixerGroup == null)
             {
                 RouteToMixer();
@@ -178,12 +183,14 @@ namespace RavenfieldVR.Weapons
             src.clip = clip;
             src.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.01f));
             src.pitch = pitch;
-            src.volume = Mathf.Clamp01(volume);
-            src.Play();
-            // (Cut at its end: a slice of a reload sound, not the rest of the reload after it.)
             float real = length / pitch;
-            src.SetScheduledEndTime(AudioSettings.dspTime + real);
-            _busyUntil[voice] = Time.unscaledTime + real;
+            // Faded in and out (SliceFader): begun in the middle of the clip and cut at its end, the waveform jumped and clicked, as the
+            // weapon's own slices did before they were faded (WeaponSoundPlayer).
+            _faders[voice].Begin(Mathf.Clamp01(volume), real);
+            src.Play();
+            // (Cut at its end, once faded out: a slice of a reload sound, not the rest of the reload after it.)
+            src.SetScheduledEndTime(AudioSettings.dspTime + real + SliceFader.Tail);
+            _busyUntil[voice] = Time.unscaledTime + real + SliceFader.Tail;
             return true;
         }
 
@@ -250,6 +257,48 @@ namespace RavenfieldVR.Weapons
                 {
                     UnityEngine.Object.Destroy(c);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A voice's level over a slice of a game clip: up from nothing in its first 12 ms and down to nothing over its last 30 ms (the voice
+    /// stops <see cref="Tail"/> after that). Set each frame; Unity ramps a source's level within the mix, so a frame's step is smooth.
+    /// </summary>
+    internal sealed class SliceFader : MonoBehaviour
+    {
+        /// <summary>How long after the slice's end the voice stops (it is faded out by then).</summary>
+        internal const float Tail = 0.02f;
+        private const float FadeIn = 0.012f, FadeOut = 0.03f;
+
+        internal AudioSource Src;
+        internal bool Active;
+        private float _level, _from, _until;
+
+        internal void Begin(float level, float length)
+        {
+            _level = level;
+            _from = Time.unscaledTime;
+            _until = _from + length;
+            Active = true;
+            if (Src != null)
+            {
+                Src.volume = 0f;
+            }
+        }
+
+        private void Update()
+        {
+            if (!Active || Src == null)
+            {
+                return;
+            }
+            float now = Time.unscaledTime;
+            float k = Mathf.Min(Mathf.Clamp01((now - _from) / FadeIn), Mathf.Clamp01((_until - now) / FadeOut));
+            Src.volume = _level * k;
+            if (now >= _until + Tail)
+            {
+                Active = false;
             }
         }
     }
