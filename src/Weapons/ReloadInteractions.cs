@@ -369,6 +369,13 @@ namespace RavenfieldVR.Weapons
                     // 2026-11-03: "you take an empty mag from your pouch and not a full one").
                     MagazineProp.KeepLoadedMagazine(Rig);
                 }
+                else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds == 0 && !Ammo.Chambered && !Data.EnBloc
+                         && !MagazineProp.KeepsEmptyLook(Data.Key) && _held.SettledEmpty)
+                {
+                    // And as it sits shot dry: an empty magazine (from the pouch with magazines loaded by hand) is drawn with it, not as
+                    // the full one the gun may hold when it is taken. (Not an en-bloc clip: it leaves the gun as it empties.)
+                    MagazineProp.KeepEmptyMagazine(Rig);
+                }
                 if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !VRGameInput.GunInputBlocked)
                 {
                     VRInput.Consume(DigitalAction.MagRelease, dom.Side);

@@ -1270,10 +1270,11 @@ namespace RavenfieldVR.Weapons
         private bool _wasEmpty;
         private float _lastShotAt = -10f;
 
-        /// <summary>The animator state <see cref="SettledLoaded"/> last saw, since when, and on which frame (the watch is frame to frame).</summary>
+        /// <summary>The animator state <see cref="Settled"/> last saw, since when, on which frame (the watch is frame to frame), and for which.</summary>
         private int _settleState;
         private float _settleSince = -1f;
         private int _settleFrame = -10;
+        private bool _settleLoaded;
 
         /// <summary>
         /// The gun is drawn and sits at rest with a round in: drawn out (the game's unholster over), not reloading, the slide home, a
@@ -1283,26 +1284,33 @@ namespace RavenfieldVR.Weapons
         /// looked empty in the hand though it went in full (user, 2026-11-03: "when i take a mag and look at them they are empty but
         /// when i ... just insert they are full").
         /// </summary>
-        internal bool SettledLoaded
+        internal bool SettledLoaded => Settled(true);
+
+        /// <summary>
+        /// The gun is drawn and sits shot dry: nothing counted by the game (no round chambered, the magazine empty), not reloading, half a
+        /// second after the last shot, its animator in one state for a third of a second, not a transition (its empty pose, as it shows an
+        /// empty magazine: MagazineProp.KeepEmptyMagazine).
+        /// </summary>
+        internal bool SettledEmpty => Settled(false);
+
+        private bool Settled(bool loaded)
         {
-            get
+            Weapon w = ActiveWeapon;
+            if (w == null || !w.unholstered || w.reloading || (loaded ? w.ammo <= 0 || SlideOffset > 0.002f : w.ammo > 0) || Time.unscaledTime - _lastShotAt < 0.6f)
             {
-                Weapon w = ActiveWeapon;
-                if (w == null || !w.unholstered || w.reloading || w.ammo <= 0 || SlideOffset > 0.002f || Time.unscaledTime - _lastShotAt < 0.6f)
-                {
-                    _settleSince = -1f;
-                    return false;
-                }
-                int now = w.HasActiveAnimator() && w.animator.layerCount > 0 ? w.animator.GetCurrentAnimatorStateInfo(0).fullPathHash : 0;
-                bool moving = now != 0 && (w.animator.IsInTransition(0) || now == _emptyState);
-                if (moving || now != _settleState || _settleSince < 0f || Time.frameCount - _settleFrame > 1)
-                {
-                    _settleState = now;
-                    _settleSince = moving ? -1f : Time.unscaledTime;
-                }
-                _settleFrame = Time.frameCount;
-                return _settleSince >= 0f && Time.unscaledTime - _settleSince >= (now != 0 ? 0.33f : 1f);
+                _settleSince = -1f;
+                return false;
             }
+            int now = w.HasActiveAnimator() && w.animator.layerCount > 0 ? w.animator.GetCurrentAnimatorStateInfo(0).fullPathHash : 0;
+            bool moving = now != 0 && (w.animator.IsInTransition(0) || loaded && now == _emptyState);
+            if (moving || now != _settleState || loaded != _settleLoaded || _settleSince < 0f || Time.frameCount - _settleFrame > 1)
+            {
+                _settleState = now;
+                _settleLoaded = loaded;
+                _settleSince = moving ? -1f : Time.unscaledTime;
+            }
+            _settleFrame = Time.frameCount;
+            return _settleSince >= 0f && Time.unscaledTime - _settleSince >= (now != 0 ? 0.33f : 1f);
         }
 
         /// <summary>

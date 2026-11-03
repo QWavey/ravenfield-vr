@@ -182,6 +182,10 @@ namespace RavenfieldVR.Weapons
                 float fullness = mag.Owner != null && mag.Owner.Weapon != null ? (float)mag.Rounds / mag.Owner.Capacity : 0.5f;
                 GameSounds.PlayPart(mag.Data, MechSound.MagOut, top, 0f, 0.25f, 0.25f, 1f + 0.3f * fullness);
                 h.Haptic(0.015f, 180f, 0.3f);
+                if (mag.Rounds == 0)
+                {
+                    LookAgain(sys, h, mag); // its last round out: drawn as the gun's magazine looks empty
+                }
             }
         }
 
@@ -287,7 +291,7 @@ namespace RavenfieldVR.Weapons
                         other.Haptic(0.02f, 160f, 0.45f);
                         if (mag.Rounds == 1)
                         {
-                            LookLoaded(sys, other, mag);
+                            LookAgain(sys, other, mag);
                         }
                     }
                 }
@@ -297,12 +301,13 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// An empty magazine given its first round: drawn as the gun's magazine looks loaded from now on. Made empty, it was a copy of
         /// the gun's magazine as it showed then, and a see-through one (the BRN180 EO's) went on showing no rounds as it was filled.
-        /// The same magazine made again with its rounds, in the same hand, where it was; with no loaded look kept, it stays as it is.
+        /// Its last round let out: drawn as the gun's magazine looks empty (MagazineProp.KeepsEmptyLook), not with the rounds it showed.
+        /// The same magazine made again with its rounds, in the same hand, where it was; with no such look kept, it stays as it is.
         /// </summary>
-        private static void LookLoaded(WeaponSystem sys, VRHand hand, MagazineProp mag)
+        private static void LookAgain(WeaponSystem sys, VRHand hand, MagazineProp mag)
         {
-            if (sys.Held != null || mag.Owner == null || mag.Owner.Weapon == null || !MagazineProp.KeepsLoadedLook(mag.WeaponKey)
-                || !ReferenceEquals(hand.Held, mag))
+            bool kept = mag.Rounds > 0 ? MagazineProp.KeepsLoadedLook(mag.WeaponKey) : MagazineProp.KeepsEmptyLook(mag.WeaponKey);
+            if (sys.Held != null || mag.Owner == null || mag.Owner.Weapon == null || !kept || !ReferenceEquals(hand.Held, mag))
             {
                 return;
             }
