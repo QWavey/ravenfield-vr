@@ -295,6 +295,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Where a held case or round sits against the palm (palm frame): its middle between the thumb and the fingers' first joints.</summary>
         private static readonly Vector3 HeldAt = new Vector3(0f, 0.012f, 0.05f);
+        /// <summary>Where it sits with the weapon's arms drawn (palm frame): out past the fingertips of a closed fist, a little above them.</summary>
+        private static readonly Vector3 HeldOut = new Vector3(0f, 0.025f, 0.11f);
 
         /// <summary>Whether a collider is one of the cases or rounds lying around (bullets push them).</summary>
         internal static bool IsCase(Collider c) => c != null && c.GetComponent<CaseSound>() != null;
@@ -366,7 +368,13 @@ namespace RavenfieldVR.Weapons
         {
             Quaternion rot = hand.Palm.rotation;
             Vector3 at = hand.Palm.position + rot * HeldAt;
-            if (hand.Model != null)
+            if (hand.Model != null && hand.Model.Suppressed)
+            {
+                // The weapon's arms drawn instead of the glove: its fist closes round the glove's pinch, and a round held there was not seen
+                // (user, 2026-11-03: "the bullets are invisible"). Out at the fingertips, along the fingers, where it shows past them.
+                at = hand.Palm.position + rot * HeldOut;
+            }
+            else if (hand.Model != null)
             {
                 Vector3 axis = rot * PinchAxis;
                 Vector3 up = Vector3.ProjectOnPlane(hand.Palm.Up, axis);

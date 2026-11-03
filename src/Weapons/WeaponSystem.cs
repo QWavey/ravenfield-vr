@@ -343,10 +343,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A magazine, shell or rocket let go of at the pouch by a hand no drawn gun manages (the gun put away, as when magazines are
-        /// loaded by hand): stowed as the drawn gun's reload stows one (ReloadInteractions.Stows), a magazine loaded by hand into the
-        /// pouch with its rounds, any other's rounds into the reserve of the carried weapon it belongs to. One of a weapon not carried
-        /// is dropped as before. Let go there with the gun away, every magazine fell to the ground, the hand-loaded one too, though
-        /// "a magazine let go of at the pouch goes back into the pouch".
+        /// loaded by hand): stowed as the drawn gun's reload stows one (ReloadInteractions.Stows), its rounds into the reserve of the
+        /// carried weapon it belongs to. One of a weapon not carried is dropped as before. Let go there with the gun away, every
+        /// magazine fell to the ground.
         /// </summary>
         private bool StowAtPouch(VRHand h, MagazineProp prop)
         {
@@ -354,15 +353,12 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            if (!HandLoading.PutBack(prop))
+            AmmoState owner = LiveOwner(prop);
+            if (owner == null)
             {
-                AmmoState owner = LiveOwner(prop);
-                if (owner == null)
-                {
-                    return false;
-                }
-                ReturnRounds(prop, prop.Rounds, owner);
+                return false;
             }
+            ReturnRounds(prop, prop.Rounds, owner);
             prop.Rounds = 0;
             prop.Destroy(); // (frees the hand)
             Sounds.Play(MechSound.Pouch, h.Palm.position, 0.5f);

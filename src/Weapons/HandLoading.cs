@@ -9,23 +9,20 @@ using UnityEngine;
 namespace RavenfieldVR.Weapons
 {
     /// <summary>
-    /// Magazines loaded by hand (Weapons/LoadMagazinesByHand: experimental, off by default; user, 2026-11-03: "you have like 3 mags,
-    /// but the other ones are empty and need to be reloaded with ammo that you have and need to put in by hand ... when you have a
-    /// mag then in the hand you can put the ammo out one by one when you press the trigger button").
-    /// A weapon fed from box magazines carries three: the one in the gun, as the game loads it, and two in the pouch, empty. The
-    /// pouch hands out the fullest of those as it is; one let go of at the pouch, or cleared away where it lies, goes back into it
-    /// with its rounds (not into the reserve). The reserve is loose rounds: with the gun put away (both hands free), a squeeze at the
-    /// pouch with a magazine that is not full in the other hand brings one round out into the hand, and a live round held to the
-    /// magazine's top goes in. A magazine in a hand that is not the gun's gives its rounds out one by one on that hand's trigger.
-    /// Cases and rounds lying around can be picked up with a free hand and are pushed by bullets.
+    /// Magazines loaded by hand (Weapons/LoadMagazinesByHand: experimental, off by default). As the user put it after trying the first
+    /// version (2026-11-03): "when this setting is on everything is normal but I have infinite bullets, so when i dont have any mags left
+    /// that are full, I can take infinite empty mags and fill them up with bullets myself". The pouch hands out magazines from the
+    /// reserve as without the option (full while it lasts, then what is left), and once the reserve gives none, empty ones, as many as
+    /// wanted. Rounds from the pouch are without end: with the gun put away, a squeeze at the pouch takes one of its magazines, and with
+    /// a magazine that is not full in the other hand, one round into the hand; a live round held to the magazine's top goes in. A
+    /// magazine in a hand that is not the gun's gives its rounds out one by one on that hand's trigger. Cases and rounds lying around
+    /// can be picked up with a free hand and are pushed by bullets. (The first version carried three magazines, two empty in the pouch,
+    /// and the reserve as loose rounds.)
     /// Not for machine guns' boxes, en-bloc clips or guns loaded through the action (their reload is round by round already),
     /// nor with the assisted reload.
     /// </summary>
     internal static class HandLoading
     {
-        /// <summary>How many magazines a weapon carries, the gun's own one of them.</summary>
-        internal const int MagazinesCarried = 3;
-
         /// <summary>How near (m) a held round's middle must come to a magazine's top to go in.</summary>
         private const float LoadReach = 0.045f;
 
@@ -37,112 +34,16 @@ namespace RavenfieldVR.Weapons
 
         internal static bool Enabled => VRConfig.LoadsMagazinesByHand && VRConfig.ReloadNow == ReloadMode.Manual;
 
-        /// <summary>The ammunition that holds a weapon's magazines (a fire-mode variant's are its parent's).</summary>
-        private static AmmoState Root(AmmoState a) => a.MagazineOf ?? a;
-
         /// <summary>Whether <paramref name="a"/>'s magazines are loaded by hand: the setting on, a box magazine, not a machine gun's or a clip.</summary>
         internal static bool Applies(AmmoState a) =>
             Enabled && a != null && a.Weapon != null && a.UsesDetachableMag && !a.Rig.IsMachineGun && !a.Rig.EnBloc;
 
-        /// <summary>The magazines of <paramref name="a"/>'s weapon in the pouch, their rounds each: two empty ones at first.</summary>
-        private static List<int> BagOf(AmmoState a)
-        {
-            AmmoState root = Root(a);
-            if (root.SpareMagazines == null)
-            {
-                root.SpareMagazines = new List<int>();
-                for (int i = 1; i < MagazinesCarried; i++)
-                {
-                    root.SpareMagazines.Add(0);
-                }
-                PouchVersion++;
-            }
-            return root.SpareMagazines;
-        }
-
-        /// <summary>The fullest of the weapon's magazines in the pouch, taken out: its rounds; false with none there (all in the gun or out).</summary>
-        internal static bool TakeMagazine(AmmoState a, out int rounds)
-        {
-            if (!TakeFullest(BagOf(a), out rounds))
-            {
-                return false;
-            }
-            PouchVersion++;
-            return true;
-        }
-
-        /// <summary>The fullest magazine out of <paramref name="bag"/> (each entry its rounds). Pure: the offline tests check it.</summary>
-        internal static bool TakeFullest(List<int> bag, out int rounds)
-        {
-            rounds = 0;
-            if (bag == null || bag.Count == 0)
-            {
-                return false;
-            }
-            int best = 0;
-            for (int i = 1; i < bag.Count; i++)
-            {
-                if (bag[i] > bag[best])
-                {
-                    best = i;
-                }
-            }
-            rounds = bag[best];
-            bag.RemoveAt(best);
-            return true;
-        }
-
         /// <summary>
-        /// A magazine of <paramref name="rounds"/> into <paramref name="bag"/>, its rounds kept to 0..<paramref name="capacity"/>;
-        /// false with <see cref="MagazinesCarried"/> in it already. Pure: the offline tests check it.
+        /// The rounds of a magazine from the pouch, loaded by hand: what the reserve gives a fresh one (<paramref name="fresh"/>,
+        /// AmmoState.RoundsForFreshMagazine: full while it lasts, as without the option), and none once it gives none: an empty one, to
+        /// be filled by hand, as many as wanted. Pure: the offline tests check it.
         /// </summary>
-        internal static bool PutInto(List<int> bag, int rounds, int capacity)
-        {
-            if (bag == null || bag.Count >= MagazinesCarried)
-            {
-                return false;
-            }
-            bag.Add(Mathf.Clamp(rounds, 0, Mathf.Max(0, capacity)));
-            return true;
-        }
-
-        /// <summary>
-        /// A magazine of a weapon loaded by hand back into its pouch with its rounds (stowed there, or cleared away where it lay):
-        /// false when it is not one, or the pouch already holds three (a soldier's of the same gun taken as well): its rounds then
-        /// go to the reserve as any magazine's. Three, not two: with the gun's own out of it, all three can be in the pouch (at two
-        /// a stowed one vanished, its rounds into the reserve, and the gun was left with two magazines).
-        /// </summary>
-        internal static bool PutBack(MagazineProp prop)
-        {
-            if (prop == null || prop.Kind != PropKind.Magazine || !Applies(prop.Owner))
-            {
-                return false;
-            }
-            if (!PutInto(BagOf(prop.Owner), prop.Rounds, prop.Owner.Capacity))
-            {
-                return false;
-            }
-            PouchVersion++;
-            return true;
-        }
-
-        /// <summary>Counts every change of any pouch's magazines: the wrist rebuilds its line only then.</summary>
-        internal static int PouchVersion { get; private set; }
-
-        /// <summary>The pouch's own count, loaded by hand: its magazines, and the loose rounds of the reserve ("2 mags" over "90 rds").</summary>
-        internal static string PouchLabel(AmmoState a)
-        {
-            int mags = BagOf(a).Count;
-            string rounds = a.InfiniteSpare ? "\u221e rds" : a.SpareAmmo + " rds";
-            return (mags == 1 ? "1 mag" : mags + " mags") + "\n" + rounds;
-        }
-
-        /// <summary>The magazines in the pouch, for the wrist: "Pouch: 0 · 12 rounds", or "Pouch: no magazines".</summary>
-        internal static string PouchText(AmmoState a)
-        {
-            List<int> bag = BagOf(a);
-            return bag.Count == 0 ? "Pouch: no magazines" : "Pouch: " + string.Join(" \u00b7 ", bag) + " rounds";
-        }
+        internal static int PouchMagazineRounds(int fresh) => Mathf.Max(0, fresh);
 
         /// <summary>
         /// Each frame before the held gun's update: a hand holding a magazine that is not the gun hand gives one round out of its top
@@ -199,7 +100,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A free hand's squeeze at the pouch (no gun in it) with a magazine of a weapon loaded by hand in the other hand, not full:
-        /// one round of it out of the reserve into the hand. True when the squeeze was this (the round taken, or "FULL" / "NO AMMO").
+        /// one round of it into the hand, without end (the reserve is not touched, and the round is no one's: put away unused it goes
+        /// to no reserve). True when the squeeze was this (the round taken, or "FULL").
         /// </summary>
         internal static bool RoundFromPouch(WeaponSystem sys, VRHand hand)
         {
@@ -219,23 +121,18 @@ namespace RavenfieldVR.Weapons
                 hand.Haptic(0.12f, 35f, 0.6f);
                 return true;
             }
-            if (!a.InfiniteSpare && a.SpareAmmo <= 0)
-            {
-                sys.FlashMessage("NO AMMO");
-                hand.Haptic(0.15f, 35f, 0.7f);
-                return true;
-            }
-            a.TakeSpare(1);
-            Hold(hand, Casings.RoundInHand(a.Rig, mag.WeaponKey, a, hand));
+            Casings.Case round = Casings.RoundInHand(a.Rig, mag.WeaponKey, null, hand);
+            Hold(hand, round);
+            LogHeldRound(hand, round);
             hand.Haptic(0.02f, 160f, 0.35f); // (felt only: no sound of the mod's own making)
             return true;
         }
 
         /// <summary>
-        /// With the gun put away, a free hand's squeeze at the pouch, the other hand holding no magazine: the fullest of the magazines of
-        /// the gun last held (<paramref name="last"/>, still carried) out of the pouch into the hand, to be loaded there. Only a drawn
-        /// gun's reload handed them out, so loading by hand meant drawing the gun for a magazine and putting it away again with it held.
-        /// True when the squeeze was this (one taken, or "NO MAGAZINES").
+        /// With the gun put away, a free hand's squeeze at the pouch, the other hand holding no magazine: a magazine of the gun last held
+        /// (<paramref name="last"/>, still carried) out of the pouch into the hand, as the drawn gun's reload hands one out
+        /// (<see cref="PouchMagazineRounds"/>: from the reserve, or empty), to be loaded there. Only a drawn gun's reload handed them out,
+        /// so loading by hand meant drawing the gun for a magazine and putting it away again with it held. True when it was this.
         /// </summary>
         internal static bool MagazineFromPouch(WeaponSystem sys, VRHand hand, Weapon last)
         {
@@ -254,21 +151,15 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            if (!TakeMagazine(a, out int rounds))
-            {
-                sys.FlashMessage("NO MAGAZINES");
-                hand.Haptic(0.15f, 35f, 0.7f);
-                return true;
-            }
+            int rounds = PouchMagazineRounds(a.RoundsForFreshMagazine());
             WeaponRig rig = sys.RigFor(last);
             MagazineProp prop = rig != null ? MagazineProp.Create(rig, PropKind.Magazine, rounds) : null;
             if (prop == null || prop.Go == null)
             {
                 prop?.Destroy();
-                PutInto(BagOf(a), rounds, a.Capacity); // (back where it was)
-                PouchVersion++;
                 return true;
             }
+            a.TakeSpare(rounds);
             prop.Owner = a;
             prop.Attach(hand);
             prop.FollowHand();
@@ -324,10 +215,14 @@ namespace RavenfieldVR.Weapons
                 Casings.Follow(c, h);
                 if (!h.GrabHeld || !Enabled)
                 {
-                    if (c.Live && c.Owner != null && c.Owner.Weapon != null && sys.Zones.InPouch(h.Palm.position) && h.BodyThrowVelocity().magnitude < 1.2f)
+                    if (c.Live && sys.Zones.InPouch(h.Palm.position) && h.BodyThrowVelocity().magnitude < 1.2f)
                     {
-                        // A live round let go at the pouch goes back into it, as a magazine does (it fell to the ground, out of the reserve).
-                        c.Owner.ReturnSpareCapped(1);
+                        // A live round let go at the pouch goes back into it, as a magazine does (it fell to the ground): to its weapon's
+                        // reserve if it came out of a magazine, to none if it came from the pouch (those are without end).
+                        if (c.Owner != null && c.Owner.Weapon != null)
+                        {
+                            c.Owner.ReturnSpareCapped(1);
+                        }
                         Casings.LoadedAway(c);
                         h.Haptic(0.015f, 150f, 0.25f);
                     }
@@ -391,6 +286,23 @@ namespace RavenfieldVR.Weapons
             mag.Destroy(); // frees the hand
             loaded.Attach(hand);
             loaded.FollowHand();
+        }
+
+        private static bool _loggedRound;
+
+        /// <summary>Once a session: the round made in a hand, where it is drawn and how (the user saw none; Tasks 359).</summary>
+        private static void LogHeldRound(VRHand hand, Casings.Case c)
+        {
+            if (_loggedRound || c == null || c.Go == null)
+            {
+                return;
+            }
+            _loggedRound = true;
+            Transform head = WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null ? WeaponSystem.Instance.Rig.Head : null;
+            Renderer r = c.Go.GetComponent<Renderer>();
+            Log.Info($"Round from the pouch in the {hand.Side} hand: active {c.Go.activeInHierarchy}, renderer {(r != null && r.enabled ? "on" : "OFF")}, "
+                     + $"layer {c.Go.layer}, {(r != null ? r.bounds.size.magnitude * 100f : 0f):0.0} cm across, "
+                     + $"{(head != null ? Vector3.Distance(head.position, c.Go.transform.position) : -1f):0.00} m from the eye, glove {(hand.Model != null && hand.Model.Suppressed ? "hidden (weapon's arms: held out at the fingertips)" : "shown")}.");
         }
 
         private static void Free(VRHand h)

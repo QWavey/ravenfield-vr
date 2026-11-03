@@ -257,12 +257,11 @@ namespace RavenfieldVR.Core
                 "Optional: on rifles with a curved magazine (AK style; not pistols or machine guns) the magazine release only unlatches the "
                 + "magazine, it does not drop free: your hand rocks it out, as on the real thing.");
             LoadMagazinesByHand = cfg.Bind("Weapons", "LoadMagazinesByHand", false,
-                "Experimental: a gun fed from box magazines carries three, the one in it and two empty ones in the pouch, and your reserve is "
-                + "loose rounds you load into them by hand. Put the gun away and squeeze at the pouch for one of its magazines; holding it in "
-                + "one hand, squeeze at the pouch with the other for a round, then touch it to the magazine's top. A magazine in a hand that is not the gun's gives its rounds out "
-                + "one by one on that hand's trigger. A magazine let go of at the pouch, or cleared away where it lies, goes back into the "
-                + "pouch with its rounds. Cases and rounds on the ground can be picked up and are pushed by bullets. Not for machine guns, "
-                + "clips or guns loaded through the action, nor with the assisted reload.");
+                "Experimental: rounds without end, loaded by hand. Magazines come from your reserve as usual; once it is out, the pouch hands "
+                + "out empty ones, as many as you like, to fill yourself. Put the gun away and squeeze at the pouch for a magazine; holding it in "
+                + "one hand, squeeze at the pouch with the other for a round, then touch it to the magazine's top. A magazine in a hand that is "
+                + "not the gun's gives its rounds out one by one on that hand's trigger. Cases and rounds on the ground can be picked up and are "
+                + "pushed by bullets. Not for machine guns, clips or guns loaded through the action, nor with the assisted reload.");
             LoseRoundOnRack = cfg.Bind("Weapons", "LoseRoundOnRack", true,
                 "Racking with a round already chambered ejects (and loses) that round.");
             Pouch = cfg.Bind("Weapons", "MagazinePouch", PouchLocation.OffHandHip,

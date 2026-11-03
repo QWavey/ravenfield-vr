@@ -5842,8 +5842,9 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// Magazines loaded by hand (experimental, switched on for the check only): with the gun's magazine in it, its pouch holds two
-        /// empty magazines and then none; a magazine of it cleared away goes back into the pouch with its rounds, the reserve untouched.
+        /// Magazines loaded by hand (experimental, switched on for the check only): a magazine from the pouch comes from the reserve as
+        /// without the option, and with the reserve out an empty one, again and again (the user, 2026-11-03: "when i dont have any mags
+        /// left that are full, I can take infinite empty mags"). The reserve is put back as it was.
         /// </summary>
         private static void HandLoadingCheck(Action<string> report)
         {
@@ -5851,31 +5852,23 @@ namespace RavenfieldVR.Core
             AmmoState a = held != null ? held.Ammo : null;
             bool? before = VRConfig.TestLoadByHand;
             VRConfig.TestLoadByHand = true;
-            System.Collections.Generic.List<int> savedBag = a != null ? a.SpareMagazines : null;
+            int spare = a != null && a.Weapon != null ? a.SpareAmmo : 0;
             try
             {
-                if (a == null || !HandLoading.Applies(a))
+                if (a == null || !HandLoading.Applies(a) || a.InfiniteSpare)
                 {
-                    report("magazines loaded by hand: skipped (no box-fed gun in the hand)");
+                    report("magazines loaded by hand: skipped (no box-fed gun with a reserve in the hand)");
                     return;
                 }
-                a.SpareMagazines = null;
-                int spare = a.SpareAmmo;
-                bool t1 = HandLoading.TakeMagazine(a, out int r1), t2 = HandLoading.TakeMagazine(a, out int r2), t3 = HandLoading.TakeMagazine(a, out _);
-                bool pouch = t1 && t2 && !t3 && r1 == 0 && r2 == 0;
-                MagazineProp prop = MagazineProp.Create(held.Rig, PropKind.Magazine, 7);
-                bool back = false;
-                if (prop != null)
-                {
-                    prop.Owner = a;
-                    prop.Despawn();
-                    back = HandLoading.TakeMagazine(a, out int r4) && r4 == 7;
-                }
-                bool reserve = a.SpareAmmo == spare;
-                string line = $"magazines loaded by hand: the pouch {(pouch ? "gave two empty magazines, then none" : $"GAVE WRONG MAGAZINES ({t1}/{r1}, {t2}/{r2}, a third {t3})")}, "
-                              + $"{(back ? "a cleared magazine went back into it with its 7 rounds" : "A CLEARED MAGAZINE DID NOT GO BACK INTO THE POUCH")}, "
-                              + $"{(reserve ? "the reserve untouched" : $"THE RESERVE CHANGED ({spare} to {a.SpareAmmo})")}";
-                if (!pouch || !back || !reserve)
+                a.SpareAmmo = a.Capacity * 2;
+                int full = HandLoading.PouchMagazineRounds(a.RoundsForFreshMagazine());
+                a.SpareAmmo = 0;
+                int empty1 = HandLoading.PouchMagazineRounds(a.RoundsForFreshMagazine()), empty2 = HandLoading.PouchMagazineRounds(a.RoundsForFreshMagazine());
+                bool fromReserve = full >= a.Capacity - 1 && full <= a.Capacity;
+                bool empties = empty1 == 0 && empty2 == 0;
+                string line = $"magazines loaded by hand: {(fromReserve ? $"a magazine from the reserve holds {full}" : $"THE RESERVE'S MAGAZINE HELD {full} OF {a.Capacity}")}, "
+                              + $"{(empties ? "with the reserve out empty ones, again and again" : $"WITH THE RESERVE OUT NOT EMPTY ({empty1}, {empty2})")}";
+                if (!fromReserve || !empties)
                 {
                     Problem(line);
                 }
@@ -5883,9 +5876,9 @@ namespace RavenfieldVR.Core
             }
             finally
             {
-                if (a != null)
+                if (a != null && a.Weapon != null)
                 {
-                    a.SpareMagazines = savedBag;
+                    a.SpareAmmo = spare;
                 }
                 VRConfig.TestLoadByHand = before;
             }

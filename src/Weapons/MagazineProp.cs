@@ -946,18 +946,9 @@ namespace RavenfieldVR.Weapons
             return best;
         }
 
-        /// <summary>
-        /// Removed by the clean-up: rounds still inside go back to the reserve they came from (loaded by hand: the magazine goes back
-        /// into the pouch with them, HandLoading).
-        /// </summary>
+        /// <summary>Removed by the clean-up: rounds still inside go back to the reserve they came from.</summary>
         public void Despawn()
         {
-            if (HandLoading.PutBack(this))
-            {
-                Rounds = 0;
-                Destroy();
-                return;
-            }
             if (Rounds > 0 && VRConfig.ReturnRoundsOnMagDrop.Value && WeaponSystem.Instance != null)
             {
                 WeaponSystem.Instance.ReturnRounds(this, Rounds);
