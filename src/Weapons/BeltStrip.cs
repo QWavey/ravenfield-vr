@@ -79,15 +79,18 @@ namespace RavenfieldVR.Weapons
         /// <paramref name="rounds"/> of them (what is left in the box): a short belt ends short of the box, or with
         /// <paramref name="fromMouth"/> (hanging or laid, no hand at its end) starts at the box and ends short of the far end.
         /// A round that would lie in <paramref name="keepOutBox"/> (in <paramref name="keepOut"/>'s frame: the seated ammunition
-        /// box) is pushed out through its nearest face (<see cref="KeptOut"/>): the belt lies over the box, not through it.
+        /// box) is pushed out through its nearest face (<see cref="KeptOut"/>): the belt lies over the box, not through it. With
+        /// <paramref name="via"/> the strip bends toward it on the way (a quadratic curve: out over the box's side, then down).
         /// </summary>
         public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false,
-            Runtime.RigidPose? keepOut = null, Bounds keepOutBox = default)
+            Runtime.RigidPose? keepOut = null, Bounds keepOutBox = default, Vector3? via = null)
         {
+            Vector3 bend = via.HasValue ? via.Value - from : Vector3.zero;
             // A belt whose shape has not changed keeps its last geometry: it is built round the box mouth, so a gun carried
             // along (walking, or held still) only moves it there. Within a millimetre and half a degree: compared exactly, any
             // move of the gun in the hand rebuilt and re-uploaded the whole strip every frame (255.P1.6).
             if (_built && rounds == _lastRounds && fromMouth == _lastFromMouth && ((to - from) - (_lastTo - _lastFrom)).sqrMagnitude < 1e-6f
+                && (bend - _lastBend).sqrMagnitude < 1e-6f
                 && Vector3.Dot(barrel.normalized, _lastBarrel.normalized) > 0.99996f)
             {
                 if (!Same(from, _lastFrom))
@@ -106,6 +109,7 @@ namespace RavenfieldVR.Weapons
             _lastBarrel = barrel;
             _lastRounds = rounds;
             _lastFromMouth = fromMouth;
+            _lastBend = bend;
             Vector3 span = to - from;
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
@@ -119,7 +123,7 @@ namespace RavenfieldVR.Weapons
             {
                 int b = i * n;
                 float t = RoundAt(i, count, length, fromMouth);
-                Vector3 p = span * t + sag * (4f * t * (1f - t));
+                Vector3 p = (via.HasValue ? 2f * (1f - t) * t * bend + t * t * span : span * t) + sag * (4f * t * (1f - t));
                 if (keepOut.HasValue)
                 {
                     p = KeptOut(from + p, keepOut.Value, keepOutBox) - from;
@@ -146,6 +150,39 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
+
+        /// <summary>The bend the strip was last built with (from its start to its curve's control point; zero for a straight strip).</summary>
+        private Vector3 _lastBend;
+
+        /// <summary>
+        /// Whether the straight line from <paramref name="a"/> to <paramref name="b"/> passes through <paramref name="box"/> (in
+        /// <paramref name="frame"/>, grown by 8 mm as <see cref="KeptOut"/> keeps rounds out of it): a slab test.
+        /// </summary>
+        internal static bool Crosses(Vector3 a, Vector3 b, Runtime.RigidPose frame, Bounds box)
+        {
+            Vector3 p = frame.InverseTransformPoint(a) - box.center, d = frame.InverseTransformPoint(b) - box.center - p;
+            Vector3 ext = box.extents + Vector3.one * 0.008f;
+            float enter = 0f, leave = 1f;
+            for (int k = 0; k < 3; k++)
+            {
+                if (Mathf.Abs(d[k]) < 1e-7f)
+                {
+                    if (Mathf.Abs(p[k]) >= ext[k])
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                float t1 = (-ext[k] - p[k]) / d[k], t2 = (ext[k] - p[k]) / d[k];
+                enter = Mathf.Max(enter, Mathf.Min(t1, t2));
+                leave = Mathf.Min(leave, Mathf.Max(t1, t2));
+                if (enter > leave)
+                {
+                    return false;
+                }
+            }
+            return leave - enter > 1e-4f;
+        }
 
         /// <summary>
         /// <paramref name="world"/> moved out of <paramref name="box"/> (in <paramref name="frame"/>, grown by 8 mm, half a round and a

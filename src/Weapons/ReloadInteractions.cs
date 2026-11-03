@@ -642,6 +642,13 @@ namespace RavenfieldVR.Weapons
 
         // ---- grabbing ------------------------------------------------------------------------------
 
+        private static float DistanceToSegment(Vector3 p, Vector3 a, Vector3 b)
+        {
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
+            return Vector3.Distance(p, a + ab * t);
+        }
+
         private Vector3 _pressPalm = Vector3.one * 1e4f;
         private float _seatedAt = -10f;
 
@@ -714,9 +721,10 @@ namespace RavenfieldVR.Weapons
                 float d = Vector3.Distance(palm, BeltStartWorld);
                 if (_beltHanging)
                 {
-                    Vector3 a = BeltStartWorld, b = BeltHangEnd, ab = b - a;
-                    float t = Mathf.Clamp01(Vector3.Dot(palm - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-6f));
-                    d = Mathf.Min(d, Vector3.Distance(palm, a + ab * t));
+                    // Along the belt as it hangs: out over the box's side, then down beside it (a straight line from the mouth to its
+                    // end ran through the box, where a hand reaching for the belt found the box first).
+                    Vector3 side = BeltSideExit;
+                    d = Mathf.Min(d, Mathf.Min(DistanceToSegment(palm, BeltStartWorld, side), DistanceToSegment(palm, side, BeltHangEnd)));
                 }
                 if (d < radius)
                 {
@@ -811,12 +819,7 @@ namespace RavenfieldVR.Weapons
                     BeginOptic(off);
                     break;
                 case 4:
-                    off.Role = HandRole.Foregrip;
-                    // The rest is taken again for this hold: the reset above runs only on the frames the hand is not holding, so a
-                    // hold taken on the frame after the last one let go kept the old rest.
-                    _supportRest = -1f;
-                    _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value && !GripData.IsPistol);
-                    off.Haptic(0.02f, 120f, 0.35f);
+                    TakeHandguard(off);
                     Log.InfoOnce("support-stretch:" + GripData.Key, $"{GripData.Key}: the support hand's stretch is measured from {(SupportAtOwnPoint ? "its own support point (a pistol's cup, a rear grip, a magazine's or a launcher's grip)" : "the handguard line")}.");
                     if (GripData.IsPistol && !GripData.HasSupportPoint)
                     {
@@ -828,6 +831,32 @@ namespace RavenfieldVR.Weapons
                     return;
             }
             VRInput.Consume(DigitalAction.Grab, off.Side);
+        }
+
+        private void TakeHandguard(VRHand off)
+        {
+            off.Role = HandRole.Foregrip;
+            // The rest is taken again for this hold: the reset above runs only on the frames the hand is not holding, so a
+            // hold taken on the frame after the last one let go kept the old rest.
+            _supportRest = -1f;
+            _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value && !GripData.IsPistol);
+            off.Haptic(0.02f, 120f, 0.35f);
+        }
+
+        /// <summary>
+        /// A hand still closed on the handguard as the gun is taken up again in the other (a gun held where one hand held it, taken
+        /// back by its grip: WeaponSystem's regrip): it keeps its hold there instead of closing on nothing until squeezed again. True
+        /// when it took it.
+        /// </summary>
+        internal bool KeepHandguard(VRHand off)
+        {
+            if (!off.Tracked || !off.GrabHeld || off.Role != HandRole.Free || off.Held != null || !(GripData.HasSupportPoint || GripData.IsPistol)
+                || ForegripDistance(off.Palm.position) > (GripData.IsPistol ? 0.12f : VRConfig.GrabRadius.Value * 1.4f))
+            {
+                return false;
+            }
+            TakeHandguard(off);
+            return true;
         }
 
         private static void Consider(int id, float score, ref int choice, ref float best)

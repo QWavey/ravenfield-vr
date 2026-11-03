@@ -349,7 +349,13 @@ namespace RavenfieldVR.Weapons
         /// its wall, and a hand reaching for it took the box (user, 2026-11-03: "Magbelts from MGs are INSIDE the mag ... its not
         /// grabbable").
         /// </summary>
-        private Vector3 BeltHangEnd
+        private Vector3 BeltHangEnd => BeltSideExit + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
+
+        /// <summary>
+        /// Out over the box's side from the belt's mouth, at the mouth's height: where a belt hanging, or held below the box, turns
+        /// down (the curve's control point, and the hanging belt's grab line goes through it).
+        /// </summary>
+        private Vector3 BeltSideExit
         {
             get
             {
@@ -367,7 +373,7 @@ namespace RavenfieldVR.Weapons
                 // Past the box's side along it (its half width that way, less where the mouth already is) and 3 cm more.
                 float half = Mathf.Abs(acrossLocal.x) * b.extents.x + Mathf.Abs(acrossLocal.y) * b.extents.y + Mathf.Abs(acrossLocal.z) * b.extents.z;
                 float clear = Mathf.Max(0f, half - Vector3.Dot(local, acrossLocal)) + 0.03f;
-                return mouth + across * clear + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
+                return mouth + across * clear;
             }
         }
 
@@ -603,7 +609,9 @@ namespace RavenfieldVR.Weapons
             }
             // A nearly empty box has only a few rounds of belt: held, they end in the hand; hanging or laid, they start at the
             // box mouth (counted from the hand, they began in the air, 22 cm off the box for ten rounds; sweep round 2).
-            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: Data.MagBounds);
+            // Over the box's side when it hangs, or when the hand holds it where the straight line runs through the box (below it).
+            Vector3? via = _beltHanging || _beltHeld && BeltStrip.Crosses(from, to, SeatPose, Data.MagBounds) ? BeltSideExit : (Vector3?)null;
+            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: Data.MagBounds, via: via);
         }
     }
 }

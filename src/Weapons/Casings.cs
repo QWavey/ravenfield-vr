@@ -33,6 +33,8 @@ namespace RavenfieldVR.Weapons
             public bool Live;
             /// <summary>In a hand (HandLoading): kinematic, its collider off, not put away for its age.</summary>
             public bool Held;
+            /// <summary>The hand it is in while <see cref="Held"/>.</summary>
+            public Rig.VRHand Holder;
             /// <summary>Whose a live round is (the weapon's analysis key): it goes into that weapon's magazines only; null for none.</summary>
             public string Key;
             /// <summary>The reserve a live round came out of: it goes back there when it is put away unused (null: lost, as one racked out).</summary>
@@ -262,6 +264,7 @@ namespace RavenfieldVR.Weapons
             c.Collider.enabled = true;
             c.Live = live;
             c.Held = false;
+            c.Holder = null;
             c.Key = null;
             c.Owner = null;
             c.Body.interpolation = RigidbodyInterpolation.Interpolate; // (in flight smooth again: lying still it had it off, RestingBodies)
@@ -296,8 +299,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>Whether a collider is one of the cases or rounds lying around (bullets push them).</summary>
         internal static bool IsCase(Collider c) => c != null && c.GetComponent<CaseSound>() != null;
 
-        /// <summary>The nearest case or round lying within <paramref name="radius"/> of <paramref name="point"/>, taken into a hand; null for none.</summary>
-        internal static Case Take(Vector3 point, float radius)
+        /// <summary>The nearest case or round lying within <paramref name="radius"/> of <paramref name="point"/>, taken into <paramref name="hand"/>; null for none.</summary>
+        internal static Case Take(Rig.VRHand hand, Vector3 point, float radius)
         {
             Case best = null;
             float bestSq = radius * radius;
@@ -316,14 +319,15 @@ namespace RavenfieldVR.Weapons
             }
             if (best != null)
             {
-                Hold(best);
+                Hold(best, hand);
             }
             return best;
         }
 
-        private static void Hold(Case c)
+        private static void Hold(Case c, Rig.VRHand hand)
         {
             c.Held = true;
+            c.Holder = hand;
             c.Body.isKinematic = true;
             c.Collider.enabled = false;
         }
@@ -334,7 +338,7 @@ namespace RavenfieldVR.Weapons
             Case c = Spawn(KindOf(d), true, hand.Palm.position, hand.Palm.rotation, Vector3.zero, Vector3.zero);
             c.Key = key;
             c.Owner = owner;
-            Hold(c);
+            Hold(c, hand);
             Follow(c, hand);
             return c;
         }
@@ -361,6 +365,7 @@ namespace RavenfieldVR.Weapons
         internal static void LetGo(Case c, Vector3 velocity, Vector3 spin)
         {
             c.Held = false;
+            c.Holder = null;
             c.Collider.enabled = true;
             c.Body.isKinematic = false;
             c.Body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -374,6 +379,7 @@ namespace RavenfieldVR.Weapons
         internal static void LoadedAway(Case c)
         {
             c.Held = false;
+            c.Holder = null;
             c.Owner = null;
             c.Body.isKinematic = false;
             c.Collider.enabled = true;
@@ -427,8 +433,15 @@ namespace RavenfieldVR.Weapons
                 if (c.Go == null)
                 {
                     Alive.RemoveAt(i); // gone with its scene
+                    continue;
                 }
-                else if (!c.Held && (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f)))
+                if (c.Held && (c.Holder == null || !ReferenceEquals(c.Holder.Held, c)))
+                {
+                    // Its hand holds something else now (a gun drawn into it, its role reset by the reload): it falls from where it
+                    // was, rather than hanging there for good, out of the pool.
+                    LetGo(c, Vector3.zero, Vector3.zero);
+                }
+                if (!c.Held && (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f)))
                 {
                     GiveBack(c);
                     c.Go.SetActive(false);

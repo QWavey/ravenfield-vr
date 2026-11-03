@@ -140,6 +140,15 @@ namespace RavenfieldVR.Weapons
             {
                 AttachHeld(weapon);
             }
+            if (_regripSupport != null)
+            {
+                // The hand that held it where it took it keeps the handguard once the gun is taken up again by its grip.
+                if (Held != null && Held.Weapon == _passWeapon && _regripSupport == Rig.Off)
+                {
+                    Held.Reload.KeepHandguard(_regripSupport);
+                }
+                _regripSupport = Held != null ? null : _regripSupport;
+            }
             RegripPassedWeapon();
             HandLoading.Update(this); // (a magazine's trigger before the gun's: the gun hand's own is never taken)
 
@@ -1207,6 +1216,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private RigidPose? _passHold;
         private Weapon _passWeapon;
+        /// <summary>The hand that held the gun where it took it, until the gun is taken up again by its grip (it keeps the handguard then).</summary>
+        private VRHand _regripSupport;
         private float _passEaseAt = -1f;
         private const float PassEase = 0.2f;
 
@@ -1268,12 +1279,16 @@ namespace RavenfieldVR.Weapons
             _passHold = kept;
             _passWeapon = weapon;
             _passEaseAt = Time.unscaledTime;
+            _regripSupport = holding;
             free.Haptic(0.04f, 140f, 0.5f);
             Log.InfoOnce("regrip", $"Weapon taken by its grip again in the {free.Side} hand.");
         }
 
-        /// <summary>How near (m) the free hand's palm must be to the grip to take a gun held where the other hand took it back by it.</summary>
-        private const float RegripReach = 0.1f;
+        /// <summary>
+        /// How near (m) the free hand's palm must be to the grip to take a gun held where the other hand took it back by it: on the grip
+        /// itself (at 10 cm a squeeze for the magazine in front of an AR's grip took the grip instead).
+        /// </summary>
+        private const float RegripReach = 0.065f;
 
         /// <summary>Autotest: passes the held weapon to the other hand as letting go while it holds the handguard does.</summary>
         internal bool TestPassToOtherHand() => PassToOtherHand();

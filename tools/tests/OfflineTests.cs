@@ -156,6 +156,19 @@ namespace RavenfieldVR.Tests
             Check(Math.Abs(inside.z - (3f - 0.058f)) < 1e-4f && Math.Abs(inside.x - 1f) < 1e-4f && Math.Abs(inside.y - 2.05f) < 1e-4f,
                   $"Belt: a round inside the box comes out through its nearest face ({inside.x:0.000}, {inside.y:0.000}, {inside.z:0.000})");
             Check(K(outside) == outside, "Belt: a round outside the box stays where it is");
+
+            // Crosses (2026-11-03): a line down through the box from above it crosses it; one beside it, or ending above it, does not.
+            System.Reflection.MethodInfo crosses = mod.GetType("RavenfieldVR.Weapons.BeltStrip")?.GetMethod("Crosses",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(crosses != null, "Belt: Crosses found");
+            if (crosses == null)
+            {
+                return;
+            }
+            bool X(UnityEngine.Vector3 a, UnityEngine.Vector3 b) => (bool)crosses.Invoke(null, new object[] { a, b, frame, box });
+            Check(X(new UnityEngine.Vector3(1f, 2.3f, 3f), new UnityEngine.Vector3(1f, 1.7f, 3f)), "Belt: a line down through the box crosses it");
+            Check(!X(new UnityEngine.Vector3(1.3f, 2.3f, 3f), new UnityEngine.Vector3(1.3f, 1.7f, 3f)) && !X(new UnityEngine.Vector3(1f, 2.4f, 3f), new UnityEngine.Vector3(1f, 2.2f, 3f)),
+                  "Belt: a line beside the box, or ending above it, does not");
         }
 
         /// <summary>

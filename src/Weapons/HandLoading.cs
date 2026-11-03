@@ -83,8 +83,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A magazine of a weapon loaded by hand back into its pouch with its rounds (stowed there, or cleared away where it lay):
-        /// false when it is not one, or the pouch already holds all the others (a soldier's magazine taken as well): its rounds then
-        /// go to the reserve as any magazine's.
+        /// false when it is not one, or the pouch already holds three (a soldier's of the same gun taken as well): its rounds then
+        /// go to the reserve as any magazine's. Three, not two: with the gun's own out of it, all three can be in the pouch (at two
+        /// a stowed one vanished, its rounds into the reserve, and the gun was left with two magazines).
         /// </summary>
         internal static bool PutBack(MagazineProp prop)
         {
@@ -93,7 +94,7 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             List<int> bag = BagOf(prop.Owner);
-            if (bag.Count >= MagazinesCarried - 1)
+            if (bag.Count >= MagazinesCarried)
             {
                 return false;
             }
@@ -184,7 +185,7 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            Casings.Case lying = Casings.Take(hand.Palm.position + hand.Palm.rotation * new Vector3(0f, 0.012f, 0.05f), TakeReach);
+            Casings.Case lying = Casings.Take(hand, hand.Palm.position + hand.Palm.rotation * new Vector3(0f, 0.012f, 0.05f), TakeReach);
             if (lying == null)
             {
                 return false;
