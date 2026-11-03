@@ -112,7 +112,7 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Visual-only copy of what the weapon feeds from, in magazine space (for the pouch display).</summary>
-        internal static GameObject BuildDisplay(WeaponRig rig, PropKind kind, out Bounds bounds, out Vector3 insertLocal, out Vector3 frontLocal)
+        internal static GameObject BuildDisplay(WeaponRig rig, PropKind kind, out Bounds bounds, out Vector3 insertLocal, out Vector3 frontLocal, bool loaded = true)
         {
             WeaponRigData d = rig.Data;
             Quaternion seatInv = Runtime.RigidPose.Conjugate(d.MagSeat.rotation);
@@ -123,7 +123,7 @@ namespace RavenfieldVR.Weapons
             bounds = d.MagBounds;
             if (CopiesModel(rig, kind))
             {
-                go = CheckedCopy(rig, kind, true, out bounds); // (the pouch shows full ones)
+                go = CheckedCopy(rig, kind, loaded, out bounds); // (the pouch shows full ones, empty ones when it hands those out)
                 if (go == null)
                 {
                     bounds = d.MagBounds;

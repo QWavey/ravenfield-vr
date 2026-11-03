@@ -46,13 +46,17 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRig rig = held.ActiveRig;
             PropKind kind = ammo.UsesDetachableMag ? PropKind.Magazine : rig.Data.Action == ActionType.SingleShot ? PropKind.Rocket : PropKind.Shell;
-            // Built again once the gun's magazine is copied as it looks loaded: built at the draw, before the gun has settled loaded
-            // (HeldWeapon.SettledLoaded), it was a copy of the magazine as it showed then, rounds off on a mod that animates them on.
-            bool loadedLook = kind == PropKind.Magazine && MagazineProp.KeepsLoadedLook(rig.Data.Key);
-            if (_builtFor != rig.Data || _builtKind != kind || _model == null || loadedLook && !_builtLoaded)
+            // Loaded by hand with the reserve out, the pouch hands out empty magazines: it shows an empty one (it showed a full one).
+            bool empty = kind == PropKind.Magazine && HandLoading.Applies(ammo) && !ammo.InfiniteSpare && ammo.SpareAmmo <= 0;
+            // Built again once the gun's magazine is copied as it looks (loaded, or empty for that): built at the draw, before the gun
+            // has settled (HeldWeapon.SettledLoaded), it was a copy of the magazine as it showed then, rounds off on a mod that animates
+            // them on.
+            bool kept = kind == PropKind.Magazine && (empty ? MagazineProp.KeepsEmptyLook(rig.Data.Key) : MagazineProp.KeepsLoadedLook(rig.Data.Key));
+            if (_builtFor != rig.Data || _builtKind != kind || _model == null || empty != _builtEmpty || kept && !_builtLoaded)
             {
-                Build(rig, kind, loadedLook);
-                _builtLoaded = loadedLook;
+                Build(rig, kind, kept, empty);
+                _builtLoaded = kept;
+                _builtEmpty = empty;
                 _builtFor = rig.Data;
                 _builtKind = kind;
             }
@@ -142,7 +146,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>The shown model was made from the gun's magazine as it looks loaded (see <see cref="MagazineProp.KeepsLoadedLook"/>).</summary>
         private bool _builtLoaded;
 
-        private void Build(WeaponRig rig, PropKind kind, bool loadedLook)
+        /// <summary>The shown model is an empty magazine (loaded by hand, the reserve out).</summary>
+        private bool _builtEmpty;
+
+        private void Build(WeaponRig rig, PropKind kind, bool loadedLook, bool empty)
         {
             if (_root == null)
             {
@@ -166,7 +173,7 @@ namespace RavenfieldVR.Weapons
                 _model.SetActive(false); // kept for the next time this weapon is drawn
             }
             var key = (rig.Data, kind);
-            if (_kept.TryGetValue(key, out Kept k) && StillDrawable(k.Model) && (k.Loaded || !loadedLook))
+            if (_kept.TryGetValue(key, out Kept k) && StillDrawable(k.Model) && k.Empty == empty && (k.Loaded || !loadedLook))
             {
                 // Drawn before: the same model again (each switch made a new copy of the magazine's meshes; 255.P3-2).
                 _model = k.Model;
@@ -187,7 +194,7 @@ namespace RavenfieldVR.Weapons
                 }
                 Object.Destroy(k.Model);
             }
-            _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal);
+            _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal, loaded: !empty);
             _model.transform.SetParent(_root.transform, true);
             // A picture of what you can take, not a thing in the world: it casts no shadow on the ground under you.
             foreach (Renderer r in _model.GetComponentsInChildren<Renderer>(true))
@@ -196,7 +203,7 @@ namespace RavenfieldVR.Weapons
             }
             float size = _bounds.size.magnitude;
             _scale = size > MaxSize ? MaxSize / size : 1f; // a rocket shows smaller than life
-            _kept[key] = new Kept { Model = _model, Bounds = _bounds, Insert = _insertLocal, Front = _frontLocal, Scale = _scale, Loaded = loadedLook };
+            _kept[key] = new Kept { Model = _model, Bounds = _bounds, Insert = _insertLocal, Front = _frontLocal, Scale = _scale, Loaded = loadedLook, Empty = empty };
             _keptOrder.Remove(key);
             _keptOrder.Add(key);
             while (_keptOrder.Count > KeptModels)
@@ -218,8 +225,10 @@ namespace RavenfieldVR.Weapons
             public Bounds Bounds;
             public Vector3 Insert, Front;
             public float Scale;
-            /// <summary>Made from the magazine's loaded look.</summary>
+            /// <summary>Made from the magazine's kept look (loaded, or empty when <see cref="Empty"/>).</summary>
             public bool Loaded;
+            /// <summary>An empty magazine (loaded by hand, the reserve out).</summary>
+            public bool Empty;
         }
 
         private const int KeptModels = 6;
