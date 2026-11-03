@@ -1199,3 +1199,7 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    gun's weight lag, the weapon's arms with magazines and passed guns (`ArmIK.SolveWhereTaken`, `SteadyGrip`), a machine gun's belt
    (hanging with the cover shut, left out of the box's copy), magazines loaded by hand in the user's second version (reserve as
    usual, empty magazines and rounds without end), holsters without an ejected magazine, game-sound slices faded.
+27. **1.16.5** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.5.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.5.exe`): a machine gun's belt goes round its box in one piece (`BeltStrip.PathRound`), the weapon's
+   arms hold off hand-bone poses off the gun as long as they last (`SteadyGrip`), the pouch shows an empty magazine when it hands those
+   out, a slow push knocks a magazine out only roughly in line (302 checks).
