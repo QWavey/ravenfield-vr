@@ -347,7 +347,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void UpdateLooseProps()
         {
-            if (GameContext.GameMenuOpen || GameManager.IsPaused()) // (a dud refunded, a magazine taken in the paused match)
+            // (Nor dead: a dud beside a hand still squeezing was refunded to the dead soldier's weapon, with the pouch's click and buzz;
+            // holsters scout. In a seat the free hand still picks things up, as it reloads a gun drawn there.)
+            Actor player = GameContext.PlayerActor;
+            if (GameContext.GameMenuOpen || GameManager.IsPaused() || player == null || player.dead) // (a dud refunded, a magazine taken in the paused match)
             {
                 return;
             }
