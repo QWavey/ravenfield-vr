@@ -417,6 +417,9 @@ namespace RavenfieldVR.Weapons
         public readonly Transform[] SpareParts;
         public readonly Vector3[] SpareScales;
 
+        /// <summary>The gun model's own belt (<see cref="WeaponRigData.BeltPartPaths"/>): on the feed tray, never part of a box copied for the hand.</summary>
+        public readonly Transform[] BeltParts;
+
         /// <summary>A break action's chamber shells (<see cref="WeaponRigData.ChamberShellPaths"/>, same order) and their own scales.</summary>
         public readonly Transform[] ChamberShells;
         public readonly Vector3[] ChamberShellScales;
@@ -501,6 +504,11 @@ namespace RavenfieldVR.Weapons
             {
                 SpareParts[i] = Resolve(root, data.SparePartPaths[i]);
                 SpareScales[i] = SpareParts[i] != null ? SpareParts[i].localScale : Vector3.one;
+            }
+            BeltParts = new Transform[data.BeltPartPaths.Count];
+            for (int i = 0; i < BeltParts.Length; i++)
+            {
+                BeltParts[i] = Resolve(root, data.BeltPartPaths[i]);
             }
             ChamberShells = new Transform[data.ChamberShellPaths.Count];
             ChamberShellScales = new Vector3[ChamberShells.Length];

@@ -748,6 +748,19 @@ namespace RavenfieldVR.Weapons
         /// <summary>A piece further than this from the magazine is parked out of sight, not part of it.</summary>
         private const float ParkedAway = 1.5f;
 
+        /// <summary>Under one of the gun model's own belt parts (one that does not hold the magazine itself): the tray's belt, not the box's.</summary>
+        private static bool UnderBelt(Transform t, WeaponRig rig, Transform source)
+        {
+            foreach (Transform belt in rig.BeltParts)
+            {
+                if (belt != null && !source.IsChildOf(belt) && t.IsChildOf(belt))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static GameObject CopyVisualsShown(WeaponRig rig)
         {
             Transform source = rig.Magazine;
@@ -799,6 +812,14 @@ namespace RavenfieldVR.Weapons
                     if (PoseSampler.UnderAny(r.transform, rig.SpareParts))
                     {
                         continue; // hidden while held (the PKM box's belt links hanging under it): not on the magazine in the hand
+                    }
+                    if (UnderBelt(r.transform, rig, source))
+                    {
+                        // The gun's own belt, laid on the feed tray: copied with the box while it lay there, a stiff length of belt stuck
+                        // out of the box in the hand, bent as it lay on the tray, and was gone once the box was in again until the belt was
+                        // laid (user, 2026-11-03: "magbelt is getting split ... sometimes dissapearing when inserted"). The box's belt
+                        // end hangs from it once it is in (ReloadInteractions' belt strip).
+                        continue;
                     }
                     Mesh mesh = null;
                     if (r is MeshRenderer)
