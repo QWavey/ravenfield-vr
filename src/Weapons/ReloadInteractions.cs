@@ -1033,7 +1033,7 @@ namespace RavenfieldVR.Weapons
                     {
                         palmedPose = new RigidPose(palmedPose.position + first.KeptOut, palmedPose.rotation); // with the first one, out of the gun
                     }
-                    float into = _palmedAt >= 0f ? Mathf.Clamp01((Time.unscaledTime - _palmedAt) / 0.18f) : 1f;
+                    float into = _palmedAt >= 0f ? Mathf.Clamp01((Time.unscaledTime - _palmedAt) / 0.12f) : 1f; // (at 0.18 s it trailed a moving hand by 5 cm per m/s)
                     if (into < 1f)
                     {
                         float e = into * into * (3f - 2f * into);
