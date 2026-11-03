@@ -842,7 +842,8 @@ namespace RavenfieldVR.Weapons
                 {
                     if (anyShown && (!r.enabled || !r.gameObject.activeInHierarchy) || loadedLook != null && !loadedLook.Contains(r))
                     {
-                        if (!(roundsToo && anyShown && RoundSized(r)))
+                        // (On the magazine itself: one switched off and parked a metre away would hang beside it in the hand.)
+                        if (!(roundsToo && anyShown && RoundSized(r) && (r.transform.position - source.position).sqrMagnitude < 0.35f * 0.35f))
                         {
                             continue;
                         }
