@@ -319,6 +319,25 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Let go of while it sits in the well short of its latch (ReloadInteractions' magazine detent): out of the hand, still on its
+        /// rail, held by the gun (which draws it), not dropped and not cleared away.
+        /// </summary>
+        internal void LetGoOnRail()
+        {
+            VRHand hand = HeldBy;
+            if (hand != null && ReferenceEquals(hand.Held, this))
+            {
+                hand.Held = null;
+                hand.Role = HandRole.Free;
+            }
+            ReleaseHand(hand, this);
+            HeldBy = null;
+            LostByHand = false;
+            _body.isKinematic = true;
+            OnRail = true;
+        }
+
+        /// <summary>
         /// <paramref name="leaving"/> left the hand: once no other magazine is in it, the hand no longer closes on them. With a
         /// palmed one still between the fingers (the fresh one seated or dropped), clearing the shared solid let the fingers
         /// close through it until it was set again (bug hunt, 2026-10-23).

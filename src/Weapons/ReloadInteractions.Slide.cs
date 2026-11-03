@@ -275,6 +275,13 @@ namespace RavenfieldVR.Weapons
 
         public void OnShot()
         {
+            _shotFrame = Time.frameCount;
+            if (Manual && Ammo != null && Ammo.MagLoose && Ammo.MagInserted && Ammo.UsesDetachableMag)
+            {
+                // Not latched (let go short of its click): the shot shakes it out of the well (UnderSeatedMagazineFalls, idea 8).
+                Ammo.MagLoose = false;
+                EjectMagazine();
+            }
             if (Manual && Data.EnBloc && Ammo.MagInserted && Ammo.MagRounds == 0 && !Ammo.Chambered)
             {
                 ThrowEmptyClip();

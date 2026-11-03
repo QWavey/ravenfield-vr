@@ -41,6 +41,8 @@ namespace RavenfieldVR.Weapons
         private bool _atBackStop;
         /// <summary>The slide was caught back last frame, and a frame has been seen (no click for a gun drawn already caught back).</summary>
         private bool _wasLocked, _lockSeen;
+        /// <summary>The frame of the last shot (OnShot).</summary>
+        private int _shotFrame = -10;
         private Vector3 _rackStartGun;
         /// <summary>Where the hand took the pump (gun space, the pump forward): the hand stays there as the pump moves.</summary>
         private Vector3 _pumpGraspRestGun;
@@ -339,6 +341,10 @@ namespace RavenfieldVR.Weapons
         {
             VRHand dom = _sys.Rig.Dominant;
             VRHand off = _sys.Rig.Off;
+            if (Manual && Ammo != null && Ammo.UsesDetachableMag && !GameManager.IsPaused())
+            {
+                UpdateDetent(off, dom);
+            }
 
             if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !Manual)
             {
@@ -918,7 +924,10 @@ namespace RavenfieldVR.Weapons
             bool locked = Ammo != null && Ammo.SlideLocked;
             if (locked && !_wasLocked && _lockSeen)
             {
-                GameSounds.PlayPart(Data, MechSound.SlideBack, RackPointWorld, 0.7f, 0.3f, 0.4f, 1.12f);
+                if (Time.frameCount - _shotFrame > 2)
+                {
+                    GameSounds.PlayPart(Data, MechSound.SlideBack, RackPointWorld, 0.7f, 0.3f, 0.4f, 1.12f); // (after a shot OnShot plays its own)
+                }
                 _sys.Rig.Dominant.Haptic(0.025f, 180f, 0.45f);
             }
             _wasLocked = locked;
@@ -968,6 +977,7 @@ namespace RavenfieldVR.Weapons
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             UpdateEject(dt);
+            DrawAlmostSeated();
             // Press check: eased back part way (not far enough to throw it out), the chambered round shows in the port.
             float open = Ammo != null && Ammo.UsesChamber ? Fraction : 0f;
             Casings.ShowChamber(_held, open > 0.12f && open < 0.8f && (Ammo.Chambered || Ammo.SpentInChamber), Ammo != null && Ammo.Chambered);
@@ -1384,6 +1394,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Weapon is going away: finish what is in progress so no ammo is lost or duplicated.</summary>
         public void Release(bool keepSeatedHold = false)
         {
+            DropAlmostSeated();
             VRHand off = _sys.Rig.Off;
             if (!keepSeatedHold)
             {

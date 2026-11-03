@@ -92,6 +92,109 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        // ---- the magazine detent (idea 8) -------------------------------------------------------------------
+
+        /// <summary>A magazine let go at its latch, waiting in the well to be tapped home (MagazineDetent); null for none.</summary>
+        private MagazineProp _almostSeated;
+        /// <summary>The held magazine stopped at its latch this push (its bump felt once).</summary>
+        private bool _atDetent;
+        /// <summary>A push in at least this fast (m/s) clicks it past the latch; so does the hand pushing on this far past the seat (m).</summary>
+        private const float DetentSpeed = 0.3f, DetentPush = 0.01f;
+        /// <summary>A tap on the base this fast (m/s, along the well) latches a waiting or loose magazine.</summary>
+        private const float TapSpeed = 0.45f;
+
+        /// <summary>
+        /// The magazine detent applies: on, a box magazine into a well outside the grip (a pistol's is drawn home in the grip, where the
+        /// hands meet), not a machine gun's box or a clip. Not in the autotest's scripted reloads (their pushes end at the seat).
+        /// </summary>
+        private bool DetentApplies(MagazineProp prop) =>
+            VRConfig.MagazineDetent.Value && prop.Kind == PropKind.Magazine && !WellInGrip && !Data.IsMachineGun && !Data.EnBloc && !prop.BoxSized
+            && !Core.AutoTest.Requested;
+
+        /// <summary>How far short of its seat the latch holds a magazine: 8% of its way in, 4 to 8 mm.</summary>
+        private static float DetentDepth(MagazineProp prop) => Mathf.Clamp(prop.RailLength * 0.08f, 0.004f, 0.008f);
+
+        /// <summary>
+        /// Each frame: a magazine waiting at its latch is tapped home by the free hand's palm (a quick push on its base), taken again by
+        /// a squeeze on it, or dropped by the magazine release; a loose one in the gun is latched by the same tap.
+        /// </summary>
+        private void UpdateDetent(VRHand off, VRHand dom)
+        {
+            if (Ammo.MagLoose && Ammo.MagInserted && off.Tracked && off.Role == HandRole.Free && off.Held == null)
+            {
+                float push = Vector3.Dot(off.BodyThrowVelocity() - dom.BodyThrowVelocity(), SeatPose.TransformDirection(-Data.MagEjectAxis.normalized));
+                if (push > TapSpeed && Vector3.Distance(off.PalmCentre, SeatedMagBaseWorld) < 0.08f)
+                {
+                    Ammo.MagLoose = false;
+                    GameSounds.PlayPart(Data, MechSound.MagIn, SeatPose.position, 0.6f, 0.4f, 0.6f);
+                    off.Haptic(0.04f, 110f, 0.7f);
+                    _held.Nudge(SeatPose.TransformDirection(-Data.MagEjectAxis.normalized) * 0.08f);
+                }
+            }
+            MagazineProp prop = _almostSeated;
+            if (prop == null)
+            {
+                return;
+            }
+            if (prop.Go == null || prop.HeldBy != null || Ammo.MagInserted || !AcceptsNow(prop))
+            {
+                _almostSeated = null;
+                return;
+            }
+            Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
+            if (VRInput.GetPressed(DigitalAction.MagRelease, dom.Side) && !VRGameInput.GunInputBlocked)
+            {
+                VRInput.Consume(DigitalAction.MagRelease, dom.Side);
+                _almostSeated = null;
+                prop.OnRail = false;
+                prop.Drop(dom.Velocity - insert * 0.6f, Vector3.zero);
+                return;
+            }
+            if (!off.Tracked || off.Role != HandRole.Free || off.Held != null)
+            {
+                return;
+            }
+            float tap = Vector3.Dot(off.BodyThrowVelocity() - dom.BodyThrowVelocity(), insert);
+            if (tap > TapSpeed && Vector3.Distance(off.PalmCentre, prop.Go.transform.TransformPoint(prop.BaseLocal)) < 0.08f)
+            {
+                _almostSeated = null;
+                _railInSpeed = tap; // (slapped home: as hard as a seating push, it drops a locked slide too)
+                SeatProp(off, prop);
+                return;
+            }
+            if (off.GrabPressed && prop.DistanceTo(off.Palm.position) < 0.08f)
+            {
+                VRInput.Consume(DigitalAction.Grab, off.Side);
+                _almostSeated = null;
+                prop.Attach(off); // (back on its line from where it is, next frame)
+                prop.FollowHand();
+            }
+        }
+
+        /// <summary>Before rendering: a magazine waiting at its latch is drawn there, with the gun.</summary>
+        private void DrawAlmostSeated()
+        {
+            MagazineProp prop = _almostSeated;
+            if (prop == null || prop.Go == null || prop.HeldBy != null)
+            {
+                return;
+            }
+            prop.RailDepth = prop.RailLength - DetentDepth(prop);
+            prop.RailPose(SeatPose).ApplyTo(prop.Go.transform);
+        }
+
+        /// <summary>The gun let go of: a magazine waiting at its latch falls out of it.</summary>
+        private void DropAlmostSeated()
+        {
+            MagazineProp prop = _almostSeated;
+            _almostSeated = null;
+            if (prop != null && prop.Go != null && prop.HeldBy == null)
+            {
+                prop.OnRail = false;
+                prop.Drop(Vector3.zero, Vector3.zero);
+            }
+        }
+
         /// <summary>The ejected magazine leaves the well along its axis, then gravity takes it.</summary>
         private void UpdateEject(float dt)
         {
@@ -544,6 +647,29 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             prop.RailOutOnly = false;
+            if (DetentApplies(prop))
+            {
+                // The latch (user, 2026-11-03, idea 8): the last few millimetres take a firm push or a push on past the seat; a gentle
+                // one stops just short, felt as the magazine meets the latch.
+                float latch = prop.RailLength - DetentDepth(prop);
+                if (prop.RailDepth > latch)
+                {
+                    float pushSpeed = Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), SeatPose.TransformDirection(prop.InsertDirLocal));
+                    if (pushSpeed < DetentSpeed && along - prop.RailLength < DetentPush)
+                    {
+                        prop.RailDepth = latch;
+                        if (!_atDetent)
+                        {
+                            _atDetent = true;
+                            off.Haptic(0.02f, 110f, 0.45f);
+                        }
+                    }
+                }
+                else if (prop.RailDepth < latch - 0.004f)
+                {
+                    _atDetent = false;
+                }
+            }
             // (98.5%, not 96: the prop gave way 3.6-5 mm short of the seat and the gun's magazine popped up there; review, 2026-10-20.)
             if (prop.RailDepth >= prop.RailLength * 0.985f)
             {
@@ -1032,6 +1158,23 @@ namespace RavenfieldVR.Weapons
             if (prop.Owner == null && prop.WeaponKey == Data.Key)
             {
                 prop.Owner = Ammo;
+            }
+            if (prop.OnRail && DetentApplies(prop) && prop.RailDepth >= prop.RailLength - DetentDepth(prop) - 0.002f && AcceptsNow(prop))
+            {
+                // Let go at the latch: it waits there in the well to be tapped home; or, with UnderSeatedMagazineFalls, it goes in
+                // unlatched and drops out at the next shot (idea 8).
+                if (VRConfig.UnderSeatedMagazineFalls.Value)
+                {
+                    SeatProp(off, prop);
+                    Ammo.MagLoose = true;
+                }
+                else
+                {
+                    prop.LetGoOnRail();
+                    _almostSeated = prop;
+                }
+                _atDetent = false;
+                return;
             }
             if (prop.OnRail)
             {

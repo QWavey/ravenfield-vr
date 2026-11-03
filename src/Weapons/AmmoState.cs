@@ -77,9 +77,34 @@ namespace RavenfieldVR.Weapons
                 else
                 {
                     _magInserted = value;
+                    if (!value)
+                    {
+                        _magLoose = false; // (out of the gun: a next one latches or not on its own)
+                    }
                 }
             }
         }
+
+        /// <summary>
+        /// The seated magazine is in but not latched (let go short of its click with UnderSeatedMagazineFalls on): it drops out at the
+        /// next shot unless its base is tapped home.
+        /// </summary>
+        public bool MagLoose
+        {
+            get => Shared ? MagazineOf.MagLoose : _magLoose;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.MagLoose = value;
+                }
+                else
+                {
+                    _magLoose = value;
+                }
+            }
+        }
+        private bool _magLoose;
         public bool SlideLocked
         {
             get => Shared ? MagazineOf.SlideLocked : _slideLocked;

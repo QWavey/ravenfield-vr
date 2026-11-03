@@ -79,6 +79,8 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> ChamberPlusOne;
         public static ConfigEntry<bool> ReturnRoundsOnMagDrop;
         public static ConfigEntry<bool> LoadMagazinesByHand;
+        public static ConfigEntry<bool> MagazineDetent;
+        public static ConfigEntry<bool> UnderSeatedMagazineFalls;
         public static ConfigEntry<bool> LoseRoundOnRack;
         public static ConfigEntry<PouchLocation> Pouch;
         public static ConfigEntry<float> MagPropLifetime;
@@ -243,6 +245,13 @@ namespace RavenfieldVR.Core
                 "A chambered round counts on top of a full magazine (30+1).");
             ReturnRoundsOnMagDrop = cfg.Bind("Weapons", "ReturnRoundsOnMagDrop", true,
                 "Rounds left in a dropped magazine go back to your reserve (Ravenfield's normal behaviour). Off = they are lost.");
+            MagazineDetent = cfg.Bind("Weapons", "MagazineDetent", true,
+                "A magazine's last few millimetres into its well take a firm push, or a tap on its base, and it clicks as it latches. Pushed in "
+                + "gently it stops just short; let go there, it waits in the well until its base is tapped home (or it is taken again, or the "
+                + "magazine release drops it). Not for pistols (their magazine is drawn home in the grip), machine gun boxes or clips.");
+            UnderSeatedMagazineFalls = cfg.Bind("Weapons", "UnderSeatedMagazineFalls", false,
+                "Optional, with the magazine detent: a magazine let go before it clicks home goes in unlatched; it feeds, but drops out at the "
+                + "next shot unless its base is tapped home first.");
             LoadMagazinesByHand = cfg.Bind("Weapons", "LoadMagazinesByHand", false,
                 "Experimental: a gun fed from box magazines carries three, the one in it and two empty ones in the pouch, and your reserve is "
                 + "loose rounds you load into them by hand. Put the gun away, hold a magazine in one hand and squeeze at the pouch with the "
