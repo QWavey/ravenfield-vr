@@ -81,4 +81,36 @@ namespace RavenfieldVR.Weapons
             return sys.Sounds.PlayGameClip(clip, start + length * from, Mathf.Max(0.02f, length * share), at, volume, pitch);
         }
     }
+
+    /// <summary>
+    /// A dropped magazine landing (user, 2026-11-03, idea 5: they hit the ground without a sound, the cases with one): the end of its
+    /// gun's own magazine-in sound, the metal knock of it seating, lower and as loud as it hit, duller and quieter on earth or grass.
+    /// Game audio only (GameSounds): a gun with none of its own lends a vanilla weapon's.
+    /// </summary>
+    internal sealed class MagazineClatter : MonoBehaviour
+    {
+        internal MagazineProp Prop;
+        private float _last = -1f;
+
+        private void OnCollisionEnter(Collision c)
+        {
+            if (Prop == null || Prop.HeldBy != null || Prop.Data == null || Prop.OnRail)
+            {
+                return;
+            }
+            float speed = c.relativeVelocity.magnitude;
+            float now = Time.unscaledTime;
+            if (speed < 0.8f || now - _last < 0.12f)
+            {
+                return;
+            }
+            _last = now;
+            bool soft = CaseSound.IsSoft(c.collider);
+            float loud = Mathf.Clamp01((speed - 0.8f) / 4f);
+            float volume = soft ? 0.1f + 0.15f * loud : 0.18f + 0.37f * loud;
+            float pitch = (soft ? 0.66f : 0.8f) * Random.Range(0.95f, 1.05f);
+            Vector3 at = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
+            GameSounds.PlayPart(Prop.Data, MechSound.MagIn, at, 0.6f, 0.4f, volume, pitch);
+        }
+    }
 }

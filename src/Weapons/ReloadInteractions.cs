@@ -39,6 +39,8 @@ namespace RavenfieldVR.Weapons
         private const float ReturnAccel = 250f, ReturnTop = 8f, ReturnSlam = 5f;
         /// <summary>Against the back stop this stroke (its knock felt once).</summary>
         private bool _atBackStop;
+        /// <summary>The slide was caught back last frame, and a frame has been seen (no click for a gun drawn already caught back).</summary>
+        private bool _wasLocked, _lockSeen;
         private Vector3 _rackStartGun;
         /// <summary>Where the hand took the pump (gun space, the pump forward): the hand stays there as the pump moves.</summary>
         private Vector3 _pumpGraspRestGun;
@@ -911,6 +913,16 @@ namespace RavenfieldVR.Weapons
             {
                 _returnSpeed = 0f; // (each return from a standing start)
             }
+            // Caught back on an empty magazine (the last round fired, or racked with nothing to feed): a light click and a tap in the
+            // gun hand, the end of its own slide-back sound (user, 2026-11-03, idea 6: told empty before looking).
+            bool locked = Ammo != null && Ammo.SlideLocked;
+            if (locked && !_wasLocked && _lockSeen)
+            {
+                GameSounds.PlayPart(Data, MechSound.SlideBack, RackPointWorld, 0.7f, 0.3f, 0.4f, 1.12f);
+                _sys.Rig.Dominant.Haptic(0.025f, 180f, 0.45f);
+            }
+            _wasLocked = locked;
+            _lockSeen = true;
             if (Ammo != null && Ammo.SlideLocked && !_racking)
             {
                 _held.SlideOffset = Travel;

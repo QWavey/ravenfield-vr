@@ -178,7 +178,9 @@ namespace RavenfieldVR.Weapons
                 // Out over the top and forward off the feed lips, as a thumb pushes it; at the hand's own speed besides.
                 Casings.RoundOut(mag.Owner != null ? mag.Owner.Rig : null, mag.WeaponKey, mag.Owner, top + up * 0.012f,
                     Quaternion.LookRotation(front, up), h.Velocity + up * 0.7f + front * 0.35f);
-                sys.Sounds.Play(MechSound.ShellIn, top, 0.35f);
+                // (The start of its gun's magazine-out sound, as the round leaves the lips: game audio only, GameSounds.)
+                float fullness = mag.Owner != null && mag.Owner.Weapon != null ? (float)mag.Rounds / mag.Owner.Capacity : 0.5f;
+                GameSounds.PlayPart(mag.Data, MechSound.MagOut, top, 0f, 0.25f, 0.25f, 1f + 0.3f * fullness);
                 h.Haptic(0.015f, 180f, 0.3f);
             }
         }
@@ -213,8 +215,7 @@ namespace RavenfieldVR.Weapons
             }
             a.TakeSpare(1);
             Hold(hand, Casings.RoundInHand(a.Rig, mag.WeaponKey, a, hand));
-            sys.Sounds.Play(MechSound.Pouch, hand.Palm.position, 0.4f);
-            hand.Haptic(0.02f, 160f, 0.35f);
+            hand.Haptic(0.02f, 160f, 0.35f); // (felt only: no sound of the mod's own making)
             return true;
         }
 
@@ -279,7 +280,9 @@ namespace RavenfieldVR.Weapons
                         mag.Rounds++;
                         Casings.LoadedAway(c);
                         Free(h);
-                        sys.Sounds.Play(MechSound.ShellIn, top, 0.5f);
+                        // Clicked in a little higher with each round, as the spring under them is pressed down (idea 7: counted by ear):
+                        // the end of the gun's own magazine-in sound, the latch's click, game audio only.
+                        GameSounds.PlayPart(mag.Data, MechSound.MagIn, top, 0.6f, 0.4f, 0.3f, 0.95f + 0.35f * mag.Rounds / mag.Owner.Capacity);
                         h.Haptic(0.02f, 160f, 0.45f);
                         other.Haptic(0.02f, 160f, 0.45f);
                         if (mag.Rounds == 1)

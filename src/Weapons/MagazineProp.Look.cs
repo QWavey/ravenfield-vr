@@ -79,6 +79,7 @@ namespace RavenfieldVR.Weapons
             go.name = "RavenfieldVR " + kind;
             SetLayer(go, HeldLayer);
             var prop = new MagazineProp(go, kind, d.Key, rounds, bounds, insertLocal, frontLocal, d.IsMachineGun, fitKey);
+            prop.Data = d;
             prop._pistolGun = d.IsPistol;
             if (kind == PropKind.Rocket)
             {

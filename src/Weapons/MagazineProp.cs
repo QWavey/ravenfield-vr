@@ -46,6 +46,8 @@ namespace RavenfieldVR.Weapons
         /// (built in the seat's frame, turned off the part's where the analysis lined the seat up).
         /// </summary>
         public readonly bool OwnCopy;
+        /// <summary>Its weapon's analysis (its game sounds: MagazineClatter), when it was made from one.</summary>
+        internal WeaponRigData Data;
         public int Rounds;
         /// <summary>
         /// The ammo the rounds came from. A dropped magazine keeps its rounds (pick it up and seat it to use them);
@@ -416,6 +418,10 @@ namespace RavenfieldVR.Weapons
                                                         + $"{shown.Length} renderer(s) ({System.Linq.Enumerable.Count(shown, r => r != null && r.enabled)} on).");
             }
             _body = go.AddComponent<Rigidbody>();
+            if (kind == PropKind.Magazine)
+            {
+                go.AddComponent<MagazineClatter>().Prop = this;
+            }
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             RestingBodies.Add(_body); // (no interpolation while it lies still)
