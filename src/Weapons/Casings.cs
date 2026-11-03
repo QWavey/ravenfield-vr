@@ -352,11 +352,27 @@ namespace RavenfieldVR.Weapons
             return c;
         }
 
-        /// <summary>A held case or round in the hand's fingers, pointing along them.</summary>
+        /// <summary>
+        /// The pinch's line in the palm's frame: along the fingers, tipped 22 degrees toward the palm's heel (MagazineProp's shell
+        /// pinch, from tools/hands/grip_check.py).
+        /// </summary>
+        private static readonly Vector3 PinchAxis = new Vector3(0f, -0.3714f, 0.9285f);
+
+        /// <summary>
+        /// A held case or round in the hand's fingers: its middle at the glove's pinch (between the thumb and the index tips), along
+        /// the pinch's line, as the glove's shell pose holds a shell; without a glove a little out along the fingers.
+        /// </summary>
         internal static void Follow(Case c, Rig.VRHand hand)
         {
             Quaternion rot = hand.Palm.rotation;
             Vector3 at = hand.Palm.position + rot * HeldAt;
+            if (hand.Model != null)
+            {
+                Vector3 axis = rot * PinchAxis;
+                Vector3 up = Vector3.ProjectOnPlane(hand.Palm.Up, axis);
+                at = hand.Palm.TransformPoint(hand.Model.PinchInPalm);
+                rot = Quaternion.LookRotation(axis, up.sqrMagnitude > 1e-6f ? up : hand.Palm.Up);
+            }
             Transform t = c.Go.transform;
             t.SetPositionAndRotation(at - rot * Vector3.Scale(c.Collider.center, t.localScale), rot);
         }

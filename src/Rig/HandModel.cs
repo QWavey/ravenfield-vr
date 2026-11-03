@@ -1512,7 +1512,9 @@ namespace RavenfieldVR.Rig
             }
             // A hand at rest is never ruler-straight: a slight natural curl, more toward the little finger.
             Minimum(0.1f, 0.12f, 0.16f, 0.2f, 0.24f);
-            _pose = HandPoses.Get(HandPoses.For(_hand.Role, WeaponClass, WorkedPart, _hand.Held as Weapons.MagazineProp, Palming, CockpitStick));
+            // (A loose round or case in the fingers, magazines loaded by hand: pinched as a shell is, not in a magazine's fist.)
+            _pose = HandPoses.Get(_hand.Held is Weapons.Casings.Case ? HandPoseId.Shell
+                : HandPoses.For(_hand.Role, WeaponClass, WorkedPart, _hand.Held as Weapons.MagazineProp, Palming, CockpitStick));
             if (_hand.Role == HandRole.Free && !VRInput.HasSkeleton(side) && grip > 0.9f && trigger > 0.9f)
             {
                 _pose = HandPoses.Get(HandPoseId.Fist);
