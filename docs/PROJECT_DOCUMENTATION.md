@@ -1203,3 +1203,6 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `dist/RavenfieldVR-Setup-1.16.5.exe`): a machine gun's belt goes round its box in one piece (`BeltStrip.PathRound`), the weapon's
    arms hold off hand-bone poses off the gun as long as they last (`SteadyGrip`), the pouch shows an empty magazine when it hands those
    out, a slow push knocks a magazine out only roughly in line (302 checks).
+28. **1.16.6** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.6.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.6.exe`): an empty magazine with no empty look kept leaves out round-shaped pieces
+   (`MagazineProp.RoundShaped`), the game's own reload passes through the steadied grips (306 checks).
