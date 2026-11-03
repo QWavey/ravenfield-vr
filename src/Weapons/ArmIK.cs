@@ -117,7 +117,7 @@ namespace RavenfieldVR.Weapons
                 RigidPose animated = RigidPose.Of(_right.Hand);
                 bool onGrip = (animated.position - _held.Rig.ToWorld(_held.Rig.Data.GripPoint)).sqrMagnitude < 0.08f * 0.08f;
                 RigidPose target = _gunGrip.Steady(animated, _held.Rig.GunBodyPose, onGrip, GameReloading);
-                SayHeldOff("gun hand", animated, target);
+                SayHeldOff("gun hand", animated, target, ref _saidGunOff);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
                 GunHandError = Vector3.Distance(_right.Hand.position, target.position);
@@ -145,7 +145,7 @@ namespace RavenfieldVR.Weapons
                 WeaponRigData data = _held.Rig.Data;
                 bool onSupport = !data.HasSupportPoint || (animatedGrip.position - _held.Rig.ToWorld(data.SupportPoint)).sqrMagnitude < 0.14f * 0.14f;
                 RigidPose grip = _supportGrip.Steady(animatedGrip, _held.Rig.GunBodyPose, onSupport, GameReloading);
-                SayHeldOff("support hand", animatedGrip, grip);
+                SayHeldOff("support hand", animatedGrip, grip, ref _saidSupportOff);
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
                 // Turned as the VR glove is (its tracked frame, the glove rotation setting included): fingers along its forward,
@@ -279,19 +279,17 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Once per gun and hand: the gun's animation had the hand bone away from where it was held (the proof of a blink, for the log).</summary>
-        private void SayHeldOff(string which, RigidPose animated, RigidPose held)
+        private void SayHeldOff(string which, RigidPose animated, RigidPose held, ref bool said)
         {
-            float off = Vector3.Distance(animated.position, held.position);
+            float off = said ? 0f : Vector3.Distance(animated.position, held.position);
             if (off > 0.03f)
             {
-                string key = "armblink:" + which + _held.Rig.Data.Key;
-                if (!Log.Logged(key))
-                {
-                    Animator a = _held.ActiveWeapon != null && _held.ActiveWeapon.HasActiveAnimator() ? _held.ActiveWeapon.animator : null;
-                    Log.InfoOnce(key, $"{_held.Rig.Data.Key}: the {which} held on the gun, its bone {off * 100f:0} cm away in the animation ({_held.AnimatorStateText}{(a != null && a.IsInTransition(0) ? ", in a transition" : "")}).");
-                }
+                said = true; // (once a hold: no string made each frame of it)
+                Log.InfoOnce("armblink:" + which + _held.Rig.Data.Key, $"{_held.Rig.Data.Key}: the {which} held on the gun, its bone {off * 100f:0} cm away in the animation ({_held.AnimatorStateText}).");
             }
         }
+
+        private bool _saidGunOff, _saidSupportOff;
 
         /// <summary>The game's own reload is playing (the assisted reload): the hands go where its animation takes them, off the gun too.</summary>
         private bool GameReloading => _held.ActiveWeapon != null && _held.ActiveWeapon.reloading;
