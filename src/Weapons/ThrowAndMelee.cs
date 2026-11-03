@@ -88,7 +88,8 @@ namespace RavenfieldVR.Weapons
                 // Not from a hand out of view: its own velocity reads zero then and the body's motion alone (walking) threw the grenade
                 // from a palm riding on the rig (round 11); the free hand and the grip are not worked in a tracking gap either.
                 Vector3 v = ThrowableHandler.Released(hand);
-                if (hand.Tracked && (v.magnitude > 1.1f || CanStrap(hand)) && Throw(weapon, hand, v))
+                bool thrown = v.magnitude > 1.1f;
+                if (hand.Tracked && (thrown || CanStrap(hand)) && Throw(weapon, hand, v, thrown))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
                 }
@@ -106,10 +107,11 @@ namespace RavenfieldVR.Weapons
                 {
                     v = body;
                 }
-                if (body.magnitude > 1.6f || CanStrap(hand))
+                bool thrown = body.magnitude > 1.6f;
+                if (thrown || CanStrap(hand))
                 {
                     _armed = false;
-                    if (Throw(weapon, hand, v))
+                    if (Throw(weapon, hand, v, thrown))
                     {
                         // The hand that let go is empty, as in Boneworks: the next grenade waits in its holster. It stayed
                         // "held" in the open hand before (the let-go was spent on the throw), and could not be thrown or
@@ -127,14 +129,21 @@ namespace RavenfieldVR.Weapons
         /// A live grenade (its pin out, or one without a pin) let go on a body the other hand holds is strapped to it, however
         /// slowly it is let go (a slow let-go elsewhere puts it back on the chest): <see cref="StrappedGrenade"/>.
         /// </summary>
-        private bool CanStrap(VRHand hand) => (!_usesPin || _pinPulled) && hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed
+        private bool CanStrap(VRHand hand) => (!_usesPin || _pinPulled) && hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed && _strapsOn
                                               && BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach) != null;
+
+        /// <summary>
+        /// The held throwable throws a grenade (only a grenade is strapped): a bag, kit or charge let go slowly beside a held body was
+        /// taken for a strap, spawned at the palm at the let-go's speed (next to nothing) and spent there (throw scout, 2026-11-03).
+        /// </summary>
+        private bool _strapsOn;
 
         /// <summary>A let-go slower than this beside a held body straps the grenade to it; faster is a throw (m/s).</summary>
         private const float StrapMaxSpeed = 2.5f;
 
         /// <returns>Something left the hand (a live grenade or a dud).</returns>
-        private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
+        /// <param name="thrown">The caller took the release for a throw: it is not strapped to a body beside it, however its last frame read.</param>
+        private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity, bool thrown)
         {
             LastLiveCount = 0;
             // The flat game's throw animation states never apply to a throw by hand (the game's own throw, started by a
@@ -164,8 +173,10 @@ namespace RavenfieldVR.Weapons
             // Let go on a held body: strapped to its nearest bone, not thrown (user, 2026-10-24). Only a let-go, not a throw that
             // starts beside the body the other hand holds: slow against the player's own body, as CanStrap (the world velocity
             // counted walking, so a shield carried along at a walk never took a grenade).
+            // (Not when the caller took it for a throw: by the throw's 0.1 s peak a swing, and the last frame's own speed, which a
+            // release trails, under 2.5 m/s strapped the grenade to the soldier the other hand held; throw scout, 2026-11-03.)
             Actor carrier = null;
-            Rigidbody strapTo = hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed ? BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach, out carrier) : null;
+            Rigidbody strapTo = !thrown && hand.BodyRelativeVelocity.magnitude < StrapMaxSpeed ? BodyGrab.StrapBone(hand.Palm.position, BodyGrab.StrapReach, out carrier) : null;
             _spawned.Clear();
             try
             {
@@ -260,6 +271,8 @@ namespace RavenfieldVR.Weapons
             _pinFor = weapon;
             _pinRig = held.Rig;
             _usesPin = HasPin(weapon);
+            GameObject projectile = weapon.configuration != null ? weapon.configuration.projectilePrefab : null;
+            _strapsOn = projectile != null && projectile.GetComponent<GrenadeProjectile>() != null;
             _pinPulled = false;
             _holdingPin = false;
             _modPin = null;
@@ -362,7 +375,7 @@ namespace RavenfieldVR.Weapons
             {
                 // (Where the pin is, last: only on the frame the other hand grips. A modelled pin's centre searches its renderer.)
                 if (!_holdingPin && off.Tracked && off.Role == HandRole.Free && off.GrabPressed && _pinRig != null && _pinRig.GunBody != null
-                    && Vector3.Distance(off.Palm.position, PinWorld) < PinGrabRadius)
+                    && Vector3.Distance(off.Palm.position, PinWorld) < PinGrabRadius && !GameContextBlocksThrow())
                 {
                     VRInput.Consume(DigitalAction.Grab, off.Side);
                     _holdingPin = true;
@@ -561,7 +574,7 @@ namespace RavenfieldVR.Weapons
             Vector3 lob = (Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized + Vector3.up).normalized * 16f;
             int before = weapon.ammo + weapon.spareAmmo;
             int duds = GrenadeDud.Count;
-            Throw(weapon, hand, lob);
+            Throw(weapon, hand, lob, true);
             bool dud = GrenadeDud.Count == duds + 1 && LastLiveCount == 0;
             bool refunded = GrenadeDud.RefundLast(weapon.user) && weapon.ammo + weapon.spareAmmo == before;
             report($"pin in: {(dud ? "dud, no live grenade" : "LIVE GRENADE WITH THE PIN IN")}, picked up again: {(refunded ? "refunded" : "NOT REFUNDED")}");
@@ -576,7 +589,7 @@ namespace RavenfieldVR.Weapons
                 yield break;
             }
             PullPin(null);
-            Throw(weapon, hand, lob);
+            Throw(weapon, hand, lob, true);
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
         }
 
@@ -599,7 +612,7 @@ namespace RavenfieldVR.Weapons
             {
                 PullPin(null);
             }
-            return Throw(weapon, _sys.Rig.Dominant, Vector3.zero) ? LastLiveCount : 0;
+            return Throw(weapon, _sys.Rig.Dominant, Vector3.zero, false) ? LastLiveCount : 0;
         }
 
         /// <summary>Death or a new map: the grenades drawn next are fresh ones, pins in.</summary>
