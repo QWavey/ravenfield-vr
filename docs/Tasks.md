@@ -2870,6 +2870,16 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   those out (3b23e8f); a held round at the weapon's fingers (0cd98ea). From the live log (not reported by the user): the G BRN180 EO S,
   never settled with a full magazine, gave out full magazines copied empty (32 of 62 pieces): round-sized pieces go in (edfaf84, in 1.16.4).
 
+- 1.16.5 (695eccc) and 1.16.6 (c0943f6) built and installed at the user's word; 1.16.6 started on the Quest at their word (explorer.exe
+  steam://rungameid/636480, Steam and SteamVR up). In them: the hand bones' off-gun poses held off as long as they last, once one on the
+  gun was seen (the log's 26-31 cm; SteadyGrip's second rule), passed straight through during the game's own reload; a slow push kicks only
+  within 35 degrees (log: 0.02 m/s at 66 degrees); an empty magazine with no empty look leaves out round-shaped pieces (RoundShaped).
+  A Haiku review of the day's diff: taken: empty magazines (RoundShaped), the route's comment, KeptOut on passed guns (6f3ea58, after 1.16.6).
+  Declined: a magazine filled from the pouch's endless rounds gives them to the reserve when stowed (harmless with rounds without end,
+  and "everything normal"); PathRound's slab tests per frame (only while a belt crosses its box); a left-handed pass ending with each
+  arm on its own side (as meant); the pouch stow with the gun away for all kinds (as the drawn gun's). Unverified: whether Unity ramps
+  AudioSource.volume inside a frame (SliceFader's fade-in).
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
