@@ -43,6 +43,8 @@ NOT_BY_PATTERN = {
     "THE PLAYER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
     "ITS OWN SOLDIER'S": "a diagnostic: whose collider a held body's hardest contact was (BodyImpacts.HardestContact)",
     '(STILL SLOWED': "AutoTest's slowed hands check raises it with Problem(line) (slow motion off, the hand not caught up)",
+    'GAVE WRONG MAGAZINES': "AutoTest's hand loading check raises it with Problem(line)",
+    'THE RESERVE CHANGED': "AutoTest's hand loading check raises it with Problem(line)",
 }
 CAPS = re.compile(r"\(?\b[A-Z][A-Z0-9'()]+(?:[ -]\(?[A-Z0-9'()]+\b\)?)+")
 

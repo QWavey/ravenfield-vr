@@ -5847,6 +5847,56 @@ namespace RavenfieldVR.Core
         /// tenth of a second) and catches up (over 90% in 1.5 s); a magazine it lets go of at 1 m/s moves at the world's pace (about
         /// 0.2 m/s in real time, no real-time flight). The saved setting is left as it was.
         /// </summary>
+        /// <summary>
+        /// Magazines loaded by hand (experimental, switched on for the check only): with the gun's magazine in it, its pouch holds two
+        /// empty magazines and then none; a magazine of it cleared away goes back into the pouch with its rounds, the reserve untouched.
+        /// </summary>
+        private static void HandLoadingCheck(Action<string> report)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            AmmoState a = held != null ? held.Ammo : null;
+            bool? before = VRConfig.TestLoadByHand;
+            VRConfig.TestLoadByHand = true;
+            System.Collections.Generic.List<int> savedBag = a != null ? a.SpareMagazines : null;
+            try
+            {
+                if (a == null || !HandLoading.Applies(a))
+                {
+                    report("magazines loaded by hand: skipped (no box-fed gun in the hand)");
+                    return;
+                }
+                a.SpareMagazines = null;
+                int spare = a.SpareAmmo;
+                bool t1 = HandLoading.TakeMagazine(a, out int r1), t2 = HandLoading.TakeMagazine(a, out int r2), t3 = HandLoading.TakeMagazine(a, out _);
+                bool pouch = t1 && t2 && !t3 && r1 == 0 && r2 == 0;
+                MagazineProp prop = MagazineProp.Create(held.Rig, PropKind.Magazine, 7);
+                bool back = false;
+                if (prop != null)
+                {
+                    prop.Owner = a;
+                    prop.Despawn();
+                    back = HandLoading.TakeMagazine(a, out int r4) && r4 == 7;
+                }
+                bool reserve = a.SpareAmmo == spare;
+                string line = $"magazines loaded by hand: the pouch {(pouch ? "gave two empty magazines, then none" : $"GAVE WRONG MAGAZINES ({t1}/{r1}, {t2}/{r2}, a third {t3})")}, "
+                              + $"{(back ? "a cleared magazine went back into it with its 7 rounds" : "A CLEARED MAGAZINE DID NOT GO BACK INTO THE POUCH")}, "
+                              + $"{(reserve ? "the reserve untouched" : $"THE RESERVE CHANGED ({spare} to {a.SpareAmmo})")}";
+                if (!pouch || !back || !reserve)
+                {
+                    Problem(line);
+                }
+                report(line);
+            }
+            finally
+            {
+                if (a != null)
+                {
+                    a.SpareMagazines = savedBag;
+                }
+                VRConfig.TestLoadByHand = before;
+            }
+        }
+
         private static IEnumerator SlowedHandsCheck(Action<string> report)
         {
             WeaponSystem sys = WeaponSystem.Instance;
@@ -6651,6 +6701,7 @@ namespace RavenfieldVR.Core
                             yield return GentleMagazineCheck(lines.Add);
                             yield return SlowMotionMagazineCheck(lines.Add);
                             yield return SlowedHandsCheck(lines.Add);
+                            HandLoadingCheck(lines.Add);
                             yield return RunningMagazineEaseCheck(lines.Add);
                             yield return BuriedMagazineCheck(lines.Add);
                             yield return PouchThrowCheck(lines.Add);

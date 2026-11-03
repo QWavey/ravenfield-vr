@@ -513,6 +513,12 @@ namespace RavenfieldVR.Core
         /// <summary>Autotest: the slow-motion hands mode for a moment without touching the saved setting.</summary>
         internal static SlowMotionHands? TestSlowHands;
 
+        /// <summary>Whether magazines are loaded by hand now: the setting, or the autotest's choice (never saved).</summary>
+        public static bool LoadsMagazinesByHand => TestLoadByHand ?? LoadMagazinesByHand.Value;
+
+        /// <summary>Autotest: magazines loaded by hand for a moment without touching the saved setting.</summary>
+        internal static bool? TestLoadByHand;
+
         /// <summary>Autotest: handedness for a moment without touching the saved setting.</summary>
         internal static bool? TestLeftHanded;
 

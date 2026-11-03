@@ -35,7 +35,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The push (N s) a bullet gives a case or round it passes through: a 12 g case flies off at about 3 m/s.</summary>
         private const float ShotPush = 0.035f;
 
-        internal static bool Enabled => VRConfig.LoadMagazinesByHand.Value && VRConfig.ReloadNow == ReloadMode.Manual;
+        internal static bool Enabled => VRConfig.LoadsMagazinesByHand && VRConfig.ReloadNow == ReloadMode.Manual;
 
         /// <summary>The ammunition that holds a weapon's magazines (a fire-mode variant's are its parent's).</summary>
         private static AmmoState Root(AmmoState a) => a.MagazineOf ?? a;
