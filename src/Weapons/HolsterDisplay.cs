@@ -29,6 +29,8 @@ namespace RavenfieldVR.Weapons
             /// <summary>Its scale as built, how far a hand's reach has eased it out (0-1), and whether it is hidden near the eyes.</summary>
             public float Scale = 1f, Hover;
             public bool NearEyes;
+            /// <summary>Built with its magazine hidden: the gun was put away with the magazine out.</summary>
+            public bool MagOut;
         }
 
         private readonly WeaponSystem _sys;
@@ -58,7 +60,10 @@ namespace RavenfieldVR.Weapons
                     Hide(s);
                     continue;
                 }
-                if (s == null || s.Entry != entry || s.Go == null)
+                // Its magazine as the gun has it: put away with the magazine out, the holster showed it in (the copy is of the prefab).
+                AmmoState ammo = _sys.StateFor(w, create: false);
+                bool magOut = ammo != null && ammo.UsesDetachableMag && !ammo.MagInserted;
+                if (s == null || s.Entry != entry || s.Go == null || s.MagOut != magOut)
                 {
                     Clear(spot);
                     s = Build(entry, w);
@@ -66,6 +71,11 @@ namespace RavenfieldVR.Weapons
                     if (s == null)
                     {
                         continue;
+                    }
+                    s.MagOut = magOut;
+                    if (magOut)
+                    {
+                        WeaponDrops.HideMagazineOnModel(s.Go, entry);
                     }
                 }
                 // A hand reaching the holster eases its copy out a little (5% larger, 1.5 cm out along its barrel), as the pouch's copy

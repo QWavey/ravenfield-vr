@@ -617,6 +617,29 @@ namespace RavenfieldVR.Weapons
         /// hidden part would leave an invisible collider beside the gun; Task 268). A part outside the third-person model is never
         /// drawn in a copy. Returns how many were hidden.
         /// </summary>
+        /// <summary>
+        /// The magazine hidden on a copy of a weapon type's world model (<see cref="ModelFor"/>: a drop's, a holster's): its parts found
+        /// from an analysis already made (never one run here). The number hidden; -1 when it cannot be told (no analysis, no model).
+        /// </summary>
+        internal static int HideMagazineOnModel(GameObject model, WeaponManager.WeaponEntry entry)
+        {
+            Weapon prefab = entry?.prefab != null ? entry.prefab.GetComponent<Weapon>() : null;
+            Transform tpAsset = prefab != null ? prefab.thirdPersonTransform : null;
+            if (tpAsset == null || model == null || model.transform.childCount == 0 || !WeaponAnalyzer.IsCached(prefab, entry))
+            {
+                return -1;
+            }
+            int[] tpPath = WeaponRig.PathOf(prefab.transform, tpAsset);
+            WeaponRigData d = WeaponAnalyzer.Get(prefab, entry);
+            if (tpPath == null || d.MagazinePath == null)
+            {
+                return -1;
+            }
+            var paths = new List<int[]> { d.MagazinePath };
+            paths.AddRange(d.MagazinePartPaths);
+            return HideInWorldModel(model.transform.GetChild(0), tpPath, paths); // (the template's third-person model)
+        }
+
         private static int HideInWorldModel(Transform model, int[] tpPath, IEnumerable<int[]> paths)
         {
             Vector3 tiny = Vector3.one * 1e-4f;
@@ -659,23 +682,15 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static void HideMagazine(DroppedWeapon drop)
         {
-            Weapon prefab = drop?.Entry?.prefab != null ? drop.Entry.prefab.GetComponent<Weapon>() : null;
-            Transform tpAsset = prefab != null ? prefab.thirdPersonTransform : null;
-            if (tpAsset == null || drop.Go == null || drop.Go.transform.childCount == 0 || drop.Go.transform.GetChild(0).childCount == 0
-                || !WeaponAnalyzer.IsCached(prefab, drop.Entry))
+            if (drop == null || drop.Go == null || drop.Go.transform.childCount == 0)
             {
                 return;
             }
-            int[] tpPath = WeaponRig.PathOf(prefab.transform, tpAsset);
-            WeaponRigData d = WeaponAnalyzer.Get(prefab, drop.Entry);
-            if (tpPath == null || d.MagazinePath == null)
+            int hidden = HideMagazineOnModel(drop.Go.transform.GetChild(0).gameObject, drop.Entry); // (the drop's copy of the template)
+            if (hidden < 0)
             {
                 return;
             }
-            var paths = new List<int[]> { d.MagazinePath };
-            paths.AddRange(d.MagazinePartPaths);
-            Transform model = drop.Go.transform.GetChild(0).GetChild(0); // the drop's copy of the template, and its third-person model
-            int hidden = HideInWorldModel(model, tpPath, paths);
             Log.InfoOnce("dropmagout:" + drop.Entry.name, $"{drop.Entry.name} put down with its magazine out: "
                                                        + (hidden > 0 ? $"{hidden} magazine part(s) hidden on the ground copy." : "the magazine is not in its third-person copy (a model of its own): left as it is."));
         }
