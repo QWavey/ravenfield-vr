@@ -46,9 +46,13 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRig rig = held.ActiveRig;
             PropKind kind = ammo.UsesDetachableMag ? PropKind.Magazine : rig.Data.Action == ActionType.SingleShot ? PropKind.Rocket : PropKind.Shell;
-            if (_builtFor != rig.Data || _builtKind != kind || _model == null)
+            // Built again once the gun's magazine is copied as it looks loaded: built at the draw, before the gun has settled loaded
+            // (HeldWeapon.SettledLoaded), it was a copy of the magazine as it showed then, rounds off on a mod that animates them on.
+            bool loadedLook = kind == PropKind.Magazine && MagazineProp.KeepsLoadedLook(rig.Data.Key);
+            if (_builtFor != rig.Data || _builtKind != kind || _model == null || loadedLook && !_builtLoaded)
             {
-                Build(rig, kind);
+                Build(rig, kind, loadedLook);
+                _builtLoaded = loadedLook;
                 _builtFor = rig.Data;
                 _builtKind = kind;
             }
@@ -131,7 +135,10 @@ namespace RavenfieldVR.Weapons
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
-        private void Build(WeaponRig rig, PropKind kind)
+        /// <summary>The shown model was made from the gun's magazine as it looks loaded (see <see cref="MagazineProp.KeepsLoadedLook"/>).</summary>
+        private bool _builtLoaded;
+
+        private void Build(WeaponRig rig, PropKind kind, bool loadedLook)
         {
             if (_root == null)
             {
@@ -155,7 +162,7 @@ namespace RavenfieldVR.Weapons
                 _model.SetActive(false); // kept for the next time this weapon is drawn
             }
             var key = (rig.Data, kind);
-            if (_kept.TryGetValue(key, out Kept k) && StillDrawable(k.Model))
+            if (_kept.TryGetValue(key, out Kept k) && StillDrawable(k.Model) && (k.Loaded || !loadedLook))
             {
                 // Drawn before: the same model again (each switch made a new copy of the magazine's meshes; 255.P3-2).
                 _model = k.Model;
@@ -170,6 +177,10 @@ namespace RavenfieldVR.Weapons
             }
             if (k.Model != null)
             {
+                if (k.Model == _model)
+                {
+                    _model = null;
+                }
                 Object.Destroy(k.Model);
             }
             _model = MagazineProp.BuildDisplay(rig, kind, out _bounds, out _insertLocal, out _frontLocal);
@@ -181,7 +192,7 @@ namespace RavenfieldVR.Weapons
             }
             float size = _bounds.size.magnitude;
             _scale = size > MaxSize ? MaxSize / size : 1f; // a rocket shows smaller than life
-            _kept[key] = new Kept { Model = _model, Bounds = _bounds, Insert = _insertLocal, Front = _frontLocal, Scale = _scale };
+            _kept[key] = new Kept { Model = _model, Bounds = _bounds, Insert = _insertLocal, Front = _frontLocal, Scale = _scale, Loaded = loadedLook };
             _keptOrder.Remove(key);
             _keptOrder.Add(key);
             while (_keptOrder.Count > KeptModels)
@@ -203,6 +214,8 @@ namespace RavenfieldVR.Weapons
             public Bounds Bounds;
             public Vector3 Insert, Front;
             public float Scale;
+            /// <summary>Made from the magazine's loaded look.</summary>
+            public bool Loaded;
         }
 
         private const int KeptModels = 6;
