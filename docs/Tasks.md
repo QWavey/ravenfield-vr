@@ -2894,6 +2894,15 @@ ReloadMode = Manual, LoadMagazinesByHand = false.
   says not with Game, steppers rounded, the panel as tall as the page shown (c628c66). The frame rate falling to 0-27% on time in the
   user's second session was a heavier map (a new level at log line 839: GPU 13.5 ms at Ultra, 1.2, MSAA 4x; the mod's own work 1 ms), not a leak.
 
+- Run ended by the user at 34% (the ceiling was 40). DLL of 3249240 installed (it still says 1.16.6; no setup built for what came after
+  c0943f6: draft notes in dist/notes-next.md). 309 checks pass. Not looked at yet, from a Haiku scout of the machine gun flow: (1) the assisted
+  reload ignores the cover and belt (WeaponPatches.cs:180: a gun left with its cover open fires, the counter saying LAY BELT); (2) an emptied box
+  keeps its model belt shown and grabbable with no strip drawn (HeldWeapon.cs:535, ReloadInteractions.cs:755); (3) dry after a new box needs a
+  rack: to confirm as meant; (4) BeltByHand switched off with a belt hanging leaves it drawn (ReloadInteractions.Parts.cs:546-561). Two scouts
+  were stopped unread: a review of the diff c0943f6..HEAD, and the weapon's arms with a second gun, grenades, melee and seats: run them again
+  first. To read after a play: the "held on the gun, its bone N cm away" lines (the left arm's blink). Asked and not answered: whether the old
+  synthesised sounds (lip, knock, cases, holster, pouch) go over to game sounds.
+
 ### 358. Handling details (user, 2026-11-03: "more realistic and detailed ... simple tiny things"; picks 1-3, 5-11; the game not started)
 
 Rule from the user: "Youre not allowed to make sounds on your own. Use game sounds": GameSounds plays slices of the weapon's own
