@@ -14,7 +14,7 @@ namespace RavenfieldVR.UI
     /// In-headset settings: turning, comfort, height, reloading, gun angle, rendering, handedness, plus recenter
     /// and the SteamVR binding UI; a second page ("More settings") for the controls, the gloves and the menus, which were only
     /// in the config file (sweep, 2026-10-29), and the first page's less used rows (aiming, display details: it was about 2.4 m
-    /// tall; the pages are about 1.8 m each). Changes write straight to the BepInEx config and apply live (the few that do not say
+    /// tall; the first page is about 1.8 m now, the second 2.4, the panel as tall as the shown page). Changes write straight to the BepInEx config and apply live (the few that do not say
     /// when they do).
     /// Visual language: gunmetal panel, off-white type, one signal-amber accent for the active choice, square
     /// flat controls; the game's own UI font when it can be found.
@@ -49,11 +49,7 @@ namespace RavenfieldVR.UI
         {
             _rig = rig;
             Canvas = UiKit.MakePanel("RavenfieldVR Settings", eventCamera, out _root, out _content);
-            var rect = (RectTransform)_root.transform;
-
-            Build();
-            rect.sizeDelta = new Vector2(CanvasWidth, _height + 36f);
-            _content.sizeDelta = new Vector2(0f, _height);
+            Build(); // (the panel's size is each page's: ShowPage)
             _root.SetActive(false);
         }
 
@@ -107,14 +103,16 @@ namespace RavenfieldVR.UI
             float mainHeight = _height + 18f;
 
             BuildMore();
-            float pagesHeight = Mathf.Max(mainHeight, _height + 18f);
-            // The footer at the same height on both pages (the shorter page's rows end above it).
+            float moreHeight = _height + 18f;
+            // Each page its own height, the footer at its end: at the longer page's on both, the first page had some 60 cm of nothing
+            // over its footer, and Close and Recenter stood 45 degrees under the eyes (settings scout, 2026-11-03).
             for (int i = 0; i < _pages.Length; i++)
             {
                 _page = _pages[i];
-                _height = pagesHeight;
+                _height = i == 0 ? mainHeight : moreHeight;
                 Footer(i);
                 _pages[i].sizeDelta = new Vector2(0f, _height);
+                _pageHeights[i] = _height;
             }
             ShowPage(0);
         }
@@ -208,10 +206,15 @@ namespace RavenfieldVR.UI
         /// <summary>The page shown (0: the first, 1: More settings).</summary>
         internal int ShownPage { get; private set; }
 
+        /// <summary>Each page's height with its footer (the panel takes the shown one's).</summary>
+        private readonly float[] _pageHeights = new float[2];
+
         /// <summary>Shows one page (0: the first, 1: More settings).</summary>
         private void ShowPage(int page)
         {
             ShownPage = page;
+            ((RectTransform)_root.transform).sizeDelta = new Vector2(CanvasWidth, _pageHeights[page] + 36f);
+            _content.sizeDelta = new Vector2(0f, _pageHeights[page]);
             for (int i = 0; i < _pages.Length; i++)
             {
                 if (_pages[i] != null)
