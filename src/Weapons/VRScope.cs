@@ -69,11 +69,28 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A lens for one sight mode (a magnifier flipped in behind a red dot): on that mode's sight line, at eye relief in
-        /// front of its eye point, magnifying by that mode's field of view.
+        /// front of its eye point, magnifying by that mode's field of view. When that line runs through the model's own scope
+        /// (a scope measured in the model, its ocular on the line), on that scope's ocular glass as the scope's own lens is: at eye
+        /// relief it floated in front of the scope, a second sight before the one on the gun (user, 2026-11-03: "On the M417A2
+        /// theres a Vanilla scope placed infront the original scope").
         /// </summary>
         public VRScope(VRRig vrRig, WeaponRig rig, SightLine line) : this(vrRig, rig, line.EyePoint, line.EyeDirection,
-            line.EyePoint + line.EyeDirection * EyeRelief, LensRadius * 0.85f, line.Fov)
+            OnOcular(rig, line) ? rig.Data.ScopeOcular - line.EyeDirection * 0.002f : line.EyePoint + line.EyeDirection * EyeRelief,
+            OnOcular(rig, line) ? rig.Data.ScopeRadius : LensRadius * 0.85f, line.Fov)
         {
+        }
+
+        /// <summary>Whether a sight mode's line runs through the model's own scope: its ocular ahead of the eye, within its glass of the line.</summary>
+        private static bool OnOcular(WeaponRig rig, SightLine line)
+        {
+            WeaponRigData d = rig.Data;
+            if (!d.HasScopeModel || line == null)
+            {
+                return false;
+            }
+            Vector3 off = d.ScopeOcular - line.EyePoint;
+            return Vector3.Dot(off, line.EyeDirection) > 0f
+                   && Vector3.ProjectOnPlane(off, line.EyeDirection).magnitude < Mathf.Max(0.015f, d.ScopeRadius);
         }
 
         private VRScope(VRRig vrRig, WeaponRig rig, Vector3 eyePoint, Vector3 eyeDirection, Vector3 lensPos, float radius, float fov)
