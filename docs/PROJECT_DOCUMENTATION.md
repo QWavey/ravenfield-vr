@@ -1186,3 +1186,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`HandLoading`, off by default, set off by the setup on every install), then a bug hunt to 60% of the session in eight
    rounds (today's changes, second weapon, rendering, throwing, soldier grabbing, input, holsters and pickup; 289 checks). Not
    started in the game: every item waits for a game run.
+25. **1.16.3** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.3.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.3.exe`): the handling details (Tasks 358): the well's edge heard, the rack's spring, the
+   slide's spring return, dropped magazines heard, the bolt catch's click, rounds clicking into a magazine, the magazine detent
+   (`MagazineDetent`, on; `UnderSeatedMagazineFalls`, off), bolt actions turned up before the pull, `AkMagazinesStayIn` (off)
+   and curved magazines rocked in. Every new sound is a slice of the game's own weapon sounds (`GameSounds`). Not started in
+   the game: every item waits for a game run.
