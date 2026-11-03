@@ -108,6 +108,7 @@ namespace RavenfieldVR.Weapons
                 // few centimetres against the gun: a fresh magazine went in beside the well (an M1911's 4 cm, a P220's 4.4).
                 Rig.GunBodyPose.Multiply(d.MagSeat).ApplyTo(Rig.Magazine);
             }
+            ShowMagazineLoaded();
             bool rocketLoaded = Rig.Magazine != null && ammo != null && d.Action == ActionType.SingleShot && !ammo.UsesDetachableMag && ammo.MagRounds > 0
                                 && VRConfig.ReloadNow == ReloadMode.Manual && ReferenceEquals(ActiveRig, Rig) && !(Weapon != null && Weapon.reloading)
                                 && (d.MagSeat.position - d.GripPoint).sqrMagnitude < 1.5f * 1.5f;
@@ -407,6 +408,105 @@ namespace RavenfieldVR.Weapons
             if (part.localPosition != target) // a slide or handle at rest holds the same value every frame
             {
                 part.localPosition = target;
+            }
+        }
+
+        /// <summary>One piece of the magazine as it is drawn sitting full in the gun's loaded pose (<see cref="ShowMagazineLoaded"/>).</summary>
+        private struct LoadedPiece
+        {
+            public Transform T;
+            public Vector3 Position, Scale;
+            public Quaternion Rotation;
+            public bool Active;
+        }
+
+        private LoadedPiece[] _magLoaded;
+        private Renderer[] _magLoadedRenderers;
+        private bool[] _magLoadedEnabled;
+
+        /// <summary>
+        /// A magazine with rounds in a gun its animator holds in the empty pose: its pieces drawn as they are with it full in the
+        /// loaded pose. Many mods' empty pose hides the magazine's rounds (and the bolt back is the same pose), so a full magazine
+        /// pushed gently into a gun locked open on empty showed empty until the bolt went forward (a see-through magazine's rounds,
+        /// the BRN180 EO's; user, 2026-11-03: "the full mag glitches, becomes empty and then full again when inside the gun").
+        /// The pieces under the magazine's parts are taken once while it sits full in the loaded rest pose, and laid over the
+        /// animator's pose only while the empty pose is drawn with rounds in (the bolt, another part, stays back).
+        /// </summary>
+        private void ShowMagazineLoaded()
+        {
+            AmmoState ammo = Ammo;
+            Weapon w = Weapon;
+            if (Rig.MagazineParts.Length == 0 || ammo == null || !ammo.Participates || !ammo.UsesDetachableMag || !ammo.MagInserted
+                || w == null || w.reloading || !ReferenceEquals(ActiveRig, Rig) || !w.HasActiveAnimator() || w.animator.layerCount == 0)
+            {
+                return;
+            }
+            Animator a = w.animator;
+            int now = a.GetCurrentAnimatorStateInfo(0).fullPathHash;
+            if (_magLoaded == null)
+            {
+                if (_loadedRestState != 0 && now == _loadedRestState && now != _emptyState && !a.IsInTransition(0) && !ammo.SlideLocked
+                    && ammo.MagRounds >= Mathf.Max(1, ammo.Capacity - 1) && Time.unscaledTime - _lastShotAt > 0.6f)
+                {
+                    TakeMagazineLoaded();
+                }
+                return;
+            }
+            if (_emptyState == 0 || now != _emptyState || ammo.MagRounds <= 0)
+            {
+                return;
+            }
+            foreach (LoadedPiece p in _magLoaded)
+            {
+                if (p.T == null)
+                {
+                    continue;
+                }
+                if (p.T.gameObject.activeSelf != p.Active)
+                {
+                    p.T.gameObject.SetActive(p.Active);
+                }
+                p.T.localPosition = p.Position;
+                p.T.localRotation = p.Rotation;
+                p.T.localScale = p.Scale;
+            }
+            for (int i = 0; i < _magLoadedRenderers.Length; i++)
+            {
+                Renderer r = _magLoadedRenderers[i];
+                if (r != null && r.enabled != _magLoadedEnabled[i])
+                {
+                    r.enabled = _magLoadedEnabled[i];
+                }
+            }
+            Log.InfoOnce("magloaded:" + Rig.Data.Key, $"{Rig.Data.Key}: a magazine with rounds in a gun in its empty pose: drawn as it sits full ({_magLoaded.Length} piece(s)).");
+        }
+
+        /// <summary>The magazine's pieces (under its parts, not the parts themselves: those the seat and the reload place) as drawn now.</summary>
+        private void TakeMagazineLoaded()
+        {
+            var pieces = new List<LoadedPiece>();
+            var renderers = new List<Renderer>();
+            foreach (Transform part in Rig.MagazineParts)
+            {
+                if (part == null)
+                {
+                    continue;
+                }
+                foreach (Transform t in part.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t != part)
+                    {
+                        pieces.Add(new LoadedPiece { T = t, Position = t.localPosition, Rotation = t.localRotation, Scale = t.localScale, Active = t.gameObject.activeSelf });
+                    }
+                }
+                renderers.AddRange(part.GetComponentsInChildren<Renderer>(true));
+            }
+            _magLoaded = pieces.ToArray();
+            _magLoadedRenderers = renderers.ToArray();
+            _magLoadedEnabled = new bool[_magLoadedRenderers.Length];
+            for (int i = 0; i < _magLoadedRenderers.Length; i++)
+            {
+                _magLoadedEnabled[i] = _magLoadedRenderers[i].enabled;
             }
         }
 
