@@ -525,6 +525,16 @@ namespace RavenfieldVR.Tests
                 Check(points >= 3 && (path[0] - from).magnitude < 1e-4f && (path[points - 1] - to).magnitude < 1e-4f, $"Belt round the box: a way of {points} points from the mouth to the hand");
                 Check(outside && joined, $"Belt round the box: {total * 100f:0} cm, in one piece and out of the box all the way (to {end})");
             }
+            // A hanging belt: over the box's side and down clear of it stays a curve; straight through it (the gun tilted) goes round.
+            System.Reflection.MethodInfo curve = strip.GetMethod("CurveInBox", flags);
+            Check(curve != null, "Belt round the box: CurveInBox found");
+            if (curve != null)
+            {
+                UnityEngine.Vector3 mouth = offset + new UnityEngine.Vector3(0.14f, 0.058f, 0f), none = UnityEngine.Vector3.zero; // (near the box's end)
+                bool In(UnityEngine.Vector3 bend, UnityEngine.Vector3 span) => (bool)curve.Invoke(null, new object[] { mouth, bend, span, none, frame, box });
+                Check(!In(new UnityEngine.Vector3(0.06f, 0f, 0f), new UnityEngine.Vector3(0.08f, -0.25f, 0f)), "Belt round the box: hanging over the side it stays a curve");
+                Check(In(none, new UnityEngine.Vector3(0f, -0.25f, 0f)), "Belt round the box: hanging through the box it goes round");
+            }
         }
 
         /// <summary>
