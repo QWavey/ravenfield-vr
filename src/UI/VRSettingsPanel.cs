@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using BepInEx.Configuration;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
