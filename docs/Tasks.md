@@ -2880,6 +2880,9 @@ Then /bug-hunt with /work-until-limit 60 (the meter at 29% when it began), today
 - Round 5 (Haiku scout, throwing): a release counted as a throw is never strapped to a held soldier; only grenades strap; no
   pin pull while a menu or panel takes the input. Not changed: the throw's bookkeeping after Shoot outside a finally (no
   trigger found).
+- Between rounds: live rounds lying around when the cases are cleared go back to their reserve; the two-handed steer eases in
+  after a regrip; autotest HandLoadingCheck (VRConfig.TestLoadByHand: the pouch's two empty magazines then none, a cleared one
+  back with its rounds, the reserve untouched).
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
