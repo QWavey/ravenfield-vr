@@ -354,7 +354,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 // (By the pouch an empty one is passed over, as the gun's own reload does: a squeeze there wants a full one.)
-                bool byPouch = Vector3.Distance(palm, Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
+                bool byPouch = !HandLoading.Enabled && Vector3.Distance(palm, Zones.Pouch) < BodyZones.PouchRadius + 0.10f;
                 MagazineProp prop = MagazineProp.NearestDropped(palm, 0.13f, null, byPouch ? (System.Func<MagazineProp, bool>)(p => p.Rounds > 0) : null);
                 GrenadeDud dud = GrenadeDud.Nearest(palm, 0.12f);
                 if (dud != null && (prop == null || dud.Distance(palm) < prop.DistanceTo(palm)))
