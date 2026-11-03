@@ -108,6 +108,7 @@ namespace RavenfieldVR.Tests
             StaticInitTests(mod);
             SlowedHandTests(mod);
             SteadyGripTests(mod);
+            BeltRoundBoxTests(mod);
             HandLoadingBagTests(mod);
             HandPushTests(mod);
             CopyBoxTests(mod);
@@ -465,6 +466,46 @@ namespace RavenfieldVR.Tests
             }
             Check(Math.Abs(lasting[3] - 0.1f) < 1e-4 && Math.Abs(lasting[4] - 0.4f) < 1e-4,
                   $"Steady grip: a move that lasts is taken on its fifth frame ({string.Join(", ", Array.ConvertAll(lasting, v => v.ToString("0.000")))})");
+        }
+
+        /// <summary>
+        /// A held belt whose line runs through its box goes round it in one piece (BeltStrip.PathRound, user 2026-11-03: "magbelt is getting
+        /// split"): from the top of a 30 x 10 x 17 cm box to a point under it and to one past its far end, every point of the way stays out
+        /// of the box, and two rounds a pitch apart along it are never further apart than that.
+        /// </summary>
+        private static void BeltRoundBoxTests(System.Reflection.Assembly mod)
+        {
+            Type strip = mod.GetType("RavenfieldVR.Weapons.BeltStrip");
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo round = strip?.GetMethod("PathRound", flags), along = strip?.GetMethod("PointAlong", flags), length = strip?.GetMethod("PathLength", flags);
+            Check(round != null && along != null && length != null && pose != null, "Belt round the box: PathRound found");
+            if (round == null || along == null || length == null || pose == null)
+            {
+                return;
+            }
+            object frame = Activator.CreateInstance(pose, new UnityEngine.Vector3(0.4f, 1.2f, -0.3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
+            var offset = new UnityEngine.Vector3(0.4f, 1.2f, -0.3f);
+            var box = new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(0.3f, 0.1f, 0.17f));
+            foreach (UnityEngine.Vector3 end in new[] { new UnityEngine.Vector3(0f, -0.2f, 0f), new UnityEngine.Vector3(0.3f, -0.06f, 0.02f) })
+            {
+                var path = new UnityEngine.Vector3[22];
+                UnityEngine.Vector3 from = offset + new UnityEngine.Vector3(0f, 0.058f, 0f), to = offset + end;
+                int points = (int)round.Invoke(null, new object[] { from, to, frame, box, path });
+                float total = (float)length.Invoke(null, new object[] { path, points });
+                bool outside = true, joined = true;
+                UnityEngine.Vector3 last = from;
+                for (float s = 0f; s <= total; s += 0.005f)
+                {
+                    var at = (UnityEngine.Vector3)along.Invoke(null, new object[] { path, points, s });
+                    UnityEngine.Vector3 local = at - offset;
+                    outside &= Math.Abs(local.x) > 0.15f + 0.005f || Math.Abs(local.y) > 0.05f + 0.005f || Math.Abs(local.z) > 0.085f + 0.005f;
+                    joined &= (at - last).magnitude < 0.0051f;
+                    last = at;
+                }
+                Check(points >= 3 && (path[0] - from).magnitude < 1e-4f && (path[points - 1] - to).magnitude < 1e-4f, $"Belt round the box: a way of {points} points from the mouth to the hand");
+                Check(outside && joined, $"Belt round the box: {total * 100f:0} cm, in one piece and out of the box all the way (to {end})");
+            }
         }
 
         /// <summary>

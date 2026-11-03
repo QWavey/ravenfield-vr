@@ -81,6 +81,9 @@ namespace RavenfieldVR.Weapons
         /// A round that would lie in <paramref name="keepOutBox"/> (in <paramref name="keepOut"/>'s frame: the seated ammunition
         /// box) is pushed out through its nearest face (<see cref="KeptOut"/>): the belt lies over the box, not through it. With
         /// <paramref name="via"/> the strip bends toward it on the way (a quadratic curve: out over the box's side, then down).
+        /// A held belt whose straight line runs through the box goes round it in one piece (<see cref="PathRound"/>): each round pushed
+        /// out by itself, those before the box's middle left by one face and those after it by another, and the belt tore in two
+        /// with the box between (user, 2026-11-03: "magbelt is getting split when reacting with the physics of the MG mag").
         /// </summary>
         public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false,
             Runtime.RigidPose? keepOut = null, Bounds keepOutBox = default, Vector3? via = null)
@@ -113,6 +116,18 @@ namespace RavenfieldVR.Weapons
             Vector3 span = to - from;
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
+            bool around = !fromMouth && keepOut.HasValue && Crosses(from, to, keepOut.Value, keepOutBox);
+            int points = 0;
+            float total = 0f, spacing = Pitch;
+            if (around)
+            {
+                points = PathRound(from, KeptOut(to, keepOut.Value, keepOutBox), keepOut.Value, keepOutBox, WayRound);
+                total = PathLength(WayRound, points);
+                int needed = Mathf.Clamp(Mathf.CeilToInt(total / Pitch) + 1, 2, MaxRounds);
+                count = Mathf.Min(needed, Mathf.Max(0, rounds));
+                // Longer than the strip's rounds: spread over the whole way, a little stretched, so it stays in one piece.
+                spacing = count == MaxRounds ? Mathf.Max(Pitch, total / (count - 1)) : Pitch;
+            }
             Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
             Vector3 forward = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : barrel;
             Quaternion rot = Quaternion.LookRotation(forward, Vector3.Cross(forward, span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up));
@@ -122,11 +137,19 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < count; i++)
             {
                 int b = i * n;
-                float t = RoundAt(i, count, length, fromMouth);
-                Vector3 p = (via.HasValue ? 2f * (1f - t) * t * bend + t * t * span : span * t) + sag * (4f * t * (1f - t));
-                if (keepOut.HasValue)
+                Vector3 p;
+                if (around)
                 {
-                    p = KeptOut(from + p, keepOut.Value, keepOutBox) - from;
+                    p = PointAlong(WayRound, points, total - i * spacing) - from; // (from the hand back toward the box)
+                }
+                else
+                {
+                    float t = RoundAt(i, count, length, fromMouth);
+                    p = (via.HasValue ? 2f * (1f - t) * t * bend + t * t * span : span * t) + sag * (4f * t * (1f - t));
+                    if (keepOut.HasValue)
+                    {
+                        p = KeptOut(from + p, keepOut.Value, keepOutBox) - from;
+                    }
                 }
                 for (int k = 0; k < n; k++)
                 {
@@ -161,7 +184,132 @@ namespace RavenfieldVR.Weapons
         internal static bool Crosses(Vector3 a, Vector3 b, Runtime.RigidPose frame, Bounds box)
         {
             Vector3 p = frame.InverseTransformPoint(a) - box.center, d = frame.InverseTransformPoint(b) - box.center - p;
-            Vector3 ext = box.extents + Vector3.one * 0.008f;
+            return Blocked(p, d, box.extents + Vector3.one * 0.008f);
+        }
+
+        /// <summary>The way a held belt takes round the box, and the search's nodes: start, end, the box's 8 corners and 12 edge middles.</summary>
+        private static readonly Vector3[] WayRound = new Vector3[PathNodes];
+        private const int PathNodes = 22;
+        private static readonly Vector3[] Nodes = new Vector3[PathNodes];
+        private static readonly float[] Cost = new float[PathNodes];
+        private static readonly int[] Came = new int[PathNodes];
+        private static readonly bool[] Done = new bool[PathNodes];
+
+        /// <summary>
+        /// The shortest way from <paramref name="from"/> to <paramref name="to"/> that stays out of <paramref name="box"/> (in
+        /// <paramref name="frame"/>), over its edges, into <paramref name="path"/> (world, at least <see cref="PathNodes"/> long): a search
+        /// over its corners and edge middles, 12 mm out from it (a round's half and a little), each hop clear of the box grown by 7 mm.
+        /// The number of points; the straight line (2) when no way is found (an end inside the box). Pure: the offline tests check it.
+        /// </summary>
+        internal static int PathRound(Vector3 from, Vector3 to, Runtime.RigidPose frame, Bounds box, Vector3[] path)
+        {
+            Vector3 clear = box.extents + Vector3.one * 0.012f, solid = box.extents + Vector3.one * 0.007f;
+            Nodes[0] = frame.InverseTransformPoint(from) - box.center;
+            Nodes[1] = frame.InverseTransformPoint(to) - box.center;
+            int n = 2;
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    for (int z = -1; z <= 1; z++)
+                    {
+                        if ((x == 0 ? 1 : 0) + (y == 0 ? 1 : 0) + (z == 0 ? 1 : 0) <= 1)
+                        {
+                            Nodes[n++] = new Vector3(x * clear.x, y * clear.y, z * clear.z);
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < n; i++)
+            {
+                Cost[i] = float.MaxValue;
+                Came[i] = -1;
+                Done[i] = false;
+            }
+            Cost[0] = 0f;
+            while (true)
+            {
+                int u = -1;
+                float best = float.MaxValue;
+                for (int i = 0; i < n; i++)
+                {
+                    if (!Done[i] && Cost[i] < best)
+                    {
+                        best = Cost[i];
+                        u = i;
+                    }
+                }
+                if (u < 0 || u == 1)
+                {
+                    break;
+                }
+                Done[u] = true;
+                for (int v = 0; v < n; v++)
+                {
+                    float c = Cost[u] + Vector3.Distance(Nodes[u], Nodes[v]);
+                    if (!Done[v] && c < Cost[v] && !Blocked(Nodes[u], Nodes[v] - Nodes[u], solid))
+                    {
+                        Cost[v] = c;
+                        Came[v] = u;
+                    }
+                }
+            }
+            if (Came[1] < 0)
+            {
+                path[0] = from;
+                path[1] = to;
+                return 2;
+            }
+            int points = 1;
+            for (int i = 1; i != 0; i = Came[i])
+            {
+                points++;
+            }
+            int at = points - 1;
+            for (int i = 1; at >= 0; i = Came[i], at--)
+            {
+                path[at] = frame.TransformPoint(Nodes[i] + box.center);
+                if (i == 0)
+                {
+                    break;
+                }
+            }
+            return points;
+        }
+
+        /// <summary>How long a way of <paramref name="points"/> points is.</summary>
+        internal static float PathLength(Vector3[] path, int points)
+        {
+            float total = 0f;
+            for (int i = 1; i < points; i++)
+            {
+                total += Vector3.Distance(path[i - 1], path[i]);
+            }
+            return total;
+        }
+
+        /// <summary>The point <paramref name="along"/> metres along a way of <paramref name="points"/> points (kept to its ends).</summary>
+        internal static Vector3 PointAlong(Vector3[] path, int points, float along)
+        {
+            if (along <= 0f)
+            {
+                return path[0];
+            }
+            for (int i = 1; i < points; i++)
+            {
+                float hop = Vector3.Distance(path[i - 1], path[i]);
+                if (along <= hop && hop > 1e-6f)
+                {
+                    return Vector3.Lerp(path[i - 1], path[i], along / hop);
+                }
+                along -= hop;
+            }
+            return path[points - 1];
+        }
+
+        /// <summary>Whether the line from <paramref name="p"/> along <paramref name="d"/> (to its end) passes through the box of half size <paramref name="ext"/> round the origin: a slab test.</summary>
+        private static bool Blocked(Vector3 p, Vector3 d, Vector3 ext)
+        {
             float enter = 0f, leave = 1f;
             for (int k = 0; k < 3; k++)
             {
