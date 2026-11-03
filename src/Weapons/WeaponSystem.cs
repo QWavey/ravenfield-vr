@@ -233,6 +233,10 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // The free hand's trigger is the second weapon's while it holds one, on the frames below that return before its update
+            // too (a tracking gap, a hand-over): else from the second untracked frame on, the held trigger was the game's Use.
+            VRGameInput.SupportTriggerOwned = true;
+            VRGameInput.SupportTriggerLightsOnly = false;
             Actor actor = GameContext.PlayerActor;
             if (Held != null && Second.Weapon != null && Second.Weapon == Held.Weapon)
             {
@@ -457,8 +461,24 @@ namespace RavenfieldVR.Weapons
             Zones.ComputeSpots(); // from this frame's head pose: what hangs on the body must not trail the head
             // Parts of this step timed on their own in a profiled run: a 300 ms call in it came with no part to name (2026-10-21).
             bool part = PerfProbe.Part("render: pouch and holsters");
-            _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
-            _holsters.BeforeRender();
+            // Each caught on its own (as the empty arms below): thrown, the held gun, the magazines in the hands and the readout
+            // were skipped for that frame, and every frame while it kept throwing (second-weapon hunt).
+            try
+            {
+                _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null);
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Pouch.BeforeRender", e);
+            }
+            try
+            {
+                _holsters.BeforeRender();
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Holsters.BeforeRender", e);
+            }
             if (part)
             {
                 PerfProbe.End("render: pouch and holsters");
@@ -472,7 +492,14 @@ namespace RavenfieldVR.Weapons
             {
                 Log.ExceptionOnce("EmptyArms.BeforeRender", e);
             }
-            Second?.BeforeRender();
+            try
+            {
+                Second?.BeforeRender();
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Second.BeforeRender", e);
+            }
             if (Held != null && Held.Weapon != null)
             {
                 part = PerfProbe.Part("render: held weapon");
@@ -947,9 +974,7 @@ namespace RavenfieldVR.Weapons
             VRInput.Consume(DigitalAction.Grab, hand.Side);
             SecondWeapon away = Second;
             Second = null;
-            away.PutAway();
-            Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
-            hand.Haptic(0.05f, 100f, 0.5f);
+            away.PutAway(); // (its own click and buzz: a second pair here played the holster twice)
         }
 
         private void UpdateHolster(Actor actor, VRHand hand)

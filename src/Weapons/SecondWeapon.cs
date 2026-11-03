@@ -147,6 +147,13 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // The squeeze that started a reload is not a shot when the reload ends: held through it, the gun fired the moment it
+            // was loaded (an automatic one kept firing). Read through the reload, so a let-go during it is seen (second-weapon hunt).
+            bool pressed = VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger;
+            if (!pressed)
+            {
+                _awaitRelease = false;
+            }
             if (_reloadDoneAt >= 0f)
             {
                 if (Time.time >= _reloadDoneAt)
@@ -156,7 +163,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             bool blocked = VRGameInput.GunInputBlocked;
-            bool held = (VRInput.GetHeld(DigitalAction.Use, Hand.Side) || TestTrigger) && !blocked;
+            bool held = pressed && !blocked && !_awaitRelease;
             if (IsThrowable)
             {
                 // Back after a gap (a tracking gap: the free hand is not worked while untracked; or the first update after it was
@@ -427,8 +434,12 @@ namespace RavenfieldVR.Weapons
             return _reloadRounds;
         }
 
+        /// <summary>A reload was started by a squeeze still held: no shot until the trigger is let go once.</summary>
+        private bool _awaitRelease;
+
         private void StartReload()
         {
+            _awaitRelease = true;
             int rounds = Ammo.RoundsForFreshMagazine();
             if (rounds <= 0)
             {
