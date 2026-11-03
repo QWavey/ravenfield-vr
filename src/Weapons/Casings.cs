@@ -296,7 +296,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Where a held case or round sits against the palm (palm frame): its middle between the thumb and the fingers' first joints.</summary>
         private static readonly Vector3 HeldAt = new Vector3(0f, 0.012f, 0.05f);
         /// <summary>Where it sits with the weapon's arms drawn (palm frame): out past the fingertips of a closed fist, a little above them.</summary>
-        private static readonly Vector3 HeldOut = new Vector3(0f, 0.025f, 0.11f);
+        private static readonly Vector3 HeldOut = new Vector3(0f, 0.02f, 0.085f);
 
         /// <summary>Whether a collider is one of the cases or rounds lying around (bullets push them).</summary>
         internal static bool IsCase(Collider c) => c != null && c.GetComponent<CaseSound>() != null;
