@@ -2855,6 +2855,18 @@ Built and checked offline (282 checks), each to be checked in a game run:
   (Casings.Take, Follow, LetGo); bullets push them (Projectile.ProjectileRaycast postfix on the props' layer); live rounds put
   away unused go back to their reserve). Not machine guns, clips, shell-fed, assisted. Check in a game run: a magazine's look
   does not change as rounds go in or out (its copy is made as it was taken).
+Then /bug-hunt with /work-until-limit 60 (the meter at 29% when it began), today's changes first:
+- Round 1: a round held in a hand the reload then takes over was left kinematic in the air for good (Casings: a held case
+  knows its hand and falls when that hand holds something else); a stowed magazine with the gun's own out of it vanished (the
+  pouch held two at most: three now); the regrip took a squeeze for the magazine in front of the grip (6.5 cm, not 10); the
+  hand on the handguard keeps it after a regrip (ReloadInteractions.KeepHandguard); a belt held below its box or hanging
+  curves out over the box's side (BeltStrip.Crosses, a curve through BeltSideExit) and the hanging belt's grab line follows.
+- Round 2: autotest SlowedHandsCheck also ends slow motion with the hand moving at 1 m/s (STILL SLOWED past 2 cm after 0.5 s);
+  PassHandCheck checks the grip keeps its place against the hand that took it (it checked the grip in that palm); with hand
+  loading an empty magazine on the ground can be picked up beside the pouch; the wrist shows the pouch's magazines; the bag's
+  take and put back are pure and checked offline; a gun's magazine is copied as it looks loaded only when full (an M1 clip with
+  its rounds fired was copied empty: every clip from the pouch looked empty); a passed gun is held at the hand's pose, not a
+  wall's.
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
