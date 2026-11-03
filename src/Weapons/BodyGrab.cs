@@ -141,6 +141,8 @@ namespace RavenfieldVR.Weapons
             public GunCollider IgnoredGun, SeenGun;
             /// <summary>The body's colliders (its own pairs ignored while held).</summary>
             public Collider[] Colliders;
+            /// <summary>The <see cref="PropPhysics.PlayerGeneration"/> the player's colliders were last ignored for.</summary>
+            public int PlayerGeneration = -1;
         }
 
         public BodyGrab(VRRig rig)
@@ -308,6 +310,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Once a frame, after every other grab has had the press: free hands take hold of a soldier, held ones follow.</summary>
         public void Update()
         {
+            BodyImpacts.DisarmExpired();
             Actor player = GameContext.PlayerActor;
             bool canHold = player != null && !player.dead && GameContext.PlayerOnFoot;
             for (int i = 0; i < 2; i++)
@@ -625,6 +628,7 @@ namespace RavenfieldVR.Weapons
                 _holds[i].Colliders = own;
                 DrawAhead(best);
                 PropPhysics.IgnorePlayer(own);
+                _holds[i].PlayerGeneration = PropPhysics.PlayerGeneration;
                 // Its bones no longer collide with one another while held: a limp leg swung into its own hips as the player walked (its
                 // Leg.L.002 on its Bone at 1442 N s, the soldier check, 2026-10-25), and the hand kept the body from giving way. Unity
                 // forgets these pairs when the ragdoll is switched off (the soldier stands up or respawns): he is whole again then.
@@ -850,6 +854,13 @@ namespace RavenfieldVR.Weapons
                 // then (HeldWeapon). The body stayed on the gun hand's joint, and the soldier on the hand after it let go.
                 Release(i, hand, thrown: false);
                 return;
+            }
+            if (hold.Colliders != null && hold.PlayerGeneration != PropPhysics.PlayerGeneration)
+            {
+                // The player's colliders switched off and on (out of a seat, off a ladder, up from the ground): Unity forgot the
+                // ignored pairs, and the held bones met the player's body again (as GunCollider and MagazineProp do it; grab scout).
+                hold.PlayerGeneration = PropPhysics.PlayerGeneration;
+                PropPhysics.IgnorePlayer(hold.Colliders);
             }
             if (hold.Neck)
             {
@@ -1776,6 +1787,34 @@ namespace RavenfieldVR.Weapons
                     j.projectionAngle = saved.Angles[k];
                 }
             }
+        }
+
+        private static readonly List<Actor> Expired = new List<Actor>();
+
+        /// <summary>
+        /// Each frame: soldiers whose armed time is up (or who are gone) disarmed, whether or not a bone of theirs still runs: a thrown
+        /// soldier who got up had his ragdoll switched off inside the 3 s, its bones' FixedUpdate never saw the time, and he stayed
+        /// limp and armed until he was knocked down again (his own bones' knocks then hurt him as a thrown body's; grab scout).
+        /// </summary>
+        internal static void DisarmExpired()
+        {
+            if (ArmedUntil.Count == 0)
+            {
+                return;
+            }
+            float now = Time.time;
+            foreach (KeyValuePair<Actor, float> kv in ArmedUntil)
+            {
+                if (kv.Key == null || now > kv.Value)
+                {
+                    Expired.Add(kv.Key);
+                }
+            }
+            foreach (Actor a in Expired)
+            {
+                Disarm(a);
+            }
+            Expired.Clear();
         }
 
         /// <summary>
