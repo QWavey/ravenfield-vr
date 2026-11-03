@@ -2867,6 +2867,19 @@ Then /bug-hunt with /work-until-limit 60 (the meter at 29% when it began), today
   take and put back are pure and checked offline; a gun's magazine is copied as it looks loaded only when full (an M1 clip with
   its rounds fired was copied empty: every clip from the pouch looked empty); a passed gun is held at the hand's pose, not a
   wall's.
+- Round 2, more: hand loading's off-hand trigger read as Fire never answered (it is Use there; and owned while a magazine is
+  in that hand, not also the game's Use); a round or case is pinched as a shell is; an empty magazine given its first round is
+  made again with the gun's loaded look; the reload's magazine hold only on a copy of the gun's own (not a made stand-in); a
+  magazine with rounds in a gun in its empty pose is drawn as it sits full (the gentle seat into a locked BRN180); a sight
+  mode's lens on the model's own scope ocular when its line runs through it (the M417A2's floating second sight).
+- Round 3 (Haiku scout, second weapon): a reload's squeeze no longer fires when the reload ends; the free hand's trigger stays
+  the second weapon's through a tracking gap; the pouch, holsters and second weapon drawn in their own catch; one holster click.
+- Round 4 (Haiku scout, rendering): a preset picked gives the eyes the render scale back (held, then Game: 15% under for the
+  session); tiny objects scanned on time with the hold on. Not changed: RestingBodies asks inactive pooled bodies IsSleeping
+  (harmless, Spawn sets interpolation).
+- Round 5 (Haiku scout, throwing): a release counted as a throw is never strapped to a held soldier; only grenades strap; no
+  pin pull while a menu or panel takes the input. Not changed: the throw's bookkeeping after Shoot outside a finally (no
+  trigger found).
 
 ### 356. Weapon's arms: fingers off the gun, and arms on empty hands (user, 2026-10-29; built ce583f4, 3e8eafd; check in a game run)
 - [ ] "the hand pose of the left hand is used for the hand on the gun ... before i even touched the weapon and its custom for
