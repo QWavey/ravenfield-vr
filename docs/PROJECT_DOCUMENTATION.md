@@ -1179,3 +1179,10 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    in (278 checks).
 23. **1.16.1** (2026-10-31, built and installed, not published; notes in `dist/notes-1.16.1.md`, setup
    `dist/RavenfieldVR-Setup-1.16.1.exe`): item 22's frame rate work, not yet measured in the game.
+24. **1.16.2** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.2.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.2.exe`): the user's list of 2026-11-03 (Tasks 357: the weapon's hand off the gun and on
+   magazines, slow motion leaving the hands, a yanked magazine, see-through magazines, the MP9 PDW, the M1 GARRET, the M417A2's
+   scope, MG belts, scope pictures and launchers, a gun held where a hand took it), the experimental magazines loaded by hand
+   (`HandLoading`, off by default, set off by the setup on every install), then a bug hunt to 60% of the session in eight
+   rounds (today's changes, second weapon, rendering, throwing, soldier grabbing, input, holsters and pickup; 289 checks). Not
+   started in the game: every item waits for a game run.

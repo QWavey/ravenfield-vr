@@ -142,7 +142,7 @@ namespace RavenfieldVR.Weapons
         private const float StrapMaxSpeed = 2.5f;
 
         /// <returns>Something left the hand (a live grenade or a dud).</returns>
-        /// <param name="thrown">The caller took the release for a throw: it is not strapped to a body beside it, however its last frame read.</param>
+        /// <remarks>Thrown: the caller took the release for a throw, so it is not strapped to a body beside it, however its last frame read.</remarks>
         private bool Throw(ThrowableWeapon weapon, VRHand hand, Vector3 velocity, bool thrown)
         {
             LastLiveCount = 0;

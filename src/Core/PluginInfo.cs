@@ -5,7 +5,7 @@ namespace RavenfieldVR.Core
     {
         public const string Guid = "com.qwavey.ravenfieldvr";
         public const string Name = "Ravenfield VR";
-        public const string Version = "1.16.1";
+        public const string Version = "1.16.2";
 
         /// <summary>SteamVR application key used when the game is not launched through Steam.</summary>
         public const string SteamVrAppKey = "steam.app.636480";
