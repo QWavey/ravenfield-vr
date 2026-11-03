@@ -81,9 +81,10 @@ namespace RavenfieldVR.Weapons
         /// A round that would lie in <paramref name="keepOutBox"/> (in <paramref name="keepOut"/>'s frame: the seated ammunition
         /// box) is pushed out through its nearest face (<see cref="KeptOut"/>): the belt lies over the box, not through it. With
         /// <paramref name="via"/> the strip bends toward it on the way (a quadratic curve: out over the box's side, then down).
-        /// A held belt whose straight line runs through the box goes round it in one piece (<see cref="PathRound"/>): each round pushed
-        /// out by itself, those before the box's middle left by one face and those after it by another, and the belt tore in two
-        /// with the box between (user, 2026-11-03: "magbelt is getting split when reacting with the physics of the MG mag").
+        /// A held belt whose straight line runs through the box, or a hanging one whose curve does (it hangs toward the ground: with the
+        /// gun tilted, down can be through the box), goes round it in one piece (<see cref="PathRound"/>): each round pushed out by
+        /// itself, those before the box's middle left by one face and those after it by another, and the belt tore in two with the
+        /// box between (user, 2026-11-03: "magbelt is getting split when reacting with the physics of the MG mag").
         /// </summary>
         public void Place(Vector3 from, Vector3 to, Vector3 barrel, int rounds = MaxRounds, bool fromMouth = false,
             Runtime.RigidPose? keepOut = null, Bounds keepOutBox = default, Vector3? via = null)
@@ -116,7 +117,9 @@ namespace RavenfieldVR.Weapons
             Vector3 span = to - from;
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
-            bool around = !fromMouth && keepOut.HasValue && Crosses(from, to, keepOut.Value, keepOutBox);
+            Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
+            bool around = keepOut.HasValue && (fromMouth ? via.HasValue && CurveInBox(from, bend, span, sag, keepOut.Value, keepOutBox)
+                                                         : Crosses(from, to, keepOut.Value, keepOutBox));
             int points = 0;
             float total = 0f, spacing = Pitch;
             if (around)
@@ -128,7 +131,6 @@ namespace RavenfieldVR.Weapons
                 // Longer than the strip's rounds: spread over the whole way, a little stretched, so it stays in one piece.
                 spacing = count == MaxRounds ? Mathf.Max(Pitch, total / (count - 1)) : Pitch;
             }
-            Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
             Vector3 forward = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : barrel;
             Quaternion rot = Quaternion.LookRotation(forward, Vector3.Cross(forward, span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up));
             // Built round the box mouth (small numbers anywhere on the map), in world directions.
@@ -140,7 +142,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 p;
                 if (around)
                 {
-                    p = PointAlong(WayRound, points, total - i * spacing) - from; // (from the hand back toward the box)
+                    p = PointAlong(WayRound, points, fromMouth ? i * spacing : total - i * spacing) - from; // (held: from the hand back toward the box)
                 }
                 else
                 {
@@ -187,7 +189,22 @@ namespace RavenfieldVR.Weapons
             return Blocked(p, d, box.extents + Vector3.one * 0.008f);
         }
 
-        /// <summary>The way a held belt takes round the box, and the search's nodes: start, end, the box's 8 corners and 12 edge middles.</summary>
+        /// <summary>Whether a hanging belt's curve (as <see cref="Place"/> lays it) goes through the box, not only brushing it.</summary>
+        private static bool CurveInBox(Vector3 from, Vector3 bend, Vector3 span, Vector3 sag, Runtime.RigidPose frame, Bounds box)
+        {
+            for (int i = 1; i <= 10; i++)
+            {
+                float t = i / 10f;
+                Vector3 at = from + 2f * (1f - t) * t * bend + t * t * span + sag * (4f * t * (1f - t));
+                if ((KeptOut(at, frame, box) - at).sqrMagnitude > 1e-4f) // (over a centimetre in: less is the curve brushing the box, kept out in one piece)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The way a belt takes round the box, and the search's nodes: start, end, the box's 8 corners and 12 edge middles.</summary>
         private static readonly Vector3[] WayRound = new Vector3[PathNodes];
         private const int PathNodes = 22;
         private static readonly Vector3[] Nodes = new Vector3[PathNodes];
