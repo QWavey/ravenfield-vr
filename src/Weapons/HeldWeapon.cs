@@ -817,6 +817,10 @@ namespace RavenfieldVR.Weapons
             }
             if (cam.enabled != shown)
             {
+                if (!ReferenceEquals(_scopeCameraGated, cam))
+                {
+                    _scopeCameraWas = cam.enabled;
+                }
                 cam.enabled = shown;
                 _scopeCameraGated = cam;
             }
@@ -836,6 +840,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private Camera _scopeCameraGated;
+        /// <summary>The gated camera as the game had it, put back at the release (forced on, one the game had off stayed on).</summary>
+        private bool _scopeCameraWas;
         private VRScope.ScopeNoShadows _scopeNoShadows;
 
         private float OffSightLine(SightLine sight, Vector3 world) =>
@@ -2446,7 +2452,7 @@ namespace RavenfieldVR.Weapons
             // The game's scope camera as the game had it (switched off by the lens gate: the weapon held again or by anyone else).
             if (_scopeCameraGated != null)
             {
-                _scopeCameraGated.enabled = true;
+                _scopeCameraGated.enabled = _scopeCameraWas;
                 _scopeCameraGated = null;
             }
             if (_scopeNoShadows != null)
