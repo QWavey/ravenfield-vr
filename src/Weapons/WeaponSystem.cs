@@ -392,7 +392,7 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Vector3 palm = h.Palm.position;
-                if (HandLoading.RoundFromPouch(this, h))
+                if (HandLoading.RoundFromPouch(this, h) || HandLoading.MagazineFromPouch(this, h, _lastHeldWeapon))
                 {
                     VRInput.Consume(DigitalAction.Grab, h.Side);
                     continue;
@@ -632,12 +632,16 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The gun last held in the hand (put away since, or dropped): HandLoading.MagazineFromPouch.</summary>
+        private Weapon _lastHeldWeapon;
+
         private void ReleaseHeld()
         {
             _passHold = null;
             _passEaseAt = -1f;
             if (Held != null)
             {
+                _lastHeldWeapon = Held.Weapon; // (its magazines from the pouch while it is away, loaded by hand)
                 Log.Guard("EmptyArms.TakeFrom", () => _emptyArms.TakeFrom(Held)); // its arms for the empty hands, in this frame's pose
                 Log.Guard("ReleaseHeld", () => Held.Release()); // a seat's drawn weapon with no held rig called it on nothing (lifecycle hunt)
             }

@@ -223,6 +223,52 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        /// <summary>
+        /// With the gun put away, a free hand's squeeze at the pouch, the other hand holding no magazine: the fullest of the magazines of
+        /// the gun last held (<paramref name="last"/>, still carried) out of the pouch into the hand, to be loaded there. Only a drawn
+        /// gun's reload handed them out, so loading by hand meant drawing the gun for a magazine and putting it away again with it held.
+        /// True when the squeeze was this (one taken, or "NO MAGAZINES").
+        /// </summary>
+        internal static bool MagazineFromPouch(WeaponSystem sys, VRHand hand, Weapon last)
+        {
+            if (!Enabled || sys.Held != null || hand.Held != null || !hand.GrabPressed || last == null || !sys.Zones.InPouch(hand.Palm.position))
+            {
+                return false;
+            }
+            VRHand other = sys.Rig.Hands[0] == hand ? sys.Rig.Hands[1] : sys.Rig.Hands[0];
+            Actor player = GameContext.PlayerActor;
+            if (other.Held is MagazineProp || player == null || player.weapons == null || System.Array.IndexOf(player.weapons, last) < 0)
+            {
+                return false;
+            }
+            AmmoState a = sys.StateFor(last, create: false);
+            if (!Applies(a))
+            {
+                return false;
+            }
+            if (!TakeMagazine(a, out int rounds))
+            {
+                sys.FlashMessage("NO MAGAZINES");
+                hand.Haptic(0.15f, 35f, 0.7f);
+                return true;
+            }
+            WeaponRig rig = sys.RigFor(last);
+            MagazineProp prop = rig != null ? MagazineProp.Create(rig, PropKind.Magazine, rounds) : null;
+            if (prop == null || prop.Go == null)
+            {
+                prop?.Destroy();
+                PutInto(BagOf(a), rounds, a.Capacity); // (back where it was)
+                PouchVersion++;
+                return true;
+            }
+            prop.Owner = a;
+            prop.Attach(hand);
+            prop.FollowHand();
+            sys.Sounds.Play(MechSound.Pouch, hand.Palm.position, 0.6f);
+            hand.Haptic(0.03f, 140f, 0.45f);
+            return true;
+        }
+
         /// <summary>A free hand's squeeze that found no magazine or grenade to pick up: a case or round lying within reach of its fingers, taken.</summary>
         internal static bool TakeLying(VRHand hand)
         {

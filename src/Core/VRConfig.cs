@@ -258,8 +258,8 @@ namespace RavenfieldVR.Core
                 + "magazine, it does not drop free: your hand rocks it out, as on the real thing.");
             LoadMagazinesByHand = cfg.Bind("Weapons", "LoadMagazinesByHand", false,
                 "Experimental: a gun fed from box magazines carries three, the one in it and two empty ones in the pouch, and your reserve is "
-                + "loose rounds you load into them by hand. Put the gun away, hold a magazine in one hand and squeeze at the pouch with the "
-                + "other for a round, then touch it to the magazine's top. A magazine in a hand that is not the gun's gives its rounds out "
+                + "loose rounds you load into them by hand. Put the gun away and squeeze at the pouch for one of its magazines; holding it in "
+                + "one hand, squeeze at the pouch with the other for a round, then touch it to the magazine's top. A magazine in a hand that is not the gun's gives its rounds out "
                 + "one by one on that hand's trigger. A magazine let go of at the pouch, or cleared away where it lies, goes back into the "
                 + "pouch with its rounds. Cases and rounds on the ground can be picked up and are pushed by bullets. Not for machine guns, "
                 + "clips or guns loaded through the action, nor with the assisted reload.");

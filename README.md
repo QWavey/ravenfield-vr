@@ -194,7 +194,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `MagazineDetent` | on | A magazine's last few millimetres take a firm push or a tap on its base, with a click as it latches; pushed gently it stops just short and waits to be tapped home (not pistols, machine gun boxes or clips) |
 | `UnderSeatedMagazineFalls` | off | With the detent: a magazine let go before it clicks home goes in unlatched and drops out at the next shot unless tapped home |
 | `AkMagazinesStayIn` | off | On rifles with a curved magazine (AK style) the release only unlatches it; your hand rocks it out |
-| `LoadMagazinesByHand` | off | Experimental: three magazines per gun (two empty in the pouch), your reserve is loose rounds you load by hand: gun put away, a magazine in one hand, squeeze at the pouch with the other for a round and touch it to the magazine's top; a magazine's trigger lets its rounds out one by one; cases and rounds can be picked up and are pushed by bullets |
+| `LoadMagazinesByHand` | off | Experimental: three magazines per gun (two empty in the pouch), your reserve is loose rounds you load by hand: gun put away, a squeeze at the pouch for one of its magazines, then with it in one hand a squeeze at the pouch with the other for a round and touch it to the magazine's top; a magazine's trigger lets its rounds out one by one; cases and rounds can be picked up and are pushed by bullets |
 | `MagSlapReleasesSlide` | on | A loaded magazine slammed home sends a locked slide or bolt forward; off leaves it for A or a rack |
 | `HudDistance` / `HudHorizontalFov` | 4 m / 72° | Where the HUD frame sits and how wide it is |
 
