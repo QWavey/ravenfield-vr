@@ -344,7 +344,7 @@ namespace RavenfieldVR.Weapons
         {
             VRHand dom = _sys.Rig.Dominant;
             VRHand off = _sys.Rig.Off;
-            if (Manual && Ammo != null && Ammo.UsesDetachableMag && !GameManager.IsPaused())
+            if (Manual && Ammo != null && Ammo.UsesDetachableMag && !GameManager.IsPaused() && !VRGameInput.GunInputBlocked) // (nor under a menu)
             {
                 UpdateDetent(off, dom);
             }

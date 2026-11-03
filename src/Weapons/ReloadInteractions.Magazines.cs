@@ -136,9 +136,16 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            if (prop.Go == null || prop.HeldBy != null || Ammo.MagInserted || !AcceptsNow(prop))
+            if (prop.Go == null || prop.HeldBy != null)
             {
                 _almostSeated = null;
+                return;
+            }
+            if (Ammo.MagInserted || !AcceptsNow(prop))
+            {
+                // Another magazine went in past it (taken from the pouch with this one at its latch): it falls out. Forgotten, it hung in
+                // the well for good, its rounds neither in the gun nor in the reserve (scout, 2026-11-03).
+                DropAlmostSeated();
                 return;
             }
             Vector3 insert = SeatPose.TransformDirection(prop.InsertDirLocal);
@@ -1171,6 +1178,7 @@ namespace RavenfieldVR.Weapons
                 }
                 else
                 {
+                    DropAlmostSeated(); // (one waiting there already: the same)
                     prop.LetGoOnRail();
                     _almostSeated = prop;
                 }

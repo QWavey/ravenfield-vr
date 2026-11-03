@@ -338,6 +338,12 @@ namespace RavenfieldVR.Weapons
                         h.Held = null;
                     }
                 }
+                // The seated hold left on a hand with no gun (a release cut short): nothing frees it otherwise.
+                else if (Held == null && ReferenceEquals(h.Held, ReloadInteractions.SeatedHold))
+                {
+                    h.Role = HandRole.Free;
+                    h.Held = null;
+                }
             }
         }
 
@@ -1407,6 +1413,7 @@ namespace RavenfieldVR.Weapons
         {
             // Each on its own: one that threw skipped the rest, the held weapon's release and the ammo and rig clean-up included
             // (sweep, 2026-10-29).
+            Log.Guard("Scene: driving weapons", DrivingWeapons.Reset); // (a new level begun in a seat with no gun kept the last one's armed flag)
             Log.Guard("Scene: body grab", () => _bodyGrab?.ReleaseAll());
             Log.Guard("Scene: body impacts", BodyImpacts.Clear);
             Log.Guard("Scene: soldier guns", SoldierGuns.Clear);
