@@ -113,8 +113,10 @@ namespace RavenfieldVR.Weapons
             }
             if (_right.Valid)
             {
-                // Gun hand: exactly where its animation holds the grip (steadied against a frame's blink of it).
-                RigidPose target = _gunGrip.Steady(RigidPose.Of(_right.Hand), _held.Rig.GunBodyPose);
+                // Gun hand: exactly where its animation holds the grip (steadied: a frame's blink of it, or a pose off the grip altogether).
+                RigidPose animated = RigidPose.Of(_right.Hand);
+                bool onGrip = (animated.position - _held.Rig.ToWorld(_held.Rig.Data.GripPoint)).sqrMagnitude < 0.08f * 0.08f;
+                RigidPose target = _gunGrip.Steady(animated, _held.Rig.GunBodyPose, onGrip);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
                 GunHandError = Vector3.Distance(_right.Hand.position, target.position);
@@ -136,7 +138,12 @@ namespace RavenfieldVR.Weapons
                 bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key && mag.OwnCopy
                                               || seated != null);
                 bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
-                RigidPose grip = _supportGrip.Steady(RigidPose.Of(_left.Hand), _held.Rig.GunBodyPose); // the authored support grip, steadied
+                // The authored support grip, steadied (the same: its bone went 26 to 31 cm off the support point on the HK416-E/S and the
+                // G BRN180 EO S, by the log of 2026-11-03).
+                RigidPose animatedGrip = RigidPose.Of(_left.Hand);
+                WeaponRigData data = _held.Rig.Data;
+                bool onSupport = !data.HasSupportPoint || (animatedGrip.position - _held.Rig.ToWorld(data.SupportPoint)).sqrMagnitude < 0.14f * 0.14f;
+                RigidPose grip = _supportGrip.Steady(animatedGrip, _held.Rig.GunBodyPose, onSupport);
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
                 // Turned as the VR glove is (its tracked frame, the glove rotation setting included): fingers along its forward,
@@ -272,25 +279,32 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>
         /// A hand bone's pose as the gun's animation leaves it this frame, steadied against the gun: a jump of more than 3 cm or 20 degrees
-        /// is held off for up to four frames and taken only if it lasts. Between two of the game's own animations (a shot's and the idle
-        /// after it) a hand bone was left for a frame in another pose, and the weapon's arm went there and back (user, 2026-11-03:
-        /// "the left arm moves away after shooting full auto or semi ... for a short milisecond but teleports back").
+        /// is held off for up to four frames and taken only if it lasts; and once a pose on the gun has been seen, one off it altogether
+        /// (<c>onGun</c> false: as far off as the glove's own rule, HeldWeapon.SnapHands) is held off for as long as it lasts. Between two of
+        /// the game's own animations (a shot's and the idle after it) a hand bone was left in another pose, up to 31 cm off the gun, and
+        /// the weapon's arm went there and back (user, 2026-11-03: "the left arm moves away after shooting full auto or semi ... for a
+        /// short milisecond but teleports back"). A gun whose bones never sit on its points keeps them as they are.
         /// </summary>
         private sealed class SteadyGrip
         {
             private RigidPose _inGun;
-            private bool _known;
+            private bool _known, _seenOnGun;
             private int _odd;
 
-            public RigidPose Steady(RigidPose now, RigidPose gun)
+            public RigidPose Steady(RigidPose now, RigidPose gun, bool onGun)
             {
                 RigidPose inGun = gun.Inverse().Multiply(now);
+                if (_seenOnGun && !onGun)
+                {
+                    return gun.Multiply(_inGun);
+                }
                 if (_known && (Vector3.Distance(inGun.position, _inGun.position) > 0.03f || Quaternion.Angle(inGun.rotation, _inGun.rotation) > 20f) && ++_odd <= 4)
                 {
                     return gun.Multiply(_inGun);
                 }
                 _inGun = inGun;
                 _known = true;
+                _seenOnGun |= onGun;
                 _odd = 0;
                 return now;
             }

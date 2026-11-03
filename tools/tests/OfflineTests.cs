@@ -441,7 +441,8 @@ namespace RavenfieldVR.Tests
 
         /// <summary>
         /// The weapon's arms' hand poses from the gun's animation, steadied (ArmIK.SteadyGrip, user 2026-11-03: the left arm away for a
-        /// moment after shooting): a jump for one frame is held off and the old pose kept, a move that lasts is taken on its fifth frame.
+        /// moment after shooting): a jump for one frame is held off and the old pose kept, a move that lasts is taken on its fifth frame, and
+        /// a pose off the gun altogether is held off for as long as it lasts, once one on the gun has been seen.
         /// </summary>
         private static void SteadyGripTests(System.Reflection.Assembly mod)
         {
@@ -456,7 +457,7 @@ namespace RavenfieldVR.Tests
             object s = Activator.CreateInstance(steady, true);
             object gun = Activator.CreateInstance(pose, new UnityEngine.Vector3(1f, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
             object At(float x) => Activator.CreateInstance(pose, new UnityEngine.Vector3(1f + x, 2f, 3f), new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
-            float Step(float x) => ((UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(x), gun }))).x - 1f;
+            float Step(float x, bool onGun = true) => ((UnityEngine.Vector3)pose.GetField("position").GetValue(m.Invoke(s, new[] { At(x), gun, onGun }))).x - 1f;
             Step(0.1f);
             float blink = Step(0.5f), back = Step(0.1f);
             Check(Math.Abs(blink - 0.1f) < 1e-4 && Math.Abs(back - 0.1f) < 1e-4, $"Steady grip: a jump for one frame is held off ({blink:0.000}, then {back:0.000})");
@@ -467,6 +468,21 @@ namespace RavenfieldVR.Tests
             }
             Check(Math.Abs(lasting[3] - 0.1f) < 1e-4 && Math.Abs(lasting[4] - 0.4f) < 1e-4,
                   $"Steady grip: a move that lasts is taken on its fifth frame ({string.Join(", ", Array.ConvertAll(lasting, v => v.ToString("0.000")))})");
+            float far = 0f;
+            for (int i = 0; i < 20; i++)
+            {
+                far = Step(0.7f, false);
+            }
+            Check(Math.Abs(far - 0.4f) < 1e-4, $"Steady grip: a pose off the gun is held off however long it lasts ({far:0.000} after 20 frames)");
+            object never = Activator.CreateInstance(steady, true);
+            s = never;
+            Step(0.1f, false);
+            float kept = 0f;
+            for (int i = 0; i < 6; i++)
+            {
+                kept = Step(0.5f, false);
+            }
+            Check(Math.Abs(kept - 0.5f) < 1e-4, $"Steady grip: a gun never seen on its points keeps its bones as they are ({kept:0.000})");
         }
 
         /// <summary>
