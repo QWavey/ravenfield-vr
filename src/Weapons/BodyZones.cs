@@ -310,10 +310,13 @@ namespace RavenfieldVR.Weapons
         private int _assignedFrame = -1;
         private Actor _assignedFor;
 
+        /// <summary>The loadout changed in this frame (a weapon picked up into a slot): the holsters are assigned again at the next ask.</summary>
+        internal void LoadoutChanged() => _assignedFrame = -1;
+
         private void AssignHolsters(Actor actor)
         {
-            // Once a frame: every holster query and every holster drawn asked again (the loadout does not change within a
-            // frame; a weapon picked up mid-frame shows its holster the next one).
+            // Once a frame: every holster query and every holster drawn asked again (the loadout does not change within a frame
+            // but by a pick-up, which says so: LoadoutChanged).
             if (_assignedFrame == Time.frameCount && ReferenceEquals(_assignedFor, actor))
             {
                 return;

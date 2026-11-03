@@ -442,6 +442,7 @@ namespace RavenfieldVR.Weapons
             }
             RestoreAmmo(equipped, drop);
             Remove(drop);
+            _sys.Zones.LoadoutChanged(); // (its holster at once: asked earlier this frame, the slot had none until the next)
             if (beside && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))
             {
                 _sys.BeginSecond(equipped, hand); // the holster sound and the haptic come with it
