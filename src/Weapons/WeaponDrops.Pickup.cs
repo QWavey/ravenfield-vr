@@ -418,6 +418,7 @@ namespace RavenfieldVR.Weapons
             // up the pistol while the main weapon is held"). Anything else is taken up as before, the gun going to its holster.
             bool beside = hand != _sys.Rig.Dominant && _sys.Second == null && _sys.Held != null && _sys.Held.Weapon != null
                           && slot != actor.activeWeaponSlot;
+            Hand gunHandBefore = VRInput.GunHand;
             if (!beside)
             {
                 // Into the hand that picked it up: taken with the free hand, it went into the other one.
@@ -436,6 +437,7 @@ namespace RavenfieldVR.Weapons
                 // The game made nothing (its spawn failed): the drop stays where it lies, not deleted with the rounds in it
                 // (drops hunt, 2026-10-20).
                 Log.WarnOnce("pickupfailed:" + drop.Entry.name, $"Picking up {drop.Entry.name}: the game spawned nothing; it stays on the ground.");
+                VRInput.SetGunHand(gunHandBefore); // (the gun held before is taken up again in its own hand, not the one that reached)
                 return;
             }
             RestoreAmmo(equipped, drop);
