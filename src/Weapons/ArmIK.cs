@@ -256,7 +256,9 @@ namespace RavenfieldVR.Weapons
                 float s = leftSide ? -1f : 1f;
                 Vector3 shoulder = neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * s);
                 Vector3 pole = shoulder + down * 0.6f + zones.TorsoRight * (0.35f * s) - zones.TorsoForward * 0.2f;
-                RigidPose target = FreeTarget(hand, arm.Chain);
+                // (A magazine in it kept out of the gun: moved with it in the same frame, as in Solve.)
+                MagazineProp mag = hand.Role == HandRole.Magazine ? hand.Held as MagazineProp : null;
+                RigidPose target = FreeTarget(hand, arm.Chain, mag != null && mag.Go != null && !mag.OnRail ? mag.KeptOut : (Vector3?)null);
                 SolveArm(arm, shoulder, target, pole);
                 float error = Vector3.Distance(arm.Hand.position, target.position);
                 if (hand == _sys.Rig.Dominant)
@@ -329,8 +331,9 @@ namespace RavenfieldVR.Weapons
         /// The off hand off the gun as the VR glove is placed: the glove's tracked frame turned onto the arm's hand bone (fingers
         /// along its forward, the back of the hand along its side), carried where the glove is drawn (kept out of a gun, a heavy
         /// gun's lag), the arm's palm point on the hand's palm. Also the empty-hand arms' (<see cref="EmptyArms"/>) for both hands.
+        /// With <paramref name="keptOut"/>: the tracked hand moved by it, not where the glove has eased to.
         /// </summary>
-        internal static RigidPose FreeTarget(VRHand hand, ArmChain c)
+        internal static RigidPose FreeTarget(VRHand hand, ArmChain c, Vector3? keptOut = null)
         {
             RigidPose tracked = default, placed = default;
             if (hand.Model != null)
@@ -341,7 +344,11 @@ namespace RavenfieldVR.Weapons
             Quaternion rot = Quaternion.LookRotation(glove * Vector3.forward, glove * new Vector3(hand.Mirror, 0f, 0f))
                              * RigidPose.Conjugate(Quaternion.LookRotation(c.FingerDir, c.BackDir));
             Vector3 at = hand.PalmCentre;
-            if (hand.Model != null)
+            if (keptOut.HasValue)
+            {
+                at += keptOut.Value;
+            }
+            else if (hand.Model != null)
             {
                 Quaternion turn = placed.rotation * RigidPose.Conjugate(tracked.rotation);
                 at = placed.position + turn * (at - tracked.position);
