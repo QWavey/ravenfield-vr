@@ -547,23 +547,18 @@ namespace RavenfieldVR.Weapons
             {
                 _beltHanging = false;
             }
-            else if (!Ammo.CoverOpen)
-            {
-                _beltHanging = false; // shut over it: a belt left hanging from the box no longer shows under the cover
-            }
             else if (Ammo.BeltLaid)
             {
                 _beltHanging = false;
             }
-            else
+            else if (!_beltHeld && VRConfig.BeltByHand.Value)
             {
-                if (!_beltHeld && VRConfig.BeltByHand.Value)
-                {
-                    // A fresh box under an open cover: its belt hangs from it, to be taken and laid. Drawn only after a slip,
-                    // the belt was nowhere to be seen and the hand reload stopped at LAY BELT (255.B6-1).
-                    _belt = _belt ?? new BeltStrip();
-                    _beltHanging = true;
-                }
+                // A box in with its belt still to lay: its belt hangs from its mouth, to be taken and laid with the cover open. Drawn only
+                // after a slip, the belt was nowhere to be seen and the hand reload stopped at LAY BELT (255.B6-1); and drawn only under an
+                // open cover, a box put in with the cover shut showed no belt at all (user, 2026-11-03: "magbelt is sometimes dissapearing
+                // when inserted"). It hangs from the box's mouth out over its side, clear of the shut cover.
+                _belt = _belt ?? new BeltStrip();
+                _beltHanging = true;
             }
             // A laid strip shows under the shut cover, and with the cover open only if it was laid in this lift; the box going
             // clears it, so a box put back is never drawn with the old belt (274). Read from the state, so a belt laid at the
