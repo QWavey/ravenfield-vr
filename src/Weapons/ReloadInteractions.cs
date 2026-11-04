@@ -209,7 +209,7 @@ namespace RavenfieldVR.Weapons
                 Input.ScriptKeys.Tap(only.Key, only.Script);
             }
             off.Haptic(0.015f, 200f, 0.25f);
-            _held.Sounds.Play(MechSound.SlideForward, off.Palm.position, 0.15f); // a small click of the switch
+            _held.Sounds.Play(MechSound.Selector, off.Palm.position, 0.3f); // a small click of the switch
         }
 
         /// <summary>The weapon's under-barrel launcher (a sub weapon firing an exploding round, a few at most), or -1.</summary>

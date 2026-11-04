@@ -124,7 +124,8 @@ namespace RavenfieldVR.Weapons
             Hold(hand, round);
             LogHeldRound(hand, round);
             _roundSeenCheckAt = _roundSeenChecked ? -1f : Time.unscaledTime + 0.6f;
-            hand.Haptic(0.02f, 160f, 0.35f); // (felt only: no sound of the mod's own making)
+            sys.Sounds.Play(MechSound.Pouch, hand.Palm.position, 0.4f);
+            hand.Haptic(0.02f, 160f, 0.35f);
             return true;
         }
 
@@ -194,6 +195,7 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             Hold(hand, lying);
+            WeaponSystem.Instance?.Sounds?.Play(MechSound.ShellIn, hand.Palm.position, 0.3f);
             hand.Haptic(0.015f, 170f, 0.3f);
             return true;
         }
@@ -245,6 +247,7 @@ namespace RavenfieldVR.Weapons
                             c.Owner.ReturnSpareCapped(1);
                         }
                         Casings.LoadedAway(c);
+                        sys.Sounds.Play(MechSound.Pouch, h.Palm.position, 0.3f);
                         h.Haptic(0.015f, 150f, 0.25f);
                     }
                     else
