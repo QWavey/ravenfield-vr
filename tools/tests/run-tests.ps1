@@ -48,6 +48,13 @@ Invoke-Csc @(
 )
 & $exe $Managed (Join-Path $Root 'build/RavenfieldVR.dll') $BepInExCore
 $code = $LASTEXITCODE
+# The real AmmoState.cs against stubs, millions of random actions: no round made or lost (tools/tests/AmmoFuzz.cs).
+$fuzz = Join-Path $out 'AmmoFuzz.exe'
+Invoke-Csc @('-nologo', '-target:exe', '-langversion:latest', '-nostdlib', '-noconfig', "-out:$fuzz", '-main:RavenfieldVR.Tests.AmmoFuzz',
+    "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll",
+    (Join-Path $PSScriptRoot 'AmmoFuzz.cs'), (Join-Path $Root 'src/Weapons/AmmoState.cs'))
+& $fuzz
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The picture tool's restore after a killed run, on temporary copies (tools/tests/vrshots_restore_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_restore_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
