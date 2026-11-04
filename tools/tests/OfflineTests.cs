@@ -110,6 +110,7 @@ namespace RavenfieldVR.Tests
             SteadyGripTests(mod);
             BeltRoundBoxTests(mod);
             BeltRoundEndsTests(mod);
+            BeltFuzzTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -487,6 +488,76 @@ namespace RavenfieldVR.Tests
                 kept = Step(0.5f, false);
             }
             Check(Math.Abs(kept - 0.5f) < 1e-4, $"Steady grip: a gun never seen on its points keeps its bones as they are ({kept:0.000})");
+        }
+
+        /// <summary>
+        /// The way round the box under random boxes, gun turns and belt ends (a fixed seed; user, 2026-11-04: "the magbelt still gltiches through
+        /// the mag but only if the mg is turned a little"): the belt's start just off a face, its end anywhere outside, the frame turned any
+        /// way. No point of the way is inside the box, and it starts and ends where it was asked to.
+        /// </summary>
+        private static void BeltFuzzTests(System.Reflection.Assembly mod)
+        {
+            Type strip = mod.GetType("RavenfieldVR.Weapons.BeltStrip");
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo round = strip?.GetMethod("PathRound", flags), kept = strip?.GetMethod("KeptOut", flags);
+            Check(round != null && kept != null && pose != null, "Belt fuzz: PathRound found");
+            if (round == null || kept == null || pose == null)
+            {
+                return;
+            }
+            System.Reflection.MethodInfo toWorld = pose.GetMethod("TransformPoint"), toLocal = pose.GetMethod("InverseTransformPoint");
+            var random = new Random(1911);
+            float R(double lo, double hi) => (float)(lo + random.NextDouble() * (hi - lo));
+            const int Cases = 4000;
+            int inside = 0, straight = 0, offEnds = 0;
+            string first = null;
+            for (int c = 0; c < Cases; c++)
+            {
+                // Any turn: a random unit quaternion, a little off level as often as far off it.
+                double spread = c % 2 == 0 ? 0.25 : 1.0;
+                var q = new UnityEngine.Vector4(R(-spread, spread), R(-spread, spread), R(-spread, spread), 1f).normalized;
+                var at = new UnityEngine.Vector3(R(-50, 50), R(0, 80), R(-50, 50));
+                object frame = Activator.CreateInstance(pose, at, new UnityEngine.Quaternion(q.x, q.y, q.z, q.w));
+                var size = new UnityEngine.Vector3(R(0.06, 0.3), R(0.06, 0.2), R(0.06, 0.3));
+                var box = new UnityEngine.Bounds(new UnityEngine.Vector3(R(-0.05, 0.05), R(-0.05, 0.05), R(-0.05, 0.05)), size);
+                UnityEngine.Vector3 half = box.extents;
+                // On a random face, 8 mm off it (BeltClear), anywhere along it.
+                int axis = random.Next(3);
+                float sign = random.Next(2) == 0 ? -1f : 1f;
+                var local = new UnityEngine.Vector3(R(-half.x, half.x), R(-half.y, half.y), R(-half.z, half.z));
+                local[axis] = sign * (half[axis] + 0.008f);
+                var from = (UnityEngine.Vector3)toWorld.Invoke(frame, new object[] { box.center + local });
+                // Anywhere within a belt's reach, kept out of the box as Place does.
+                var end = new UnityEngine.Vector3(R(-0.4, 0.4), R(-0.4, 0.4), R(-0.4, 0.4));
+                var to = (UnityEngine.Vector3)kept.Invoke(null, new object[] { (UnityEngine.Vector3)toWorld.Invoke(frame, new object[] { box.center + end }), frame, box });
+                var path = new UnityEngine.Vector3[22];
+                int points = (int)round.Invoke(null, new object[] { from, to, frame, box, path });
+                if (points < 2 || (path[0] - from).magnitude > 1e-3f || (path[points - 1] - to).magnitude > 1e-3f)
+                {
+                    offEnds++;
+                }
+                if (points == 2)
+                {
+                    straight++;
+                }
+                for (int i = 1; i < points; i++)
+                {
+                    for (int s = 0; s <= 12; s++)
+                    {
+                        UnityEngine.Vector3 p = path[i - 1] + (path[i] - path[i - 1]) * (s / 12f);
+                        UnityEngine.Vector3 d = (UnityEngine.Vector3)toLocal.Invoke(frame, new object[] { p }) - box.center;
+                        if (Math.Abs(d.x) < half.x - 1e-3f && Math.Abs(d.y) < half.y - 1e-3f && Math.Abs(d.z) < half.z - 1e-3f)
+                        {
+                            inside++;
+                            first = first ?? $"case {c}, {points} points, hop {i}: ({d.x:0.000}, {d.y:0.000}, {d.z:0.000}) in a box of half ({half.x:0.000}, {half.y:0.000}, {half.z:0.000})";
+                        }
+                    }
+                }
+            }
+            Check(inside == 0, $"Belt fuzz: no point of {Cases} ways round the box is inside it" + (first != null ? $" ({inside} were; {first})" : ""));
+            Check(offEnds == 0, $"Belt fuzz: every way starts and ends where asked ({offEnds} did not)");
+            Check(straight < Cases, $"Belt fuzz: not every way was the straight line ({straight} of {Cases} were)");
         }
 
         /// <summary>
