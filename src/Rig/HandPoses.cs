@@ -180,6 +180,7 @@ namespace RavenfieldVR.Rig
                 case HandRole.Belt:
                     return HandPoseId.BeltPinch;
                 case HandRole.Optic:
+                case HandRole.Magnifier: // (a flipped magnifier's hand was left relaxed on it)
                     return HandPoseId.OpticFlip;
                 case HandRole.Cockpit:
                     return stick ? HandPoseId.FlightStick : HandPoseId.SteeringWheel;

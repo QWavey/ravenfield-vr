@@ -126,7 +126,16 @@ namespace RavenfieldVR.Launcher
         {
             if (mode == PlayMode.VR && preset != null)
             {
-                PluginConfig.SetGraphicsPreset(GameDir, preset);
+                // Not worth a game that does not start: with the config read-only or locked it stopped here with an error box, and the
+                // game runs on the config's own preset all the same (launcher scout, 2026-11-04).
+                try
+                {
+                    PluginConfig.SetGraphicsPreset(GameDir, preset);
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                {
+                    LauncherLog.Write(GameDir, "Could not write the graphics preset " + preset + " to the config: " + e.Message);
+                }
             }
             var all = new List<string>(Args) { mode == PlayMode.VR ? "-vr" : "-novr" };
             var psi = new ProcessStartInfo(Exe, string.Join(" ", all.Select(Quote).ToArray()))
@@ -342,8 +351,19 @@ namespace RavenfieldVR.Launcher
             catch (Exception e) when (e is IOException || e is PlatformNotSupportedException)
             {
                 // A volume that cannot replace in place (FAT, some network drives): the copy.
-                File.Copy(temp, path, true);
+                try
+                {
+                    File.Copy(temp, path, true);
+                }
+                finally
+                {
+                    File.Delete(temp); // (not left beside a config that could not be written)
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
                 File.Delete(temp);
+                throw;
             }
         }
     }
