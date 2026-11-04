@@ -2839,7 +2839,7 @@ array (debug option only).
       gun's feed with the gun away, any kind (WeaponSystem._lastFedWeapon). With the setting off, or a gun not loaded by hand, it is
       only shown: no lift, no tick, nothing reacts to a hand ("make sure nothing else is applying like hand gestures, dont do that").
 - Also from the user: the run is not to stay in one area. Next rounds rotate (memory: wul-spread-areas).
-- Scouts of this run. Vehicles and seats: clean. Weapon's arms: an arm follows the glove on a grabbed soldier, a second gun's fingers take
+- Scouts of this run. Vehicles and seats: clean. Weapon's arms: with a gun in the other hand an arm follows the glove on a grabbed soldier (HandRole.Body), a second gun's fingers take
   its grip's curls (cf48d20). Open, low: the pin model back on a holstered pulled grenade (ThrowAndMelee.cs:547, SecondWeapon.cs:762); a
   pulled grenade drawn into the free hand keeps its pin (SecondWeapon.cs:130); a dud skips the game's shot stamp (ThrowAndMelee.cs:244);
   the gun hand taking a drop in its own slot leaves Held on a destroyed gun for a frame (WeaponDrops.Pickup.cs:419); comments saying an own

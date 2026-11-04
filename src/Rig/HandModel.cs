@@ -662,8 +662,8 @@ namespace RavenfieldVR.Rig
 
         /// <summary>
         /// A pose with the glove's pin on it (<see cref="SnapPose"/>), eased in and out as the glove is: for the weapon's arm of a hand
-        /// that holds no gun, pinned on a soldier it grabbed, whose glove is hidden while the arm is drawn at the controller (arm scout,
-        /// 2026-11-04).
+        /// pinned on a soldier it grabbed with a gun in the other hand (HandRole.Body), whose glove is hidden while the arm is drawn: the
+        /// arm stayed at the controller (arm scout, 2026-11-04). With no gun out EmptyArms gives way and the glove itself is drawn.
         /// </summary>
         internal RigidPose WithSnap(RigidPose placed)
         {

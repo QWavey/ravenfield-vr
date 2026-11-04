@@ -184,9 +184,9 @@ namespace RavenfieldVR.Weapons
                         placed = off.Model.SnapPose.Value;
                         tracked = off.Model.TrackedGlovePose;
                     }
-                    else if (off.Role == HandRole.Free)
+                    else if (off.Role == HandRole.Body)
                     {
-                        placed = off.Model.WithSnap(placed); // (on a soldier it grabbed)
+                        placed = off.Model.WithSnap(placed); // (on a soldier it grabbed, the gun in the other hand)
                     }
                     Quaternion turn = placed.rotation * Runtime.RigidPose.Conjugate(tracked.rotation);
                     at = placed.position + turn * (at - tracked.position);
@@ -370,9 +370,9 @@ namespace RavenfieldVR.Weapons
             }
             else if (hand.Model != null)
             {
-                if (hand.Role == HandRole.Free)
+                if (hand.Role == HandRole.Body)
                 {
-                    placed = hand.Model.WithSnap(placed); // (on a soldier it grabbed)
+                    placed = hand.Model.WithSnap(placed); // (on a soldier it grabbed, a passed gun in the other hand)
                 }
                 Quaternion turn = placed.rotation * RigidPose.Conjugate(tracked.rotation);
                 at = placed.position + turn * (at - tracked.position);
