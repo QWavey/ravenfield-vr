@@ -543,15 +543,11 @@ namespace RavenfieldVR.Weapons
                 _beltLaidThisLift = false;
             }
             _beltCoverWasOpen = Ammo.CoverOpen;
-            if (!Ammo.MagInserted || !Ammo.HasCover)
+            if (!Ammo.MagInserted || !Ammo.HasCover || Ammo.BeltLaid || !VRConfig.BeltByHand.Value)
             {
-                _beltHanging = false;
+                _beltHanging = false; // (with belts by hand off too: one hanging stayed drawn for good)
             }
-            else if (Ammo.BeltLaid)
-            {
-                _beltHanging = false;
-            }
-            else if (!_beltHeld && VRConfig.BeltByHand.Value)
+            else if (!_beltHeld)
             {
                 // A box in with its belt still to lay: its belt hangs from its mouth, to be taken and laid with the cover open. Drawn only
                 // after a slip, the belt was nowhere to be seen and the hand reload stopped at LAY BELT (255.B6-1); and drawn only under an
@@ -563,8 +559,8 @@ namespace RavenfieldVR.Weapons
             // A laid strip shows under the shut cover, and with the cover open only if it was laid in this lift; the box going
             // clears it, so a box put back is never drawn with the old belt (274). Read from the state, so a belt laid at the
             // spawn, or still laid when the gun is drawn again, shows too; for hand-laid belts only (without BeltByHand the belt
-            // was never shown on the tray), and a gun whose model has its own belt shows that instead.
-            bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.HasCover && VRConfig.BeltByHand.Value && _held.BeltPartCount == 0
+            // was never shown on the tray), and a gun whose model has its own belt shows that instead. A box fired empty has no belt left.
+            bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.MagRounds > 0 && Ammo.HasCover && VRConfig.BeltByHand.Value && _held.BeltPartCount == 0
                               && (!Ammo.CoverOpen || _beltLaidThisLift);
             bool show = _beltHeld || _beltHanging || laidOnTray;
             if (laidOnTray && _belt == null)

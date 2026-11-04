@@ -532,7 +532,7 @@ namespace RavenfieldVR.Weapons
                 }
                 BeltFeedGun = BeltFeed();
             }
-            bool hide = !ammo.MagInserted || !ammo.BeltLaid;
+            bool hide = !ammo.MagInserted || !ammo.BeltLaid || ammo.MagRounds <= 0; // (a box fired empty has no belt left to show)
             if (hide == _beltHidden)
             {
                 return;

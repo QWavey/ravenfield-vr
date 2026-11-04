@@ -50,7 +50,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Cut[] RifleKnock = { new Cut("SA80_Reload_Mag_In_01", 0.135f, 0f, 1f, 0.9f) };
         private static readonly Cut[] PistolKnock = { new Cut("S-IND7_Reload_MagIn_02", 0.085f, 0.25f, 1f, 0.9f) };
         // The game's own empty click (IngameUI.outOfAmmoSound; it starts 40 ms in).
-        private static readonly Cut[] DryFire = { new Cut("Out_Of_Ammo_Delayed_Long_02", 0.02f) };
+        private static readonly Cut[] DryFire = { new Cut("Out_Of_Ammo_Delayed_Long_02", 0.02f, 0f, 0.7f) };
         private static readonly Cut[] ShellIn = { new Cut("ShotgunSounds-ShotgunShell"), new Cut("Garand Reload Single Insert", 0.05f, 0f, 1f) };
         // The grenade launcher's selector on the Patriot.
         private static readonly Cut[] Selector = { new Cut("Patriot_GL_Toggle_01", 0f, 0.14f) };
@@ -167,7 +167,26 @@ namespace RavenfieldVR.Weapons
                     Loaded[c.name] = c;
                 }
             }
+            Preload();
             return Loaded.TryGetValue(name, out clip) ? clip : null;
+        }
+
+        /// <summary>Has the table's clips decoded now: one played for the first time starts late, or not at its cut.</summary>
+        private static void Preload()
+        {
+            foreach (MechSound kind in System.Enum.GetValues(typeof(MechSound)))
+            {
+                for (int pistol = 0; pistol < 2; pistol++)
+                {
+                    foreach (Cut cut in CutsFor(kind, pistol == 1))
+                    {
+                        if (Loaded.TryGetValue(cut.Name, out AudioClip clip) && clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+                        {
+                            clip.LoadAudioData();
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>How many of the table's clips are loaded and the names of those that are not (the self-test's report).</summary>

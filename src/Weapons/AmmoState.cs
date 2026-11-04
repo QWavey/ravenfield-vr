@@ -616,7 +616,8 @@ namespace RavenfieldVR.Weapons
         private long CounterKey()
         {
             long flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
-                         | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0);
+                         | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0)
+                         | (VRConfig.ReloadNow == ReloadMode.Manual ? 512 : 0);
             return ((long)(uint)MagRounds << 32) | ((long)(Capacity & 0xFFFFF) << 12) | flags;
         }
 
@@ -652,12 +653,15 @@ namespace RavenfieldVR.Weapons
             {
                 return Open ? $"OPEN {MagRounds}/{Capacity}" : MagRounds.ToString();
             }
-            if (HasCover && CoverOpen)
+            // (The cover's steps in manual reloading only: switched to assisted with the cover left open, the gun fired, as the game
+            // reloads it there, under a counter saying LAY BELT; machine gun scout, 2026-11-03.)
+            bool byHand = VRConfig.ReloadNow == ReloadMode.Manual;
+            if (byHand && HasCover && CoverOpen)
             {
                 // Without belt laying by hand, shutting the cover lays it: the hint is to shut it.
                 return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
             }
-            if (HasCover && MagInserted && !BeltLaid)
+            if (byHand && HasCover && MagInserted && !BeltLaid)
             {
                 return "OPEN COVER"; // shut over no belt: it has to be opened (and the belt laid, or the cover shut again)
             }
