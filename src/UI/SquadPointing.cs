@@ -501,7 +501,9 @@ namespace RavenfieldVR.UI
             }
             try
             {
-                if (!SquadPointing.Pointing)
+                // (Alone with no enemy on the line there is no one to tell and nothing to mark: the order's sound and grunt for nothing,
+                // as the hand signs already knew.)
+                if (!SquadPointing.Pointing || SquadPointing.Enemy == null && !SquadHandSigns.HasSquadmates())
                 {
                     __instance.CancelPointSquadOrder();
                     return false;

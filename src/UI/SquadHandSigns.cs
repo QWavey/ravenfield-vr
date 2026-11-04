@@ -181,7 +181,7 @@ namespace RavenfieldVR.UI
         }
 
         /// <summary>Soldiers of the player's squad to take an order (a player alone got the order's sound and grunt for nothing).</summary>
-        private static bool HasSquadmates()
+        internal static bool HasSquadmates()
         {
             Squad squad = LocalPlayer.squad;
             return squad != null && squad.aiMembers != null && squad.aiMembers.Count > 0;
