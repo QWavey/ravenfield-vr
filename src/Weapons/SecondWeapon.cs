@@ -135,6 +135,10 @@ namespace RavenfieldVR.Weapons
                 if (_modPin != null)
                 {
                     _modPinScale = _modPin.localScale;
+                    if (Armed)
+                    {
+                        _modPin.localScale = Vector3.one * 1e-4f; // (drawn with its pin out, as the grenade hand's SetupPin does: it showed one)
+                    }
                 }
             }
             Log.Info($"Second weapon: {weapon.name} in the {hand.Side} hand beside {(sys.Held != null && sys.Held.Weapon != null ? sys.Held.Weapon.name : "nothing")}.");
@@ -330,7 +334,7 @@ namespace RavenfieldVR.Weapons
             {
                 // As the grenade hand's dud: one fewer in the pouch (picked up again, it goes back), the next one ready.
                 GrenadeDud.Spawn(Rig, weapon, Hand.Palm.position, Hand.Palm.rotation, velocity, Hand.AngularVelocity);
-                weapon.ammo = Mathf.Max(0, weapon.ammo - 1);
+                weapon.ammo = weapon.ammo > 0 ? weapon.ammo - 1 : weapon.ammo; // (-1, without end, stays so: the game checks that too)
                 weapon.InstantlyReload();
                 Hand.Haptic(0.03f, 70f, 0.4f);
                 Done = true;

@@ -38,10 +38,11 @@ namespace RavenfieldVR.Weapons
         {
             AmmoState ammo = held != null ? held.ActiveAmmo : null;
             WeaponRig rig = held != null ? held.ActiveRig : null;
-            if (held == null && HandLoading.Carried(away))
+            bool feeds = ammo != null && rig != null && ammo.Participates && rig.Data.Action != ActionType.Throwable;
+            if (!feeds && HandLoading.Carried(away))
             {
-                // The gun put away: the pouch goes on showing what it feeds from, loaded by hand or not (user, 2026-11-04: "show the mags on
-                // the left side even if the gun isnt held rn").
+                // The gun put away, or a grenade or knife in the hand instead: the pouch goes on showing what it feeds from, loaded by hand or
+                // not (user, 2026-11-04: "show the mags on the left side even if the gun isnt held rn").
                 ammo = _sys.StateFor(away, create: false);
                 rig = ammo != null ? _sys.RigFor(away) : null;
             }
@@ -73,7 +74,7 @@ namespace RavenfieldVR.Weapons
             VRHand off = _sys.Rig.Off;
             // With the gun away and not loading by hand it is only shown: nothing can be taken from it, so a hand near it changes nothing,
             // no lift, no tick (user, 2026-11-04: "make sure nothing else is applying like hand gestures, dont do that").
-            bool answers = held != null || HandLoading.Applies(ammo);
+            bool answers = feeds || held == null && HandLoading.Applies(ammo);
             bool reaching = answers && off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
             if (held == null && answers && !reaching)
             {

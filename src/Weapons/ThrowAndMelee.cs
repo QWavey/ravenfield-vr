@@ -241,7 +241,7 @@ namespace RavenfieldVR.Weapons
         private void ThrowDud(ThrowableWeapon weapon, VRHand hand, Vector3 velocity)
         {
             GrenadeDud.Spawn(_pinRig, weapon, hand.Palm.position, hand.Palm.rotation, velocity, hand.AngularVelocity);
-            weapon.ammo = Mathf.Max(0, weapon.ammo - 1);
+            weapon.ammo = weapon.ammo > 0 ? weapon.ammo - 1 : weapon.ammo; // (-1, without end, stays so: the game checks that too)
             weapon.InstantlyReload(); // the next one from the pouch, as after a real throw
             weapon.user?.EmoteToss();
             hand.Haptic(0.03f, 70f, 0.4f);
