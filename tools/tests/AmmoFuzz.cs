@@ -137,11 +137,28 @@ namespace RavenfieldVR.Tests
                     }
                 }
             }
+            // The settings changed in the middle of it, as the panel can at any moment.
+            foreach (Gun gun in Guns)
+            {
+                for (int seed = 0; seed < 8; seed++)
+                {
+                    string fault = Run(gun, 9000 + runs, ref actions, flipSettings: true);
+                    runs++;
+                    if (fault != null)
+                    {
+                        faults++;
+                        Console.WriteLine($"FAIL {gun.Name}, settings changing: {fault}");
+                    }
+                }
+            }
             Console.WriteLine($"ammo fuzz: {actions} random actions in {runs} runs, {faults} failed");
             return faults == 0 ? 0 : 1;
         }
 
-        private static string Run(Gun gun, int seed, ref long actions)
+        private static readonly System.Reflection.MethodInfo BuildText =
+            typeof(AmmoState).GetMethod("BuildCounterText", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        private static string Run(Gun gun, int seed, ref long actions, bool flipSettings = false)
         {
             var weapon = new Weapon { ammo = 30, spareAmmo = 200 };
             weapon.configuration.ammo = 30;
@@ -152,12 +169,33 @@ namespace RavenfieldVR.Tests
             int gone = 0, total = a.MagRounds + (a.Chambered ? 1 : 0) + a.SpareAmmo;
             var random = new Random(seed);
             var last = new Queue<string>();
-            bool lose = VRConfig.LoseRoundOnRack.Value;
             for (int step = 0; step < Steps; step++)
             {
+                bool lose = VRConfig.LoseRoundOnRack.Value;
                 string op = null;
-                switch (random.Next(13))
+                switch (random.Next(flipSettings ? 14 : 13))
                 {
+                    case 13:
+                        switch (random.Next(4))
+                        {
+                            case 0:
+                                VRConfig.ReloadNow = VRConfig.ReloadNow == ReloadMode.Manual ? ReloadMode.Assisted : ReloadMode.Manual;
+                                op = "reloading " + VRConfig.ReloadNow;
+                                break;
+                            case 1:
+                                VRConfig.BeltByHand.Value = !VRConfig.BeltByHand.Value;
+                                op = "belts by hand " + VRConfig.BeltByHand.Value;
+                                break;
+                            case 2:
+                                VRConfig.ChamberPlusOne.Value = !VRConfig.ChamberPlusOne.Value;
+                                op = "chamber plus one " + VRConfig.ChamberPlusOne.Value;
+                                break;
+                            default:
+                                VRConfig.LoseRoundOnRack.Value = !VRConfig.LoseRoundOnRack.Value;
+                                op = "lose on rack " + VRConfig.LoseRoundOnRack.Value;
+                                break;
+                        }
+                        break;
                     case 0:
                     case 1:
                     case 2:
@@ -291,6 +329,10 @@ namespace RavenfieldVR.Tests
                 else if (a.CanFire && a.Loaded <= 0)
                 {
                     wrong = "able to fire with nothing loaded";
+                }
+                else if (step % 7 == 0 && a.CounterText() != (string)BuildText.Invoke(a, null))
+                {
+                    wrong = $"the counter says '{a.CounterText()}', its state says '{BuildText.Invoke(a, null)}'";
                 }
                 if (wrong != null)
                 {
