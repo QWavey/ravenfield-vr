@@ -1778,8 +1778,20 @@ namespace RavenfieldVR.Weapons
             _recoilPos += _recoilPosVel * dt;
             _recoilRotVel += (-stiffness * _recoilRot - damping * _recoilRotVel) * dt;
             _recoilRot += _recoilRotVel * dt;
-            _recoilPos = Vector3.ClampMagnitude(_recoilPos, 0.12f);
-            _recoilRot = Vector2.ClampMagnitude(_recoilRot, 25f);
+            // At the limits the way out is spent too: left in, a big kick sat pinned there about a tenth of a second until it had bled off,
+            // and came back from a flat top rather than a curve (motion scout, 2026-11-04).
+            if (_recoilPos.sqrMagnitude > 0.12f * 0.12f)
+            {
+                Vector3 way = _recoilPos.normalized;
+                _recoilPos = way * 0.12f;
+                _recoilPosVel -= way * Mathf.Max(0f, Vector3.Dot(_recoilPosVel, way));
+            }
+            if (_recoilRot.sqrMagnitude > 25f * 25f)
+            {
+                Vector2 way = _recoilRot.normalized;
+                _recoilRot = way * 25f;
+                _recoilRotVel -= way * Mathf.Max(0f, Vector2.Dot(_recoilRotVel, way));
+            }
             PeakKick = Mathf.Max(PeakKick, Mathf.Abs(_recoilRot.x));
             PeakBack = Mathf.Max(PeakBack, -_recoilPos.z);
             PeakShift = Mathf.Max(PeakShift, _recoilPos.magnitude);
