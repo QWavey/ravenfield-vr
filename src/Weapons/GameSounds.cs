@@ -140,8 +140,13 @@ namespace RavenfieldVR.Weapons
             return found > 0;
         }
 
-        /// <summary>Every loaded clip by its name; a name it lacks is looked for again after <see cref="ScanEvery"/> s (a scene's come in).</summary>
+        /// <summary>
+        /// The table's clips that are loaded, by name; a name it lacks is looked for again after <see cref="ScanEvery"/> s (a scene's come in).
+        /// Only those: held here, a clip cannot be unloaded, and with every clip in it each level's music and ambience stayed in memory
+        /// for the session.
+        /// </summary>
         private static readonly Dictionary<string, AudioClip> Loaded = new Dictionary<string, AudioClip>();
+        private static HashSet<string> _wanted;
         private const float ScanEvery = 30f;
         private static float _nextScan;
 
@@ -157,9 +162,23 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             _nextScan = Time.unscaledTime + ScanEvery;
+            if (_wanted == null)
+            {
+                _wanted = new HashSet<string>();
+                foreach (MechSound kind in System.Enum.GetValues(typeof(MechSound)))
+                {
+                    for (int pistol = 0; pistol < 2; pistol++)
+                    {
+                        foreach (Cut cut in CutsFor(kind, pistol == 1))
+                        {
+                            _wanted.Add(cut.Name);
+                        }
+                    }
+                }
+            }
             foreach (AudioClip c in Resources.FindObjectsOfTypeAll<AudioClip>())
             {
-                if (c == null)
+                if (c == null || !_wanted.Contains(c.name))
                 {
                     continue;
                 }
