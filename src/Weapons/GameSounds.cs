@@ -36,7 +36,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        // The cuts, read off the clips' waveforms in the game's files (each starts about 20 ms ahead of its hit, the fade-in's room).
+        // The cuts, read off the clips' waveforms in the game's files (each starts about 20 ms ahead of its hit, the fade-in's room);
+        // the levels bring each to about what it should be beside the others, with the volume its callers give it.
         private static readonly Cut[] RifleMagOut = { new Cut("SA80_Reload_Mag_Out_01") };
         private static readonly Cut[] PistolMagOut = { new Cut("S-IND7_Reload_MagOut_02"), new Cut("Walther_PPK_Reload_Mag_Out_01") };
         private static readonly Cut[] RifleMagIn = { new Cut("SA80_Reload_Mag_In_01") };
@@ -44,20 +45,20 @@ namespace RavenfieldVR.Weapons
         private static readonly Cut[] SlideBack = { new Cut("S-IND7_Reload_ChargingHandle_01", 0f, 0.12f) };
         private static readonly Cut[] SlideForward = { new Cut("S-IND7_Reload_ChargingHandle_01", 0.16f, 0.33f) };
         // Into the well, up to before the seating clack (rifle's at 0.16 s, pistol's second hit at 0.17 s).
-        private static readonly Cut[] RifleLip = { new Cut("SA80_Reload_Mag_In_01", 0f, 0.13f) };
+        private static readonly Cut[] RifleLip = { new Cut("SA80_Reload_Mag_In_01", 0f, 0.13f, 2f) };
         private static readonly Cut[] PistolLip = { new Cut("S-IND7_Reload_MagIn_02", 0.03f, 0.14f) };
         // The seating clack alone and a little lower: metal on metal.
         private static readonly Cut[] RifleKnock = { new Cut("SA80_Reload_Mag_In_01", 0.135f, 0f, 1f, 0.9f) };
         private static readonly Cut[] PistolKnock = { new Cut("S-IND7_Reload_MagIn_02", 0.085f, 0.25f, 1f, 0.9f) };
         // The game's own empty click (IngameUI.outOfAmmoSound; it starts 40 ms in).
         private static readonly Cut[] DryFire = { new Cut("Out_Of_Ammo_Delayed_Long_02", 0.02f, 0f, 0.7f) };
-        private static readonly Cut[] ShellIn = { new Cut("ShotgunSounds-ShotgunShell"), new Cut("Garand Reload Single Insert", 0.05f, 0f, 1f) };
+        private static readonly Cut[] ShellIn = { new Cut("ShotgunSounds-ShotgunShell") };
         // The grenade launcher's selector on the Patriot.
-        private static readonly Cut[] Selector = { new Cut("Patriot_GL_Toggle_01", 0f, 0.14f) };
+        private static readonly Cut[] Selector = { new Cut("Patriot_GL_Toggle_01", 0f, 0.14f, 2f) };
         // What the game plays when ammunition comes to the player (IngameUI.resupplySoundBank), its first rustle.
         private static readonly Cut[] Pouch =
         {
-            new Cut("resupply_1", 0f, 0.28f, 0.6f), new Cut("resupply_2", 0f, 0.2f, 0.6f), new Cut("resupply_3", 0f, 0.3f, 0.6f), new Cut("resupply_4", 0f, 0.3f, 0.6f)
+            new Cut("resupply_1", 0f, 0.28f, 0.6f), new Cut("resupply_2", 0f, 0.2f, 0.9f), new Cut("resupply_3", 0f, 0.3f, 0.6f), new Cut("resupply_4", 0f, 0.3f, 0.6f)
         };
         // The player's clothing (FpsActorController.clothFoleySounds), the loudest of the nine: a draw's metal is the game's own
         // Weapon.unholsterAudio, which an equip clip here would only have doubled.
@@ -66,7 +67,7 @@ namespace RavenfieldVR.Weapons
             new Cut("cloth2", 0.06f, 0.38f, 1.5f), new Cut("cloth5", 0.04f, 0.42f, 1.5f), new Cut("cloth7", 0.38f, 0.62f, 1.5f), new Cut("cloth9", 0.17f, 0.56f, 1.5f)
         };
         // A short rising pull that ends in a click, higher and quieter: the ring out of the fuse.
-        private static readonly Cut[] PinPull = { new Cut("PP90_Equip_02c", 0.01f, 0f, 0.5f, 1.2f) };
+        private static readonly Cut[] PinPull = { new Cut("PP90_Equip_02c", 0.01f, 0f, 0.8f, 1.2f) };
         // One metal tick and its ring.
         private static readonly Cut[] Spoon = { new Cut("Katana_DeflectBulletImpact_04", 0.04f, 0f, 0.3f, 1.2f) };
         // Small metal on metal with a second hit some 85 ms on: a case bouncing, once higher and quieter.
@@ -78,7 +79,7 @@ namespace RavenfieldVR.Weapons
         // The dullest, shortest indoor footsteps (about 2 kHz, gone in 50 ms), raised: a case tapping on earth.
         private static readonly Cut[] CasingSoft =
         {
-            new Cut("Step1", 0f, 0f, 0.8f, 1.2f), new Cut("Step5", 0f, 0f, 0.8f, 1.25f), new Cut("Step8", 0f, 0f, 0.8f, 1.3f), new Cut("Step9", 0f, 0f, 0.8f, 1.2f)
+            new Cut("Step1", 0f, 0f, 1f, 1.2f), new Cut("Step9", 0f, 0f, 1f, 1.15f), new Cut("Step10", 0f, 0f, 1f, 1.25f)
         };
 
         private static Cut[] CutsFor(MechSound kind, bool pistol)
@@ -272,13 +273,13 @@ namespace RavenfieldVR.Weapons
         internal static bool PlayPart(WeaponRigData d, MechSound kind, Vector3 at, float from, float share, float volume, float pitch = 1f)
         {
             WeaponSystem sys = WeaponSystem.Instance;
-            if (sys == null || sys.Sounds == null || volume <= 0f || !Find(d, kind, out AudioClip clip, out float start, out float length))
+            if (sys == null || sys.Sounds == null || volume <= 0f || !Pick(kind, d, out GameSlice s))
             {
                 return false;
             }
             from = Mathf.Clamp01(from);
             share = Mathf.Clamp(share, 0.02f, 1f - from);
-            return sys.Sounds.PlayGameClip(clip, start + length * from, Mathf.Max(0.02f, length * share), at, volume, pitch);
+            return sys.Sounds.PlayGameClip(s.Clip, s.Start + s.Length * from, Mathf.Max(0.02f, s.Length * share), at, volume * s.Gain, pitch * s.Pitch);
         }
     }
 

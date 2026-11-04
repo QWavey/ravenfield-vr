@@ -2,7 +2,6 @@ cloth2	1.0
 cloth5	1.0
 cloth7	1.0
 cloth9	1.0
-Garand Reload Single Insert	0.2
 Katana_DeflectBulletImpact_01	0.21
 Katana_DeflectBulletImpact_02	0.21
 Katana_DeflectBulletImpact_03	0.22
@@ -22,8 +21,7 @@ SA80_Reload_Mag_In_01	0.3
 SA80_Reload_Mag_Out_01	0.43
 ShotgunSounds-ShotgunShell	0.1
 Step1	0.12
-Step5	0.11
-Step8	0.14
+Step10	0.12
 Step9	0.1
 Walther_PPK_Reload_Mag_In_01	0.47
 Walther_PPK_Reload_Mag_Out_01	0.35
