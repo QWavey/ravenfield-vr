@@ -2819,6 +2819,28 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 360. All sounds the game's, the panel sorted, the UI blue (user, 2026-11-04; then /work-until-limit 80)
+
+The user's words: "switch all built in sounds we created to game sounds ... when inserting mag or kicking mag out (self made sounds)
+that are shit"; "sort the Settings tab ... delete options that would be better if they are on always ... maybe in the config file do a
+SHOW_ADVANCED=FALSE"; "change the color to blue and not the yellow one". The game not started: each to check in a game run.
+- [x] Sounds (027ddf1): no clip is made in code any more (game_clips_test fails on AudioClip.Create). ProceduralSounds is SoundVoices,
+      the pool only; delayed sounds wait in QueuedSounds. GameSounds.Pick: the gun's own or a donor's, else a table of the game's clips
+      cut at hits measured from their waveforms with UnityPy: dry fire = the game's empty click (IngameUI.outOfAmmoSound), shell =
+      ShotgunShell, selector (new MechSound, it used MagLip) = Patriot_GL_Toggle, lip and knock = the two halves of a mag-in clip, pouch
+      = resupply_*, holster = cloth* (a draw's metal is the game's own unholsterAudio: an equip clip doubled it), pin = PP90_Equip_02c,
+      spoon = Katana_DeflectBulletImpact_04, case = the other deflect clips higher and quieter (a second hit 85 ms on: a bounce), soft
+      case = the dullest Step clips. MagScrape had no caller: removed. A clip is found by name among the loaded ones (rescan 30 s):
+      read the autotest's "Game sounds: N cuts loaded; NOT LOADED: ..." after a run, a name not loaded stays silent.
+- [x] Panel (2c01d2d): tabs of 4-8 rows at one height (about 0.73 m, it was 2.4): Comfort, Weapons, Display. ShowAdvanced (UI, off, read
+      at start): Controls, Gear, View, Speed. Only in the config file now: TwoHandedAiming, HolsterSwitching, BeltByHand,
+      MagazinePalming, WeaponWorldCollision, WeaponWeight, ShowPouch, RoomscaleMovement, TurnStickJumpCrouch, MagazineReadout, VRScopes,
+      ShotViewFlash, MagazineDetent, GunAmmoCounter, GrenadePins, ShowHolsters, ExplosionDirt, WristHud, MuzzleLensFlash, WristFrameRate.
+      Turn amount is one row for snap or smooth. Reduce flashing stays on Display (a safety setting).
+- [x] Blue (2c01d2d): UiKit.Accent 78,150,230; laser #4E96E6 (a saved #E8B44A moves over, a colour picked by hand stays); notices, the
+      pointed objective, the squad line, the grabbed-soldier text and the pouch's hover. Kept amber: AmmoCounter.Warn and the wrist's
+      middle health, because there it means "low".
+
 ### 359. From the user's play of 1.16.3 (2026-11-03 evening; then /work-until-limit 40 with /bug-hunt, the game not started)
 
 Reports: (a) "mags are sometimes trying to keep up with the speed of the weapons arms and are sometimes flying in the air trying to
