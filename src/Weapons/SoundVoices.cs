@@ -88,6 +88,17 @@ namespace RavenfieldVR.Weapons
             return soonest;
         }
 
+        private int BusyVoices()
+        {
+            float now = Time.unscaledTime;
+            int busy = 0;
+            foreach (float until in _busyUntil)
+            {
+                busy += until > now ? 1 : 0;
+            }
+            return busy;
+        }
+
         /// <summary>
         /// The game's sound for <paramref name="sound"/> (GameSounds.Pick) at a place. <paramref name="delay"/>: seconds before it sounds
         /// (two clicks of one action played in one frame ran into one; sound hunt, 2026-10-20). <paramref name="weapon"/>: the gun it
@@ -99,6 +110,10 @@ namespace RavenfieldVR.Weapons
             {
                 _queued.Add(Time.unscaledTime + delay, sound, position, volume, weapon);
                 return;
+            }
+            if ((sound == MechSound.Casing || sound == MechSound.CasingSoft) && BusyVoices() >= _pool.Length - 2)
+            {
+                return; // (a burst's cases do not take the last voices from a magazine or a bolt, cutting them with a click)
             }
             if (GameSounds.Pick(sound, weapon, out GameSlice s))
             {

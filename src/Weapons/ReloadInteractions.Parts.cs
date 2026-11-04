@@ -487,7 +487,7 @@ namespace RavenfieldVR.Weapons
                 _beltLaidThisLift = true;
                 // The end eases onto the tray from where it was drawn (taken from 7 cm, it jumped there in one frame).
                 _beltLaidFrom = Rig.ToGun(BeltStartWorld + Vector3.ClampMagnitude(off.Palm.position + off.Palm.Forward * 0.02f - BeltStartWorld, BeltHeldReach));
-                _beltLaidAt = Time.time;
+                _beltLaidAt = Time.unscaledTime;
                 _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -592,7 +592,7 @@ namespace RavenfieldVR.Weapons
             else
             {
                 to = FeedTrayWorld;
-                float eased = _beltLaidAt < 0f ? 1f : (Time.time - _beltLaidAt) / 0.12f;
+                float eased = _beltLaidAt < 0f ? 1f : (Time.unscaledTime - _beltLaidAt) / 0.12f;
                 if (eased < 1f)
                 {
                     to = Vector3.Lerp(Rig.ToWorld(_beltLaidFrom), to, Mathf.SmoothStep(0f, 1f, eased));

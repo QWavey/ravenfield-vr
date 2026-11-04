@@ -116,9 +116,9 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 Vector3 swing = hand.BodyRelativeVelocity;
-                if (swing.sqrMagnitude > SwingSpeed * SwingSpeed && Time.time - _lastKnock[i] > 0.4f)
+                if (swing.sqrMagnitude > SwingSpeed * SwingSpeed && Time.unscaledTime - _lastKnock[i] > 0.4f)
                 {
-                    _lastKnock[i] = Time.time;
+                    _lastKnock[i] = Time.unscaledTime; // (real time, as melee: a hand swings as fast in slow motion)
                     KnockAside(soldier, gun, swing, hand);
                 }
             }
@@ -398,9 +398,9 @@ namespace RavenfieldVR.Weapons
             {
                 k.At = Time.time; // (the knock kept at its start: full throw, fire held)
             }
-            if (Time.time >= _nextStrain[i])
+            if (Time.unscaledTime >= _nextStrain[i])
             {
-                _nextStrain[i] = Time.time + 0.25f;
+                _nextStrain[i] = Time.unscaledTime + 0.25f;
                 hand.Haptic(0.02f, 60f, 0.3f); // he pulls against the hand: felt as a light strain while it holds his gun off
             }
         }

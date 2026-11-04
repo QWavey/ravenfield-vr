@@ -261,6 +261,9 @@ namespace RavenfieldVR.Weapons
                 grip = Mathf.Min(grip, 0.45f);
                 trigger = Mathf.Min(trigger, 0.45f);
             }
+            // A gun held off the weapon's own grip (a second one, one passed over): closed as the weapon's own hand closes on it, as the
+            // glove is, the trigger finger still on the trigger (arm scout, 2026-11-04: a fist whatever the grip).
+            float[] gunGrip = vrHand.Role == HandRole.Weapon && vrHand.Model != null ? vrHand.Model.WeaponGripCurls : null;
             Vector3 fingers = FingerWay(hand, c);
             Vector3 palm = Vector3.ProjectOnPlane(-(hand.rotation * c.BackDir), fingers);
             palm = palm.sqrMagnitude > 1e-8f ? palm.normalized : -(hand.rotation * c.BackDir);
@@ -284,6 +287,10 @@ namespace RavenfieldVR.Weapons
                 {
                     float curl = skeleton ? Input.VRInput.GetCurl(side, f) : f == 0 ? grip * 0.6f : f == 1 ? trigger : grip;
                     curl = Mathf.Clamp01(Mathf.Max(curl, RestCurl[f]));
+                    if (gunGrip != null && f != 1 && f < gunGrip.Length && gunGrip[f] >= 0f)
+                    {
+                        curl = Mathf.Clamp(gunGrip[f], 0.15f, 0.92f);
+                    }
                     Relax(f, j, hand, fingers, palm, curl, onGun);
                 }
                 for (int s = 0; s < j.Length; s++)

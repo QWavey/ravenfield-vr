@@ -112,9 +112,9 @@ namespace RavenfieldVR.Weapons
         internal static bool Pick(MechSound kind, WeaponRigData d, out GameSlice slice)
         {
             slice = default(GameSlice);
-            if (Find(d, kind, out AudioClip own, out float start, out float length))
+            if (Find(d, kind, out AudioClip own, out float start, out float length, out float level))
             {
-                slice = new GameSlice { Clip = own, Start = start, Length = length, Gain = 1f, Pitch = 1f };
+                slice = new GameSlice { Clip = own, Start = start, Length = length, Gain = level, Pitch = 1f };
                 return true;
             }
             Cut[] cuts = CutsFor(kind, d != null && d.IsPistol);
@@ -215,10 +215,11 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>The game's audio for an action of this weapon, as the clip and the part of it (s) that belongs to the action.</summary>
-        internal static bool Find(WeaponRigData d, MechSound kind, out AudioClip clip, out float start, out float length)
+        private static bool Find(WeaponRigData d, MechSound kind, out AudioClip clip, out float start, out float length, out float level)
         {
             clip = null;
             start = length = 0f;
+            level = 1f;
             if (d == null)
             {
                 return false;
@@ -228,20 +229,21 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (SoundCue cue in cues)
                 {
-                    if (Take(cue, out clip, out start, out length))
+                    if (Take(cue, out clip, out start, out length, out level))
                     {
                         return true;
                     }
                 }
             }
             SoundCue donor = SoundDonors.Find(d, kind);
-            return donor != null && Take(donor, out clip, out start, out length);
+            return donor != null && Take(donor, out clip, out start, out length, out level);
         }
 
-        private static bool Take(SoundCue cue, out AudioClip clip, out float start, out float length)
+        private static bool Take(SoundCue cue, out AudioClip clip, out float start, out float length, out float level)
         {
             clip = null;
             start = length = 0f;
+            level = 1f;
             if (cue == null)
             {
                 return false;
@@ -259,6 +261,7 @@ namespace RavenfieldVR.Weapons
                 if (clip != null && clip.length > 0.01f)
                 {
                     length = clip.length;
+                    level = cue.Volume; // (its sound bank's level, as WeaponSoundPlayer plays it)
                     return true;
                 }
             }

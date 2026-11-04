@@ -661,6 +661,21 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
+        /// A pose with the glove's pin on it (<see cref="SnapPose"/>), eased in and out as the glove is: for the weapon's arm of a hand
+        /// that holds no gun, pinned on a soldier it grabbed, whose glove is hidden while the arm is drawn at the controller (arm scout,
+        /// 2026-11-04).
+        /// </summary>
+        internal RigidPose WithSnap(RigidPose placed)
+        {
+            if (_snapBlend <= 0f)
+            {
+                return placed;
+            }
+            float e = _snapBlend * _snapBlend * (3f - 2f * _snapBlend);
+            return new RigidPose(Vector3.Lerp(placed.position, _lastSnap.position, e), Quaternion.Slerp(placed.rotation, _lastSnap.rotation, e));
+        }
+
+        /// <summary>
         /// The tracked hand's target and where the glove is placed from it (on a magazine held on the well's line, carried with
         /// a heavy gun's lag, kept out of the gun): the weapon's own arm goes where the glove goes.
         /// </summary>
