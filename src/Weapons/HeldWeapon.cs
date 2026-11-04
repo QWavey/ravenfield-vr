@@ -1444,9 +1444,9 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             // A belt gun's animator draws its belt by this number: the PKM's takes the belt's last ten rounds off one by one and only
-            // puts them back above ten. The gun's count stays at 0 with the bolt back or the belt not on the tray, so after running empty
-            // the new box's belt was never drawn (user, 2026-11-04: "the magbelt is still gone after the mg was empty and inserting"):
-            // told what is in the box, whatever the bolt and the feed say.
+            // puts them back above ten. The gun's count stays at 0 with the bolt locked back, so after running empty the new box's belt was
+            // never drawn (user, 2026-11-04: "the magbelt is still gone after the mg was empty and inserting"): told what is in the box,
+            // whatever the bolt says.
             bool belt = ammo.HasCover && ammo.MagInserted && VRConfig.ReloadNow == ReloadMode.Manual;
             int shown = AmmoState.AnimatorRounds(belt, ammo.MagRounds, ammo.Chambered, ammo.SlideLocked, w.ammo);
             if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)

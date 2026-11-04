@@ -2830,6 +2830,19 @@ tell you"): commits after 978e24a are built, NOT installed, and the game folder 
       command-line uninstall goes on past an unreadable Steam file, and its last message does not point at a Play entry it did not add.
 - [x] Corrected: the arm on a grabbed soldier tested HandRole.Free from a scout's trace; the role there is Body (e26eba7). With no gun out
       EmptyArms gives way and the glove is drawn, so only a gun in the other hand was ever affected.
+- [x] From the live log of the user's 1.16.7 play: "Round in the Left hand a moment on: drawn by a camera, layer 18": the round is drawn now.
+- [x] Mechanical sweeps of all of src (scripts, not kept): empty catches (22, all explained), events never unsubscribed (none), settings nothing
+      reads (none), sounds nothing plays (none), unguarded look rotations and square roots. They found the run's worst bug, mine:
+      GameSounds.Loaded held every loaded clip in a static, so no level's music could be unloaded; it holds the table's 27 now (1a0ce83).
+- [x] Fuzz: tools/tests/AmmoFuzz.cs compiles the real AmmoState.cs against stubs (Weapon's static constructor is native): 5.12 million random
+      actions over 8 kinds of gun and every setting pair, no round made or lost. 8 planted bugs all caught, so the clean result means
+      something. BeltFuzzTests: 4000 random boxes, turns and ends: no point of PathRound's way inside the box (a planted straight line put
+      5619 inside). MiniJson read through: every loop consumes or throws, no hang on a bad file.
+- Corrected: the belt was gone after an empty gun through the bolt locked back alone: Loaded counts the box whether or not the belt is laid,
+  so "the belt not on the tray" in 361 and in HoldSlideLockPose's comment is too broad. The fix stands.
+- Note: a build.ps1 -Package used as a compile check moved dist/RavenfieldVR-Setup-1.16.7.exe aside (Roslyn, the file in use) and failed; put
+  back byte for byte from its guid copy. dist/RavenfieldVR-1.16.7.zip was rebuilt then and holds later code than the setup: the setup is the
+  1.16.7 of record. Compile checks go through run-tests.ps1.
 - Read and left: the map bundle failing hangs on the game's own loading scene, flat too; sticks stay live with the settings panel open, as it
   does not pause the match; dropped models build only dead or in a menu, and the warm-up is paced over menu frames (both looked like hitches
   in the log, neither is in play); ParseVector is cached. HasPose means never tracked, not a tracking gap. A failed install writes its record
