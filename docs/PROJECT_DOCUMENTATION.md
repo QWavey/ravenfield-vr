@@ -1205,4 +1205,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    out, a slow push knocks a magazine out only roughly in line (302 checks).
 28. **1.16.6** (2026-11-03, built and installed, not published; notes in `dist/notes-1.16.6.md`, setup
    `dist/RavenfieldVR-Setup-1.16.6.exe`): an empty magazine with no empty look kept leaves out round-shaped pieces
-   (`MagazineProp.RoundShaped`), the game's own reload passes through the steadied grips (306 checks).
+   (`MagazineProp.RoundShaped`), the game's own reload passes through the steadied grips (306 checks)
+29. **1.16.7** (2026-11-04, built and installed, not published; notes in `dist/notes-1.16.7.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.7.exe`): every sound the game's own (`GameSounds`' table of measured cuts, `SoundVoices` the pool, no clip
+   made in code); the settings panel in tabs with `ShowAdvanced`; the UI blue; belt guns' animators told the box's rounds (the PKM's
+   belt only comes back above ten), a skinned model belt hidden by its renderers, belts kept out of the box end to end; the pouch shown
+   with the gun away; a held round stood on the hand..
