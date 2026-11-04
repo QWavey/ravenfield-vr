@@ -220,6 +220,7 @@ namespace RavenfieldVR.Weapons
             ScriptKeys.Tap(key.Key, key.Script);
             Flips++;
             off.Haptic(0.03f, 160f, 0.55f);
+            WeaponSystem.Instance?.Sounds?.Play(MechSound.Selector, off.Palm.position, 0.35f); // (its catch: it flipped without a sound)
         }
 
         /// <summary>Autotest: the taps made by the hand since the gun was drawn.</summary>

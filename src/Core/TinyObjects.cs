@@ -256,7 +256,7 @@ namespace RavenfieldVR.Core
                     e.Hidden = hide;
                     Tracked[i] = e;
                 }
-                hidden += hide ? 1 : 0;
+                hidden += hide && e.Renderer != null ? 1 : 0; // (one gone with its scene is no hidden object)
             }
             Count = hidden;
         }

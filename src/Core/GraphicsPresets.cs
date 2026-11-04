@@ -419,6 +419,7 @@ namespace RavenfieldVR.Core
         public static void OnPresetChanged()
         {
             HoldLevel = 0; // (a preset picked starts as itself: the frame rate hold steps down from it again if it must)
+            _missedWindows = _roomyWindows = 0; // (a bad window of the last preset is no count against this one)
             _upWait = 10;
             if (Profiles.TryGetValue(VRConfig.Graphics.Value, out Profile p))
             {

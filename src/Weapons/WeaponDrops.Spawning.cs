@@ -756,6 +756,7 @@ namespace RavenfieldVR.Weapons
                 parts.Start();
                 List<Collider> boxes = ShapeFit.AddColliders(root, shape);
                 _lastColliderMs = (float)parts.Elapsed.TotalMilliseconds;
+                root.AddComponent<LandingSound>();
                 var body = root.AddComponent<Rigidbody>();
                 body.mass = 3f;
                 body.interpolation = RigidbodyInterpolation.Interpolate;

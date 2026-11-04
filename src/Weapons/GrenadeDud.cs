@@ -71,6 +71,7 @@ namespace RavenfieldVR.Weapons
                 shape = new[] { ShapeFit.BoxPiece(bounds.center, Vector3.Max(bounds.size, new Vector3(0.03f, 0.03f, 0.03f))) };
             }
             List<Collider> colliders = ShapeFit.AddColliders(root, shape);
+            root.AddComponent<LandingSound>().Pitch = 1.05f;
             var body = root.AddComponent<Rigidbody>();
             body.mass = 0.45f;
             body.interpolation = RigidbodyInterpolation.Interpolate;

@@ -287,6 +287,41 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
+    /// A dropped gun or a dud grenade landing: they hit the ground without a sound, the magazines and cases with one. The clack of a
+    /// magazine seating, lower for the bigger thing and as loud as it hit, duller on earth or grass. Game audio only (GameSounds).
+    /// Not past where it could be heard: a battle's dead soldiers' guns would take the voices for nothing.
+    /// </summary>
+    internal sealed class LandingSound : MonoBehaviour
+    {
+        private const float HeardWithin = 12f;
+
+        /// <summary>The clack's pitch on something hard (a gun lower than a grenade).</summary>
+        internal float Pitch = 0.72f;
+        private float _last = -1f;
+
+        private void OnCollisionEnter(Collision c)
+        {
+            float speed = c.relativeVelocity.magnitude;
+            float now = Time.unscaledTime;
+            WeaponSystem sys = WeaponSystem.Instance;
+            if (speed < 1f || now - _last < 0.15f || sys == null || sys.Rig == null)
+            {
+                return;
+            }
+            _last = now;
+            Vector3 at = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
+            if ((at - sys.Rig.Head.position).sqrMagnitude > HeardWithin * HeardWithin)
+            {
+                return;
+            }
+            bool soft = CaseSound.IsSoft(c.collider);
+            float loud = Mathf.Clamp01((speed - 1f) / 5f);
+            float volume = soft ? 0.12f + 0.2f * loud : 0.25f + 0.45f * loud;
+            GameSounds.PlayPart(null, MechSound.MagKnock, at, 0f, 1f, volume, Pitch * (soft ? 0.78f : 1f) * Random.Range(0.95f, 1.05f));
+        }
+    }
+
+    /// <summary>
     /// A dropped magazine landing (user, 2026-11-03, idea 5: they hit the ground without a sound, the cases with one): the end of its
     /// gun's own magazine-in sound, the metal knock of it seating, lower and as loud as it hit, duller and quieter on earth or grass.
     /// Game audio only (GameSounds): a gun with none of its own lends a vanilla weapon's.
