@@ -343,7 +343,7 @@ namespace RavenfieldVR.Weapons
             Transform muzzle = weapon.CurrentMuzzle();
             Vector3 savedPos = muzzle.localPosition;
             Quaternion savedRot = muzzle.localRotation;
-            Vector3 dir = velocity.normalized;
+            Vector3 dir = velocity.sqrMagnitude > 1e-6f ? velocity.normalized : Hand.Palm.Forward; // (let go dead still: no zero look rotation)
             muzzle.SetPositionAndRotation(Hand.Palm.position + dir * 0.08f, Quaternion.LookRotation(dir));
             _spawned.Clear();
             weapon.onSpawnProjectiles.AddListener(OnSpawned);
