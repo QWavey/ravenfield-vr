@@ -969,9 +969,11 @@ namespace RavenfieldVR.Weapons
                 DrivingWeapons.PutAway(actor);
                 dom.Role = HandRole.Free;
             }
-            else if (weapon.IsToggleable())
+            else if (weapon is ToggleableItem item)
             {
-                actor.SwitchWeapon(slot); // a toggled item (night vision) is switched, not drawn into the hand (holster hunt)
+                // A toggled item (night vision) is switched, not drawn into the hand (holster hunt). Itself: the game's SwitchWeapon goes by
+                // the seat's weapons in a seat, so this slot's press drew the car's horn and the item never came on (holster scout, 2026-11-04).
+                item.Toggle();
             }
             else
             {
