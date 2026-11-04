@@ -189,6 +189,12 @@ namespace RavenfieldVR.Input
             {
                 _fireHeldThroughSwap = false;
             }
+            else if (GameManager.IsPaused())
+            {
+                // Held through a pause (the dashboard, or the very press on Resume that closes the menu): let go first, or the match came
+                // back with a shot nobody pulled for (input scout, 2026-11-04).
+                _fireHeldThroughSwap = true;
+            }
             if (!VRInput.GetHeld(DigitalAction.Use, off))
             {
                 _useHeldThroughSwap = false;
