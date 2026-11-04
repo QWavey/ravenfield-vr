@@ -152,8 +152,16 @@ namespace RavenfieldVR.Setup
                     bool steamRunning = SteamLaunchOption.SteamRunning();
                     if (!steamRunning)
                     {
-                        SteamLaunchOption.Remove(write);
-                        SteamPlayEntry.Remove(write);
+                        // (A Steam file it cannot read is no reason to keep the mod: uninstalled all the same, as the window does.)
+                        try
+                        {
+                            SteamLaunchOption.Remove(write);
+                            SteamPlayEntry.Remove(write);
+                        }
+                        catch (Exception e) when (e is FormatException || e is InvalidDataException || e is IOException || e is UnauthorizedAccessException)
+                        {
+                            write("Could not change Steam's Play options: " + e.Message);
+                        }
                     }
                     installer.Uninstall(game, Flag("--keep-settings"));
                     if (steamRunning)
@@ -1446,7 +1454,9 @@ namespace RavenfieldVR.Setup
                 }
                 if (ok)
                 {
-                    Log(_steamLaunch.Checked
+                    Log(_steamUnchanged
+                        ? "Done. Start Ravenfield with RavenfieldVR-Launcher.exe in the game folder, or with SteamVR running."
+                        : _steamLaunch.Checked
                         ? "Done. Press Play on Ravenfield in Steam and pick " + (_steamPlay.Checked ? "\"" + SteamPlayEntry.Description + "\", or Ravenfield for VR or flat." : "VR or flat.")
                         : _steamPlay.Checked
                             ? "Done. Press Play on Ravenfield in Steam and pick \"" + SteamPlayEntry.Description + "\"."
@@ -1575,8 +1585,12 @@ namespace RavenfieldVR.Setup
         /// Play list. Steam writes both files back when it exits, so it is closed for the change (with permission)
         /// and started again; otherwise the user gets the launch option text to paste.
         /// </summary>
+        /// <summary>Steam was left as it was (not closed when asked): the last message does not tell the player to use its Play entry.</summary>
+        private bool _steamUnchanged;
+
         private async Task SetSteamOptions(string game, bool add, bool launchOption, bool playEntry)
         {
+            _steamUnchanged = false;
             string launcher = Path.Combine(game, Installer.LauncherName);
             string option = SteamLaunchOption.OptionFor(launcher);
             bool restart = false;
@@ -1601,6 +1615,7 @@ namespace RavenfieldVR.Setup
                     Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (answer != DialogResult.Yes)
                 {
+                    _steamUnchanged = true;
                     CopyOption();
                     return;
                 }
@@ -1608,6 +1623,7 @@ namespace RavenfieldVR.Setup
                 if (!await Task.Run(() => SteamLaunchOption.ShutdownSteam(TimeSpan.FromSeconds(30))))
                 {
                     Log("Steam did not close in time; its Play options were not changed.");
+                    _steamUnchanged = true;
                     CopyOption();
                     return;
                 }

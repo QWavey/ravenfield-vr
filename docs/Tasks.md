@@ -2819,6 +2819,26 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 362. The 80% run after the user's list: hunts spread over the mod, each claim read against the code (2026-11-04)
+
+1.16.7 built and installed at the user's word ("create the setup .exe and install the build ... pretend its opened the whole time till i
+tell you"): commits after 978e24a are built, NOT installed, and the game folder stays alone until the user says.
+- [x] Fixed: the pouch also with a grenade or knife in the hand; a pulled grenade drawn into the free hand hides its pin; a dud leaves endless
+      ammo at -1; pointing alone with no enemy gives no order sound; a trigger held through a pause, or the press on Resume, fires only after
+      a release; a dropped gun and a dud land with a sound (LandingSound), a magnifier flips with a click; the frame rate hold counts afresh on a
+      preset pick; a neck hold with no bone left frees the hand; the second gun's scope camera restored as the game had it; the setup's
+      command-line uninstall goes on past an unreadable Steam file, and its last message does not point at a Play entry it did not add.
+- [x] Corrected: the arm on a grabbed soldier tested HandRole.Free from a scout's trace; the role there is Body (e26eba7). With no gun out
+      EmptyArms gives way and the glove is drawn, so only a gun in the other hand was ever affected.
+- Read and left: the map bundle failing hangs on the game's own loading scene, flat too; sticks stay live with the settings panel open, as it
+  does not pause the match; dropped models build only dead or in a menu, and the warm-up is paced over menu frames (both looked like hitches
+  in the log, neither is in play); ParseVector is cached. HasPose means never tracked, not a tracking gap. A failed install writes its record
+  in the catch, so a retry only loses it after two failures in a row.
+- Open, low: a crouched first calibration is saved (VRRig.cs:719, "Calibrate now" mends it); SeatedMode's 1.35 ignores how the height was
+  taken (BodyZones.cs:136); yaw from localEulerAngles near pitch 90 at recenter (VRRig.cs:548); a held gun's stand-in ignored up to 3 s after a
+  throw (BodyGrab.cs:1024); a multi-sight gun's lens on the default line (VRScope.cs:64); the setup keeps a loader it added beside a BepInEx
+  already there (Setup.cs:729); removing an unquoted launcher can mangle a hand-written launch option (SteamLaunchOption.cs:132).
+
 ### 361. The user's list of 2026-11-04 (sent during the 80% run, from their play of 1.16.6; the game not started)
 
 - [x] "on mgs the magbelt still gltiches through the mag but only if the mg is turned a little": a round is 6 cm long and only its middle
