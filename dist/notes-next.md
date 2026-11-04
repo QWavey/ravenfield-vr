@@ -1,5 +1,10 @@
 ## Ravenfield VR (next, after 1.16.6)
 
+- Machine guns: the belt no longer goes through the box when the gun is turned: its rounds lie along the gun beside the box.
+- Machine guns: the belt comes back after running empty and putting a new box in (the PKM's stayed gone), and a belt hidden by the mod now really is on every gun.
+- The pouch keeps showing the last gun's magazines with the gun put away, loading by hand or not. With nothing to take from it, it reacts to nothing.
+- Loading by hand: a round stands up on top of the hand where you can see it, and the pouch shows a round beside the magazine.
+- Weapon's arms: the arm stays on a soldier you grab, and a second gun's fingers close as its own grip does.
 - Every sound of the mod is now the game's own: the empty click, the shell, the magazine at the well and knocked out, the fire selector, the pouch, the holster, grenade pins, cases bouncing. Nothing is synthesised any more.
 - The settings panel is sorted into three short tabs: Comfort, Weapons, Display. Set `ShowAdvanced = true` in the config file for four more (Controls, Gear, View, Speed).
 - Settings that are better simply on (two-handed aiming, the magazine detent, the counters and the like) are only in the config file now.

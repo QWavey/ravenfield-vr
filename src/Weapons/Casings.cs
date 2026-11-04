@@ -295,8 +295,13 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Where a held case or round sits against the palm (palm frame): its middle between the thumb and the fingers' first joints.</summary>
         private static readonly Vector3 HeldAt = new Vector3(0f, 0.012f, 0.05f);
-        /// <summary>Where it sits with the weapon's arms drawn (palm frame): out past the fingertips of a closed fist, a little above them.</summary>
-        private static readonly Vector3 HeldOut = new Vector3(0f, 0.02f, 0.085f);
+        /// <summary>
+        /// Where it sits with the weapon's arms drawn (palm frame, +y the thumb's side): standing on top of the hand, tip up and a little
+        /// forward, as a round held up between thumb and finger. Straight out past the fingertips (as it was) it pointed away along the hand, a
+        /// 1 cm end behind the fist from where the eye is, and was not seen (user, 2026-11-04: "Bullets are also still invisible").
+        /// </summary>
+        private static readonly Vector3 HeldOut = new Vector3(0f, 0.055f, 0.05f);
+        private static readonly Quaternion HeldOutTurn = new Quaternion(-0.4964f, 0f, 0f, 0.8681f); // (its length, +z, up and forward: about the palm's x, 60 degrees)
 
         /// <summary>Whether a collider is one of the cases or rounds lying around (bullets push them).</summary>
         internal static bool IsCase(Collider c) => c != null && c.GetComponent<CaseSound>() != null;
@@ -331,7 +336,9 @@ namespace RavenfieldVR.Weapons
             c.Held = true;
             c.Holder = hand;
             c.Body.isKinematic = true;
+            c.Body.interpolation = RigidbodyInterpolation.None; // (placed by hand each frame)
             c.Collider.enabled = false;
+            c.Go.layer = MagazineProp.DisplayLayer; // drawn as what else is held: the first-person layer the view always has
         }
 
         /// <summary>A live round of the weapon <paramref name="d"/> (key <paramref name="key"/>, out of <paramref name="owner"/>'s reserve) made in a hand.</summary>
@@ -343,6 +350,15 @@ namespace RavenfieldVR.Weapons
             Hold(c, hand);
             Follow(c, hand);
             return c;
+        }
+
+        /// <summary>What a live round of the weapon <paramref name="d"/> is drawn with (the pouch shows one, loaded by hand).</summary>
+        internal static void RoundLook(WeaponRigData d, out Mesh mesh, out Material[] materials)
+        {
+            EnsureAssets();
+            Kind kind = KindOf(d);
+            mesh = _liveMeshes[(int)kind];
+            materials = MaterialsFor(kind, true);
         }
 
         /// <summary>A live round of the weapon <paramref name="d"/> let out of a magazine's top, flying.</summary>
@@ -371,8 +387,9 @@ namespace RavenfieldVR.Weapons
             if (hand.Model != null && hand.Model.Suppressed)
             {
                 // The weapon's arms drawn instead of the glove: its fist closes round the glove's pinch, and a round held there was not seen
-                // (user, 2026-11-03: "the bullets are invisible"). Out at the fingertips, along the fingers, where it shows past them.
+                // (user, 2026-11-03: "the bullets are invisible"). Stood on top of the hand instead (HeldOut).
                 at = hand.Palm.position + rot * HeldOut;
+                rot *= HeldOutTurn;
             }
             else if (hand.Model != null)
             {
@@ -390,6 +407,8 @@ namespace RavenfieldVR.Weapons
         {
             c.Held = false;
             c.Holder = null;
+            int layer = PropPhysics.Layer;
+            c.Go.layer = layer >= 0 ? layer : 0; // (bullets pass through it again)
             c.Collider.enabled = true;
             c.Body.isKinematic = false;
             c.Body.interpolation = RigidbodyInterpolation.Interpolate;

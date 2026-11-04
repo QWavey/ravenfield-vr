@@ -109,6 +109,7 @@ namespace RavenfieldVR.Tests
             SlowedHandTests(mod);
             SteadyGripTests(mod);
             BeltRoundBoxTests(mod);
+            BeltRoundEndsTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
             HandPushTests(mod);
@@ -488,6 +489,51 @@ namespace RavenfieldVR.Tests
         }
 
         /// <summary>
+        /// A round kept out of its box stays out end to end with the gun turned (BeltStrip.RoundBox, user 2026-11-04: "glitches through the
+        /// mag but only if the mg is turned a little"): the box grown along the barrel, a round along the barrel from any kept-out middle.
+        /// </summary>
+        private static void BeltRoundEndsTests(System.Reflection.Assembly mod)
+        {
+            Type strip = mod.GetType("RavenfieldVR.Weapons.BeltStrip");
+            Type pose = mod.GetType("RavenfieldVR.Runtime.RigidPose");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo grow = strip?.GetMethod("RoundBox", flags), kept = strip?.GetMethod("KeptOut", flags);
+            Check(grow != null && kept != null && pose != null, "Belt round ends: RoundBox found");
+            if (grow == null || kept == null || pose == null)
+            {
+                return;
+            }
+            var box = new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(0.1f, 0.14f, 0.2f));
+            object frame = Activator.CreateInstance(pose, UnityEngine.Vector3.zero, new UnityEngine.Quaternion(0f, 0f, 0f, 1f));
+            var mouth = new UnityEngine.Vector3(0f, 0.09f, 0f);
+            bool allOut = true;
+            int rounds = 0;
+            for (int tilt = -30; tilt <= 30; tilt += 5)
+            {
+                // The barrel along the box's z, pitched and rolled as a gun turned a little in the hand.
+                double a = tilt * Math.PI / 180.0;
+                UnityEngine.Vector3 barrel = new UnityEngine.Vector3((float)(Math.Sin(a) * 0.3), (float)Math.Sin(a), (float)Math.Cos(a)).normalized;
+                var grown = (UnityEngine.Bounds)grow.Invoke(null, new object[] { mouth, box, frame, barrel });
+                for (float y = -0.06f; y <= 0.06f; y += 0.02f)
+                {
+                    foreach (float x in new[] { 0.049f, -0.049f })
+                    {
+                        var middle = (UnityEngine.Vector3)kept.Invoke(null, new object[] { new UnityEngine.Vector3(x, y, 0.09f), frame, grown });
+                        foreach (float end in new[] { -0.031f, 0.031f })
+                        {
+                            UnityEngine.Vector3 tip = middle + barrel * end;
+                            allOut &= Math.Abs(tip.x) >= box.extents.x || Math.Abs(tip.y) >= box.extents.y || Math.Abs(tip.z) >= box.extents.z;
+                            rounds++;
+                        }
+                    }
+                }
+            }
+            Check(allOut && rounds > 100, $"Belt round ends: with the gun turned up to 30 degrees a round's head and tip stay out of the box ({rounds} ends)");
+            var atEnd = (UnityEngine.Bounds)grow.Invoke(null, new object[] { new UnityEngine.Vector3(0f, 0f, 0.105f), box, frame, new UnityEngine.Vector3(0f, 0f, 1f) });
+            Check(atEnd.extents == box.extents, "Belt round ends: a belt starting inside the grown box (a mouth on the box's end) keeps the box as it is");
+        }
+
+        /// <summary>
         /// A held belt whose line runs through its box goes round it in one piece (BeltStrip.PathRound, user 2026-11-03: "magbelt is getting
         /// split"): from the top of a 30 x 10 x 17 cm box to a point under it and to one past its far end, every point of the way stays out
         /// of the box, and two rounds a pitch apart along it are never further apart than that.
@@ -531,7 +577,7 @@ namespace RavenfieldVR.Tests
             if (curve != null)
             {
                 UnityEngine.Vector3 mouth = offset + new UnityEngine.Vector3(0.14f, 0.058f, 0f), none = UnityEngine.Vector3.zero; // (near the box's end)
-                bool In(UnityEngine.Vector3 bend, UnityEngine.Vector3 span) => (bool)curve.Invoke(null, new object[] { mouth, bend, span, none, frame, box });
+                bool In(UnityEngine.Vector3 bend, UnityEngine.Vector3 span) => (bool)curve.Invoke(null, new object[] { mouth, bend, span, none, frame, box, 0.01f });
                 Check(!In(new UnityEngine.Vector3(0.06f, 0f, 0f), new UnityEngine.Vector3(0.08f, -0.25f, 0f)), "Belt round the box: hanging over the side it stays a curve");
                 Check(In(none, new UnityEngine.Vector3(0f, -0.25f, 0f)), "Belt round the box: hanging through the box it goes round");
             }

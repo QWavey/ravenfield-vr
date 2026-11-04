@@ -463,6 +463,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>The gun model's own belt (see <see cref="WeaponRigData.BeltPartPaths"/>), with the scales it had.</summary>
         private Transform[] _beltParts;
         private Vector3[] _beltScales;
+        /// <summary>What draws the model's belt: most are skinned, and a skinned mesh goes by its bones, whatever its own scale says.</summary>
+        private Renderer[] _beltRenderers;
         private bool _beltHidden;
 
         /// <summary>How many belt parts the model has (0: the mod's own strip shows a laid belt).</summary>
@@ -530,19 +532,46 @@ namespace RavenfieldVR.Weapons
                     _beltParts[i] = WeaponRig.Resolve(Weapon.transform, Rig.Data.BeltPartPaths[i]);
                     _beltScales[i] = _beltParts[i] != null ? _beltParts[i].localScale : Vector3.one;
                 }
+                var renderers = new List<Renderer>();
+                foreach (Transform part in _beltParts)
+                {
+                    if (part != null)
+                    {
+                        renderers.AddRange(part.GetComponentsInChildren<Renderer>(true));
+                    }
+                }
+                _beltRenderers = renderers.ToArray();
                 BeltFeedGun = BeltFeed();
             }
             bool hide = !ammo.MagInserted || !ammo.BeltLaid || ammo.MagRounds <= 0; // (a box fired empty has no belt left to show)
-            if (hide == _beltHidden)
+            // Written each frame while hidden: clips animate these parts' scale too (all of the MG3's do), and written once it was undone
+            // by the next frame's pose.
+            if (hide == _beltHidden && !hide)
             {
                 return;
             }
+            bool changed = hide != _beltHidden;
             _beltHidden = hide;
             for (int i = 0; i < _beltParts.Length; i++)
             {
                 if (_beltParts[i] != null)
                 {
                     _beltParts[i].localScale = hide ? Vector3.one * 1e-4f : _beltScales[i];
+                }
+            }
+            if (changed)
+            {
+                ShowBeltRenderers(!hide);
+            }
+        }
+
+        private void ShowBeltRenderers(bool show)
+        {
+            foreach (Renderer r in _beltRenderers)
+            {
+                if (r != null)
+                {
+                    r.forceRenderingOff = !show;
                 }
             }
         }
@@ -1414,7 +1443,12 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            int shown = ammo.SlideLocked ? 0 : w.ammo;
+            // A belt gun's animator draws its belt by this number: the PKM's takes the belt's last ten rounds off one by one and only
+            // puts them back above ten. The gun's count stays at 0 with the bolt back or the belt not on the tray, so after running empty
+            // the new box's belt was never drawn (user, 2026-11-04: "the magbelt is still gone after the mg was empty and inserting"):
+            // told what is in the box, whatever the bolt and the feed say.
+            bool belt = ammo.HasCover && ammo.MagInserted && VRConfig.ReloadNow == ReloadMode.Manual;
+            int shown = belt ? ammo.MagRounds + (ammo.Chambered ? 1 : 0) : ammo.SlideLocked ? 0 : w.ammo;
             if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)
             {
                 w.animator.SetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH, shown);
@@ -2536,6 +2570,7 @@ namespace RavenfieldVR.Weapons
                         _beltParts[i].localScale = _beltScales[i];
                     }
                 }
+                ShowBeltRenderers(true);
                 _beltHidden = false;
             }
             foreach (Renderer r in _shadowOnly)

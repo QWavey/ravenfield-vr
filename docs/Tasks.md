@@ -2819,6 +2819,33 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 361. The user's list of 2026-11-04 (sent during the 80% run, from their play of 1.16.6; the game not started)
+
+- [x] "on mgs the magbelt still gltiches through the mag but only if the mg is turned a little": a round is 6 cm long and only its middle
+      was kept out of the box; square to a hanging belt it tipped as the gun turned, its ends through the wall. Rounds lie along the gun
+      by the box now, across the belt further out, and the keep-out box is longer along the barrel by half a round (BeltStrip.RoundBox,
+      offline checks). Going round the box has two depths now, so a gun held at that tilt does not flip between the shapes.
+- [x] "the magbelt is still gone after the mg was empty and inserting": read off the mods' own controllers (UnityPy): the PKM's belt is a
+      skinned AMMO mesh, its animator layer 2 takes the last ten rounds off by "loaded ammo" and goes back to idle only above 10. The mod
+      told it 0 with the bolt back or the belt not on the tray (HoldSlideLockPose, AmmoState.Sync), so it stayed in "fire empty". Belt
+      guns' animators are told the rounds in the box now. Also: hiding the model's belt by its object's scale did nothing on a skinned
+      mesh, and was written once though all the MG3's clips animate that scale: forceRenderingOff now, the scale each frame while hidden.
+- [x] "Bullets are also still invisible": the log says the round is made and its renderer on, at the right size; layer 2 is in the game's
+      camera masks and nothing recycles it. Held out past the fingertips along the hand it pointed away from the eye, a 1 cm end behind
+      the fist. Now stood on top of the hand, tip up, on the first-person layer as all held things. ONE TO READ AFTER A PLAY: "Round in the
+      X hand a moment on: drawn by a camera / NOT drawn by any camera" settles it. And nothing showed that rounds can be had at all: the
+      pouch shows a round beside the magazine when loading by hand.
+- [x] "when the setting is on and the gun is put away, the mags ... still shows. same ... if the setting is off": the pouch shows the last
+      gun's feed with the gun away, any kind (WeaponSystem._lastFedWeapon). With the setting off, or a gun not loaded by hand, it is
+      only shown: no lift, no tick, nothing reacts to a hand ("make sure nothing else is applying like hand gestures, dont do that").
+- Also from the user: the run is not to stay in one area. Next rounds rotate (memory: wul-spread-areas).
+- Scouts of this run. Vehicles and seats: clean. Weapon's arms: an arm follows the glove on a grabbed soldier, a second gun's fingers take
+  its grip's curls (cf48d20). Open, low: the pin model back on a holstered pulled grenade (ThrowAndMelee.cs:547, SecondWeapon.cs:762); a
+  pulled grenade drawn into the free hand keeps its pin (SecondWeapon.cs:130); a dud skips the game's shot stamp (ThrowAndMelee.cs:244);
+  the gun hand taking a drop in its own slot leaves Held on a destroyed gun for a frame (WeaponDrops.Pickup.cs:419); comments saying an own
+  drop is deleted after 90 s (WeaponDrops.cs:126); Drops.Clear on a scene change loses your dropped guns' rounds (WeaponSystem.cs:1441, if
+  a restart fires it). Mounted-gun seats draw the empty arms at the controllers, not on the mount's grips (design gap).
+
 ### 360. All sounds the game's, the panel sorted, the UI blue (user, 2026-11-04; then /work-until-limit 80)
 
 The user's words: "switch all built in sounds we created to game sounds ... when inserting mag or kicking mag out (self made sounds)

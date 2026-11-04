@@ -507,7 +507,7 @@ namespace RavenfieldVR.Weapons
             // were skipped for that frame, and every frame while it kept throwing (second-weapon hunt).
             try
             {
-                _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null, _lastHeldWeapon);
+                _pouch.BeforeRender(Held != null && Held.Weapon != null ? Held : null, _lastFedWeapon);
             }
             catch (System.Exception e)
             {
@@ -636,6 +636,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The box-fed gun last held in the hand (put away since, or dropped): HandLoading.MagazineFromPouch.</summary>
         private Weapon _lastHeldWeapon;
+        /// <summary>The gun last held that feeds from the pouch, of any kind (put away since, or dropped): PouchDisplay.</summary>
+        private Weapon _lastFedWeapon;
 
         private void ReleaseHeld()
         {
@@ -647,6 +649,10 @@ namespace RavenfieldVR.Weapons
                 if (ammo != null && ammo.Weapon != null && ammo.UsesDetachableMag && !ammo.Rig.IsMachineGun && !ammo.Rig.EnBloc)
                 {
                     _lastHeldWeapon = Held.Weapon; // (its magazines from the pouch while it is away, loaded by hand; not a grenade thrown since)
+                }
+                if (ammo != null && ammo.Weapon != null && ammo.Participates && ammo.Rig.Action != ActionType.Throwable)
+                {
+                    _lastFedWeapon = Held.Weapon; // (the pouch goes on showing what it feeds from while it is away)
                 }
                 Log.Guard("EmptyArms.TakeFrom", () => _emptyArms.TakeFrom(Held)); // its arms for the empty hands, in this frame's pose
                 Log.Guard("ReleaseHeld", () => Held.Release()); // a seat's drawn weapon with no held rig called it on nothing (lifecycle hunt)

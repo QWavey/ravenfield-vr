@@ -12,6 +12,8 @@ namespace RavenfieldVR.Weapons
     {
         private const int MaxRounds = 36; // enough for the whole length the belt comes out of the box (38 cm held, at 1.15 cm)
         private const float Pitch = 0.0115f; // link spacing of a rifle-calibre belt
+        /// <summary>Half a round's length (BuildRound: 6.2 cm from head to tip).</summary>
+        private const float RoundHalf = 0.031f;
 
         private static Mesh _round;
         private static Material _brass, _link;
@@ -118,8 +120,15 @@ namespace RavenfieldVR.Weapons
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
             Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
-            bool around = keepOut.HasValue && (fromMouth ? via.HasValue && CurveInBox(from, bend, span, sag, keepOut.Value, keepOutBox)
+            if (keepOut.HasValue)
+            {
+                keepOutBox = RoundBox(from, keepOutBox, keepOut.Value, barrel);
+            }
+            // (Going round from over a centimetre in and back from under half of one: at one depth for both, a gun held at that tilt
+            // flipped between the two shapes.)
+            bool around = keepOut.HasValue && (fromMouth ? via.HasValue && CurveInBox(from, bend, span, sag, keepOut.Value, keepOutBox, _around ? 0.004f : 0.01f)
                                                          : Crosses(from, to, keepOut.Value, keepOutBox));
+            _around = around;
             int points = 0;
             float total = 0f, spacing = Pitch;
             if (around)
@@ -131,8 +140,12 @@ namespace RavenfieldVR.Weapons
                 // Longer than the strip's rounds: spread over the whole way, a little stretched, so it stays in one piece.
                 spacing = count == MaxRounds ? Mathf.Max(Pitch, total / (count - 1)) : Pitch;
             }
-            Vector3 forward = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : barrel;
-            Quaternion rot = Quaternion.LookRotation(forward, Vector3.Cross(forward, span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up));
+            // Across the belt where it hangs free, along the gun by the box, as the box holds them: square to the belt all the way, they
+            // tipped with it as the gun was turned, and their 6 cm went through the box's wall with their middles clear of it (user,
+            // 2026-11-04: "the magbelt still gltiches through the mag but only if the mg is turned a little").
+            Vector3 gun = barrel.normalized;
+            Vector3 free = Vector3.ProjectOnPlane(barrel, span).sqrMagnitude > 1e-6f ? Vector3.ProjectOnPlane(barrel, span).normalized : gun;
+            Vector3 way = span.sqrMagnitude > 1e-8f ? span.normalized : Vector3.up;
             // Built round the box mouth (small numbers anywhere on the map), in world directions.
             _root.transform.SetPositionAndRotation(from, Quaternion.identity);
             int n = _roundVerts.Length;
@@ -153,6 +166,9 @@ namespace RavenfieldVR.Weapons
                         p = KeptOut(from + p, keepOut.Value, keepOutBox) - from;
                     }
                 }
+                Vector3 axis = keepOut.HasValue ? Vector3.Slerp(gun, free, Mathf.Clamp01(Clearance(from + p, keepOut.Value, keepOutBox) / 0.06f)) : free;
+                Vector3 up = Vector3.Cross(axis, way);
+                Quaternion rot = Quaternion.LookRotation(axis, up.sqrMagnitude > 1e-6f ? up : Vector3.Cross(axis, Vector3.right));
                 for (int k = 0; k < n; k++)
                 {
                     _verts[b + k] = rot * _roundVerts[k] + p;
@@ -176,6 +192,30 @@ namespace RavenfieldVR.Weapons
 
         private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
 
+        /// <summary>The belt went round the box when it was last laid out.</summary>
+        private bool _around;
+
+        /// <summary>
+        /// The box as a round's middle has to stay out of it, the round lying along the gun: longer along <paramref name="barrel"/> by half a
+        /// round each way, so its head and tip stay out too; the box as it is for a belt that starts inside that (a mouth on an end
+        /// of the box). Pure: the offline tests check a round's ends.
+        /// </summary>
+        internal static Bounds RoundBox(Vector3 from, Bounds box, Runtime.RigidPose frame, Vector3 barrel)
+        {
+            Vector3 along = frame.InverseTransformPoint(frame.position + barrel.normalized);
+            Bounds grown = box;
+            grown.extents = box.extents + new Vector3(Mathf.Abs(along.x), Mathf.Abs(along.y), Mathf.Abs(along.z)) * RoundHalf;
+            return (KeptOut(from, frame, grown) - from).sqrMagnitude > 1e-8f ? box : grown;
+        }
+
+        /// <summary>How far <paramref name="world"/> is outside <paramref name="box"/> (in <paramref name="frame"/>; 0 in it or within 1.5 cm of it).</summary>
+        private static float Clearance(Vector3 world, Runtime.RigidPose frame, Bounds box)
+        {
+            Vector3 d = frame.InverseTransformPoint(world) - box.center;
+            float x = Mathf.Max(0f, Mathf.Abs(d.x) - box.extents.x), y = Mathf.Max(0f, Mathf.Abs(d.y) - box.extents.y), z = Mathf.Max(0f, Mathf.Abs(d.z) - box.extents.z);
+            return Mathf.Max(0f, Mathf.Sqrt(x * x + y * y + z * z) - 0.015f);
+        }
+
         /// <summary>The bend the strip was last built with (from its start to its curve's control point; zero for a straight strip).</summary>
         private Vector3 _lastBend;
 
@@ -190,13 +230,13 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Whether a hanging belt's curve (as <see cref="Place"/> lays it) goes through the box, not only brushing it.</summary>
-        private static bool CurveInBox(Vector3 from, Vector3 bend, Vector3 span, Vector3 sag, Runtime.RigidPose frame, Bounds box)
+        private static bool CurveInBox(Vector3 from, Vector3 bend, Vector3 span, Vector3 sag, Runtime.RigidPose frame, Bounds box, float deep)
         {
             for (int i = 1; i <= 10; i++)
             {
                 float t = i / 10f;
                 Vector3 at = from + 2f * (1f - t) * t * bend + t * t * span + sag * (4f * t * (1f - t));
-                if ((KeptOut(at, frame, box) - at).sqrMagnitude > 1e-4f) // (over a centimetre in: less is the curve brushing the box, kept out in one piece)
+                if ((KeptOut(at, frame, box) - at).sqrMagnitude > deep * deep) // (deeper than this: less is the curve brushing the box, kept out in one piece)
                 {
                     return true;
                 }

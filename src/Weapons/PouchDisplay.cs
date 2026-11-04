@@ -38,11 +38,12 @@ namespace RavenfieldVR.Weapons
         {
             AmmoState ammo = held != null ? held.ActiveAmmo : null;
             WeaponRig rig = held != null ? held.ActiveRig : null;
-            if (held == null && HandLoading.CarriedStill(away))
+            if (held == null && HandLoading.Carried(away))
             {
-                // Loading by hand the gun is put away: the pouch still shows where the magazines and rounds are, its last gun's.
+                // The gun put away: the pouch goes on showing what it feeds from, loaded by hand or not (user, 2026-11-04: "show the mags on
+                // the left side even if the gun isnt held rn").
                 ammo = _sys.StateFor(away, create: false);
-                rig = HandLoading.Applies(ammo) ? _sys.RigFor(away) : null;
+                rig = ammo != null ? _sys.RigFor(away) : null;
             }
             bool show = VRConfig.ShowPouch.Value && VRConfig.ReloadNow == ReloadMode.Manual && rig != null && ammo != null && ammo.Participates
                         && rig.Data.Action != ActionType.Throwable && GameContextOnFoot() && !Util.GameContext.GameMenuOpen;
@@ -70,8 +71,11 @@ namespace RavenfieldVR.Weapons
 
             BodyZones zones = _sys.Zones;
             VRHand off = _sys.Rig.Off;
-            bool reaching = off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
-            if (held == null && !reaching)
+            // With the gun away and not loading by hand it is only shown: nothing can be taken from it, so a hand near it changes nothing,
+            // no lift, no tick (user, 2026-11-04: "make sure nothing else is applying like hand gestures, dont do that").
+            bool answers = held != null || HandLoading.Applies(ammo);
+            bool reaching = answers && off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
+            if (held == null && answers && !reaching)
             {
                 // (With the gun away the other hand reaches it as well.)
                 off = _sys.Rig.Dominant;
@@ -121,7 +125,44 @@ namespace RavenfieldVR.Weapons
             Transform head = _sys.Rig.Head;
             Vector3 toHead = _label.transform.position - head.position;
             _label.transform.rotation = toHead.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(toHead, Vector3.up) : Quaternion.identity;
+            ShowRound(rig.Data, byHand && kind == PropKind.Magazine, zones.Pouch + lift - side * (halfWidth + 0.02f), zones.TorsoForward);
         }
+
+        /// <summary>A round stood beside the magazine (it was not shown anywhere that rounds can be had here at all; user, 2026-11-04).</summary>
+        private void ShowRound(WeaponRigData d, bool show, Vector3 at, Vector3 forward)
+        {
+            if (show && _round == null)
+            {
+                _round = new GameObject("Round") { layer = MagazineProp.DisplayLayer };
+                _round.transform.SetParent(_root.transform, false);
+                _round.transform.localScale = Vector3.one * 1.3f; // (a picture of one, as the magazine: seen at the hip)
+                _round.AddComponent<MeshFilter>();
+                _round.AddComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            if (_round == null)
+            {
+                return;
+            }
+            if (_round.activeSelf != show)
+            {
+                _round.SetActive(show);
+            }
+            if (!show)
+            {
+                return;
+            }
+            if (_roundFor != d)
+            {
+                _roundFor = d;
+                Casings.RoundLook(d, out Mesh mesh, out Material[] materials);
+                _round.GetComponent<MeshFilter>().sharedMesh = mesh;
+                _round.GetComponent<MeshRenderer>().sharedMaterials = materials;
+            }
+            _round.transform.SetPositionAndRotation(at, Quaternion.LookRotation(Vector3.up, forward)); // standing, its tip up
+        }
+
+        private GameObject _round;
+        private WeaponRigData _roundFor;
 
         private int _shownSpare = int.MinValue, _shownCapacity = -1;
         private bool _shownByHand;

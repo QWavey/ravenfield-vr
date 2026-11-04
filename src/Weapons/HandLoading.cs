@@ -123,15 +123,19 @@ namespace RavenfieldVR.Weapons
             Casings.Case round = Casings.RoundInHand(a.Rig, mag.WeaponKey, null, hand);
             Hold(hand, round);
             LogHeldRound(hand, round);
+            _roundSeenCheckAt = _roundSeenChecked ? -1f : Time.unscaledTime + 0.6f;
             hand.Haptic(0.02f, 160f, 0.35f); // (felt only: no sound of the mod's own making)
             return true;
         }
 
         /// <summary>The gun last held is put away and still carried: the pouch works for it (<see cref="MagazineFromPouch"/>, the pouch shown).</summary>
-        internal static bool CarriedStill(Weapon last)
+        internal static bool CarriedStill(Weapon last) => Enabled && Carried(last);
+
+        /// <summary>The player still has this weapon (put away, not dropped or swapped).</summary>
+        internal static bool Carried(Weapon last)
         {
             Actor player = GameContext.PlayerActor;
-            return Enabled && last != null && player != null && player.weapons != null && System.Array.IndexOf(player.weapons, last) >= 0;
+            return last != null && player != null && player.weapons != null && System.Array.IndexOf(player.weapons, last) >= 0;
         }
 
         /// <summary>
@@ -222,6 +226,14 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Casings.Follow(c, h);
+                if (_roundSeenCheckAt >= 0f && Time.unscaledTime >= _roundSeenCheckAt)
+                {
+                    // Once a session: whether a camera really drew it (the user saw none; the line made at the take could not tell).
+                    _roundSeenCheckAt = -1f;
+                    _roundSeenChecked = true;
+                    Log.Info($"Round in the {h.Side} hand a moment on: {(c.Renderer.isVisible ? "drawn by a camera" : "NOT drawn by any camera")}, "
+                             + $"layer {c.Go.layer}, {Vector3.Distance(sys.Rig.Head.position, c.Go.transform.position):0.00} m from the eye.");
+                }
                 if (!h.GrabHeld || !Enabled)
                 {
                     if (c.Live && sys.Zones.InPouch(h.Palm.position) && h.BodyThrowVelocity().magnitude < 1.2f)
@@ -299,7 +311,8 @@ namespace RavenfieldVR.Weapons
             loaded.FollowHand();
         }
 
-        private static bool _loggedRound;
+        private static bool _loggedRound, _roundSeenChecked;
+        private static float _roundSeenCheckAt = -1f;
 
         /// <summary>Once a session: the round made in a hand, where it is drawn and how (the user saw none; Tasks 359).</summary>
         private static void LogHeldRound(VRHand hand, Casings.Case c)
