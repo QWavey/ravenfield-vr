@@ -381,6 +381,7 @@ namespace RavenfieldVR.Weapons
                     UnityEngine.Object.Destroy(c);
                 }
             }
+            FreeBoxMesh();
             ShapeFit.Bake(pieces);
             _colliders = ShapeFit.AddColliders(Go, pieces).ToArray();
             _pieceBounds = new Bounds[pieces.Length];

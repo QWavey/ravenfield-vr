@@ -122,6 +122,17 @@ namespace RavenfieldVR.Weapons
         private int _playerGeneration = -1;
         /// <summary>The colliders came from the meshes' boxes (unreadable meshes) and are replaced once the model is measured.</summary>
         private bool _boxShaped;
+        /// <summary>The hull of the plain box a prop with no fitted shape is given: no cache holds it, so nothing else frees it.</summary>
+        private Mesh _boxMesh;
+
+        private void FreeBoxMesh()
+        {
+            if (_boxMesh != null)
+            {
+                UnityEngine.Object.Destroy(_boxMesh);
+                _boxMesh = null;
+            }
+        }
         /// <summary>Per magazine type: the shape fitted to the rendered model (for every later magazine of the type).</summary>
         private static readonly Dictionary<string, ShapeFit.Piece[]> RenderedShapes = new Dictionary<string, ShapeFit.Piece[]>();
         /// <summary>The pieces' bounds in prop space, for distances while the colliders are off (Unity reports an empty box then).</summary>
@@ -441,6 +452,10 @@ namespace RavenfieldVR.Weapons
                 _boxShaped = true;
             }
             _colliders = ShapeFit.AddColliders(go, shape).ToArray();
+            if (_boxShaped && shape.Length == 1)
+            {
+                _boxMesh = shape[0].MadeMesh; // (its own, in no cache: freed with it)
+            }
             _pieceBounds = new Bounds[shape.Length];
             for (int i = 0; i < shape.Length; i++)
             {
@@ -977,6 +992,7 @@ namespace RavenfieldVR.Weapons
             ReleaseHand(HeldBy, this);
             HeldBy = null;
             Alive.Remove(this);
+            FreeBoxMesh();
             if (Go != null)
             {
                 Object.Destroy(Go);
