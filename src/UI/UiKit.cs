@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace RavenfieldVR.UI
 {
     /// <summary>
-    /// Shared look of the mod's own panels: gunmetal panel, off-white type, one signal-amber accent for the active
+    /// Shared look of the mod's own panels: gunmetal panel, off-white type, one blue accent for the active
     /// choice, square flat controls, the game's own UI font when it can be found.
     /// </summary>
     internal static class UiKit
@@ -18,8 +18,8 @@ namespace RavenfieldVR.UI
         public static readonly Color MutedText = new Color32(150, 156, 160, 255);
         public static readonly Color ButtonColor = new Color32(42, 46, 51, 255);
         public static readonly Color ButtonHover = new Color32(56, 61, 67, 255);
-        public static readonly Color Accent = new Color32(201, 160, 74, 255);
-        public static readonly Color AccentText = new Color32(24, 22, 18, 255);
+        public static readonly Color Accent = new Color32(78, 150, 230, 255);
+        public static readonly Color AccentText = new Color32(10, 18, 28, 255);
 
         private static Font _font;
 

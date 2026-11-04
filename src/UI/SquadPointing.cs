@@ -274,7 +274,7 @@ namespace RavenfieldVR.UI
                 _shownOrder = order;
                 _refitFrames = 2;
             }
-            Color col = Pointing ? new Color(0.88f, 0.95f, 1f, _alpha) : new Color(1f, 0.75f, 0.35f, _alpha);
+            Color col = Pointing ? new Color(0.88f, 0.95f, 1f, _alpha) : new Color(0.45f, 0.7f, 1f, _alpha);
             if (col.r != _textColor.r || col.g != _textColor.g || col.b != _textColor.b || col.a != _textColor.a)
             {
                 _textColor = col;

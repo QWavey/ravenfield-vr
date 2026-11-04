@@ -110,7 +110,7 @@ namespace RavenfieldVR.Weapons
                 _shownByHand = byHand;
                 _label.text = byHand && spare == 0 ? "0 \u00b7 \u221e rds" : PouchText(spare, ammo.Capacity, kind);
             }
-            Color color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), new Color32(201, 160, 74, 255), _hover);
+            Color color = spare == 0 ? new Color(0.85f, 0.35f, 0.3f) : Color.Lerp(new Color(0.85f, 0.86f, 0.82f, 0.85f), RavenfieldVR.UI.UiKit.Accent, _hover);
             if (color != _label.color)
             {
                 _label.color = color; // only on a change: a text mesh is built again each time its colour is set

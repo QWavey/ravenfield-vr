@@ -2281,7 +2281,7 @@ namespace RavenfieldVR.Weapons
             {
                 _shown = shown;
                 _text.text = left >= 1f ? (shown / 10).ToString() : (shown / 10f).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
-                _text.color = left >= 1f ? new Color(1f, 0.93f, 0.75f) : new Color(1f, 0.3f, 0.25f);
+                _text.color = left >= 1f ? new Color(0.85f, 0.93f, 1f) : new Color(1f, 0.3f, 0.25f);
                 _fitFrames = 2; // (the plate round the new text, laid out by the next frame)
             }
             Transform head = rig.Head;

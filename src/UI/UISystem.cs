@@ -383,7 +383,7 @@ namespace RavenfieldVR.UI
             if (!ReferenceEquals(colorText, _colorText))
             {
                 _colorText = colorText;
-                _color = VRConfig.ParseColor(VRConfig.LaserColor, new Color(0.91f, 0.71f, 0.29f));
+                _color = VRConfig.ParseColor(VRConfig.LaserColor, UiKit.Accent);
             }
             Color c = _color;
             Color start = c;

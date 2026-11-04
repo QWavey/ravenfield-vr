@@ -30,6 +30,9 @@ namespace RavenfieldVR.Core
 
     public static class VRConfig
     {
+        /// <summary>The laser's colour by default: the UI's blue accent (UiKit.Accent).</summary>
+        private const string DefaultLaserColor = "#4E96E6";
+
         // General
         public static ConfigEntry<bool> EnableVR;
         public static ConfigEntry<bool> AutoStartSteamVR;
@@ -140,6 +143,8 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> WristHud;
         public static ConfigEntry<bool> GunAmmoCounter;
         public static ConfigEntry<string> LaserColor;
+        /// <summary>The settings panel's less important tabs (read when the game starts).</summary>
+        public static ConfigEntry<bool> ShowAdvanced;
         public static ConfigEntry<bool> ExplosionDirt;
         public static ConfigEntry<bool> LensFlash;
         public static ConfigEntry<bool> WaterDrops;
@@ -397,7 +402,14 @@ namespace RavenfieldVR.Core
             WristFrameRate = cfg.Bind("UI", "WristFrameRate", true,
                 "The wrist display also shows how many frames of the last few seconds kept the headset's rate: under about 90%, " +
                 "SteamVR fills in frames and moving things ghost; pick a lower graphics preset.");
-            LaserColor = cfg.Bind("UI", "LaserColor", "#E8B44A", "Menu laser colour (hex).");
+            LaserColor = cfg.Bind("UI", "LaserColor", DefaultLaserColor, "Menu laser colour (hex).");
+            // The amber default a config file kept from before the UI turned blue (user, 2026-11-04); a colour picked by hand stays.
+            if (string.Equals(LaserColor.Value, "#E8B44A", StringComparison.OrdinalIgnoreCase))
+            {
+                LaserColor.Value = DefaultLaserColor;
+            }
+            ShowAdvanced = cfg.Bind("UI", "ShowAdvanced", false,
+                "Show the settings panel's advanced tabs (controls, gear, view, speed) when the game starts. Off: only the settings that matter most, the rest stay here in this file.");
             WorldCollision = cfg.Bind("Weapons", "WeaponWorldCollision", true,
                 "The gun in your hand is stopped by the world (walls, crates, sandbags, the ground) instead of passing through it, and can be rested " +
                 "on cover; it comes back to your hand when you pull it free. Off: the gun always follows your hand.");

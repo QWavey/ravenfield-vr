@@ -2678,8 +2678,8 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
-        /// The VR settings panel's two pages, by its own buttons pressed with the laser: "More settings" shows the second page
-        /// (the controls, gloves and menus), "Back" the first again, each pictured (2026-10-30).
+        /// The VR settings panel's tabs, by their own buttons pressed with the laser: Weapons and Display show their pages and Comfort
+        /// the first again, each pictured, and there are as many as ShowAdvanced says (2026-11-04).
         /// </summary>
         private static IEnumerator SettingsPagesCheck()
         {
@@ -2697,19 +2697,26 @@ namespace RavenfieldVR.Core
                 yield return new WaitForSecondsRealtime(0.5f);
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("vr-settings-1");
-                yield return ClickMenuButton(dom, "More settings", lines, panel.Canvas.transform);
+                yield return ClickMenuButton(dom, "Weapons", lines, panel.Canvas.transform);
                 yield return new WaitForSecondsRealtime(0.3f);
                 yield return new WaitForEndOfFrame();
                 Shots.Capture("vr-settings-2");
-                bool more = panel.ShownPage == 1;
-                yield return ClickMenuButton(dom, "Back", lines, panel.Canvas.transform);
+                bool weapons = panel.ShownPage == 1;
+                yield return ClickMenuButton(dom, "Display", lines, panel.Canvas.transform);
                 yield return new WaitForSecondsRealtime(0.3f);
-                bool back = panel.ShownPage == 0;
-                Results.Add($"VR settings pages: {(more ? "More settings showed the second page" : "MORE SETTINGS DID NOT SHOW THE SECOND PAGE")}, "
-                            + $"{(back ? "Back the first" : "BACK DID NOT SHOW THE FIRST PAGE")}{(lines.Count > 0 ? "; " + string.Join("; ", lines.ToArray()) : "")}");
-                if (!more || !back)
+                yield return new WaitForEndOfFrame();
+                Shots.Capture("vr-settings-3");
+                bool display = panel.ShownPage == 2;
+                yield return ClickMenuButton(dom, "Comfort", lines, panel.Canvas.transform);
+                yield return new WaitForSecondsRealtime(0.3f);
+                bool comfort = panel.ShownPage == 0;
+                bool tabs = panel.PageCount == (VRConfig.ShowAdvanced.Value ? 7 : 3);
+                bool all = weapons && display && comfort;
+                Results.Add($"VR settings pages: {panel.PageCount} tabs{(tabs ? "" : ", NOT AS MANY AS SHOWADVANCED SAYS")}, "
+                            + $"{(all ? "each shows its page" : "A TAB DID NOT SHOW ITS PAGE")}{(lines.Count > 0 ? "; " + string.Join("; ", lines.ToArray()) : "")}");
+                if (!all || !tabs)
                 {
-                    Problem("[ui] the VR settings panel's pages do not switch");
+                    Problem("[ui] the VR settings panel's tabs do not switch");
                 }
             }
             finally

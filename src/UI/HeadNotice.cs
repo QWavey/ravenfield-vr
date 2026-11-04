@@ -30,7 +30,7 @@ namespace RavenfieldVR.UI
             _text.anchor = TextAnchor.MiddleCenter;
             _text.alignment = TextAlignment.Center;
             _text.lineSpacing = 0.95f;
-            _text.color = new Color(1f, 0.82f, 0.55f);
+            _text.color = new Color(0.62f, 0.82f, 1f);
             var mr = _go.GetComponent<MeshRenderer>();
             mr.sharedMaterial = font.material;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

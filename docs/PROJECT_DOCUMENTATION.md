@@ -1131,7 +1131,7 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    pump's let-go a stroke past its stops and its TRIGGER TO PUMP cue, the tube port estimate at 0.6 of the way to the forend, parked
    seats turned as the reload holds them. Weapon's arms: the free hand's fingers from the controller (`ArmFingers`), and arms on
    empty hands (`EmptyArms`: the last held gun's arm skeleton and meshes copied as it is put away, both arms IK'd to the
-   controllers by `ArmIK.FreeTarget`/`SolveArm`, the gloves hidden). The settings panel's second page (More settings), holster
+   controllers by `ArmIK.FreeTarget`/`SolveArm`, the gloves hidden). The settings panel's tabs, holster
    copies easing out when reached, a swapped weapon's ground copy without its magazine when it was out, and autotest checks for
    the free fingers, the empty-hand arms and the settings pages.
 20. **The work-until-limit 60 of 2026-10-30** (the game not started): the magazine box taken from the gun's own copy where they

@@ -34,7 +34,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 ## First minutes
 
 - **Height** is calibrated a moment after you first spawn: stand up straight. Redo it from the settings panel ("Calibrate now"). Playing seated? Turn on "Seated play" and calibrate while sitting.
-- **Settings panel:** double-click the left stick. Recenter, SteamVR bindings and Mod keys are at the bottom; "More settings" there opens a second page (sprint button, mounted-gun aim, stick dead zone, vibration, crouch height, roomscale walking, gloves, scope lenses, scope and aim steadying, throw strength, the HUD distance, the wrist and lens-flash switches, menu distance and width).
+- **Settings panel:** double-click the left stick. Three tabs hold what matters most: Comfort, Weapons and Display; Close, SteamVR bindings, Mod keys and Recenter are at the bottom. Set `ShowAdvanced = true` in the config file and start the game again for four more tabs (Controls, Gear, View, Speed). What is better simply on, such as two-handed aiming, the magazine detent and the counters, is only in the config file.
 - **Gun angle:** if guns feel tilted in your hand, use "Gun pitch" on the panel.
 
 ## Controls (Quest Touch, right-handed)
@@ -131,7 +131,7 @@ Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("G
 
 Every shadow, per-pixel light and level of detail is drawn once per eye, so in a busy match the presets above Low can cost more processor time than the 11 ms a 90 Hz frame has; SteamVR then drops to half rate (45 fps) even when the graphics card has room. If the wrist display shows few frames on time with a low GPU time, pick a lower preset or turn on **Hold the frame rate** on the settings panel: it lowers the preset's costliest settings while frames are late and brings them back when there is room. Each minute the game's log (`BepInEx/LogOutput.log`) gets a line saying where the frame's time went; `python tools/frame_report.py` turns those lines into a table, and `python tools/bench_report.py` the autotest's graphics bench into what each variant saves or costs against its own preset.
 
-The settings panel's second page has a **Performance** section with settings to try, all off by default: game cameras into 1 px, scope lens every other frame, small objects without shadows, tiny distant objects hidden, repeated objects instanced and the garbage collection slice. Each one the frame rate line names (with a count where it has one) while it is on, so turn one on, play a few minutes and compare its minutes with the ones before in `frame_report`'s `try` column; or run `python tools/vrshots.py --fast --bench` (the game must be closed; it measures each of them against Medium with the world frozen, twice) and read the result with `bench_report.py`. Keep one on only if it saves time and you see no difference. With the mod's own presets (Low to Ultra) the level's terrain is drawn instanced, as the game itself does at its top terrain quality (not on maps the game gives its fallback terrain material, older engine versions by its own test); the Game preset leaves the terrain as the game set it.
+The settings panel's **Speed** tab (shown with `ShowAdvanced`) has settings to try, all off by default: game cameras into 1 px, scope lens every other frame, small objects without shadows, tiny distant objects hidden, repeated objects instanced and the garbage collection slice. Each one the frame rate line names (with a count where it has one) while it is on, so turn one on, play a few minutes and compare its minutes with the ones before in `frame_report`'s `try` column; or run `python tools/vrshots.py --fast --bench` (the game must be closed; it measures each of them against Medium with the world frozen, twice) and read the result with `bench_report.py`. Keep one on only if it saves time and you see no difference. With the mod's own presets (Low to Ultra) the level's terrain is drawn instanced, as the game itself does at its top terrain quality (not on maps the game gives its fallback terrain material, older engine versions by its own test); the Game preset leaves the terrain as the game set it.
 
 ## Odd modded weapons
 
@@ -186,6 +186,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `WeaponsWhileDriving` | on | Draw your weapon from the driver seat of cars |
 | `EnemyWeaponDrops` | on | Fallen soldiers drop their weapon |
 | `ModWeaponSounds` | on | Use each mod's own sounds for manual actions (a vanilla weapon's when the mod has none for an action) |
+| `ShowAdvanced` | off | The settings panel's advanced tabs (Controls, Gear, View, Speed), read when the game starts |
 | `GrenadePins` | on | Grenades need their pin pulled; off makes every throw live |
 | `BeltByHand` | on | Lay a machine gun's belt on the feed tray yourself; off lays it when the cover closes |
 | `HideGameWeaponHud` | on | Hide the game's weapon panel (name, ammo, slots); the gun, pouch and wrist show ammo |

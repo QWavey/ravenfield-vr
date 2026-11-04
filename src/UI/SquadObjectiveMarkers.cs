@@ -32,7 +32,7 @@ namespace RavenfieldVR.UI
         private const float LabelHeight = 3.5f;
 
         private static readonly Color LabelColour = new Color(0.92f, 0.95f, 1f, 0.9f);
-        private static readonly Color PointedLabelColour = new Color(1f, 0.93f, 0.55f, 1f);
+        private static readonly Color PointedLabelColour = new Color(0.62f, 0.85f, 1f, 1f);
         private static readonly Color PoleColour = new Color(0.16f, 0.17f, 0.19f, 0.95f);
 
         private sealed class Flag
