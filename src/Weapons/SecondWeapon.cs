@@ -737,6 +737,10 @@ namespace RavenfieldVR.Weapons
             bool atEye = (cam.transform.position - _sys.Rig.Head.position).sqrMagnitude < 0.3f * 0.3f;
             if (cam.enabled != atEye)
             {
+                if (!ReferenceEquals(_scopeCameraGated, cam))
+                {
+                    _scopeCameraWas = cam.enabled;
+                }
                 cam.enabled = atEye;
                 _scopeCameraGated = cam;
             }
@@ -756,6 +760,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private Camera _scopeCameraGated;
+        private bool _scopeCameraWas;
         private VRScope.ScopeNoShadows _scopeNoShadows;
 
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
@@ -767,7 +772,7 @@ namespace RavenfieldVR.Weapons
             // Its scope camera as the game had it (the gate switched it off away from the eye).
             if (_scopeCameraGated != null)
             {
-                _scopeCameraGated.enabled = true;
+                _scopeCameraGated.enabled = _scopeCameraWas; // (as the held gun's: forced on, one the game had off drew the scene from the holster)
                 _scopeCameraGated = null;
             }
             if (_scopeNoShadows != null)
