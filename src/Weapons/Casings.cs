@@ -336,7 +336,6 @@ namespace RavenfieldVR.Weapons
             c.Held = true;
             c.Holder = hand;
             c.Body.isKinematic = true;
-            c.Body.interpolation = RigidbodyInterpolation.None; // (placed by hand each frame)
             c.Collider.enabled = false;
             c.Go.layer = MagazineProp.DisplayLayer; // drawn as what else is held: the first-person layer the view always has
         }
