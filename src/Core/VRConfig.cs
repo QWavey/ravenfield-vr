@@ -372,7 +372,7 @@ namespace RavenfieldVR.Core
             WeaponsWhileDriving = cfg.Bind("Weapons", "WeaponsWhileDriving", true,
                 "Driving a car or Humvee: reach to a holster to draw that weapon and shoot while steering with the other hand (put it back for the horn).");
             ShowPouch = cfg.Bind("Weapons", "ShowPouch", true,
-                "Show what the held weapon feeds from (its magazine, a shell, a rocket) and the spare count at the ammo pouch on your body.");
+                "Show what the held weapon feeds from (its magazine, a shell, a rocket) and the spare count at the ammo pouch on your body; with the gun put away, what it fed from.");
             FireSelector = cfg.Bind("Weapons", "FireSelector", true,
                 "Fire-mode button switches automatic weapons between semi and auto (only weapons authored as automatic; " +
                 "weapons with their own sub-weapon modes keep those).");

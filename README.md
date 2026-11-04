@@ -175,7 +175,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `HolsterLayout` | Boneworks | Boneworks, or Classic (pistols on the hips, gear on the chest) |
 | `GripToHoldWeapon` | on | Hold the grip to keep holding a weapon; letting go puts it away. Off: it stays in your hand (either hand) until you put it back at its holster with a grip press there |
 | `MagazinePouch` | OffHandHip | Also Chest, DominantHip, OffHandChest |
-| `ShowPouch` | on | Show the gun's ammo at the pouch |
+| `ShowPouch` | on | Show the gun's ammo at the pouch, the last gun's while it is put away |
 | `WeaponWorldCollision` | on | The gun in your hand is stopped by walls, crates and the ground |
 | `GloveSize` | 0.88 | Size of the tactical glove (applies at the next start) |
 | `ExplosionDirt` | on | Dirt on your view from close explosions |
