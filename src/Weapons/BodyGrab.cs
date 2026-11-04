@@ -808,6 +808,10 @@ namespace RavenfieldVR.Weapons
                 _holds[i] = null;
                 ResumeAi(a);
                 Attach(i, hand, a, hand.PalmCentre);
+                if (_holds[i] == null)
+                {
+                    Release(i, hand, thrown: false); // (no bone to hold: the hand stayed on him for good, with no hold to end it; soldier scout)
+                }
                 return;
             }
             float twist = Quaternion.Angle(hold.NeckStart, InRig(hand.Palm.rotation));
@@ -832,7 +836,7 @@ namespace RavenfieldVR.Weapons
             {
                 Attach(i, hand, a, hand.PalmCentre);
             }
-            else
+            if (_holds[i] == null)
             {
                 Release(i, hand, thrown: false); // (the hand free again)
             }
