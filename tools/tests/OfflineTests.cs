@@ -110,6 +110,7 @@ namespace RavenfieldVR.Tests
             SteadyGripTests(mod);
             BeltRoundBoxTests(mod);
             BeltRoundEndsTests(mod);
+            UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
             HandPushTests(mod);
@@ -486,6 +487,33 @@ namespace RavenfieldVR.Tests
                 kept = Step(0.5f, false);
             }
             Check(Math.Abs(kept - 0.5f) < 1e-4, $"Steady grip: a gun never seen on its points keeps its bones as they are ({kept:0.000})");
+        }
+
+        /// <summary>
+        /// The user's list of 2026-11-04, what can be checked without the game: a belt gun's animator is told the new box's rounds with the bolt
+        /// still back and the gun's own count 0 (the PKM's belt only comes back above ten), a pistol stays at 0 with its slide locked; a
+        /// pouch that is only shown takes no notice of a hand ("make sure nothing else is applying like hand gestures").
+        /// </summary>
+        private static void UserListTests(System.Reflection.Assembly mod)
+        {
+            Type ammo = mod.GetType("RavenfieldVR.Weapons.AmmoState"), pouch = mod.GetType("RavenfieldVR.Weapons.PouchDisplay");
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            System.Reflection.MethodInfo rounds = ammo?.GetMethod("AnimatorRounds", flags), answers = pouch?.GetMethod("Answers", flags);
+            Check(rounds != null && answers != null, "User's list: AnimatorRounds and Answers found");
+            if (rounds == null || answers == null)
+            {
+                return;
+            }
+            int Rounds(bool belt, int box, bool chambered, bool locked, int gun) => (int)rounds.Invoke(null, new object[] { belt, box, chambered, locked, gun });
+            bool Answers(bool feeds, bool empty, bool byHand) => (bool)answers.Invoke(null, new object[] { feeds, empty, byHand });
+            Check(Rounds(true, 100, false, true, 0) == 100, "User's list: a new box in an emptied belt gun, bolt back, tells the animator its rounds");
+            Check(Rounds(true, 40, true, false, 41) == 41, "User's list: a belt gun firing tells it the box and the chamber");
+            Check(Rounds(false, 15, false, true, 0) == 0, "User's list: a pistol with its slide locked stays at 0 with a fresh magazine in");
+            Check(Rounds(false, 15, true, false, 16) == 16, "User's list: any other gun tells the game's count");
+            Check(!Answers(false, true, false), "User's list: the gun away, not loading by hand: the pouch takes no notice of a hand");
+            Check(!Answers(false, false, true), "User's list: a grenade in the hand: the pouch takes no notice of the other hand");
+            Check(Answers(false, true, true), "User's list: the gun away, loading by hand: the pouch answers");
+            Check(Answers(true, false, false), "User's list: a drawn gun: the pouch answers");
         }
 
         /// <summary>

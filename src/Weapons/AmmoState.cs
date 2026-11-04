@@ -639,6 +639,13 @@ namespace RavenfieldVR.Weapons
             return _counterText;
         }
 
+        /// <summary>
+        /// The number an animator's "loaded ammo" is given (HeldWeapon.HoldSlideLockPose): a belt gun's rounds in the box, the belt being what
+        /// it draws by it; any other gun's count, or 0 with its slide locked back. Pure: the offline tests check it.
+        /// </summary>
+        internal static int AnimatorRounds(bool beltIn, int boxRounds, bool chambered, bool slideLocked, int gunAmmo) =>
+            beltIn ? boxRounds + (chambered ? 1 : 0) : slideLocked ? 0 : gunAmmo;
+
         private string BuildCounterText()
         {
             if (!Participates)

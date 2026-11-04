@@ -74,7 +74,7 @@ namespace RavenfieldVR.Weapons
             VRHand off = _sys.Rig.Off;
             // With the gun away and not loading by hand it is only shown: nothing can be taken from it, so a hand near it changes nothing,
             // no lift, no tick (user, 2026-11-04: "make sure nothing else is applying like hand gestures, dont do that").
-            bool answers = feeds || held == null && HandLoading.Applies(ammo);
+            bool answers = Answers(feeds, held == null, HandLoading.Applies(ammo));
             bool reaching = answers && off.Tracked && off.Role == HandRole.Free && zones.InPouch(off.Palm.position);
             if (held == null && answers && !reaching)
             {
@@ -128,6 +128,12 @@ namespace RavenfieldVR.Weapons
             _label.transform.rotation = toHead.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(toHead, Vector3.up) : Quaternion.identity;
             ShowRound(rig.Data, byHand && kind == PropKind.Magazine, zones.Pouch + lift - side * (halfWidth + 0.02f), zones.TorsoForward);
         }
+
+        /// <summary>
+        /// Whether the pouch takes any notice of a hand: for a drawn gun it feeds, or with nothing in the hand and magazines loaded by hand. Else
+        /// it is only shown. Pure: the offline tests check it.
+        /// </summary>
+        internal static bool Answers(bool feeds, bool handsEmpty, bool byHand) => feeds || handsEmpty && byHand;
 
         /// <summary>A round stood beside the magazine (it was not shown anywhere that rounds can be had here at all; user, 2026-11-04).</summary>
         private void ShowRound(WeaponRigData d, bool show, Vector3 at, Vector3 forward)

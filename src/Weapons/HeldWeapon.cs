@@ -1448,7 +1448,7 @@ namespace RavenfieldVR.Weapons
             // the new box's belt was never drawn (user, 2026-11-04: "the magbelt is still gone after the mg was empty and inserting"):
             // told what is in the box, whatever the bolt and the feed say.
             bool belt = ammo.HasCover && ammo.MagInserted && VRConfig.ReloadNow == ReloadMode.Manual;
-            int shown = belt ? ammo.MagRounds + (ammo.Chambered ? 1 : 0) : ammo.SlideLocked ? 0 : w.ammo;
+            int shown = AmmoState.AnimatorRounds(belt, ammo.MagRounds, ammo.Chambered, ammo.SlideLocked, w.ammo);
             if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)
             {
                 w.animator.SetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH, shown);
