@@ -18,7 +18,7 @@ namespace RavenfieldVR.Weapons
         public static WeaponSystem Instance { get; private set; }
 
         public readonly VRRig Rig;
-        public readonly ProceduralSounds Sounds;
+        public readonly SoundVoices Sounds;
         public readonly BodyZones Zones;
         private readonly ThrowableHandler _throwables;
         internal ThrowableHandler Throwables => _throwables;
@@ -44,7 +44,7 @@ namespace RavenfieldVR.Weapons
             Rig = rig;
             try
             {
-                Sounds = new ProceduralSounds();
+                Sounds = new SoundVoices();
                 try
                 {
                     _lensFlash = new LensFlash(rig);
@@ -885,7 +885,7 @@ namespace RavenfieldVR.Weapons
             }
             FlashMessage(mode);
             // The selector's own short click, not the hammer falling on an empty chamber (85-agent review).
-            Sounds.Play(MechSound.MagLip, Rig.Dominant.Palm.position, 0.4f);
+            Sounds.Play(MechSound.Selector, Rig.Dominant.Palm.position, 0.4f);
             Rig.Dominant.Haptic(0.02f, 200f, 0.5f);
             LastPressWasSelector = true;
             return true;

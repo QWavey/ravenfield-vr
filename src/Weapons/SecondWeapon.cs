@@ -19,6 +19,8 @@ namespace RavenfieldVR.Weapons
     {
         public readonly Weapon Weapon;
         public readonly WeaponRig Rig;
+        /// <summary>This gun's data for its sounds (GameSounds: its own, or those of its kind).</summary>
+        private WeaponRigData SoundData => Rig != null ? Rig.Data : null;
         public readonly AmmoState Ammo;
         public readonly VRHand Hand;
         private readonly WeaponSystem _sys;
@@ -409,8 +411,8 @@ namespace RavenfieldVR.Weapons
                 {
                     // (After a shot the fire animation already worked and sounded it: both played, a double stroke; second-weapon
                     // hunt, 2026-10-20 night.)
-                    _sys.Sounds.Play(MechSound.SlideBack, Hand.Palm.position, 0.6f);
-                    _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.6f, 0.12f); // back, then home
+                    _sys.Sounds.Play(MechSound.SlideBack, Hand.Palm.position, 0.6f, 0f, SoundData);
+                    _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.6f, 0.12f, SoundData); // back, then home
                 }
                 Hand.Haptic(0.03f, 120f, 0.4f);
             }
@@ -453,7 +455,7 @@ namespace RavenfieldVR.Weapons
             }
             float time = Weapon.configuration != null ? Mathf.Clamp(Weapon.configuration.reloadTime, 0.8f, 4f) : 2f;
             _reloadDoneAt = Time.time + time;
-            _sys.Sounds.Play(MechSound.MagOut, Hand.Palm.position, 0.8f);
+            _sys.Sounds.Play(MechSound.MagOut, Hand.Palm.position, 0.8f, 0f, SoundData);
             Hand.Haptic(0.04f, 120f, 0.5f);
         }
 
@@ -479,8 +481,8 @@ namespace RavenfieldVR.Weapons
             }
             Ammo.SlideLocked = false;
             Ammo.RackForward();
-            _sys.Sounds.Play(MechSound.MagIn, Hand.Palm.position, 0.8f);
-            _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.8f, 0.2f); // the magazine in, then the slide home
+            _sys.Sounds.Play(MechSound.MagIn, Hand.Palm.position, 0.8f, 0f, SoundData);
+            _sys.Sounds.Play(MechSound.SlideForward, Hand.Palm.position, 0.8f, 0.2f, SoundData); // the magazine in, then the slide home
             Hand.Haptic(0.05f, 110f, 0.7f);
         }
 

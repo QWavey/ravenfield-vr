@@ -364,6 +364,7 @@ namespace RavenfieldVR.Core
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
+                    GameSoundsCheck();
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
@@ -428,6 +429,7 @@ namespace RavenfieldVR.Core
                     yield return SquadPointingCheck();
                     yield return LoadoutPickerCheck();
                     yield return PauseMenuCheck();
+                    GameSoundsCheck();
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                 }
@@ -2665,6 +2667,14 @@ namespace RavenfieldVR.Core
                 parts.Add(detail);
             }
             return string.Join("; ", parts);
+        }
+
+        /// <summary>Which of the game clips the mod's sounds are cut from are loaded (one not loaded stays silent, GameSounds).</summary>
+        private static void GameSoundsCheck()
+        {
+            var missing = new List<string>();
+            int loaded = RavenfieldVR.Weapons.GameSounds.CountLoaded(missing);
+            Results.Add($"Game sounds: {loaded} cuts loaded" + (missing.Count > 0 ? "; NOT LOADED: " + string.Join(", ", missing.ToArray()) : ""));
         }
 
         /// <summary>

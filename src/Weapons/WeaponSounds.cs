@@ -49,14 +49,15 @@ namespace RavenfieldVR.Weapons
 
     /// <summary>
     /// Plays a held weapon's own sounds for manual actions, one action at a time: a reload clip is never played
-    /// end to end, only the slice that belongs to what the player just did. Falls back to synthesised sounds.
+    /// end to end, only the slice that belongs to what the player just did. With none of its own, the game's sound for the action
+    /// (GameSounds).
     /// </summary>
     public sealed class WeaponSoundPlayer
     {
         private const float FadeTime = 0.03f;
 
         private readonly WeaponRig _rig;
-        private readonly ProceduralSounds _fallback;
+        private readonly SoundVoices _voices;
         // Two sources: slices are cut and faded at their end, one-shot clips must never be (a faded-out slice used to
         // leave the shared volume at zero, silencing every sound after it).
         // Two slice sources: a new slice cuts the one before it (long slices must not pile up), except one started a moment ago,
@@ -69,10 +70,10 @@ namespace RavenfieldVR.Weapons
         private readonly float[] _sliceBaseVolume = { 1f, 1f };
         private int _sliceNow;
 
-        public WeaponSoundPlayer(WeaponRig rig, ProceduralSounds fallback)
+        public WeaponSoundPlayer(WeaponRig rig, SoundVoices voices)
         {
             _rig = rig;
-            _fallback = fallback;
+            _voices = voices;
         }
 
         public void Play(MechSound kind, Vector3 position, float volume = 1f)
@@ -98,7 +99,7 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
-            _fallback.Play(kind, position, volume);
+            _voices.Play(kind, position, volume, 0f, _rig.Data);
         }
 
         /// <summary>Sound events the suppressed fire animation would have played at the shot.</summary>

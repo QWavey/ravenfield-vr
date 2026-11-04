@@ -576,7 +576,7 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.015f, 180f, 0.3f);
                     if (prop.Kind == PropKind.Magazine)
                     {
-                        _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.5f); // onto the well's lip
+                        _sys.Sounds.Play(MechSound.MagLip, SeatPose.position, 0.5f, 0f, Data); // onto the well's lip
                     }
                 }
                 return;
@@ -971,7 +971,7 @@ namespace RavenfieldVR.Weapons
             Vector3 tumble = Vector3.Cross(insert, aim).normalized * Random.Range(6f, 9f) + Random.insideUnitSphere * 1.5f;
             old.Drop(velocity, tumble);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
-            _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f);
+            _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f, 0f, Data);
             _held.Nudge(-insert * 0.06f);
         }
 

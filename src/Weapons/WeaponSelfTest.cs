@@ -573,14 +573,14 @@ namespace RavenfieldVR.Weapons
             return quote > 0 ? method.Substring(0, quote) : method;
         }
 
-        /// <summary>Where the sound for <paramref name="kind"/> comes from at runtime: the mod, a vanilla weapon, or synthesis.</summary>
+        /// <summary>Where the sound for <paramref name="kind"/> comes from at runtime: the mod, a vanilla weapon, or a game clipesis.</summary>
         private static string SoundSource(WeaponRigData d, MechSound kind)
         {
             if (d.Cues.TryGetValue(kind, out List<SoundCue> cues) && cues.Count > 0)
             {
                 return "own";
             }
-            return SoundDonors.Find(d, kind) != null ? "vanilla donor" : "synthetic";
+            return SoundDonors.Find(d, kind) != null ? "vanilla donor" : "game clip";
         }
 
         private static void Count(Dictionary<string, int> counts, string key)

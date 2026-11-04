@@ -380,7 +380,7 @@ namespace RavenfieldVR.Core
             DroppedWeaponAmmo = cfg.Bind("Weapons", "DroppedWeaponAmmo", 0.5f,
                 new ConfigDescription("Share of a weapon's full reserve ammo that comes with a weapon picked up from a soldier.", new AcceptableValueRange<float>(0f, 1f)));
             ModWeaponSounds = cfg.Bind("Weapons", "ModWeaponSounds", true,
-                "Play each weapon's own reload sounds for each manual action (mag out, mag in, slide). Off uses built-in mechanical sounds.");
+                "Play each weapon's own reload sounds for each manual action (mag out, mag in, slide). Off uses a vanilla weapon's of its kind.");
             GrabRadius = cfg.Bind("Weapons", "GrabRadius", 0.09f,
                 new ConfigDescription("How close (m) your hand must be to grab a slide, foregrip or magazine.", new AcceptableValueRange<float>(0.03f, 0.25f)));
 
