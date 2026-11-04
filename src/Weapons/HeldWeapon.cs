@@ -465,6 +465,7 @@ namespace RavenfieldVR.Weapons
         private Vector3[] _beltScales;
         /// <summary>What draws the model's belt: most are skinned, and a skinned mesh goes by its bones, whatever its own scale says.</summary>
         private Renderer[] _beltRenderers;
+        private bool[] _beltRenderersOff;
         private bool _beltHidden;
 
         /// <summary>How many belt parts the model has (0: the mod's own strip shows a laid belt).</summary>
@@ -565,14 +566,25 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The belt's renderers shown or not; shown again as they were (one that draws only a shadow is kept off: see _shadowOnly).</summary>
         private void ShowBeltRenderers(bool show)
         {
-            foreach (Renderer r in _beltRenderers)
+            if (!show)
             {
-                if (r != null)
+                _beltRenderersOff = new bool[_beltRenderers.Length];
+            }
+            for (int i = 0; i < _beltRenderers.Length; i++)
+            {
+                Renderer r = _beltRenderers[i];
+                if (r == null)
                 {
-                    r.forceRenderingOff = !show;
+                    continue;
                 }
+                if (!show)
+                {
+                    _beltRenderersOff[i] = r.forceRenderingOff;
+                }
+                r.forceRenderingOff = !show || _beltRenderersOff != null && _beltRenderersOff[i];
             }
         }
 

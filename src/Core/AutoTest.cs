@@ -2415,7 +2415,9 @@ namespace RavenfieldVR.Core
             // animator is driven by a script of its own).
             bool modSlide = held.ActiveRig.Data.SlidePath != null && held.SlideOffset > 0.0005f;
             report($"slide locked with a magazine in ({ammo.MagRounds} rounds): the animator shows {shown} loaded ({(shown == 0 ? "slide held back" : modSlide ? "the mod holds the slide part back" : "THE SLIDE RUNS FORWARD")})");
-            if (shown != 0 && !modSlide)
+            // (A belt gun's animator is told the box's rounds, slide or no slide: it draws its belt by them; HoldSlideLockPose.)
+            bool beltDrawn = ammo.HasCover && ammo.MagInserted;
+            if (shown != 0 && !modSlide && !beltDrawn)
             {
                 Problem($"[{w.name}] with the slide locked and a magazine in, the animator shows {shown} rounds loaded");
             }
