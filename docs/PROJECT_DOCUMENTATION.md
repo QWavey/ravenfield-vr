@@ -1210,4 +1210,7 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `dist/RavenfieldVR-Setup-1.16.7.exe`): every sound the game's own (`GameSounds`' table of measured cuts, `SoundVoices` the pool, no clip
    made in code); the settings panel in tabs with `ShowAdvanced`; the UI blue; belt guns' animators told the box's rounds (the PKM's
    belt only comes back above ten), a skinned model belt hidden by its renderers, belts kept out of the box end to end; the pouch shown
-   with the gun away; a held round stood on the hand..
+   with the gun away; a held round stood on the hand.
+30. **1.16.8** (2026-11-04, built and installed, not published; notes in `dist/notes-1.16.8.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.8.exe`): what the rest of the 80% run found (Tasks 362), `GameSounds` holding only its table's clips; the
+   ammo fuzz (`tools/tests/AmmoFuzz.cs`, the real AmmoState.cs against stubs) and the belt fuzz..

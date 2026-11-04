@@ -2819,6 +2819,11 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 363. End of the 80% run (user, 2026-11-04: "pause bro ... dont go till the limit i set ... install and create the setup and say what you improved / fixed")
+
+Stopped by the user at about 68% of the session; two lens scouts (match restart, dying mid-action) stopped unread: run them first next time.
+1.16.8 built and installed. The user's MG fixes are not seen working in a log yet: read "belt" lines and ask after the next play.
+
 ### 362. The 80% run after the user's list: hunts spread over the mod, each claim read against the code (2026-11-04)
 
 1.16.7 built and installed at the user's word ("create the setup .exe and install the build ... pretend its opened the whole time till i
