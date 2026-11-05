@@ -1213,4 +1213,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    with the gun away; a held round stood on the hand.
 30. **1.16.8** (2026-11-04, built and installed, not published; notes in `dist/notes-1.16.8.md`, setup
    `dist/RavenfieldVR-Setup-1.16.8.exe`): what the rest of the 80% run found (Tasks 362), `GameSounds` holding only its table's clips; the
-   ammo fuzz (`tools/tests/AmmoFuzz.cs`, the real AmmoState.cs against stubs) and the belt fuzz..
+   ammo fuzz (`tools/tests/AmmoFuzz.cs`, the real AmmoState.cs against stubs) and the belt fuzz.
+31. **1.16.9** (2026-11-05, built and installed, not published; notes in `dist/notes-1.16.9.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.9.exe`): the bug hunt on magazines, belts and machine guns (Tasks 364). Long reload clips cut at the
+   actions; the QJB201's real cover and length; the game's `random` set in the sampler (the AS Val's bolt); belts a model draws itself
+   left to it (`AmmoDrawsParts`, `BeltDrawnByAnimator`); `tools/bundles/clip_motion.py`.

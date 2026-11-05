@@ -2840,6 +2840,7 @@ The game not started; every claim read against the code or the mod's bundle firs
 - [x] A double barrel dropped and picked up lost its fired cases and came back shut: both kept. The cover weighs less against the belt only while a belt really is next. Stowed gear turns to the hand the gun is in now, not the set one.
 - [x] Small ones: a round put back at the pouch after its rifle was dropped goes to that drop, as a magazine's rounds do; no round out of a magazine in the well.
 - Scouted clean: loose magazines (no round made from nothing; a full reserve caps what comes back, on purpose), fire modes, the left hand, seats but for the trigger above.
+- 1.16.9 built and installed at the user's word ("yes please"). None of it seen in the headset yet: first the QJB201's cover and belt, the MK46's belt, the AS Val's bolt.
 - Tool: `tools/bundles/clip_motion.py` decodes what a mod's clip really turns and moves, and a part's real geometry. The QJB201's cover, the AS Val's bolt and the MK46's belt were found with it: the analyser's own reports only show what it saw. Worth running first when a gun misbehaves.
 - Open, a design call: the QJB201 [MG&AR]'s T key (the fire-mode press sends it) swaps belt and magazine in its script; the rig stays the belt gun's, so AR mode still reloads as a belt gun.
 - Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a revolver's drawn shells empty by index, not by which were fired.
