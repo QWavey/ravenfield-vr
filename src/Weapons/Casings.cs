@@ -202,7 +202,6 @@ namespace RavenfieldVR.Weapons
             {
                 return Kind.Pistol;
             }
-            float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
             return KindOf(d);
         }
 
