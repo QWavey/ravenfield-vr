@@ -1461,8 +1461,12 @@ namespace RavenfieldVR.Weapons
             // puts them back above ten. The gun's count stays at 0 with the bolt locked back, so after running empty the new box's belt was
             // never drawn (user, 2026-11-04: "the magbelt is still gone after the mg was empty and inserting"): told what is in the box,
             // whatever the bolt says.
+            // And none while the belt is not on the tray: the MK46's and QJB201's rounds are drawn only by this number (no belt part to hide,
+            // their 13 rounds a chain of bones the clips scale away), so a fresh box's belt lay there already beside the one in the hand,
+            // and the old one stayed when the cover was lifted (reports 274, 312; decoded from the clips, 2026-11-05).
             bool belt = ammo.HasCover && ammo.MagInserted && VRConfig.ReloadNow == ReloadMode.Manual;
-            int shown = AmmoState.AnimatorRounds(belt, ammo.MagRounds, ammo.Chambered, ammo.SlideLocked, w.ammo);
+            bool onTray = ammo.BeltLaid || !VRConfig.BeltByHand.Value;
+            int shown = AmmoState.AnimatorRounds(belt, onTray ? ammo.MagRounds : 0, onTray && ammo.Chambered, ammo.SlideLocked, w.ammo);
             if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)
             {
                 w.animator.SetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH, shown);

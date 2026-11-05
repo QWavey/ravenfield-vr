@@ -4,6 +4,7 @@
 - The QJB201 family's feed cover opens: the hand was moving a small latch, and the cover stayed shut. The latch now turns with it.
 - A short feed cover lifts from anywhere on it.
 - Opening and shutting the cover on a loaded machine gun keeps the belt; only a changed box needs its belt laid.
+- MK46 and QJB201: no second belt on the tray while you lay one, and the belt goes when the cover is lifted.
 - An empty box under an open cover says BOX EMPTY instead of asking for a belt.
 - With belt laying by hand off, a box put in under an open cover shows its belt.
 - The AS Val's bolt can be pulled: the mod never saw it move, and racked an invisible handle.
