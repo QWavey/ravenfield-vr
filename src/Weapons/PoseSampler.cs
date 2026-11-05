@@ -156,6 +156,13 @@ namespace RavenfieldVR.Weapons
                 SetLayerWeight(1f);
                 SetBool(Weapon.NO_AMMO_PARAMETER_HASH, false);
                 SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo));
+                if (Has(Weapon.RANDOM_PARAMETER_HASH))
+                {
+                    // The game draws this 0-100 each frame, and mods pick a fire or reload clip by it. Left at 0, a first choice written as
+                    // "random > 0" never played here: the AS Val's bolt (8 cm in the fire clip) was never seen and it was racked by nothing.
+                    // 1, under every mod's own thresholds: the guns that sampled the first clip at 0 go on sampling it.
+                    _anim.SetFloat(Weapon.RANDOM_PARAMETER_HASH, 1f);
+                }
                 SetTrigger(Weapon.UNHOLSTER_PARAMETER_HASH);
                 Step(2.5f);
                 CaptureIdle();

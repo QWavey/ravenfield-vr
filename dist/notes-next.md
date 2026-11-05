@@ -6,4 +6,5 @@
 - Opening and shutting the cover on a loaded machine gun keeps the belt; only a changed box needs its belt laid.
 - An empty box under an open cover says BOX EMPTY instead of asking for a belt.
 - With belt laying by hand off, a box put in under an open cover shows its belt.
+- The AS Val's bolt can be pulled: the mod never saw it move, and racked an invisible handle.
 - A magazine in the hand falls when you die instead of staying there into the next life.

@@ -2830,6 +2830,9 @@ The game not started; every claim read against the code or the mod's bundle firs
 - [x] An empty box under an open cover: the counter says BOX EMPTY and offers no belt to take.
 - [x] Belts not laid by hand: a box put in under the open cover shows its belt.
 - [x] A magazine in the hand survived death into the next life, letting rounds out on the trigger: a dead hand lets go.
+- [x] AS Val (squad, all four) racked by nothing: its bolt moves 8 cm in the fire clip, but the clips are chosen by the game's `random` (0-100 each frame) and the sampler left it at 0, so "random > 0" never played. Set to 1, under every threshold in the 96 bundles (scanned): guns that sampled the first clip at 0 keep it. Also lets the M4 Suzuya's gated reload play. MG3, M4A1, XM8 and MK18 decoded: their fire clips only move the gun body, so they rack as before.
+- [x] A refill from outside with chamber plus one off read 8+1 on an 8-round gun.
+- Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a double barrel dropped and picked up forgets its fired cases; a revolver's drawn shells empty by index, not by which were fired.
 - Refuted, left alone: magazine popping off the rail on a swing (the lag is taken out of the reading, not added); a pistol magazine let go mid pull-in (it stays held).
 
 ### 363. End of the 80% run (user, 2026-11-04: "pause bro ... dont go till the limit i set ... install and create the setup and say what you improved / fixed")

@@ -334,7 +334,8 @@ namespace RavenfieldVR.Weapons
                         else
                         {
                             int chamber = UsesChamber && Chambered && Rig.Action != ActionType.SingleShot ? 1 : 0;
-                            MagRounds = Mathf.Clamp(Weapon.ammo - chamber, 0, Capacity);
+                            // (The chamber counts toward the capacity without chamber plus one, as in TubeRoom: an 8-round gun read 8+1.)
+                            MagRounds = Mathf.Clamp(Weapon.ammo - chamber, 0, Capacity - (VRConfig.ChamberPlusOne.Value ? 0 : chamber));
                         }
                         Log.Debug($"{Weapon.name}: refilled externally {_expectedAmmo} -> {Weapon.ammo}.");
                     }
