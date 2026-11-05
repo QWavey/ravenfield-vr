@@ -544,7 +544,9 @@ namespace RavenfieldVR.Weapons
                 _beltRenderers = renderers.ToArray();
                 BeltFeedGun = BeltFeed();
             }
-            bool hide = !ammo.MagInserted || !ammo.BeltLaid || ammo.MagRounds <= 0; // (a box fired empty has no belt left to show)
+            // (A box fired empty has no belt left to show. With belts not laid by hand nothing else draws one, so a box put in under the open
+            // cover shows its belt at once, as a full gun's stays when the cover is opened.)
+            bool hide = !ammo.MagInserted || !ammo.BeltLaid && VRConfig.BeltByHand.Value || ammo.MagRounds <= 0;
             // Written each frame while hidden: clips animate these parts' scale too (all of the MG3's do), and written once it was undone
             // by the next frame's pose.
             if (hide == _beltHidden && !hide)

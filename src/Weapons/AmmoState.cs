@@ -432,6 +432,7 @@ namespace RavenfieldVR.Weapons
             MagInserted = false;
             MagRounds = 0;
             BeltLaid = !HasCover;
+            _beltLifted = false;
             Sync();
             return rounds;
         }
@@ -453,8 +454,12 @@ namespace RavenfieldVR.Weapons
             // seated under a cover already shut counts as laid, as shutting the cover over it would (nothing else would
             // ever lay it: the gun stayed dead, the counter asking to close a closed cover).
             BeltLaid = !HasCover || !VRConfig.BeltByHand.Value && !CoverOpen;
+            _beltLifted = false;
             Sync();
         }
+
+        /// <summary>The cover was lifted off a belt laid on the tray, and its box has stayed in since.</summary>
+        private bool _beltLifted;
 
         public void SetOpen(bool open)
         {
@@ -464,7 +469,9 @@ namespace RavenfieldVR.Weapons
 
         public void SetCoverOpen(bool open)
         {
-            if (CoverOpen && !open && MagInserted && !VRConfig.BeltByHand.Value)
+            // (Or over the belt it was lifted off, the box never out: a look under the cover on a loaded gun left it dead, the counter
+            // asking to open it again and lay a belt that had never gone anywhere; belt scout, 2026-11-05.)
+            if (CoverOpen && !open && MagInserted && (!VRConfig.BeltByHand.Value || _beltLifted))
             {
                 BeltLaid = true; // closing the cover over the belt
             }
@@ -472,6 +479,7 @@ namespace RavenfieldVR.Weapons
             // state has to say so too, or LAY BELT was never offered and the gun counted a belt it did not show (2026-10-19).
             if (!CoverOpen && open && HasCover && MagInserted && VRConfig.BeltByHand.Value)
             {
+                _beltLifted = BeltLaid;
                 BeltLaid = false;
             }
             CoverOpen = open;
@@ -617,7 +625,7 @@ namespace RavenfieldVR.Weapons
         {
             long flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
                          | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0)
-                         | (VRConfig.ReloadNow == ReloadMode.Manual ? 512 : 0);
+                         | (VRConfig.ReloadNow == ReloadMode.Manual ? 512 : 0) | (_beltLifted ? 1024 : 0);
             return ((long)(uint)MagRounds << 32) | ((long)(Capacity & 0xFFFFF) << 12) | flags;
         }
 
@@ -665,8 +673,13 @@ namespace RavenfieldVR.Weapons
             bool byHand = VRConfig.ReloadNow == ReloadMode.Manual;
             if (byHand && HasCover && CoverOpen)
             {
-                // Without belt laying by hand, shutting the cover lays it: the hint is to shut it.
-                return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
+                // Without belt laying by hand, shutting the cover lays it: the hint is to shut it. As over a belt only lifted off. A box
+                // fired empty has no belt to lay: it said LAY BELT with nothing to take (belt scout, 2026-11-05).
+                if (MagInserted && MagRounds <= 0)
+                {
+                    return "BOX EMPTY";
+                }
+                return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value && !_beltLifted ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
             }
             if (byHand && HasCover && MagInserted && !BeltLaid)
             {

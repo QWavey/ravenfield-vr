@@ -112,6 +112,7 @@ namespace RavenfieldVR.Tests
             BeltRoundEndsTests(mod);
             BeltFuzzTests(mod);
             CoverLeverTests(mod);
+            CoverScoreTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -565,6 +566,26 @@ namespace RavenfieldVR.Tests
         /// A feed cover opens from anywhere its grab zone reaches (CoverLever, user 2026-11-05: "some MGS cant be opened"): on the QJB201's
         /// short cover, a palm on either side of the hinge lifted 12 cm turns it the opening way, about as far as on a long PKM cover.
         /// </summary>
+        private static void CoverScoreTests(System.Reflection.Assembly mod)
+        {
+            Type analyzer = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer");
+            var score = analyzer?.GetMethod("CoverScore", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(score != null, "Cover score: WeaponAnalyzer.CoverScore found");
+            if (score == null)
+            {
+                return;
+            }
+            Func<string, float, float, float> rate = (name, turned, longest) => (float)score.Invoke(null, new object[] { name, turned, longest });
+            // Measured on the bundles, 2026-11-05.
+            Check(rate("QJB201_Cap", 72.7f, 0.133f) > rate("QJB201_Topcover_Latch", 90f, 0.033f), "Cover score: the QJB201's cover beats its latch");
+            Check(rate("QJB201_Topcover_Latch", 90f, 0.033f) == 0f, "Cover score: a catch named after the cover is no cover");
+            Check(rate("maximi_topcover", 120.6f, 0.2f) > rate("maximi_feedtray", 100f, 0.1f) * 0.9f, "Cover score: the MK46 keeps its cover");
+            Check(rate("mg3_topcover", 95.8f, 0.15f) == 95.8f * 2f, "Cover score: a named cover of full length counts double");
+            Check(rate("flap", 90f, 0.03f) < rate("receiver_top", 60f, 0.12f), "Cover score: a short part loses to a long one that turns less");
+            Check(rate("flap", 90f, 0f) == 90f, "Cover score: a part without a mesh of its own is not rated down");
+            Check(rate("Blockcover", 90f, 0.2f) > 0f, "Cover score: a word holding \"lock\" is no catch");
+        }
+
         private static void CoverLeverTests(System.Reflection.Assembly mod)
         {
             Type lever = mod.GetType("RavenfieldVR.Weapons.CoverLever");

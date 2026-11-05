@@ -750,7 +750,45 @@ namespace RavenfieldVR.Weapons
         /// <summary>Covers that are no feed cover: a rifle's dust or ejection-port cover, a sight's or scope's lens cap.</summary>
         private static readonly Regex NotFeedCoverName = new Regex(@"dust|port|eject|lens|scope|sight|optic|防尘", RegexOptions.IgnoreCase);
         private static readonly Regex CoverName = new Regex(@"cover|(^|[^a-z])lid($|[^a-z])|(^|[^a-z])tray($|[^a-z])|feed ?(cover|tray|lid)|deckel|couvercle|tapa|крышк|盖", RegexOptions.IgnoreCase);
+        /// <summary>A catch on a cover, named after it: it turns as the cover opens, further, and is no cover.</summary>
+        private static readonly Regex CoverCatchName = new Regex(@"latch|catch|clasp|button|(^|[^a-z])lock($|[^a-z])|защ[её]лк|卡扣|锁", RegexOptions.IgnoreCase);
         private static readonly Regex CylinderName = new Regex(@"cylinder|crane|drum|trommel|barillet|tambor|барабан|弹巢|转轮", RegexOptions.IgnoreCase);
+
+        /// <summary>A feed cover is at least this long; a shorter part that turns is rated down in proportion.</summary>
+        private const float CoverLength = 0.08f;
+
+        /// <summary>
+        /// How a part that turns in the reload rates as the feed cover, the best rating taking it. <paramref name="longest"/> is the
+        /// part's longest side, 0 when it has no mesh of its own to measure. The QJB201's 3 cm "Topcover_Latch" (90 degrees, doubled for
+        /// its name) beat the 13 cm "Cap" that is its real cover (73 degrees): the hand opened the latch and the cover stayed shut, which
+        /// is "some MGS cant be opened" (user, 2026-11-05).
+        /// </summary>
+        internal static float CoverScore(string name, float turned, float longest)
+        {
+            if (CoverCatchName.IsMatch(name))
+            {
+                return 0f;
+            }
+            float size = longest > 1e-3f ? Mathf.Clamp01(longest / CoverLength) : 1f;
+            return turned * (CoverName.IsMatch(name) ? 2f : 1f) * size;
+        }
+
+        /// <summary>The part sits next to a catch named after a cover: whatever the modder called it, that is the cover.</summary>
+        private static bool BesideCoverCatch(Transform part)
+        {
+            if (part.parent == null)
+            {
+                return false;
+            }
+            foreach (Transform other in part.parent)
+            {
+                if (other != part && CoverName.IsMatch(other.name) && CoverCatchName.IsMatch(other.name))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>
         /// Parts the reload swings open in place (the shooting hand stays on the frame): break-action barrels that
@@ -834,9 +872,10 @@ namespace RavenfieldVR.Weapons
                          // A belt-fed gun by its size (50 or more, automatic) or a part named a cover: at 40 rounds, a rifle's
                          // flip sight or dust cover made it a feed-cover gun that needed a laid belt to fire (255.I4-5).
                          // A dust, port or lens cover by name is not a feed cover either.
-                         && (c.ammo >= 50 && authoredAuto || CoverName.IsMatch(t.name) && !NotFeedCoverName.IsMatch(t.name)))
+                         && (c.ammo >= 50 && authoredAuto || CoverName.IsMatch(t.name) && !NotFeedCoverName.IsMatch(t.name) || BesideCoverCatch(t)))
                 {
-                    float score = rot * (CoverName.IsMatch(t.name) ? 2f : 1f);
+                    Vector3 size = sampler.GunSpaceBoundsNear(t, gunIdle, 0.8f).size;
+                    float score = CoverScore(t.name, rot, Mathf.Max(size.x, Mathf.Max(size.y, size.z)));
                     if (score > coverRot)
                     {
                         coverRot = score;

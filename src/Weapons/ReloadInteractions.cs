@@ -752,7 +752,7 @@ namespace RavenfieldVR.Weapons
                     Consider(5, d / radius * (beltNext ? 1f : 0.65f), ref choice, ref best);
                 }
             }
-            if (Manual && VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid)
+            if (Manual && VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid && Ammo.MagRounds > 0)
             {
                 // At the box mouth, or anywhere along the belt hanging from it (it slipped from the hand).
                 float d = Vector3.Distance(palm, BeltStartWorld);
