@@ -679,6 +679,13 @@ namespace RavenfieldVR.Weapons
                 d.BarrelFrontAlong = front;
                 d.Notes += $"muzzle {-ahead * 100f:0} cm inside the drawn barrel: the barrel's front is its length ";
             }
+            else if (ahead < -0.3f && d.Action != ActionType.NoAmmo)
+            {
+                // The QJB201's muzzle transform sits in its receiver, 57 cm behind the barrel's end, its flash hung out at the end on a
+                // child: a 1 m machine gun was 15 cm long here, swung like a pistol, the handguard's grab zone ending over the receiver.
+                d.MuzzlePoint -= aim * (ahead + 0.01f);
+                d.Notes += $"muzzle {-ahead * 100f:0} cm inside the drawn barrel: taken at the barrel's end ";
+            }
 
             // A bore that runs beside the whole drawn gun: no drawn part within a centimetre of it over the 30 cm behind the muzzle.
             // The "Bot Friendly" ARS guns (MP9, HK416, Glock 19) set their muzzle up for a bot's hold, a metre ahead and 5-7 cm to

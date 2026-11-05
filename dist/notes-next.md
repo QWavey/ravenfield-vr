@@ -9,4 +9,5 @@
 - The AS Val's bolt can be pulled: the mod never saw it move, and racked an invisible handle.
 - An enemy's gun whose magazine you pulled has no magazine in it when you pick it up.
 - Holding the trigger to leave a seat no longer fires the gun as it comes up.
+- The QJB201 family weighs and swings as the long guns they are, and the whole handguard can be held.
 - A magazine in the hand falls when you die instead of staying there into the next life.

@@ -2834,6 +2834,7 @@ The game not started; every claim read against the code or the mod's bundle firs
 - [x] A refill from outside with chamber plus one off read 8+1 on an 8-round gun.
 - [x] The trigger held to leave a seat fired the gun as it came up on foot: let go first now.
 - [x] An enemy's gun whose magazine was pulled came back with one seated, reading 0: it comes back with none in, wrested or from his body.
+- [x] QJB201 family (9 guns): the mod's muzzle transform sits in the receiver, 57 cm behind the barrel's end, so a 1 m gun was 15 cm long to the mod. Taken at the barrel's end, as a muzzle too far ahead already was. The game still fires from its own.
 - Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a double barrel dropped and picked up forgets its fired cases; a revolver's drawn shells empty by index, not by which were fired.
 - Refuted, left alone: magazine popping off the rail on a swing (the lag is taken out of the reading, not added); a pistol magazine let go mid pull-in (it stays held).
 
