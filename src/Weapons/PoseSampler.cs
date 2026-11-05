@@ -166,7 +166,6 @@ namespace RavenfieldVR.Weapons
                 SetTrigger(Weapon.UNHOLSTER_PARAMETER_HASH);
                 Step(2.5f);
                 CaptureIdle();
-                SampleAmmoDrawing(config);
 
                 // Fire: record the reciprocating motion and any sound events of the shot.
                 SetTrigger(Weapon.FIRE_PARAMETER_HASH);
@@ -208,6 +207,7 @@ namespace RavenfieldVR.Weapons
                     HasAim = true;
                     SampleSightModes(config);
                 }
+                SampleAmmoDrawing(config); // (last: an animator can stay in its empty pose once told 0, which nothing before may see)
                 return true;
             }
             catch (Exception e)
@@ -265,19 +265,29 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
-            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, 0);
+            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo));
             Step(0.5f);
-            int gone = 0;
             RigidPose gunInv = RootRelative(_clone[_gunIndex]).Inverse();
+            var at = new Vector3[_clone.Length];
+            var shown = new bool[_clone.Length];
             for (int i = 0; i < _clone.Length; i++)
             {
-                if (_idleVisible[i] && (!Visible(_clone[i]) || (gunInv.Multiply(RootRelative(_clone[i])).position - RelIdle[i].position).sqrMagnitude > 0.05f * 0.05f))
+                at[i] = gunInv.Multiply(RootRelative(_clone[i])).position;
+                shown[i] = Visible(_clone[i]);
+            }
+            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, 0);
+            Step(0.5f);
+            gunInv = RootRelative(_clone[_gunIndex]).Inverse();
+            int gone = 0;
+            for (int i = 0; i < _clone.Length; i++)
+            {
+                if (shown[i] && (!Visible(_clone[i]) || (gunInv.Multiply(RootRelative(_clone[i])).position - at[i]).sqrMagnitude > 0.05f * 0.05f))
                 {
                     gone++;
                 }
             }
             AmmoDrawsParts = gone >= 6;
-            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo));
+            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo)); // (the model left as it was: bounds are read off it later)
             Step(0.5f);
         }
 
