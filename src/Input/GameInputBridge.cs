@@ -465,6 +465,8 @@ namespace RavenfieldVR.Input
             float t = (Time.unscaledTime - _leaveHeldSince) / LeaveSeatHold;
             if (t >= 1f)
             {
+                // The trigger that got out may be the gun hand's: still pulled on foot it fired the gun as it came up (vehicles scout, 2026-11-05).
+                _fireHeldThroughSwap = true;
                 return true; // stays held: the game sees one press, and nothing more on foot until the trigger is let go
             }
             int tick = Mathf.FloorToInt(t * 5f);

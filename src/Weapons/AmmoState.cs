@@ -296,6 +296,7 @@ namespace RavenfieldVR.Weapons
             Open = false;
             CoverOpen = false;
             BeltLaid = true;
+            BeltLifted = false;
             BoltOpen = false;
             // Empty on a gun that locks open on empty (a dropped one picked up, a spawn): its slide starts caught back, as after
             // its last round, not free to go home without a round (264). Only a gun with a chamber: an override's lockOnEmpty on
