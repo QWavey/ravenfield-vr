@@ -2835,7 +2835,9 @@ The game not started; every claim read against the code or the mod's bundle firs
 - [x] The trigger held to leave a seat fired the gun as it came up on foot: let go first now.
 - [x] An enemy's gun whose magazine was pulled came back with one seated, reading 0: it comes back with none in, wrested or from his body.
 - [x] QJB201 family (9 guns): the mod's muzzle transform sits in the receiver, 57 cm behind the barrel's end, so a 1 m gun was 15 cm long to the mod. Taken at the barrel's end, as a muzzle too far ahead already was. The game still fires from its own.
-- Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a double barrel dropped and picked up forgets its fired cases; a revolver's drawn shells empty by index, not by which were fired.
+- [x] A double barrel dropped and picked up lost its fired cases and came back shut: both kept. The cover weighs less against the belt only while a belt really is next. Stowed gear turns to the hand the gun is in now, not the set one.
+- Open, a design call: the QJB201 [MG&AR]'s T key (the fire-mode press sends it) swaps belt and magazine in its script; the rig stays the belt gun's, so AR mode still reloads as a belt gun.
+- Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a revolver's drawn shells empty by index, not by which were fired.
 - Refuted, left alone: magazine popping off the rail on a swing (the lag is taken out of the reading, not added); a pistol magazine let go mid pull-in (it stays held).
 
 ### 363. End of the 80% run (user, 2026-11-04: "pause bro ... dont go till the limit i set ... install and create the setup and say what you improved / fixed")

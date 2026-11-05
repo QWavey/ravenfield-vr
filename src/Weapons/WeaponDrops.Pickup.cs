@@ -227,8 +227,14 @@ namespace RavenfieldVR.Weapons
             // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
             // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
             // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
-            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid);
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid || d.SpentCases > 0 || d.ActionOpen);
             state?.AdoptWeaponAmmo();
+            if (state != null && (d.SpentCases > 0 || d.ActionOpen))
+            {
+                state.SpentCases = d.SpentCases;
+                state.Open = d.ActionOpen;
+                state.Sync();
+            }
             if (state != null && d.EmptyChamber && !d.MagOut && !d.SlideBack)
             {
                 // Every round back in the magazine or tube, the chamber empty: it is worked before it fires, as it was put down.
@@ -256,6 +262,14 @@ namespace RavenfieldVR.Weapons
                 state.Sync();
                 Log.InfoOnce("putdowncover:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: cover {(d.CoverOpen ? "open" : "shut")}, belt {(state.BeltLaid ? "laid" : "not laid")}.");
             }
+        }
+
+        /// <summary>The cases a gun's chambers still hold and whether its action lies open, as it is put down.</summary>
+        private static void ChamberStateOf(Weapon w, out int spent, out bool open)
+        {
+            AmmoState st = WeaponSystem.Instance?.StateFor(w, create: false);
+            spent = st != null ? st.SpentCases : 0;
+            open = st != null && st.Open;
         }
 
         /// <summary>
@@ -412,6 +426,7 @@ namespace RavenfieldVR.Weapons
                 swapped.SlideBack = swapSlideBack;
                 swapped.EmptyChamber = EmptyChamberOf(current);
                 BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);
+                ChamberStateOf(current, out swapped.SpentCases, out swapped.ActionOpen);
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick

@@ -48,6 +48,9 @@ namespace RavenfieldVR.Weapons
         /// hunt, 2026-10-22).
         /// </summary>
         public bool CoverOpen, BeltUnlaid;
+        /// <summary>A break action or revolver put down: its fired cases not yet thrown out, and whether it lay open. They came back gone, and it came back shut.</summary>
+        public int SpentCases;
+        public bool ActionOpen;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
         /// <summary>Reach measured again after its first physics step (the colliders' boxes may not be set the frame they are added).</summary>
