@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RavenfieldVR.Core;
+using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
 using RavenfieldVR.Util;
 using UnityEngine;
@@ -186,7 +187,7 @@ namespace RavenfieldVR.Weapons
         {
             Vector3 fwd = zones.TorsoForward, right = zones.TorsoRight, up = Vector3.up;
             float side = zones.SideOf(spot);
-            float dom = VRConfig.LeftHanded ? -1f : 1f;
+            float dom = VRInput.GunHand == Hand.Left ? -1f : 1f; // (the hand the gun is in now: it can be passed over)
             Vector3 at = zones.SpotPosition(spot);
             Vector3 barrel, top, centre;
             Vector3 drawn = Vector3.zero; // which way a reached copy eases out of its holster (set per kind: its grip end)
