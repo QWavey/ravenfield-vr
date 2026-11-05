@@ -748,7 +748,7 @@ namespace RavenfieldVR.Weapons
                     // Weighed as the rack is: at 0.9 a charging handle under the cover's edge won where both were in reach.
                     // With the box in and its belt still to lay, the belt is the next step: the cover weighs full, so a belt
                     // end about as near wins (the cover's latch was taken instead; 255.I3-8).
-                    bool beltNext = VRConfig.BeltByHand.Value && Ammo.HasCover && Ammo.CoverOpen && Ammo.MagInserted && !Ammo.BeltLaid;
+                    bool beltNext = VRConfig.BeltByHand.Value && Ammo.BeltToLay;
                     Consider(5, d / radius * (beltNext ? 1f : 0.65f), ref choice, ref best);
                 }
             }

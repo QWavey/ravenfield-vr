@@ -519,6 +519,9 @@ namespace RavenfieldVR.Weapons
         // by CanFire and FeedReady.
         public bool BoxLocked => HasCover && MagInserted && !CoverOpen;
 
+        /// <summary>Laying the belt is what comes next: a fresh box under the open cover. Not an empty one, nor a belt only lifted off, which the cover just shuts over.</summary>
+        internal bool BeltToLay => HasCover && CoverOpen && MagInserted && !BeltLaid && !BeltLifted && MagRounds > 0;
+
         /// <summary>Pushes individual rounds into an internal magazine/tube.</summary>
         /// <returns>How many were accepted.</returns>
         public int LoadRounds(int count)
