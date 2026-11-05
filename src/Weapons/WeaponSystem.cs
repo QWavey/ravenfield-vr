@@ -1437,6 +1437,7 @@ namespace RavenfieldVR.Weapons
             Log.Guard("Scene: driving weapons", DrivingWeapons.Reset); // (a new level begun in a seat with no gun kept the last one's armed flag)
             Log.Guard("Scene: body grab", () => _bodyGrab?.ReleaseAll());
             Log.Guard("Scene: body impacts", BodyImpacts.Clear);
+            SoldierGuns.ForgetUnloaded();
             Log.Guard("Scene: soldier guns", SoldierGuns.Clear);
             Log.Guard("Scene: gun volumes", GunVolume.OnSceneLoaded);
             Log.Guard("Scene: hand bodies", HandBody.OnSceneLoaded);

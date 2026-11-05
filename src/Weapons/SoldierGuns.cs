@@ -37,6 +37,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>Soldiers farther than this from the hand are not looked at (m).</summary>
         private const float LookWithin = 2.5f;
 
+        /// <summary>Soldiers' guns a hand took the magazine out of. Dropped still empty they come back with none in (<see cref="LeftUnloaded"/>).</summary>
+        private static readonly HashSet<Weapon> Unloaded = new HashSet<Weapon>();
+
+        /// <summary>This gun's magazine was taken and he has not reloaded it since: its drop has no magazine in it.</summary>
+        internal static bool LeftUnloaded(Weapon gun) => gun != null && gun.ammo <= 0 && Unloaded.Contains(gun);
+
+        /// <summary>A new map: the guns of the last one are gone.</summary>
+        internal static void ForgetUnloaded() => Unloaded.Clear();
+
         private readonly WeaponSystem _sys;
         private readonly VRRig _rig;
         private readonly float[] _lastKnock = { -10f, -10f };
@@ -303,6 +312,7 @@ namespace RavenfieldVR.Weapons
                 // (on the ammo change) was copied empty, a full magazine looking empty in the hand.
                 prop = MagazineProp.Create(rig, PropKind.Magazine, rounds);
                 gun.ammo = 0;
+                Unloaded.Add(gun);
                 // As the game's own changes of it: its cached "has any ammo" was left true, and a soldier with no rounds left to reload
                 // stood on his empty gun and never drew his sidearm (the AI's HasAnyAmmo checks; round-3 scout, 2026-10-28).
                 gun.OnAmmoChanged();
@@ -316,6 +326,7 @@ namespace RavenfieldVR.Weapons
                 Log.ExceptionOnce("SoldierGuns.TakeMagazine", e);
                 prop?.Destroy();
                 gun.ammo = rounds;
+                Unloaded.Remove(gun);
                 gun.OnAmmoChanged();
                 return false;
             }

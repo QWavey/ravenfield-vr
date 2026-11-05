@@ -2833,7 +2833,8 @@ The game not started; every claim read against the code or the mod's bundle firs
 - [x] AS Val (squad, all four) racked by nothing: its bolt moves 8 cm in the fire clip, but the clips are chosen by the game's `random` (0-100 each frame) and the sampler left it at 0, so "random > 0" never played. Set to 1, under every threshold in the 96 bundles (scanned): guns that sampled the first clip at 0 keep it. Also lets the M4 Suzuya's gated reload play. MG3, M4A1, XM8 and MK18 decoded: their fire clips only move the gun body, so they rack as before.
 - [x] A refill from outside with chamber plus one off read 8+1 on an 8-round gun.
 - [x] The trigger held to leave a seat fired the gun as it came up on foot: let go first now.
-- Noted, left: an enemy's gun whose magazine was pulled comes back with one seated, empty; a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a double barrel dropped and picked up forgets its fired cases; a revolver's drawn shells empty by index, not by which were fired.
+- [x] An enemy's gun whose magazine was pulled came back with one seated, reading 0: it comes back with none in, wrested or from his body.
+- Noted, left: a bolt half pulled on a gun with an under-barrel launcher, switched away and back, comes back fully open; a double barrel dropped and picked up forgets its fired cases; a revolver's drawn shells empty by index, not by which were fired.
 - Refuted, left alone: magazine popping off the rail on a swing (the lag is taken out of the reading, not added); a pistol magazine let go mid pull-in (it stays held).
 
 ### 363. End of the 80% run (user, 2026-11-04: "pause bro ... dont go till the limit i set ... install and create the setup and say what you improved / fixed")

@@ -30,7 +30,12 @@ namespace RavenfieldVR.Weapons
             Transform hold = tp.parent != null ? tp.parent : tp; // (as a death's drop: the model at the game's own offset under the pivot)
             Vector3 holdScale = DropScale(tp.parent != null ? tp.parent.lossyScale : Vector3.one);
             int spare = w.configuration.spareAmmo >= 0 ? Mathf.RoundToInt(w.configuration.spareAmmo * VRConfig.DroppedWeaponAmmo.Value) : -1;
-            return Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, keep: true);
+            DroppedWeapon wrested = Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, keep: true);
+            if (wrested != null)
+            {
+                wrested.MagOut = SoldierGuns.LeftUnloaded(w);
+            }
+            return wrested;
         }
 
         /// <summary>Called just before a soldier dies (its weapons are destroyed right after).</summary>
@@ -63,7 +68,11 @@ namespace RavenfieldVR.Weapons
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int collections = GC.CollectionCount(0);
             bool hadModel = Templates.ContainsKey(w.weaponEntry);
-            Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, open: actor.CenterPosition());
+            DroppedWeapon dropped = Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, open: actor.CenterPosition());
+            if (dropped != null)
+            {
+                dropped.MagOut = SoldierGuns.LeftUnloaded(w); // (a magazine pulled out of it: picked up it read 0 with one seated)
+            }
             float ms = (float)watch.Elapsed.TotalMilliseconds;
             _deathDrops++;
             _deathDropMs += ms;

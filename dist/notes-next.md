@@ -7,4 +7,6 @@
 - An empty box under an open cover says BOX EMPTY instead of asking for a belt.
 - With belt laying by hand off, a box put in under an open cover shows its belt.
 - The AS Val's bolt can be pulled: the mod never saw it move, and racked an invisible handle.
+- An enemy's gun whose magazine you pulled has no magazine in it when you pick it up.
+- Holding the trigger to leave a seat no longer fires the gun as it comes up.
 - A magazine in the hand falls when you die instead of staying there into the next life.
