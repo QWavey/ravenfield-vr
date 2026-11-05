@@ -601,10 +601,10 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
-    /// How far round its hinge a hand has taken a feed cover. On a short cover the hinge is right where it is taken (the QJB201's is 2.6 cm
-    /// from its latch), and a palm the grab's zone allows on the far side of it turned the other way as it lifted: the cover stayed
-    /// shut (user, 2026-11-05: "some MGS cant be opened"). So the angle is read from a hinge at least <see cref="Shortest"/> from the grab
-    /// point, in line with the real one: every palm in the zone lifts it the same way. Pure: the offline tests check it.
+    /// How far round its hinge a hand has taken a feed cover. On a short cover the hinge is close to where it is taken (the QJB201's 11 cm,
+    /// where the others' are 21-27), and a palm the grab's zone allows on the far side of it would turn it the other way as it lifted, the
+    /// cover staying shut. So the angle is read from a hinge at least <see cref="Shortest"/> from the grab point, in line with the real one:
+    /// every palm in the zone lifts it the same way. Pure: the offline tests check it.
     /// </summary>
     internal static class CoverLever
     {
