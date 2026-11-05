@@ -2819,6 +2819,19 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 364. Bug hunt on magazines, belts and machine guns, to 40% (user, 2026-11-05: "on mag inserting ... on belt etc because still kinda bugged and some MGS cant be opened and many other bugs with other weapons like full reload sound playing when pulling back bolt or pulliung out mag")
+
+The game not started; every claim read against the code or the mod's bundle first.
+
+- [x] Full reload on a small action: a mod's reload as ONE clip (MG3 `mg3_r1` 7.1 s, m4a1squad, g17) was bound whole to the nearest action. Clips of 1 s and over are sliced at the actions now, a bank of them too, and nothing plays more than 0.6 s of one (08a1423).
+- [x] QJB201 family "cant be opened": decoded from its reload clip, the 3 cm `QJB201_Topcover_Latch` (90 deg, doubled for its name) beat the 13 cm `QJB201_Cap` (73 deg) as the hinge, so the latch moved and the cover stayed shut. `CoverScore` bars a catch named after a cover and rates a short part down; the catch turns with the cover (it hung in the air otherwise). PKM, MK46 and MG3 checked on their bundles: all hinge on the real cover.
+- [x] A short cover lifts from anywhere on it (`CoverLever`).
+- [x] A look under the cover left a loaded gun dead (LAY BELT with the belt never gone): shut again on the same box it feeds; a box changed under it still has to be laid (reports 274, 312 hold; scripted in AmmoFuzz).
+- [x] An empty box under an open cover: the counter says BOX EMPTY and offers no belt to take.
+- [x] Belts not laid by hand: a box put in under the open cover shows its belt.
+- [x] A magazine in the hand survived death into the next life, letting rounds out on the trigger: a dead hand lets go.
+- Refuted, left alone: magazine popping off the rail on a swing (the lag is taken out of the reading, not added); a pistol magazine let go mid pull-in (it stays held).
+
 ### 363. End of the 80% run (user, 2026-11-04: "pause bro ... dont go till the limit i set ... install and create the setup and say what you improved / fixed")
 
 Stopped by the user at about 68% of the session; two lens scouts (match restart, dying mid-action) stopped unread: run them first next time.

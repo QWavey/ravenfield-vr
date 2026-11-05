@@ -198,6 +198,15 @@ namespace RavenfieldVR.Weapons
             if (GameContext.PlayerActor == null || GameContext.PlayerActor.dead)
             {
                 _throwables.ForgetPulledPins(); // a new life's grenades come with their pins in
+                // A dead hand lets go. Releasing the gun keeps its magazine in the hand on purpose (a weapon switch), so one stayed in the
+                // hand through the death screen into the next life, letting rounds out on the trigger (lifecycle scout, 2026-11-05).
+                foreach (VRHand h in Rig.Hands)
+                {
+                    if (h.Held is MagazineProp prop && prop.Go != null)
+                    {
+                        prop.Drop(h.Velocity, Vector3.zero);
+                    }
+                }
             }
             // No weapon out at all (holstered, dropped, died): the buttons go back to the dominant hand's layout. A weapon drawn
             // with the other hand swapped them, and they stayed swapped after it was put away: the map and squad buttons answered
