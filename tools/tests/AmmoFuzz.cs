@@ -151,12 +151,58 @@ namespace RavenfieldVR.Tests
                     }
                 }
             }
+            string belt2 = BeltUnderCover();
+            if (belt2 != null)
+            {
+                faults++;
+                Console.WriteLine("FAIL belt under the cover: " + belt2);
+            }
             Console.WriteLine($"ammo fuzz: {actions} random actions in {runs} runs, {faults} failed");
             return faults == 0 ? 0 : 1;
         }
 
         private static readonly System.Reflection.MethodInfo BuildText =
             typeof(AmmoState).GetMethod("BuildCounterText", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        /// <summary>A look under the cover keeps the belt; a box changed under it does not (Tasks 274, 312, belt scout 2026-11-05).</summary>
+        private static string BeltUnderCover()
+        {
+            VRConfig.ReloadNow = ReloadMode.Manual;
+            VRConfig.BeltByHand.Value = true;
+            var weapon = new Weapon { ammo = 100, spareAmmo = 200 };
+            weapon.configuration.ammo = 100;
+            weapon.configuration.spareAmmo = 100000;
+            var a = new AmmoState(weapon, new WeaponRigData { Action = ActionType.SelfLoading, Hinge = HingeKind.FeedCover, LockOnEmpty = true, MagazinePath = new[] { 0 } });
+            if (!a.FeedReady)
+            {
+                return "a full gun does not feed";
+            }
+            a.SetCoverOpen(true);
+            if (a.BeltLaid || a.FeedReady)
+            {
+                return "the belt stays on the tray with the cover up";
+            }
+            a.SetCoverOpen(false);
+            if (!a.FeedReady)
+            {
+                return "opened and shut, the gun is dead";
+            }
+            a.SetCoverOpen(true);
+            int rounds = a.EjectMagazine();
+            a.InsertMagazine(rounds);
+            a.SetCoverOpen(false);
+            if (a.BeltLaid)
+            {
+                return "a box changed under the cover laid its own belt";
+            }
+            a.SetCoverOpen(true);
+            if (!a.LayBelt())
+            {
+                return "the new box's belt could not be laid";
+            }
+            a.SetCoverOpen(false);
+            return a.FeedReady ? null : "a belt laid by hand does not feed";
+        }
 
         private static string Run(Gun gun, int seed, ref long actions, bool flipSettings = false)
         {

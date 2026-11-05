@@ -809,7 +809,8 @@ namespace RavenfieldVR.Weapons
             Vector3 lateral = Vector3.Cross(d.Up, d.AimAxis).normalized;
 
             Transform breakPart = null, cylinderPart = null, coverPart = null;
-            float breakRot = 0f, cylinderRot = 0f, coverRot = 0f;
+            float breakRot = 0f, cylinderRot = 0f, coverRot = 0f, catchRot = 0f;
+            Transform coverCatch = null;
             bool spinsInFire = false;
             foreach (Transform t in all)
             {
@@ -876,6 +877,11 @@ namespace RavenfieldVR.Weapons
                 {
                     Vector3 size = sampler.GunSpaceBoundsNear(t, gunIdle, 0.8f).size;
                     float score = CoverScore(t.name, rot, Mathf.Max(size.x, Mathf.Max(size.y, size.z)));
+                    if (CoverCatchName.IsMatch(t.name) && rot > catchRot)
+                    {
+                        catchRot = rot;
+                        coverCatch = t;
+                    }
                     if (score > coverRot)
                     {
                         coverRot = score;
@@ -938,6 +944,13 @@ namespace RavenfieldVR.Weapons
             d.HingeAxis = sampler.ReloadRotAxis[hi].normalized;
             d.HingePivot = sampler.RelIdle[hi].position;
             d.HingeOpenAngle = Mathf.Min(sampler.ReloadRotMax[hi], d.Hinge == HingeKind.Cylinder ? 100f : d.Hinge == HingeKind.BreakAction ? 70f : 110f);
+            if (d.Hinge == HingeKind.FeedCover && coverCatch != null && !coverCatch.IsChildOf(hinge))
+            {
+                // Left shut it hangs in the air where the cover lay.
+                d.HingeCatchPath = WeaponRig.PathOf(root, coverCatch);
+                d.HingeCatchAxis = sampler.ReloadRotAxis[index[coverCatch]].normalized;
+                d.HingeCatchAngle = catchRot;
+            }
             Bounds b = sampler.GunSpaceBoundsNear(hinge, gunIdle, 0.8f);
             Vector3 center = b.size.sqrMagnitude > 1e-6f ? b.center : d.HingePivot;
             // A cover is lifted at its rear latch; barrels are pushed down from underneath, half way along.

@@ -261,31 +261,36 @@ namespace RavenfieldVR.Weapons
         internal bool HandleLockedAlone => Rig.Handle != null && !BoltLockedAlone && !KnobLockedAlone && Reload != null
                                            && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
 
-        /// <summary>Swings the hinged part about its own pivot, on the axis the mod's reload opens it.</summary>
+        /// <summary>Swings the hinged part, and a catch that turns with it, about their own pivots, on the axes the mod's reload opens them.</summary>
         private void ApplyHinge(WeaponRigData d)
         {
-            Transform hinge = Rig.Hinge;
-            if (hinge == null)
+            Swing(Rig.Hinge, d.HingeAxis, d.HingeOpenAngle, ref _hingeRestLocal, ref _hingeOverridden);
+            Swing(Rig.HingeCatch, d.HingeCatchAxis, d.HingeCatchAngle, ref _catchRestLocal, ref _catchOverridden);
+        }
+
+        private void Swing(Transform part, Vector3 axis, float angle, ref Quaternion rest, ref bool overridden)
+        {
+            if (part == null)
             {
                 return;
             }
             if (HingeOpenness <= 0.001f)
             {
-                if (_hingeOverridden)
+                if (overridden)
                 {
-                    hinge.localRotation = _hingeRestLocal;
-                    _hingeOverridden = false;
+                    part.localRotation = rest;
+                    overridden = false;
                 }
                 return;
             }
-            if (!_hingeOverridden)
+            if (!overridden)
             {
-                _hingeRestLocal = hinge.localRotation;
-                _hingeOverridden = true;
+                rest = part.localRotation;
+                overridden = true;
             }
-            Vector3 axisWorld = Rig.DirToWorld(d.HingeAxis);
-            Vector3 axisLocal = hinge.parent != null ? hinge.parent.InverseTransformDirection(axisWorld) : axisWorld;
-            hinge.localRotation = Quaternion.AngleAxis(d.HingeOpenAngle * HingeOpenness, axisLocal) * _hingeRestLocal;
+            Vector3 axisWorld = Rig.DirToWorld(axis);
+            Vector3 axisLocal = part.parent != null ? part.parent.InverseTransformDirection(axisWorld) : axisWorld;
+            part.localRotation = Quaternion.AngleAxis(angle * HingeOpenness, axisLocal) * rest;
         }
 
         /// <summary>

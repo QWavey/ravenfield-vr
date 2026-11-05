@@ -171,6 +171,23 @@ namespace RavenfieldVR.Weapons
             }
         }
         private bool _beltLaid = true;
+        /// <summary>The cover was lifted off a belt laid on the tray, and its box has stayed in since. Shared as the cover.</summary>
+        private bool BeltLifted
+        {
+            get => Shared ? MagazineOf.BeltLifted : _beltLifted;
+            set
+            {
+                if (Shared)
+                {
+                    MagazineOf.BeltLifted = value;
+                }
+                else
+                {
+                    _beltLifted = value;
+                }
+            }
+        }
+        private bool _beltLifted;
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
         public bool SpentInChamber
         {
@@ -432,7 +449,7 @@ namespace RavenfieldVR.Weapons
             MagInserted = false;
             MagRounds = 0;
             BeltLaid = !HasCover;
-            _beltLifted = false;
+            BeltLifted = false;
             Sync();
             return rounds;
         }
@@ -454,12 +471,9 @@ namespace RavenfieldVR.Weapons
             // seated under a cover already shut counts as laid, as shutting the cover over it would (nothing else would
             // ever lay it: the gun stayed dead, the counter asking to close a closed cover).
             BeltLaid = !HasCover || !VRConfig.BeltByHand.Value && !CoverOpen;
-            _beltLifted = false;
+            BeltLifted = false;
             Sync();
         }
-
-        /// <summary>The cover was lifted off a belt laid on the tray, and its box has stayed in since.</summary>
-        private bool _beltLifted;
 
         public void SetOpen(bool open)
         {
@@ -471,7 +485,7 @@ namespace RavenfieldVR.Weapons
         {
             // (Or over the belt it was lifted off, the box never out: a look under the cover on a loaded gun left it dead, the counter
             // asking to open it again and lay a belt that had never gone anywhere; belt scout, 2026-11-05.)
-            if (CoverOpen && !open && MagInserted && (!VRConfig.BeltByHand.Value || _beltLifted))
+            if (CoverOpen && !open && MagInserted && (!VRConfig.BeltByHand.Value || BeltLifted))
             {
                 BeltLaid = true; // closing the cover over the belt
             }
@@ -479,7 +493,7 @@ namespace RavenfieldVR.Weapons
             // state has to say so too, or LAY BELT was never offered and the gun counted a belt it did not show (2026-10-19).
             if (!CoverOpen && open && HasCover && MagInserted && VRConfig.BeltByHand.Value)
             {
-                _beltLifted = BeltLaid;
+                BeltLifted = BeltLaid;
                 BeltLaid = false;
             }
             CoverOpen = open;
@@ -625,7 +639,7 @@ namespace RavenfieldVR.Weapons
         {
             long flags = (Chambered ? 1 : 0) | (MagInserted ? 2 : 0) | (SlideLocked ? 4 : 0) | (Open ? 8 : 0) | (CoverOpen ? 16 : 0)
                          | (BeltLaid ? 32 : 0) | (BoltOpen ? 64 : 0) | (Participates ? 128 : 0) | (VRConfig.BeltByHand.Value ? 256 : 0)
-                         | (VRConfig.ReloadNow == ReloadMode.Manual ? 512 : 0) | (_beltLifted ? 1024 : 0);
+                         | (VRConfig.ReloadNow == ReloadMode.Manual ? 512 : 0) | (BeltLifted ? 1024 : 0);
             return ((long)(uint)MagRounds << 32) | ((long)(Capacity & 0xFFFFF) << 12) | flags;
         }
 
@@ -679,7 +693,7 @@ namespace RavenfieldVR.Weapons
                 {
                     return "BOX EMPTY";
                 }
-                return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value && !_beltLifted ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
+                return MagInserted && !BeltLaid && VRConfig.BeltByHand.Value && !BeltLifted ? "LAY BELT" : MagInserted ? "CLOSE COVER" : "COVER OPEN";
             }
             if (byHand && HasCover && MagInserted && !BeltLaid)
             {

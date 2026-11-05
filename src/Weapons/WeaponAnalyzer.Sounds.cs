@@ -139,7 +139,19 @@ namespace RavenfieldVR.Weapons
             {
                 return c.IntParameter >= 0 && c.IntParameter < _bank.clips.Length ? _bank.clips[c.IntParameter] : null;
             }
-            return (c.Function == "PlayRandom" || c.Function == "PlayNext") && _bank.clips.Length == 1 ? _bank.clips[0] : null;
+            if (c.Function != "PlayRandom" && c.Function != "PlayNext")
+            {
+                return null;
+            }
+            // A bank of whole reloads, one drawn at random: the first stands for them all (the others are as long, cut alike).
+            foreach (AudioClip clip in _bank.clips)
+            {
+                if (clip == null || clip.length < WholeReloadSeconds)
+                {
+                    return _bank.clips.Length == 1 ? clip : null;
+                }
+            }
+            return _bank.clips[0];
         }
 
         private struct CueMatch

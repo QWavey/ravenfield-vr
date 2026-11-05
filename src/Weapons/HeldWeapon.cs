@@ -96,8 +96,8 @@ namespace RavenfieldVR.Weapons
         public float SlideOffset;
         /// <summary>0 closed .. 1 fully open, for break-open barrels, a revolver crane or a feed cover.</summary>
         public float HingeOpenness;
-        private Quaternion _hingeRestLocal;
-        private bool _hingeOverridden;
+        private Quaternion _hingeRestLocal, _catchRestLocal;
+        private bool _hingeOverridden, _catchOverridden;
 
         /// <summary>
         /// Which of a break action's chambers hold a shell, live or fired (<see cref="WeaponRigData.ChamberShellPaths"/>): its
@@ -2574,6 +2574,11 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.Hinge.localRotation = _hingeRestLocal;
                 _hingeOverridden = false;
+            }
+            if (_catchOverridden && Rig.HingeCatch != null)
+            {
+                Rig.HingeCatch.localRotation = _catchRestLocal;
+                _catchOverridden = false;
             }
             HingeOpenness = 0f;
             RestoreChamberShells();
