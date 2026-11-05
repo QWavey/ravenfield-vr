@@ -78,13 +78,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>How far a feed cover must be lifted (share of its swing) to stay open: past half way it falls open.</summary>
         private const float CoverStaysOpen = 0.5f;
 
-        private float CoverAngle(Vector3 palmWorld)
-        {
-            Vector3 axis = Data.HingeAxis;
-            Vector3 rest = Vector3.ProjectOnPlane(Data.HingeGrabPoint - Data.HingePivot, axis);
-            Vector3 hand = Vector3.ProjectOnPlane(Rig.ToGun(palmWorld) - Data.HingePivot, axis);
-            return Vector3.SignedAngle(rest, hand, axis);
-        }
+        private float CoverAngle(Vector3 palmWorld) => CoverLever.Angle(Data.HingeAxis, Data.HingePivot, Data.HingeGrabPoint, Rig.ToGun(palmWorld));
 
         private void BeginCover(VRHand off)
         {
@@ -603,6 +597,31 @@ namespace RavenfieldVR.Weapons
             // Over the box's side when it hangs, or when the hand holds it where the straight line runs through the box (below it).
             Vector3? via = _beltHanging || _beltHeld && BeltStrip.Crosses(from, to, SeatPose, Data.MagBounds) ? BeltSideExit : (Vector3?)null;
             _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: Data.MagBounds, via: via);
+        }
+    }
+
+    /// <summary>
+    /// How far round its hinge a hand has taken a feed cover. On a short cover the hinge is right where it is taken (the QJB201's is 2.6 cm
+    /// from its latch), and a palm the grab's zone allows on the far side of it turned the other way as it lifted: the cover stayed
+    /// shut (user, 2026-11-05: "some MGS cant be opened"). So the angle is read from a hinge at least <see cref="Shortest"/> from the grab
+    /// point, in line with the real one: every palm in the zone lifts it the same way. Pure: the offline tests check it.
+    /// </summary>
+    internal static class CoverLever
+    {
+        internal const float Shortest = 0.15f;
+
+        internal static float Angle(Vector3 axis, Vector3 pivot, Vector3 grab, Vector3 hand)
+        {
+            Vector3 rest = Vector3.ProjectOnPlane(grab - pivot, axis);
+            float lever = rest.magnitude;
+            if (lever < Shortest)
+            {
+                // (No way along it at all: back along the gun's length, the cover's own, as a cover swings on a cross axis.)
+                Vector3 way = lever > 1e-4f ? rest / lever : Vector3.ProjectOnPlane(Vector3.back, axis).normalized;
+                pivot = grab - way * Shortest;
+                rest = way * Shortest;
+            }
+            return Vector3.SignedAngle(rest, Vector3.ProjectOnPlane(hand - pivot, axis), axis);
         }
     }
 }

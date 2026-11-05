@@ -55,6 +55,8 @@ namespace RavenfieldVR.Weapons
     public sealed class WeaponSoundPlayer
     {
         private const float FadeTime = 0.03f;
+        /// <summary>How much of a clip as long as a whole reload an action plays, where no cut of it could be made (see <see cref="Whole"/>).</summary>
+        internal const float WholeClipPart = 0.6f;
 
         private readonly WeaponRig _rig;
         private readonly SoundVoices _voices;
@@ -167,6 +169,10 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
+                if (Whole(clip))
+                {
+                    return PlayStartOf(clip, Audible(bank.clipVolume));
+                }
                 AudioSource src = OneShotSource(_rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio);
                 src.PlayOneShot(clip, Audible(bank.clipVolume));
                 return true;
@@ -197,10 +203,23 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             AudioSource template = _rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio;
+            if (Whole(clip))
+            {
+                return PlayStartOf(clip, cue.Volume * volume);
+            }
             AudioSource src = OneShotSource(template);
             src.PlayOneShot(clip, cue.Volume * Audible(template != null ? template.volume : 1f) * volume);
             return true;
         }
+
+        /// <summary>
+        /// A clip as long as a whole reload (WeaponAnalyzer sliced the ones it could at the actions): no action plays all of it, whichever way
+        /// its cue reached here. A fire animation's cycle sound and an event found only at runtime are not sliced ahead.
+        /// </summary>
+        private static bool Whole(AudioClip clip) => clip.length >= WeaponAnalyzer.WholeReloadSeconds;
+
+        private bool PlayStartOf(AudioClip clip, float volume) =>
+            PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = WholeClipPart }, volume);
 
         /// <summary>
         /// A mod's volume as a level to play at: some rigs keep their reload source at zero and only raise it while
@@ -215,6 +234,10 @@ namespace RavenfieldVR.Weapons
             if (src == null || src.clip == null)
             {
                 return false;
+            }
+            if (Whole(src.clip))
+            {
+                return PlayStartOf(src.clip, Audible(src.volume) * volume);
             }
             // The object is normally inactive until the animation enables it, so play its clip through our source.
             AudioSource player = OneShotSource(src);

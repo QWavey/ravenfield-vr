@@ -279,7 +279,8 @@ namespace RavenfieldVR.Weapons
                 clip = cue.Clips[cue.Clips.Length == 1 ? 0 : Random.Range(0, cue.Clips.Length)];
                 if (clip != null && clip.length > 0.01f)
                 {
-                    length = clip.length;
+                    // (Not all of one as long as a whole reload: WeaponSoundPlayer's rule.)
+                    length = clip.length >= WeaponAnalyzer.WholeReloadSeconds ? WeaponSoundPlayer.WholeClipPart : clip.length;
                     level = cue.Volume; // (its sound bank's level, as WeaponSoundPlayer plays it)
                     return true;
                 }

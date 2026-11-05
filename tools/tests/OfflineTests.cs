@@ -111,6 +111,7 @@ namespace RavenfieldVR.Tests
             BeltRoundBoxTests(mod);
             BeltRoundEndsTests(mod);
             BeltFuzzTests(mod);
+            CoverLeverTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -558,6 +559,42 @@ namespace RavenfieldVR.Tests
             Check(inside == 0, $"Belt fuzz: no point of {Cases} ways round the box is inside it" + (first != null ? $" ({inside} were; {first})" : ""));
             Check(offEnds == 0, $"Belt fuzz: every way starts and ends where asked ({offEnds} did not)");
             Check(straight < Cases, $"Belt fuzz: not every way was the straight line ({straight} of {Cases} were)");
+        }
+
+        /// <summary>
+        /// A feed cover opens from anywhere its grab zone reaches (CoverLever, user 2026-11-05: "some MGS cant be opened"): on the QJB201's
+        /// short cover, a palm on either side of the hinge lifted 12 cm turns it the opening way, about as far as on a long PKM cover.
+        /// </summary>
+        private static void CoverLeverTests(System.Reflection.Assembly mod)
+        {
+            Type lever = mod.GetType("RavenfieldVR.Weapons.CoverLever");
+            System.Reflection.MethodInfo angle = lever?.GetMethod("Angle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(angle != null, "Cover lever: CoverLever.Angle found");
+            if (angle == null)
+            {
+                return;
+            }
+            var axis = new UnityEngine.Vector3(1f, 0f, 0f);
+            float Turn(UnityEngine.Vector3 pivot, UnityEngine.Vector3 grab, UnityEngine.Vector3 palm)
+            {
+                float from = (float)angle.Invoke(null, new object[] { axis, pivot, grab, palm });
+                float to = (float)angle.Invoke(null, new object[] { axis, pivot, grab, palm + new UnityEngine.Vector3(0f, 0.12f, 0f) });
+                return to - from;
+            }
+            // (Gun space, cm off the grip: z along the gun, y up. The hinge ahead of the grab point, as on all of them.)
+            var qjbPivot = new UnityEngine.Vector3(0f, 0.136f, 0.243f);
+            var qjbGrab = new UnityEngine.Vector3(0f, 0.146f, 0.219f);
+            foreach (float along in new[] { -0.06f, 0f, 0.03f, 0.06f, 0.1f })
+            {
+                float turned = Turn(qjbPivot, qjbGrab, qjbGrab + new UnityEngine.Vector3(0f, 0.02f, along));
+                Check(turned > 15f, $"Cover lever: a short cover's palm {along * 100f:0} cm along it, lifted 12 cm, turns it the opening way ({turned:0} degrees)");
+            }
+            var pkmPivot = new UnityEngine.Vector3(0f, 0.133f, 0.29f);
+            var pkmGrab = new UnityEngine.Vector3(0f, 0.193f, 0.055f);
+            float pkm = Turn(pkmPivot, pkmGrab, pkmGrab);
+            Check(pkm > 20f && pkm < 40f, $"Cover lever: a long cover keeps its own lever ({pkm:0} degrees for 12 cm)");
+            float none = (float)angle.Invoke(null, new object[] { axis, qjbGrab, qjbGrab, qjbGrab + new UnityEngine.Vector3(0f, 0.1f, 0f) });
+            Check(!float.IsNaN(none), "Cover lever: a grab point on the hinge itself still gives an angle");
         }
 
         /// <summary>

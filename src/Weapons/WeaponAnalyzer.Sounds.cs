@@ -31,6 +31,20 @@ namespace RavenfieldVR.Weapons
             // later sound one slot on.
             var reloadCues = new List<SampledCue>(sampler.ReloadCues).FindAll(c => c.Function != "EmitParticles");
             reloadCues.Sort((a, b) => a.Time.CompareTo(b.Time));
+            // A clip as long as a reload is no action's sound: bound to the nearest action whole, the full reload played on a pulled bolt or
+            // magazine (user, 2026-11-05: "full reload sound playing when pulling back bolt or pulliung out mag"). Sliced at the actions
+            // below as the weapon's reload audio is, from when the animation starts it.
+            var wholeClips = new List<KeyValuePair<AudioClip, float>>();
+            reloadCues.RemoveAll(c =>
+            {
+                AudioClip whole = ClipOfCue(c, w);
+                if (whole == null || whole.length < WholeReloadSeconds)
+                {
+                    return false;
+                }
+                wholeClips.Add(new KeyValuePair<AudioClip, float>(whole, c.Time));
+                return true;
+            });
             if (keyframes.Count > 0)
             {
                 MatchCues(d, keyframes, reloadCues);
@@ -64,8 +78,8 @@ namespace RavenfieldVR.Weapons
             }
 
             // The single reload clip: slice it at the keyframes (never played whole in manual mode).
-            AudioClip clip = w.reloadAudio != null ? w.reloadAudio.clip : null;
-            if (clip != null && keyframes.Count > 0)
+            AudioClip reloadClip = w.reloadAudio != null ? w.reloadAudio.clip : null;
+            if ((reloadClip != null || wholeClips.Count > 0) && keyframes.Count > 0)
             {
                 keyframes.Sort((a, b) => a.Value.CompareTo(b.Value));
                 for (int i = 0; i < keyframes.Count; i++)
@@ -75,17 +89,57 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
-                    float t = keyframes[i].Value;
-                    float next = i + 1 < keyframes.Count ? keyframes[i + 1].Value : clip.length;
+                    float at = keyframes[i].Value;
+                    // The long clip sounding at this moment of the reload, else the reload audio (it starts with the reload).
+                    AudioClip clip = reloadClip;
+                    float clipStart = 0f;
+                    foreach (KeyValuePair<AudioClip, float> whole in wholeClips)
+                    {
+                        if (at >= whole.Value - 0.15f && at - whole.Value <= whole.Key.length)
+                        {
+                            clip = whole.Key;
+                            clipStart = whole.Value;
+                            break;
+                        }
+                    }
+                    if (clip == null)
+                    {
+                        continue;
+                    }
+                    float t = Mathf.Max(0f, at - clipStart);
+                    float next = i + 1 < keyframes.Count ? keyframes[i + 1].Value - clipStart : clip.length;
                     float start = Mathf.Max(0f, t - 0.06f);
                     float end = Mathf.Min(clip.length, Mathf.Min(next - 0.02f, t + 0.5f));
                     AudioSlicing.Refine(clip, t, ref start, ref end);
                     if (end - start >= 0.08f && start < clip.length)
                     {
-                        AddCue(d, kind, new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = start, Length = end - start, SourceTime = t });
+                        AddCue(d, kind, new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = start, Length = end - start, SourceTime = at });
                     }
                 }
             }
+        }
+
+        /// <summary>A clip this long is a whole reload (or most of one), not the sound of one action: the game's own actions are under 0.7 s.</summary>
+        internal const float WholeReloadSeconds = 1f;
+
+        /// <summary>What a sampled sound plays: an audio object's clip, or the sound bank's clip for its event; null where that is not one clip.</summary>
+        private static AudioClip ClipOfCue(SampledCue c, Weapon w)
+        {
+            if (c.AudioObjectPath != null)
+            {
+                Transform t = WeaponRig.Resolve(w.transform, c.AudioObjectPath);
+                AudioSource source = t != null ? t.GetComponent<AudioSource>() : null;
+                return source != null ? source.clip : null;
+            }
+            if (_bank == null || _bank.clips == null || _bank.clips.Length == 0)
+            {
+                return null;
+            }
+            if (c.Function == "PlaySoundBank")
+            {
+                return c.IntParameter >= 0 && c.IntParameter < _bank.clips.Length ? _bank.clips[c.IntParameter] : null;
+            }
+            return (c.Function == "PlayRandom" || c.Function == "PlayNext") && _bank.clips.Length == 1 ? _bank.clips[0] : null;
         }
 
         private struct CueMatch
