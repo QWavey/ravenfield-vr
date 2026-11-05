@@ -246,6 +246,10 @@ namespace RavenfieldVR.Weapons
                         {
                             c.Owner.ReturnSpareCapped(1);
                         }
+                        else if (c.Owner != null)
+                        {
+                            sys.Drops?.ReturnRoundsToOwnDrop(c.Key, 1); // (its rifle let fall since: to that drop, as a magazine's rounds go)
+                        }
                         Casings.LoadedAway(c);
                         sys.Sounds.Play(MechSound.Pouch, h.Palm.position, 0.3f);
                         h.Haptic(0.015f, 150f, 0.25f);

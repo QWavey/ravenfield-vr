@@ -166,6 +166,7 @@ namespace RavenfieldVR.Weapons
                 SetTrigger(Weapon.UNHOLSTER_PARAMETER_HASH);
                 Step(2.5f);
                 CaptureIdle();
+                SampleAmmoDrawing(config);
 
                 // Fire: record the reciprocating motion and any sound events of the shot.
                 SetTrigger(Weapon.FIRE_PARAMETER_HASH);
@@ -249,6 +250,35 @@ namespace RavenfieldVR.Weapons
             {
                 _anim.SetFloat(Weapon.SMOOTH_SIGHT_MODE_PARAMETER_HASH, 0f);
             }
+        }
+
+        /// <summary>Whether this gun's animator draws parts by its round count: gone at none that are there at full.</summary>
+        public bool AmmoDrawsParts { get; private set; }
+
+        /// <summary>
+        /// With no rounds, what goes: on a layer of their own the "loaded ammo" clips scale the QJB201's 11 rounds of belt away and park the
+        /// MK46's 12 out of sight. Six parts or more is a belt drawn so, not a bolt caught back with its handle and spring.
+        /// </summary>
+        private void SampleAmmoDrawing(Weapon.Configuration config)
+        {
+            if (!Has(Weapon.LOADED_AMMO_PARAMETER_HASH) || _anim.layerCount < 2)
+            {
+                return;
+            }
+            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, 0);
+            Step(0.5f);
+            int gone = 0;
+            RigidPose gunInv = RootRelative(_clone[_gunIndex]).Inverse();
+            for (int i = 0; i < _clone.Length; i++)
+            {
+                if (_idleVisible[i] && (!Visible(_clone[i]) || (gunInv.Multiply(RootRelative(_clone[i])).position - RelIdle[i].position).sqrMagnitude > 0.05f * 0.05f))
+                {
+                    gone++;
+                }
+            }
+            AmmoDrawsParts = gone >= 6;
+            SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo));
+            Step(0.5f);
         }
 
         private void SampleReload(Weapon.Configuration config)

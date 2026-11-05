@@ -5,6 +5,7 @@
 - A short feed cover lifts from anywhere on it.
 - Opening and shutting the cover on a loaded machine gun keeps the belt; only a changed box needs its belt laid.
 - MK46 and QJB201: no second belt on the tray while you lay one, and the belt goes when the cover is lifted.
+- MK46 and QJB201: only the gun's own belt shows once it is laid, not a second one over it.
 - An empty box under an open cover says BOX EMPTY instead of asking for a belt.
 - With belt laying by hand off, a box put in under an open cover shows its belt.
 - The AS Val's bolt can be pulled: the mod never saw it move, and racked an invisible handle.

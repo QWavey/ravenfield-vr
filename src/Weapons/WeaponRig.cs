@@ -163,6 +163,9 @@ namespace RavenfieldVR.Weapons
         /// only while a box is in and its belt lies on the feed tray.
         /// </summary>
         public readonly List<int[]> BeltPartPaths = new List<int[]>();
+
+        /// <summary>The model draws its belt itself, by the round count its animator is told (the MK46, the QJB201): no strip is laid over it.</summary>
+        public bool BeltDrawnByAnimator;
         /// <summary>
         /// Spare magazines of the flat reload animation, drawn where its other hand waits (a G17's, an AK105's: half a
         /// metre from the gun). The flat view never shows them; in VR they floated in the air by the gun. Hidden while held.

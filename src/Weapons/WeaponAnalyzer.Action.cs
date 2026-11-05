@@ -628,6 +628,7 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            d.BeltDrawnByAnimator = sampler.AmmoDrawsParts;
             var box = new List<Transform>();
             Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
             if (mag != null)

@@ -555,6 +555,7 @@ namespace RavenfieldVR.Weapons
             // spawn, or still laid when the gun is drawn again, shows too; for hand-laid belts only (without BeltByHand the belt
             // was never shown on the tray), and a gun whose model has its own belt shows that instead. A box fired empty has no belt left.
             bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.MagRounds > 0 && Ammo.HasCover && VRConfig.BeltByHand.Value && _held.BeltPartCount == 0
+                              && !Data.BeltDrawnByAnimator // (drawn over the model's own, two belts lay there: one through the other as the gun turned)
                               && (!Ammo.CoverOpen || _beltLaidThisLift);
             bool show = _beltHeld || _beltHanging || laidOnTray;
             if (laidOnTray && _belt == null)
