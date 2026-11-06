@@ -136,7 +136,7 @@ namespace RavenfieldVR.Weapons
                 Transform seated = off.Role == HandRole.Magazine && ReferenceEquals(off.Held, ReloadInteractions.SeatedHold)
                                    && ReferenceEquals(_held.ActiveRig, _held.Rig) ? _held.Rig.Magazine : null;
                 // (A made stand-in is not the part the hold was taken on: the hand would sit off it, turned as the seat is.)
-                bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && mag.WeaponKey == _held.Rig.Data.Key && mag.OwnCopy
+                bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && (mag.WeaponKey == _held.Rig.Data.Key || _held.Rig.Data.TakesMagazineOf(mag.Data)) && mag.OwnCopy
                                               || seated != null);
                 bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
                 // The authored support grip, steadied (the same: its bone went 26 to 31 cm off the support point on the HK416-E/S and the
