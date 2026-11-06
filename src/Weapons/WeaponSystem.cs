@@ -833,7 +833,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void SayOverheated()
         {
-            Weapon w = Held?.Weapon;
+            Weapon w = Held?.ActiveWeapon; // (an under-barrel gun's heat is its own)
             if (w != null && w.isOverheating && VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) && !VRGameInput.GunInputBlocked)
             {
                 FlashMessage("OVERHEATED");
