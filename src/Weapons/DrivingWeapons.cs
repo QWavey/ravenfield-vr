@@ -70,7 +70,7 @@ namespace RavenfieldVR.Weapons
                 actor.HolsterActiveWeapon();
             }
             Armed = false;
-            if (actor != null && actor.IsSeated() && actor.seat.HasAnyMountedWeapons())
+            if (actor != null && actor.IsSeated() && actor.seat.HasAnyMountedWeapons() && actor.seat.weapons[0] != null) // (a mod's seat can leave its first slot empty)
             {
                 actor.Unholster(actor.seat.weapons[0]);
             }
