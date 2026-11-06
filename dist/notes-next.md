@@ -15,6 +15,7 @@
 - A magazine let go just short of its latch says TAP IT HOME (it looks seated, but the gun has none yet).
 - A squeeze at a dropped gun takes the gun, not a magazine lying by it, and a magazine in reach wins over the pouch.
 - A revolver's cylinder swung out can be pushed shut by hand; a shell pushed at a shut action says OPEN IT.
+- A locked slide you touch and let go stays locked; it used to slam home. A bolt left half way comes back half way, and a short pull let go clicks home.
 - Magazines fit sister guns: one pulled from a soldier's HK416-B goes into your HK416-A.
 - Your last grenade leaves the hand when thrown with the trigger too.
 - The last grenade thrown leaves no grenade on the belt to reach for.

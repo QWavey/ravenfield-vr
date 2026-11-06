@@ -120,6 +120,8 @@ namespace RavenfieldVR.Weapons
         private bool _slideLocked;
         /// <summary>Break-action / revolver: open for loading (cannot fire).</summary>
         public bool Open;
+        /// <summary>How far along its stroke a bolt, pump or lever was left open by hand (0: all the way, a gun put down open).</summary>
+        public float BoltLeftAt;
         /// <summary>Bolt / pump / lever left open by hand (manual actions do not spring shut).</summary>
         public bool BoltOpen
         {

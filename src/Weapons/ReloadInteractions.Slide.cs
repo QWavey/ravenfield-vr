@@ -233,6 +233,8 @@ namespace RavenfieldVR.Weapons
             // thrown out, and counted as already back it never was; a pull past the line always empties the chamber (RackBack), so
             // open past it with a round in comes only from that, and the round goes out as the hand takes it; round-5 scout.)
             _rackedBack = Ammo.SlideLocked || Ammo.BoltOpen && !Ammo.SpentInChamber && !Ammo.Chambered;
+            _rackMoved = false;
+            _strokeOut = false;
             // A bolt action shut at home is turned up first; an open one is up already.
             _turningDown = false;
             _lifting = BoltLifts && !Ammo.BoltOpen && _held.SlideOffset <= Travel * 0.02f;
@@ -281,7 +283,9 @@ namespace RavenfieldVR.Weapons
             // The hand's pull along the handle's (or slide's) own stroke; the slide or bolt carrier moves the same share
             // of its travel.
             float pull = Vector3.Dot(handGun - _rackStartGun, StrokeDir);
+            _rackMoved |= Mathf.Abs(pull) > 0.006f;
             float fraction = Mathf.Clamp01(_rackBase + pull / StrokeLength);
+            _strokeOut |= fraction > 0.25f;
             _held.SlideOffset = fraction * Travel;
 
             float stroke = fraction * StrokeLength;
@@ -351,6 +355,18 @@ namespace RavenfieldVR.Weapons
                     _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
                 }
             }
+            else if (HandDriven && !_rackedBack && _strokeOut && fraction <= 0.1f)
+            {
+                // Pushed home short of the line, its case or round still in: it shuts with a click, not in silence. Nothing is fed.
+                _strokeOut = false;
+                _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, 0.35f);
+                off.Haptic(0.02f, 120f, 0.3f);
+                if (BoltLifts)
+                {
+                    _turningDown = true;
+                    _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
+                }
+            }
 
             float drift = Vector3.ProjectOnPlane(handGun - _rackStartGun, StrokeDir).magnitude;
             // Past the stroke's ends the part stops and the hand pulls on alone: far enough on, it has let go. A pump lets go a
@@ -386,7 +402,14 @@ namespace RavenfieldVR.Weapons
                 // Stays where the hand left it; it only closes when pushed forward. The same line as the stroke's own
                 // closing (a tenth of the travel): let go between the two, a chambered pump counted as open and clicked.
                 Ammo.BoltOpen = _held.SlideOffset > Travel * 0.1f;
+                Ammo.BoltLeftAt = Ammo.BoltOpen ? Fraction : 0f;
                 _returning = false;
+                if (_turningDown)
+                {
+                    // Let go before it was turned down: it falls into its notch, and says so.
+                    _turningDown = false;
+                    GameSounds.PlayPart(Data, MechSound.SlideForward, RackPointWorld, 0.7f, 0.3f, 0.3f);
+                }
                 return;
             }
             if (!chamber)
@@ -399,6 +422,14 @@ namespace RavenfieldVR.Weapons
             if (fromBoltLock && Ammo.SlideLocked && Fraction < 0.8f)
             {
                 // Let go short of the back: the bolt is still on its catch, and the handle springs home alone.
+                _rackedBack = false;
+                _returning = false;
+                return;
+            }
+            if (Ammo.SlideLocked && !_rackMoved)
+            {
+                // Taken on its catch and let go with nothing pulled (a hand on the gun, a squeeze that meant something else): it stays on the
+                // catch. It slammed home and chambered with nothing moved.
                 _rackedBack = false;
                 _returning = false;
                 return;
@@ -416,6 +447,11 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.04f, 120f, 0.3f + 0.3f * slam);
                     _sys.Rig.Dominant.Haptic(0.04f, 120f, 0.5f * slam);
                 }
+            }
+            else if (Fraction > 0.15f)
+            {
+                // A short pull let go: the slide still runs home, and clicks (it went in silence). No round is moved.
+                _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, Mathf.Lerp(0.2f, 0.6f, Fraction));
             }
             _rackedBack = false;
             _returning = !Ammo.SlideLocked;

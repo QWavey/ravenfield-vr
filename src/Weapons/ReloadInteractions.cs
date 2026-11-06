@@ -48,6 +48,10 @@ namespace RavenfieldVR.Weapons
         private Vector3 _pumpGraspRestGun;
         private float _rackBase;
         private bool _rackedBack;
+        /// <summary>The hand has moved the stroke's part since it took it (a slide taken on its catch and let go with nothing pulled stays on it).</summary>
+        private bool _rackMoved;
+        /// <summary>This stroke went a quarter of the way back or more (shut again short of the line, it still closes with a click).</summary>
+        private bool _strokeOut;
         /// <summary>This stroke is a pump worked by the support hand's trigger: it ends when the trigger is let go.</summary>
         private bool _rackByTrigger;
 
@@ -977,10 +981,11 @@ namespace RavenfieldVR.Weapons
             }
             else if (Ammo != null && Ammo.BoltOpen && !_racking)
             {
-                // A manual action left open stays open (back to open if the weapon was just drawn again).
+                // A manual action left open stays open (back to open if the weapon was just drawn again), as far as it was left: drawn fully
+                // open, a bolt left half way jumped back, and the first touch threw out the round it never reached the line for.
                 if (_held.SlideOffset <= 0f)
                 {
-                    _held.SlideOffset = Travel;
+                    _held.SlideOffset = Travel * (Ammo.BoltLeftAt > 0f ? Ammo.BoltLeftAt : 1f);
                 }
             }
             else if (_returning)
@@ -1426,6 +1431,12 @@ namespace RavenfieldVR.Weapons
                 _rackStartGun = HandInGun(off);
                 _tugStroke = _rackBase * StrokeLength;
                 _lastTick = _tugStroke;
+                if (BoltLifts)
+                {
+                    // (The turn's own start too: measured from before the pause, the handle came up with no hand turning it.)
+                    _liftFromGun = Vector3.ProjectOnPlane(_rackStartGun - Data.MuzzlePoint, Data.AimAxis);
+                    _liftFrom = _held.BoltTurn;
+                }
             }
         }
 
