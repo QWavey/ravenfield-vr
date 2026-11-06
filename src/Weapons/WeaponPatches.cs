@@ -289,7 +289,7 @@ namespace RavenfieldVR.Weapons
             try
             {
                 AmmoState state = WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: false);
-                __state = state != null && state.Participates;
+                __state = state != null && state.Participates && !__instance.GetActiveSubWeapon().reloading; // (a reload begun before the switch to manual ends as it began)
             }
             catch (System.Exception e)
             {

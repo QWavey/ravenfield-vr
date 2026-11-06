@@ -437,7 +437,9 @@ namespace RavenfieldVR.Weapons
                     }
                     continue;
                 }
-                if (Drops != null && Drops.GunNearer(palm, prop.DistanceTo(palm)))
+                // (Only where the gun would be taken: in a seat or with the draw refused the squeeze was left to a pickup that never came.)
+                Actor taker = GameContext.PlayerActor;
+                if (Drops != null && GameContext.PlayerOnFoot && taker != null && taker.CanUnholsterWeapon() && Drops.GunNearer(palm, prop.DistanceTo(palm)))
                 {
                     continue; // a dropped gun nearer the hand than this magazine: it took the magazine lying by it, the gun left on the ground (grip scout, 2026-11-06)
                 }
@@ -1227,6 +1229,7 @@ namespace RavenfieldVR.Weapons
 
         private float _gripLetGoAt = -1f;
         private bool _openedOnThrow;
+        private float _gripGrace = 0.12f;
         private Vector3 _letGoVelocity, _letGoAngular, _letGoPalm;
 
         /// <summary>
@@ -1239,6 +1242,7 @@ namespace RavenfieldVR.Weapons
             if (!VRConfig.GripToHoldWeapon.Value || Held == null || !GameContext.PlayerOnFoot || GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 _gripLetGoAt = -1f;
+                _openedOnThrow = false; // (the last grenade gone: left set, the next one drawn with an open hand went straight back)
                 return;
             }
             VRHand dom = Rig.Dominant;
@@ -1267,6 +1271,10 @@ namespace RavenfieldVR.Weapons
             if (dom.GrabReleased)
             {
                 _gripLetGoAt = Time.unscaledTime;
+                // A longer moment with the other hand at work on the gun, as it was when the grip opened: a grip loosened for a tenth of a second
+                // mid-reload dropped the gun, and the magazine on its way in with it.
+                HandRole working = Rig.Off.Role;
+                _gripGrace = working == HandRole.Magazine || working == HandRole.Slide || working == HandRole.Hinge || working == HandRole.Belt ? 0.3f : 0.12f;
                 // The swing as the hand opens: 0.12 s later the hand has stopped and a throw would just drop.
                 _letGoVelocity = dom.ThrowVelocity();
                 _letGoAngular = dom.AngularVelocity;
@@ -1276,11 +1284,7 @@ namespace RavenfieldVR.Weapons
             {
                 _gripLetGoAt = -1f;
             }
-            // (A longer moment with the other hand at work on the gun: a grip loosened for a tenth of a second mid-reload dropped the gun, and the
-            // magazine on its way in with it.)
-            HandRole working = Rig.Off.Role;
-            float grace = working == HandRole.Magazine || working == HandRole.Slide || working == HandRole.Hinge || working == HandRole.Belt ? 0.3f : 0.12f;
-            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > grace)
+            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > _gripGrace)
             {
                 _gripLetGoAt = -1f;
                 Actor actor = GameContext.PlayerActor;
