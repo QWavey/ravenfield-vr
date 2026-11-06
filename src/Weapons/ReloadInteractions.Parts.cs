@@ -122,14 +122,14 @@ namespace RavenfieldVR.Weapons
             if (!Ammo.CoverOpen && openness > CoverStaysOpen)
             {
                 Ammo.SetCoverOpen(true);
-                _held.Sounds.Play(MechSound.SlideBack, CoverGrabWorld);
+                _held.Sounds.Play(MechSound.CoverOpen, MechSound.SlideBack, CoverGrabWorld);
                 off.Haptic(0.03f, 120f, 0.5f);
             }
             else if (Ammo.CoverOpen && openness < 0.06f)
             {
                 Ammo.SetCoverOpen(false);
                 _held.Nudge(-Rig.UpWorld * 0.06f, 6f); // the cover pressed shut
-                _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);
+                _held.Sounds.Play(MechSound.CoverShut, MechSound.SlideForward, CoverGrabWorld);
                 off.Haptic(0.05f, 110f, 0.75f);
                 _sys.Rig.Dominant.Haptic(0.04f, 110f, 0.5f);
             }
@@ -157,7 +157,7 @@ namespace RavenfieldVR.Weapons
             if (Ammo.CoverOpen && _held.HingeOpenness < 0.35f)
             {
                 Ammo.SetCoverOpen(false);
-                _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);
+                _held.Sounds.Play(MechSound.CoverShut, MechSound.SlideForward, CoverGrabWorld);
             }
         }
 
@@ -429,7 +429,7 @@ namespace RavenfieldVR.Weapons
             }
             _belt.Show(true);
             Log.InfoOnce("beltmouth:" + Data.Key, $"{Data.Key}: the belt leaves its box at the feed mouth, gun space (cm) {(Rig.ToGun(BeltStartWorld) * 100f).ToString("0.0")}.");
-            _held.Sounds.Play(MechSound.ShellIn, BeltStartWorld, 0.5f);
+            _held.Sounds.Play(MechSound.BeltOff, MechSound.ShellIn, BeltStartWorld, 0.5f);
             off.Haptic(0.02f, 160f, 0.35f);
         }
 
@@ -482,7 +482,7 @@ namespace RavenfieldVR.Weapons
                 // The end eases onto the tray from where it was drawn (taken from 7 cm, it jumped there in one frame).
                 _beltLaidFrom = Rig.ToGun(BeltStartWorld + Vector3.ClampMagnitude(off.Palm.position + off.Palm.Forward * 0.02f - BeltStartWorld, BeltHeldReach));
                 _beltLaidAt = Time.unscaledTime;
-                _held.Sounds.Play(MechSound.ShellIn, FeedTrayWorld);
+                _held.Sounds.Play(MechSound.BeltOn, MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
             }

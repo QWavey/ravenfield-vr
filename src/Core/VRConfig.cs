@@ -213,7 +213,7 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Your standing (or seated) eye height in metres. 0 = calibrate automatically on first spawn. Re-calibrate from the VR settings panel.",
                     new AcceptableValueRange<float>(0f, 2.5f)));
             SeatedMode = cfg.Bind("Comfort", "SeatedMode", false,
-                "Play seated: disables physical crouch and treats the calibrated height as standing height.");
+                "Play seated: disables physical crouch, and takes the calibrated height as a seated one (the body's holsters and pouch are placed for its standing height).");
             SmoothVehicleHorizon = cfg.Bind("Comfort", "LevelHorizonInVehicles", false,
                 "Keep the horizon level in aircraft/vehicles instead of rolling with the cockpit.");
 

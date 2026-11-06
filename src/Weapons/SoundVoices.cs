@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
-    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon, Casing, CasingSoft, MagKnock, MagLip, Selector }
+    public enum MechSound { MagOut, MagIn, SlideBack, SlideForward, DryFire, Holster, ShellIn, Pouch, PinPull, Spoon, Casing, CasingSoft, MagKnock, MagLip, Selector, CoverOpen, CoverShut, BeltOn, BeltOff }
 
     /// <summary>
     /// The mod's 3D voices: a small pool of sources routed to the game's first-person mixer group, playing the game's own audio

@@ -19,7 +19,9 @@ namespace RavenfieldVR.Weapons
         public readonly AmmoState Ammo;
         private readonly WeaponSystem _system;
         public readonly ReloadInteractions Reload;
-        private readonly VRScope _scope;
+        private VRScope _scope;
+        /// <summary>The sight mode <see cref="_scope"/> was built for.</summary>
+        private int _scopeMode;
 
         /// <summary>Autotest: the weapon has a lens of the mod's (a second camera when aimed through).</summary>
         internal bool HasLensScope => _scope != null;
@@ -182,7 +184,8 @@ namespace RavenfieldVR.Weapons
                 AdoptOwnScopeCamera(weapon, rig);
                 if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
                 {
-                    _scope = new VRScope(system.Rig, rig);
+                    _scopeMode = weapon.GetSightModeIndex();
+                    _scope = LensFor(system.Rig, rig, _scopeMode);
                 }
                 else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
                 {
@@ -2045,6 +2048,14 @@ namespace RavenfieldVR.Weapons
             Sounds.Update();
             if (_scope != null)
             {
+                int scopeMode = Weapon.GetSightModeIndex();
+                if (scopeMode != _scopeMode && HasOwnLine(Rig, scopeMode))
+                {
+                    // Another magnified mode: its lens on its own line.
+                    _scope.Destroy();
+                    _scopeMode = scopeMode;
+                    _scope = LensFor(_system.Rig, Rig, scopeMode);
+                }
                 // With several sight modes the lens shows only in a magnified one: switched to the red dot or the irons, its
                 // dark disc stayed over them for as long as the weapon was held.
                 bool magnified = Rig.Data.Sights == null || Rig.Data.Sights.Length < 2 || Weapon.GetAimFov() < 40f;
@@ -2059,6 +2070,16 @@ namespace RavenfieldVR.Weapons
             _counter.BeforeRender(ActiveAmmo);
             DrawDebugZones();
         }
+
+        private static bool HasOwnLine(WeaponRig rig, int mode) =>
+            rig.Data.Sights != null && mode >= 0 && mode < rig.Data.Sights.Length && rig.Data.Sights[mode].Magnified;
+
+        /// <summary>
+        /// The lens for the sight mode in use: on that mode's own line where it has one. Drawn with its magnifier selected, a gun's lens was built
+        /// on the first sight's eye point and dimmed as the eye sat on the magnifier's line; drawn in red dot, the same magnifier was right (scopes scout, 2026-11-06).
+        /// </summary>
+        private static VRScope LensFor(VRRig vrRig, WeaponRig rig, int mode) =>
+            HasOwnLine(rig, mode) ? new VRScope(vrRig, rig, rig.Data.Sights[mode]) : new VRScope(vrRig, rig);
 
         private int _modeOptic = -1; // whether the model has an optic for its narrower sight modes (-1: not looked yet)
 

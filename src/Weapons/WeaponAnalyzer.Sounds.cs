@@ -9,6 +9,78 @@ using UnityEngine;
 namespace RavenfieldVR.Weapons
 {
     // WeaponAnalyzer, part: when in the reload the mod plays its sounds. The class and how a weapon is analysed as a whole: WeaponAnalyzer.cs.
+    /// <summary>What a clip's own name says it is the sound of.</summary>
+    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell }
+
+    /// <summary>
+    /// The sound of an action, read from its clip's name. Cues were matched to the actions by time alone, and 11 of the sounds over the mods
+    /// went to the wrong action: the MRAD's bolt on its magazine, the PPSh's magazine going in as it came out (2026-11-06, the names of all
+    /// 344 sound banks read from the bundles). Words as mods use them, the Chinese ones included. Pure: the offline tests check it.
+    /// </summary>
+    internal static class CueNames
+    {
+        private const string Holder = @"(mag(azine)?|clip|box|drum)[ _-]?";
+        private static readonly Regex MagOut = new Regex(Holder + @"(out|off|release|drop|unlock|eject)|拔出|拆弹匣|弹匣出来", RegexOptions.IgnoreCase);
+        private static readonly Regex MagIn = new Regex(Holder + @"(in|insert|attach|load|tap|hit)(?![a-z])|插入|插弹匣|安弹匣|按弹匣", RegexOptions.IgnoreCase);
+        private static readonly Regex Slide = new Regex(@"bolt|slide|charg|cock|(^|[^a-z])rack|chamber|pump|拉栓|枪栓|上膛|空挂|拉开", RegexOptions.IgnoreCase);
+        private static readonly Regex Other = new Regex(
+            @"inspect|tuck|holster|select|switch|(^|[^a-z])(ads|aim|look|draw|raise|fire|drop)($|[^a-z])|get[ _-]?mag|mag[ _-]?take|检视|切换|切出|步话机|握护木|折叠镜",
+            RegexOptions.IgnoreCase);
+        private static readonly Regex ClosingWord = new Regex(@"forward|close|release|home|pump[ _-]?in|(^|[^a-z])go($|[^a-z])|关闭|释放|复位", RegexOptions.IgnoreCase);
+        private const string Cover = @"(^|[^a-z]|top)(cap|cover|lid)[ _-]?";
+        private static readonly Regex CoverUp = new Regex(Cover + @"(up|open|unlock)", RegexOptions.IgnoreCase);
+        private static readonly Regex CoverDown = new Regex(Cover + @"(down|close|shut|lock)", RegexOptions.IgnoreCase);
+        private static readonly Regex BeltOn = new Regex(@"ammo[ _-]?up|belt[ _-]?(deploy|lay|on)", RegexOptions.IgnoreCase);
+        private static readonly Regex BeltOff = new Regex(@"ammo[ _-]?(down|out)|belt[ _-]?(out|off)", RegexOptions.IgnoreCase);
+        private static readonly Regex ShellIn = new Regex(@"shell[ _-]?(in|insert|load)(?![a-z])", RegexOptions.IgnoreCase);
+
+        internal static CueName Of(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return CueName.Unknown;
+            }
+            // In this order: "MINIMI AMMO UP AND SHELL" is a belt's, "Hecate mag release" and "191 MAG DROP" a magazine's, "charging_handle_release" a bolt's.
+            return BeltOn.IsMatch(name) ? CueName.BeltOn : BeltOff.IsMatch(name) ? CueName.BeltOff
+                : CoverUp.IsMatch(name) ? CueName.CoverUp : CoverDown.IsMatch(name) ? CueName.CoverDown : ShellIn.IsMatch(name) ? CueName.Shell
+                : MagOut.IsMatch(name) ? CueName.MagOut : MagIn.IsMatch(name) ? CueName.MagIn : Slide.IsMatch(name) ? CueName.Slide
+                : Other.IsMatch(name) ? CueName.Other : CueName.Unknown;
+        }
+
+        /// <summary>One of the three actions a reload's motion gives a time to.</summary>
+        internal static bool IsReloadAction(CueName said) => said == CueName.MagOut || said == CueName.MagIn || said == CueName.Slide;
+
+        /// <summary>The sound a clip of this name is, on a gun that already has <paramref name="hasSlideBack"/>; null where its name says none.</summary>
+        internal static MechSound? SoundOf(CueName said, string name, bool hasSlideBack)
+        {
+            switch (said)
+            {
+                case CueName.MagOut: return MechSound.MagOut;
+                case CueName.MagIn: return MechSound.MagIn;
+                case CueName.Slide: return Closing(name) || hasSlideBack ? MechSound.SlideForward : MechSound.SlideBack;
+                case CueName.CoverUp: return MechSound.CoverOpen;
+                case CueName.CoverDown: return MechSound.CoverShut;
+                case CueName.BeltOn: return MechSound.BeltOn;
+                case CueName.BeltOff: return MechSound.BeltOff;
+                case CueName.Shell: return MechSound.ShellIn;
+                default: return null;
+            }
+        }
+
+        /// <summary>A bolt's clip for its way home, not back.</summary>
+        internal static bool Closing(string name) => ClosingWord.IsMatch(name);
+
+        internal static CueName ActionOf(MechSound kind) =>
+            kind == MechSound.MagOut ? CueName.MagOut : kind == MechSound.MagIn ? CueName.MagIn : CueName.Slide;
+
+        /// <summary>
+        /// Whether a clip named <paramref name="said"/> may sound for <paramref name="kind"/>. Named for an action the gun does not have it may:
+        /// the M1878's break latch is a "Hecate mag release", and it has no magazine. <paramref name="gunHasIt"/>: the gun has that action.
+        /// </summary>
+        internal static bool Allows(CueName said, MechSound kind, bool gunHasIt) =>
+            said == CueName.Unknown || said == ActionOf(kind) || IsReloadAction(said) && !gunHasIt;
+    }
+
     public static partial class WeaponAnalyzer
     {
         // ---- sounds -----------------------------------------------------------------------------------
@@ -42,20 +114,45 @@ namespace RavenfieldVR.Weapons
                 {
                     return false;
                 }
-                wholeClips.Add(new KeyValuePair<AudioClip, float>(whole, c.Time));
+                if (CueNames.Of(whole.name) != CueName.Other) // (the ARS MP9's 4.8 s inspect sound was its magazine going in)
+                {
+                    wholeClips.Add(new KeyValuePair<AudioClip, float>(whole, c.Time));
+                }
                 return true;
             });
+            var said = new CueName[reloadCues.Count];
+            for (int i = 0; i < said.Length; i++)
+            {
+                AudioClip clip = ClipOfCue(reloadCues[i], w);
+                said[i] = clip != null ? CueNames.Of(clip.name) : CueName.Unknown;
+            }
+            var taken = new bool[reloadCues.Count];
             if (keyframes.Count > 0)
             {
-                MatchCues(d, keyframes, reloadCues);
+                MatchCues(d, keyframes, reloadCues, said, taken);
+                AssignNamed(d, reloadCues, said, taken, w);
             }
             else if (reloadCues.Count > 0)
             {
-                // No part motion to align with: the usual order is mag out, mag in, then the slide.
+                // No part motion to align with: what a clip is named for first, then the usual order: mag out, mag in, the slide.
+                AssignNamed(d, reloadCues, said, taken, w);
                 MechSound[] order = { MechSound.MagOut, MechSound.MagIn, MechSound.SlideBack, MechSound.SlideForward };
-                for (int i = 0; i < reloadCues.Count && i < order.Length; i++)
+                int next = 0;
+                for (int i = 0; i < reloadCues.Count; i++)
                 {
-                    AddCue(d, order[i], ToCue(reloadCues[i]));
+                    if (taken[i] || said[i] != CueName.Unknown && !CueNames.IsReloadAction(said[i]))
+                    {
+                        continue;
+                    }
+                    while (next < order.Length && d.Cues.ContainsKey(order[next]))
+                    {
+                        next++;
+                    }
+                    if (next == order.Length)
+                    {
+                        break;
+                    }
+                    AddCue(d, order[next], ToCue(reloadCues[i]));
                 }
             }
 
@@ -117,6 +214,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
             }
+            FillFromBank(d);
         }
 
         /// <summary>A clip this long is a whole reload (or most of one), not the sound of one action: the game's own actions are under 0.7 s.</summary>
@@ -166,10 +264,11 @@ namespace RavenfieldVR.Weapons
         /// to (the click comes as the part arrives), so a cue up to 0.6 s before a keyframe fits, while one after
         /// it fits only within 0.15 s and costs more. Near ties go to the usual reload order.
         /// </summary>
-        private static void MatchCues(WeaponRigData d, List<KeyValuePair<MechSound, float>> keyframes, List<SampledCue> cues)
+        private static void MatchCues(WeaponRigData d, List<KeyValuePair<MechSound, float>> keyframes, List<SampledCue> cues, CueName[] said, bool[] taken)
         {
             const float lead = 0.6f, lag = 0.15f;
             var matches = new List<CueMatch>();
+            bool Has(CueName action) => keyframes.Any(k => CueNames.ActionOf(k.Key) == action);
             for (int k = 0; k < keyframes.Count; k++)
             {
                 for (int c = 0; c < cues.Count; c++)
@@ -179,7 +278,7 @@ namespace RavenfieldVR.Weapons
                         continue; // a particle burst is no sound: bound to a magazine or slide sound it left the action silent
                     }
                     float early = keyframes[k].Value - cues[c].Time;
-                    if (early > lead || early < -lag)
+                    if (early > lead || early < -lag || !CueNames.Allows(said[c], keyframes[k].Key, Has(said[c])))
                     {
                         continue;
                     }
@@ -189,15 +288,63 @@ namespace RavenfieldVR.Weapons
             }
             matches.Sort((a, b) => a.Cost.CompareTo(b.Cost));
             var keyUsed = new bool[keyframes.Count];
-            var cueUsed = new bool[cues.Count];
             foreach (CueMatch m in matches)
             {
-                if (keyUsed[m.Keyframe] || cueUsed[m.Cue])
+                if (keyUsed[m.Keyframe] || taken[m.Cue])
                 {
                     continue;
                 }
-                keyUsed[m.Keyframe] = cueUsed[m.Cue] = true;
+                keyUsed[m.Keyframe] = taken[m.Cue] = true;
                 AddCue(d, keyframes[m.Keyframe].Key, ToCue(cues[m.Cue]));
+            }
+        }
+
+        /// <summary>
+        /// A clip named for an action that has no sound of its own yet goes to it, whenever in the reload it plays: out of the time window the
+        /// action fell to a vanilla donor with the gun's own clip in its bank, and with no part motion at all the first clip was taken for the
+        /// magazine coming out whatever it was (the ARS Glock's magazine out on its magazine in, that one on its slide).
+        /// </summary>
+        private static void AssignNamed(WeaponRigData d, List<SampledCue> cues, CueName[] said, bool[] taken, Weapon w)
+        {
+            for (int i = 0; i < cues.Count; i++)
+            {
+                if (taken[i] || !CueNames.IsReloadAction(said[i]))
+                {
+                    continue;
+                }
+                AudioClip clip = ClipOfCue(cues[i], w);
+                MechSound? kind = CueNames.SoundOf(said[i], clip != null ? clip.name : "", d.Cues.ContainsKey(MechSound.SlideBack));
+                if (kind.HasValue && !d.Cues.ContainsKey(kind.Value))
+                {
+                    taken[i] = true;
+                    AddCue(d, kind.Value, ToCue(cues[i]));
+                }
+            }
+        }
+
+        /// <summary>
+        /// What the gun's own sound bank has by name for what is still without a sound: the cover and the belt, which the mod's reload plays at
+        /// no motion of ours (the MK46's CAP UP, the PKM's AMMO UP: the cover sounded like the bolt), a shell going in, and an action the sampled
+        /// reload did not reach (a gun's bolt clip played only in its other reload). Long clips are left to the slices.
+        /// </summary>
+        private static void FillFromBank(WeaponRigData d)
+        {
+            if (_bank == null || _bank.clips == null)
+            {
+                return;
+            }
+            for (int i = 0; i < _bank.clips.Length; i++)
+            {
+                AudioClip clip = _bank.clips[i];
+                if (clip == null || clip.length >= WholeReloadSeconds)
+                {
+                    continue;
+                }
+                MechSound? kind = CueNames.SoundOf(CueNames.Of(clip.name), clip.name, d.Cues.ContainsKey(MechSound.SlideBack));
+                if (kind.HasValue && !d.Cues.ContainsKey(kind.Value))
+                {
+                    AddCue(d, kind.Value, ToCue(new SampledCue { Function = "PlaySoundBank", IntParameter = i }));
+                }
             }
         }
 

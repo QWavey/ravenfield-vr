@@ -88,12 +88,16 @@ namespace RavenfieldVR.Weapons
             {
                 case MechSound.MagOut: return pistol ? PistolMagOut : RifleMagOut;
                 case MechSound.MagIn: return pistol ? PistolMagIn : RifleMagIn;
-                case MechSound.SlideBack: return SlideBack;
-                case MechSound.SlideForward: return SlideForward;
+                case MechSound.SlideBack:
+                case MechSound.CoverOpen: return SlideBack;
+                case MechSound.SlideForward:
+                case MechSound.CoverShut: return SlideForward;
                 case MechSound.MagLip: return pistol ? PistolLip : RifleLip;
                 case MechSound.MagKnock: return pistol ? PistolKnock : RifleKnock;
                 case MechSound.DryFire: return DryFire;
-                case MechSound.ShellIn: return ShellIn;
+                case MechSound.ShellIn:
+                case MechSound.BeltOn:
+                case MechSound.BeltOff: return ShellIn;
                 case MechSound.Selector: return Selector;
                 case MechSound.Pouch: return Pouch;
                 case MechSound.Holster: return Holster;

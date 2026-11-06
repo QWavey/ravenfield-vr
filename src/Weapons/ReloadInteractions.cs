@@ -431,7 +431,7 @@ namespace RavenfieldVR.Weapons
                 {
                     Ammo.SetCoverOpen(false);
                     _held.Nudge(-Rig.UpWorld * 0.08f, 8f);
-                    _held.Sounds.Play(MechSound.SlideForward, CoverGrabWorld);
+                    _held.Sounds.Play(MechSound.CoverShut, MechSound.SlideForward, CoverGrabWorld);
                     off.Haptic(0.05f, 110f, 0.8f);
                     dom.Haptic(0.04f, 110f, 0.5f);
                 }

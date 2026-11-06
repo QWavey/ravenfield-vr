@@ -104,6 +104,10 @@ namespace RavenfieldVR.Weapons
             _voices.Play(kind, position, volume, 0f, _rig.Data);
         }
 
+        /// <summary>An action only some guns have a clip for (the cover, the belt): that clip, else <paramref name="otherwise"/> as it always sounded.</summary>
+        public void Play(MechSound kind, MechSound otherwise, Vector3 position, float volume = 1f) =>
+            Play(_rig.Data.Cues.ContainsKey(kind) ? kind : otherwise, position, volume);
+
         /// <summary>Sound events the suppressed fire animation would have played at the shot.</summary>
         public void PlayShotCues()
         {

@@ -113,6 +113,7 @@ namespace RavenfieldVR.Tests
             BeltFuzzTests(mod);
             CoverLeverTests(mod);
             CoverScoreTests(mod);
+            CueNameTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -566,6 +567,58 @@ namespace RavenfieldVR.Tests
         /// A feed cover opens from anywhere its grab zone reaches (CoverLever, user 2026-11-05: "some MGS cant be opened"): on the QJB201's
         /// short cover, a palm on either side of the hinge lifted 12 cm turns it the opening way, about as far as on a long PKM cover.
         /// </summary>
+        /// <summary>Clip names from the mods' sound banks (read from the bundles, 2026-11-06): each goes to its own action.</summary>
+        private static void CueNameTests(System.Reflection.Assembly mod)
+        {
+            Type names = mod.GetType("RavenfieldVR.Weapons.CueNames");
+            var of = names?.GetMethod("Of", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            var closing = names?.GetMethod("Closing", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(of != null && closing != null, "Cue names: CueNames found");
+            if (of == null || closing == null)
+            {
+                return;
+            }
+            Func<string, string> said = n => of.Invoke(null, new object[] { n }).ToString();
+            foreach (string n in new[] { "416F STANG MAG OUT", "Glock18C-GSpirit_ClipOut", "M4_ReloadNormalMagOut", "MINIMI BOX OUT", "PKM box OUT~1", "Hecate mag release",
+                                         "191 MAG DROP", "QJB201_Mag_Unlock", "fly_smg_spray_drum_out", "HK416\u62c6\u5f39\u5323" + "1", "wfoly_pi_mike9_reload_\u62d4\u51fa" })
+            {
+                Check(said(n) == "MagOut", $"Cue names: '{n}' is the magazine coming out ({said(n)})");
+            }
+            foreach (string n in new[] { "95 MAG IN", "M4_ReloadNormalMagInsert", "Glock18C-GSpirit_ClipIn", "PKM BOX IN 0.6S~1", "fly_smg_spray_mag_in", "CZ Bren Mag Hit",
+                                         "ars_MP9_mag_tap", "M4A1_reload_magin_v2_01", "QBZ192\u6309\u5f39\u5323", "wfoly_pi_mike9_reload_\u63d2\u5165" })
+            {
+                Check(said(n) == "MagIn", $"Cue names: '{n}' is the magazine going in ({said(n)})");
+            }
+            foreach (string n in new[] { "MINIMI R BOLT COME", "g36k_foley_charging_handle_release", "pump forward", "wfoly_sn_alpha50_\u62c9\u6813_01",
+                                         "\u4e0a\u819b", "wfoly_ar_mcharlie_reload_\u7a7a\u6302\u91ca\u653e", "Renetti_reload_empty_xmagslrg_charge" })
+            {
+                Check(said(n) == "Slide", $"Cue names: '{n}' is the bolt ({said(n)})");
+            }
+            foreach (string n in new[] { "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "get mag", "Cloth mag take", "AK-47_drop",
+                                         "p01_ar_mike4_selectsemi_01", "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "\u63e1\u62a4\u6728" })
+            {
+                Check(said(n) == "Other", $"Cue names: '{n}' is no action's ({said(n)})");
+            }
+            foreach (string n in new[] { "r2", "mg3_r2", "\u6362\u5f39", "sak12r2", "wfoly_sm_victor_reload_e", "magazine", "Magazine_clean" })
+            {
+                Check(said(n) == "Unknown", $"Cue names: '{n}' says nothing ({said(n)})");
+            }
+            foreach (string[] n in new[]
+                     {
+                         new[] { "MINIMI CAP UP A", "CoverUp" }, new[] { "PKM CAP UP~1", "CoverUp" }, new[] { "QJB201_Cap_Unlock", "CoverUp" },
+                         new[] { "MINIMI CAP DOWN", "CoverDown" }, new[] { "PKM CAP DOWN~1", "CoverDown" }, new[] { "QJB201_Cap_Lock_2", "CoverDown" },
+                         new[] { "MINIMI AMMO UP AND SHELL", "BeltOn" }, new[] { "PKM AMMO UP", "BeltOn" }, new[] { "QJB201_Belt_Deploy", "BeltOn" },
+                         new[] { "MINIMI AMMO DOWN", "BeltOff" }, new[] { "PKM AMMO OUT 2~1", "BeltOff" }, new[] { "QJB201_Belt_Out", "BeltOff" },
+                         new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }
+                     })
+            {
+                Check(said(n[0]) == n[1], $"Cue names: '{n[0]}' is {n[1]} ({said(n[0])})");
+            }
+            Check((bool)closing.Invoke(null, new object[] { "ARS_M500_PumpIn" }) && !(bool)closing.Invoke(null, new object[] { "ARS_M500_PumpOut" }), "Cue names: a pump going forward says so");
+            Check((bool)closing.Invoke(null, new object[] { "MINIMI R BOLT GO" }) && (bool)closing.Invoke(null, new object[] { "wfoly_sn_alpha50_reload_\u7a7a\u4ed3\u67aa\u6813\u5173\u95ed" }), "Cue names: a bolt going home says so");
+            Check(!(bool)closing.Invoke(null, new object[] { "MINIMI R BOLT COME" }) && !(bool)closing.Invoke(null, new object[] { "wfoly_sn_alpha50_\u62c9\u6813_01" }), "Cue names: a bolt pulled back does not");
+        }
+
         private static void CoverScoreTests(System.Reflection.Assembly mod)
         {
             Type analyzer = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer");

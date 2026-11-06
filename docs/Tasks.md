@@ -2819,6 +2819,16 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 365. Improve and bug hunt to 75% (user, 2026-11-06: "lets continue ... /work-until-limit 75% and continue improving etc etc and bug hunting etc")
+
+The game not started. 1.16.9 not played yet when this began (two short flat starts in the log, no VR).
+
+- [x] Sounds by name: all 344 sound banks read from the bundles (raw, no type trees). Cues went to actions by time alone, and 11 sounds sat on the wrong action: the MRAD's bolt on its magazine, the PPSh's magazine going in as it came out, the ARS Glock's all one off, the ARS MP9's 4.8 s inspect sound on its magazine. `CueNames` reads a clip's name (Chinese words too): a clip named for one action goes to no other, an aim, inspect or selector sound to none, and a named clip no time window took goes to its action.
+- [x] The cover and the belt have their own sounds: they played the bolt's. The kilav MGs ship them (CAP UP, CAP DOWN, AMMO UP, Belt_Deploy ...). `FillFromBank` also gives an action still on a vanilla donor the gun's own clip by name (bolts, shells).
+- [x] Lens on the sight mode in use: drawn with its magnifier selected, a gun's lens sat on the first sight's eye point and dimmed on the magnifier's own line. Rebuilt when another magnified mode is taken.
+- [x] Height: a saved height the head stays 12 cm above for 3 s is raised (taken crouched or sitting, the view stood too high and physical crouch never fired). A calibration short of samples starts over instead of giving up until the next change of view (the headset put on late).
+- Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
+
 ### 364. Bug hunt on magazines, belts and machine guns, to 40% (user, 2026-11-05: "on mag inserting ... on belt etc because still kinda bugged and some MGS cant be opened and many other bugs with other weapons like full reload sound playing when pulling back bolt or pulliung out mag")
 
 The game not started; every claim read against the code or the mod's bundle first.

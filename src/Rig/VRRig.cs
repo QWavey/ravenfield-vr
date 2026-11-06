@@ -370,6 +370,7 @@ namespace RavenfieldVR.Rig
             {
                 RoomscaleFollow(player);
                 UpdateHeightCalibration(player);
+                RaiseSavedHeight();
                 UpdatePhysicalCrouch(player);
                 AlignMovementReference(player);
             }
@@ -693,8 +694,8 @@ namespace RavenfieldVR.Rig
         /// <summary>
         /// Standing eye height from two seconds after spawning: the 75th percentile of the head heights seen (looking
         /// down at your hands lowers the head a little; that must not count), only if it is a plausible standing
-        /// height. A window that cannot gather enough samples gives up instead of averaging in whatever comes later
-        /// (a crouch, a seated moment), and is tried again on the next spawn.
+        /// height. A window that cannot gather enough samples starts over instead of averaging in whatever comes later
+        /// (a crouch, a seated moment).
         /// </summary>
         private void UpdateHeightCalibration(FpsActorController player)
         {
@@ -729,7 +730,40 @@ namespace RavenfieldVR.Rig
             }
             else if (elapsed > 6f)
             {
-                EndCalibration(); // not enough tracked samples: try again on the next spawn
+                // Not enough tracked samples: a fresh window, with nothing of the old one (the headset put on later: given up here it was
+                // never tried again until a change of view, and physical crouch stayed off with no word; rig scout, 2026-11-06).
+                _calibration.Clear();
+                _calibrationStart = Time.unscaledTime;
+            }
+        }
+
+        /// <summary>How far above the saved eye height a head has to stay before that height is taken to be wrong (m).</summary>
+        private const float TallerThanSaved = 0.12f;
+
+        private float _tallerSince = -1f;
+
+        /// <summary>
+        /// Nobody stands taller than they stand: a head staying well above the saved height for three seconds means it was taken crouched or
+        /// sitting (the first spawn's two seconds, say). Left, the view stood 0.6 m too high and physical crouch never fired (rig scout, 2026-11-06).
+        /// </summary>
+        private void RaiseSavedHeight()
+        {
+            float saved = VRConfig.EyeHeight.Value;
+            float y = HeadLocal.y;
+            if (saved <= 0.3f || VRConfig.SeatedMode.Value || !HeadTracked || AutoTest.Requested || Shots.Enabled || y < saved + TallerThanSaved || y > 2.1f)
+            {
+                _tallerSince = -1f;
+                return;
+            }
+            if (_tallerSince < 0f)
+            {
+                _tallerSince = Time.unscaledTime;
+            }
+            else if (Time.unscaledTime - _tallerSince >= 3f)
+            {
+                _tallerSince = -1f;
+                VRConfig.EyeHeight.Value = Mathf.Round(y * 100f) / 100f;
+                Log.Info($"Eye height raised to {VRConfig.EyeHeight.Value:0.00} m: the head stayed {y - saved:0.00} m above the saved {saved:0.00} m.");
             }
         }
 
