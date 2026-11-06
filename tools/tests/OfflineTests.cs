@@ -595,7 +595,7 @@ namespace RavenfieldVR.Tests
                 Check(said(n) == "Slide", $"Cue names: '{n}' is the bolt ({said(n)})");
             }
             foreach (string n in new[] { "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "get mag", "Cloth mag take", "AK-47_drop",
-                                         "p01_ar_mike4_selectsemi_01", "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "\u63e1\u62a4\u6728" })
+                                         "\u63e1\u62a4\u6728" })
             {
                 Check(said(n) == "Other", $"Cue names: '{n}' is no action's ({said(n)})");
             }
@@ -609,7 +609,8 @@ namespace RavenfieldVR.Tests
                          new[] { "MINIMI CAP DOWN", "CoverDown" }, new[] { "PKM CAP DOWN~1", "CoverDown" }, new[] { "QJB201_Cap_Lock_2", "CoverDown" },
                          new[] { "MINIMI AMMO UP AND SHELL", "BeltOn" }, new[] { "PKM AMMO UP", "BeltOn" }, new[] { "QJB201_Belt_Deploy", "BeltOn" },
                          new[] { "MINIMI AMMO DOWN", "BeltOff" }, new[] { "PKM AMMO OUT 2~1", "BeltOff" }, new[] { "QJB201_Belt_Out", "BeltOff" },
-                         new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }
+                         new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }, new[] { "p01_ar_mike4_selectsemi_on", "Selector" },
+                         new[] { "m4a1_foley_fire_select", "Selector" }, new[] { "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "Selector" }, new[] { "smg_dry_fire_01", "DryFire" }
                      })
             {
                 Check(said(n[0]) == n[1], $"Cue names: '{n[0]}' is {n[1]} ({said(n[0])})");

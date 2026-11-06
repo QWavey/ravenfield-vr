@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
 {
     // WeaponAnalyzer, part: when in the reload the mod plays its sounds. The class and how a weapon is analysed as a whole: WeaponAnalyzer.cs.
     /// <summary>What a clip's own name says it is the sound of.</summary>
-    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell }
+    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell, Selector, DryFire }
 
     /// <summary>
     /// The sound of an action, read from its clip's name. Cues were matched to the actions by time alone, and 11 of the sounds over the mods
@@ -33,6 +33,8 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex BeltOn = new Regex(@"ammo[ _-]?up|belt[ _-]?(deploy|lay|on)", RegexOptions.IgnoreCase);
         private static readonly Regex BeltOff = new Regex(@"ammo[ _-]?(down|out)|belt[ _-]?(out|off)", RegexOptions.IgnoreCase);
         private static readonly Regex ShellIn = new Regex(@"shell[ _-]?(in|insert|load)(?![a-z])", RegexOptions.IgnoreCase);
+        private static readonly Regex SelectorWord = new Regex(@"select|切换单发|切换连发", RegexOptions.IgnoreCase);
+        private static readonly Regex DryFireWord = new Regex(@"dry[ _-]?fire|empty[ _-]?click", RegexOptions.IgnoreCase);
 
         internal static CueName Of(string name)
         {
@@ -43,6 +45,7 @@ namespace RavenfieldVR.Weapons
             // In this order: "MINIMI AMMO UP AND SHELL" is a belt's, "Hecate mag release" and "191 MAG DROP" a magazine's, "charging_handle_release" a bolt's.
             return BeltOn.IsMatch(name) ? CueName.BeltOn : BeltOff.IsMatch(name) ? CueName.BeltOff
                 : CoverUp.IsMatch(name) ? CueName.CoverUp : CoverDown.IsMatch(name) ? CueName.CoverDown : ShellIn.IsMatch(name) ? CueName.Shell
+                : SelectorWord.IsMatch(name) ? CueName.Selector : DryFireWord.IsMatch(name) ? CueName.DryFire
                 : MagOut.IsMatch(name) ? CueName.MagOut : MagIn.IsMatch(name) ? CueName.MagIn : Slide.IsMatch(name) ? CueName.Slide
                 : Other.IsMatch(name) ? CueName.Other : CueName.Unknown;
         }
@@ -63,6 +66,8 @@ namespace RavenfieldVR.Weapons
                 case CueName.BeltOn: return MechSound.BeltOn;
                 case CueName.BeltOff: return MechSound.BeltOff;
                 case CueName.Shell: return MechSound.ShellIn;
+                case CueName.Selector: return MechSound.Selector;
+                case CueName.DryFire: return MechSound.DryFire;
                 default: return null;
             }
         }

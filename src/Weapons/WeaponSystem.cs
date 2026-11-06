@@ -848,7 +848,14 @@ namespace RavenfieldVR.Weapons
             if ((VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) || VRGameInput.SupportFire && !_supportFireLast) && Time.unscaledTime - _lastDryFire > 0.15f)
             {
                 _lastDryFire = Time.unscaledTime;
-                Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f);
+                if (Held != null)
+                {
+                    Held.Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f); // (the gun's own click where it has one)
+                }
+                else
+                {
+                    Sounds.Play(MechSound.DryFire, Rig.Dominant.Palm.position, 0.8f);
+                }
                 Rig.Dominant.Haptic(0.01f, 250f, 0.25f);
                 // The trigger was pulled on an empty gun: the finger presses as on a shot (a controller that reports the
                 // trigger only as a click showed no pull at all on the click).
@@ -899,8 +906,15 @@ namespace RavenfieldVR.Weapons
                 return false; // the game still gets the press: its own fire-mode uses (a Katana sheathes with it; 255.B5-2)
             }
             FlashMessage(mode);
-            // The selector's own short click, not the hammer falling on an empty chamber (85-agent review).
-            Sounds.Play(MechSound.Selector, Rig.Dominant.Palm.position, 0.4f);
+            // The selector's own short click, not the hammer falling on an empty chamber (85-agent review). The gun's own where it has one.
+            if (Held != null)
+            {
+                Held.Sounds.Play(MechSound.Selector, Rig.Dominant.Palm.position, 0.4f);
+            }
+            else
+            {
+                Sounds.Play(MechSound.Selector, Rig.Dominant.Palm.position, 0.4f);
+            }
             Rig.Dominant.Haptic(0.02f, 200f, 0.5f);
             LastPressWasSelector = true;
             return true;
