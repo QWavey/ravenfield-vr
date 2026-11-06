@@ -438,7 +438,7 @@ namespace RavenfieldVR.Weapons
             // flash_sim.py fire(): the plume's centre a little ahead of the muzzle, its uneven spread, its size and starburst.
             // The plume's bright part in front of the muzzle (10-25 cm for a rifle): at flash_sim.py's 2-7 cm an aimed rifle's
             // flash sat behind its front sight base and looked as if it came out of the gun.
-            float ahead = Random.Range(0.08f, 0.16f) * Mathf.Sqrt(size);
+            float ahead = Random.Range(0.08f, 0.16f) * Mathf.Sqrt(size) + data.MuzzleInside; // (from the barrel's end, not a muzzle transform inside the receiver)
             float jx = Gauss() * 0.8f * Mathf.Deg2Rad, jy = Gauss() * 0.8f * Mathf.Deg2Rad;
             float sizeK = Random.Range(0.85f, 1.15f);
             float phase = Random.Range(0f, 6.28f);

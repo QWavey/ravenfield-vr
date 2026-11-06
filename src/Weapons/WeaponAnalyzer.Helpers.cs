@@ -684,6 +684,7 @@ namespace RavenfieldVR.Weapons
                 // The QJB201's muzzle transform sits in its receiver, 57 cm behind the barrel's end, its flash hung out at the end on a
                 // child: a 1 m machine gun was 15 cm long here, swung like a pistol, the handguard's grab zone ending over the receiver.
                 d.MuzzlePoint -= aim * (ahead + 0.01f);
+                d.MuzzleInside = -ahead - 0.01f;
                 d.Notes += $"muzzle {-ahead * 100f:0} cm inside the drawn barrel: taken at the barrel's end ";
             }
 

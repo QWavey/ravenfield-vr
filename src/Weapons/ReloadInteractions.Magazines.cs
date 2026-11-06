@@ -1188,6 +1188,8 @@ namespace RavenfieldVR.Weapons
                     DropAlmostSeated(); // (one waiting there already: the same)
                     prop.LetGoOnRail();
                     _almostSeated = prop;
+                    // It looks seated, 4 to 8 mm short, and the gun has no magazine: said, or a reload ended on a gun that will not fire.
+                    _sys.FlashMessage("TAP IT HOME");
                 }
                 _atDetent = false;
                 return;

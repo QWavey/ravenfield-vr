@@ -2834,6 +2834,8 @@ The game not started. 1.16.9 not played yet when this began (two short flat star
 - [x] Holsters: a spent grenade slot shows no grenade and draws nothing. The free hand pairs a second gun only with a gun still drawn.
 - [x] The XM8's, MG3's and QBZ-95's selector levers move: their animators have `switchsemi` and `switchauto` with clips, and no script of theirs fires them. A hanging belt's end swings with the gun.
 - [x] New: the gun's trigger follows the finger (`FindTrigger`, `ApplyTrigger`): by name near the grip, with the fire clip's own motion where it has one, else 14 degrees about its origin, or a 6 mm slide where its origin is not on the part. Named in about 20 families.
+- [x] A magazine let go at its latch says TAP IT HOME: it looks seated and the gun has none. Possibly part of "mag inserting still kinda bugged"; to ask the user.
+- [x] The QJB201's lens flash and fireball start at the barrel's end (`MuzzleInside`), not at its muzzle transform in the receiver, where the gun hid them.
 - Scouted clean: the 13 small modules (one cosmetic note: visor dirt fades out after its setting is turned off), every animator's speed parameter (none defaults to 0), the mods' animation events (sound and reload only), the vanilla DMR (its bolt really does not move).
 - Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
 
