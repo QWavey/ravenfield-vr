@@ -337,6 +337,16 @@ namespace RavenfieldVR.Weapons
                      + $"{(head != null ? Vector3.Distance(head.position, c.Go.transform.position) : -1f):0.00} m from the eye, glove {(hand.Model != null && hand.Model.Suppressed ? "hidden (weapon's arms: held out at the fingertips)" : "shown")}.");
         }
 
+        /// <summary>A dead hand lets go of a round too: held through the death screen it stayed in the next life's fist, and that hand took nothing else.</summary>
+        internal static void LetGoOfRound(VRHand h)
+        {
+            if (h.Held is Casings.Case c)
+            {
+                Casings.LetGo(c, h.Velocity, Vector3.zero);
+                Free(h);
+            }
+        }
+
         private static void Free(VRHand h)
         {
             h.Held = null;

@@ -207,6 +207,7 @@ namespace RavenfieldVR.Weapons
                     {
                         prop.Drop(h.Velocity, Vector3.zero);
                     }
+                    HandLoading.LetGoOfRound(h);
                 }
             }
             // No weapon out at all (holstered, dropped, died): the buttons go back to the dominant hand's layout. A weapon drawn
