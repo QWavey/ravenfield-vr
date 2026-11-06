@@ -1162,13 +1162,6 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
-            if (prop.OnRail && prop.FromSeat && AcceptsNow(prop))
-            {
-                // Taken by the seated magazine and let go before it came out (a hand on the well, a squeeze that meant the gun): it stays in.
-                // It fell out of a full well, or waited at the latch, with nothing pulled.
-                SeatProp(off, prop);
-                return;
-            }
             if (_palmed != null)
             {
                 // Letting go drops (or stows) everything the hand holds.
@@ -1188,6 +1181,13 @@ namespace RavenfieldVR.Weapons
                 {
                     palmed.Drop(off.ThrowVelocity(), off.AngularVelocity);
                 }
+            }
+            if (prop.OnRail && prop.FromSeat && AcceptsNow(prop))
+            {
+                // Taken by the seated magazine and let go before it came out (a hand on the well, a squeeze that meant the gun): it stays in.
+                // It fell out of a full well, or waited at the latch, with nothing pulled.
+                SeatProp(off, prop);
+                return;
             }
             if (Stows(off))
             {
