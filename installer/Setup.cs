@@ -235,7 +235,10 @@ namespace RavenfieldVR.Setup
                 }
                 if (changed)
                 {
-                    File.WriteAllLines(cfg, lines);
+                    // Whole or not at all: cut short by a power cut, BepInEx wrote every setting back to its default (as the launcher's own write).
+                    string written = cfg + ".rfvr-new";
+                    File.WriteAllLines(written, lines);
+                    File.Replace(written, cfg, null);
                 }
             }
             catch (Exception e)
@@ -721,6 +724,25 @@ namespace RavenfieldVR.Setup
             CheckCanUninstall(game);
             string manifestPath = Path.Combine(game, ManifestRelative);
             string[] lines = File.ReadAllLines(manifestPath);
+            try
+            {
+                RemoveInstalled(game, keepSettings, lines);
+            }
+            catch
+            {
+                // A file in use stopped it part way: the record goes back. Gone with the plugin's folder, a second try said this setup had not
+                // installed it, with BepInEx and the config left behind (installer scout, 2026-11-06).
+                if (!File.Exists(manifestPath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(manifestPath));
+                    File.WriteAllLines(manifestPath, lines);
+                }
+                throw;
+            }
+        }
+
+        private void RemoveInstalled(string game, bool keepSettings, string[] lines)
+        {
             string backup = ResolveBackup(game, lines.Where(l => l.StartsWith("backup=", StringComparison.Ordinal)).Select(l => l.Substring(7)).FirstOrDefault() ?? "");
             bool installedBepInEx = lines.Contains("installedBepInEx=True");
             // Decided before anything goes: BepInEx stays when other plugins use it or the settings are kept, and then its loader and
@@ -891,6 +913,7 @@ namespace RavenfieldVR.Setup
                         File.Delete(p);
                     }
                 }
+                DeleteDir(Path.Combine(game, @"BepInEx\config\RavenfieldVR")); // (the sandbox's poses)
             }
             if (installedBepInEx)
             {
@@ -1629,6 +1652,7 @@ namespace RavenfieldVR.Setup
                 }
                 restart = true;
             }
+            bool failed = false;
             if (launchOption)
             {
                 try
@@ -1649,6 +1673,7 @@ namespace RavenfieldVR.Setup
                 {
                     Log("Could not change Steam's launch options: " + e.Message);
                     CopyOption();
+                    failed = true;
                 }
             }
             if (playEntry)
@@ -1659,7 +1684,7 @@ namespace RavenfieldVR.Setup
                     {
                         if (add)
                         {
-                            SteamPlayEntry.Apply(Log);
+                            failed |= !SteamPlayEntry.Apply(Log);
                         }
                         else
                         {
@@ -1670,8 +1695,10 @@ namespace RavenfieldVR.Setup
                 catch (Exception e)
                 {
                     Log("Could not change Steam's Play list: " + e.Message);
+                    failed = true;
                 }
             }
+            _steamUnchanged = failed; // (the last line tells of no Play entry that is not there)
             if (restart)
             {
                 SteamLaunchOption.StartSteam();

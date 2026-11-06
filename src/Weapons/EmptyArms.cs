@@ -324,11 +324,15 @@ namespace RavenfieldVR.Weapons
             {
                 return -1f; // (a copy that failed part way: never hide a glove for an arm that is not there)
             }
+            if (arm[0] == null || arm[1] == null || arm[2] == null || arm[3] == null)
+            {
+                return -1f; // (a bone gone: the same)
+            }
             if (hand.Model != null)
             {
                 hand.Model.Suppressed = true;
             }
-            if (!hand.HasPose || arm[0] == null || arm[1] == null || arm[2] == null || arm[3] == null)
+            if (!hand.HasPose)
             {
                 return -1f; // (held where it was: the glove holds its last pose too)
             }

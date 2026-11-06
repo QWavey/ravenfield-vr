@@ -539,6 +539,13 @@ namespace RavenfieldVR.Input
             {
                 return -1;
             }
+            // Locked or another team's (a map's trigger locks a car with the player in it): the game leaves the seat first and then refuses
+            // the next one, and the player was in neither.
+            Actor sitting = current.occupant;
+            if (vehicle.isLocked || sitting != null && vehicle.ownerTeam >= 0 && vehicle.ownerTeam != sitting.team)
+            {
+                return -1;
+            }
             int here = vehicle.seats.IndexOf(current);
             int count = vehicle.seats.Count;
             for (int step = 1; step < count; step++)
