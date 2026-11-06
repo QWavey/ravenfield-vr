@@ -177,7 +177,9 @@ namespace RavenfieldVR.Weapons
                 for (int i = 0; i < Rig.MagazineParts.Length && i < Rig.MagazinePartScales.Length; i++)
                 {
                     Transform p = Rig.MagazineParts[i];
-                    if (p == null || Rig.MagazineHideOnly.Contains(p) || p.localScale.sqrMagnitude > 1e-6f || Rig.MagazinePartScales[i].sqrMagnitude < 1e-6f)
+                    // (Shrunk against its own scale: the game leaves some at 3%, which a fixed 0.1% took for drawn, and the tube looked empty loaded.)
+                    if (p == null || Rig.MagazineHideOnly.Contains(p) || p.localScale.sqrMagnitude > Rig.MagazinePartScales[i].sqrMagnitude * 0.25f
+                        || Rig.MagazinePartScales[i].sqrMagnitude < 1e-6f)
                     {
                         continue;
                     }

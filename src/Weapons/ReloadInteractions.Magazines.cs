@@ -514,6 +514,10 @@ namespace RavenfieldVR.Weapons
                     {
                         _sys.FlashMessage("OPEN IT"); // (a shell at a shut break action or cylinder: B opens it)
                     }
+                    else if (prop.Kind == PropKind.Rocket)
+                    {
+                        _sys.FlashMessage("LOADED"); // (a second rocket at the mouth: the pouch says FULL, here it was a buzz)
+                    }
                 }
                 return;
             }
