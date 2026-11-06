@@ -980,6 +980,13 @@ namespace RavenfieldVR.Weapons
                 d.TSlideBack = open >= 0 ? (open + 1) * PoseSampler.Dt : -1f;
                 d.TSlideForward = close >= 0 ? (close + 1) * PoseSampler.Dt : -1f;
             }
+            else if (d.Hinge == HingeKind.FeedCover)
+            {
+                // A cover sounds as it leaves the gun, not half way up: an MG3's reload in one clip is cut there too.
+                int lift = Array.FindIndex(angle, a => a > max * 0.1f);
+                d.TCoverOpen = lift >= 0 ? (lift + 1) * PoseSampler.Dt : -1f;
+                d.TCoverShut = close >= 0 ? (close + 1) * PoseSampler.Dt : -1f;
+            }
         }
 
         private static bool Related(Transform t, Transform part) => part != null && (t == part || t.IsChildOf(part) || part.IsChildOf(t));

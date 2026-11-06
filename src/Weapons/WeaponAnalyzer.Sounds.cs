@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
 {
     // WeaponAnalyzer, part: when in the reload the mod plays its sounds. The class and how a weapon is analysed as a whole: WeaponAnalyzer.cs.
     /// <summary>What a clip's own name says it is the sound of.</summary>
-    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell, Selector, DryFire }
+    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell, Selector, DryFire, Knock }
 
     /// <summary>
     /// The sound of an action, read from its clip's name. Cues were matched to the actions by time alone, and 11 of the sounds over the mods
@@ -21,12 +21,13 @@ namespace RavenfieldVR.Weapons
     {
         private const string Holder = @"(mag(azine)?|clip|box|drum)[ _-]?";
         private static readonly Regex MagOut = new Regex(Holder + @"(out|off|release|drop|unlock|eject)|拔出|拆弹匣|弹匣出来", RegexOptions.IgnoreCase);
-        private static readonly Regex MagIn = new Regex(Holder + @"(in|insert|attach|load|tap|hit)(?![a-z])|插入|插弹匣|安弹匣|按弹匣", RegexOptions.IgnoreCase);
-        private static readonly Regex Slide = new Regex(@"bolt|slide|charg|cock|(^|[^a-z])rack|chamber|pump|拉栓|枪栓|上膛|空挂|拉开", RegexOptions.IgnoreCase);
+        private static readonly Regex MagIn = new Regex(Holder + @"(in|insert|attach|load|tap|hit)(?![a-z])|vstavka|插入|插弹匣|安弹匣|按弹匣", RegexOptions.IgnoreCase);
+        private static readonly Regex Slide = new Regex(@"bolt|slide|charg|cock|(^|[^a-z])(rack|pull)|chamber|pump|break[ _-]?(open|close)|dosyl|拉栓|枪栓|上膛|空挂|拉开", RegexOptions.IgnoreCase);
         private static readonly Regex Other = new Regex(
             @"inspect|tuck|holster|select|switch|(^|[^a-z])(ads|aim|look|draw|raise|fire|drop)($|[^a-z])|get[ _-]?mag|mag[ _-]?take|检视|切换|切出|步话机|握护木|折叠镜",
             RegexOptions.IgnoreCase);
         private static readonly Regex ClosingWord = new Regex(@"forward|close|release|home|pump[ _-]?in|(^|[^a-z])go($|[^a-z])|关闭|释放|复位", RegexOptions.IgnoreCase);
+        private static readonly Regex Showing = new Regex(@"inspect|检视", RegexOptions.IgnoreCase);
         private const string Cover = @"(^|[^a-z]|top)(cap|cover|lid)[ _-]?";
         private static readonly Regex CoverUp = new Regex(Cover + @"(up|open|unlock)", RegexOptions.IgnoreCase);
         private static readonly Regex CoverDown = new Regex(Cover + @"(down|close|shut|lock)", RegexOptions.IgnoreCase);
@@ -35,6 +36,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex ShellIn = new Regex(@"shell[ _-]?(in|insert|load)(?![a-z])", RegexOptions.IgnoreCase);
         private static readonly Regex SelectorWord = new Regex(@"select|切换单发|切换连发", RegexOptions.IgnoreCase);
         private static readonly Regex DryFireWord = new Regex(@"dry[ _-]?fire|empty[ _-]?click", RegexOptions.IgnoreCase);
+        private static readonly Regex KnockWord = new Regex(@"(mag|box)[ _-]?(kick|knock|konck|peng|hip)", RegexOptions.IgnoreCase);
 
         internal static CueName Of(string name)
         {
@@ -42,10 +44,11 @@ namespace RavenfieldVR.Weapons
             {
                 return CueName.Unknown;
             }
-            // In this order: "MINIMI AMMO UP AND SHELL" is a belt's, "Hecate mag release" and "191 MAG DROP" a magazine's, "charging_handle_release" a bolt's.
-            return BeltOn.IsMatch(name) ? CueName.BeltOn : BeltOff.IsMatch(name) ? CueName.BeltOff
+            // In this order: showing the gun off is no action ("Hecate bolt open inspect"); "MINIMI AMMO UP AND SHELL" is a belt's, "Hecate mag release"
+            // and "191 MAG DROP" a magazine's, "charging_handle_release" a bolt's.
+            return Showing.IsMatch(name) ? CueName.Other : BeltOn.IsMatch(name) ? CueName.BeltOn : BeltOff.IsMatch(name) ? CueName.BeltOff
                 : CoverUp.IsMatch(name) ? CueName.CoverUp : CoverDown.IsMatch(name) ? CueName.CoverDown : ShellIn.IsMatch(name) ? CueName.Shell
-                : SelectorWord.IsMatch(name) ? CueName.Selector : DryFireWord.IsMatch(name) ? CueName.DryFire
+                : SelectorWord.IsMatch(name) ? CueName.Selector : DryFireWord.IsMatch(name) ? CueName.DryFire : KnockWord.IsMatch(name) ? CueName.Knock
                 : MagOut.IsMatch(name) ? CueName.MagOut : MagIn.IsMatch(name) ? CueName.MagIn : Slide.IsMatch(name) ? CueName.Slide
                 : Other.IsMatch(name) ? CueName.Other : CueName.Unknown;
         }
@@ -68,6 +71,7 @@ namespace RavenfieldVR.Weapons
                 case CueName.Shell: return MechSound.ShellIn;
                 case CueName.Selector: return MechSound.Selector;
                 case CueName.DryFire: return MechSound.DryFire;
+                case CueName.Knock: return MechSound.MagKnock;
                 default: return null;
             }
         }
@@ -76,7 +80,8 @@ namespace RavenfieldVR.Weapons
         internal static bool Closing(string name) => ClosingWord.IsMatch(name);
 
         internal static CueName ActionOf(MechSound kind) =>
-            kind == MechSound.MagOut ? CueName.MagOut : kind == MechSound.MagIn ? CueName.MagIn : CueName.Slide;
+            kind == MechSound.MagOut ? CueName.MagOut : kind == MechSound.MagIn ? CueName.MagIn
+            : kind == MechSound.CoverOpen ? CueName.CoverUp : kind == MechSound.CoverShut ? CueName.CoverDown : CueName.Slide;
 
         /// <summary>
         /// Whether a clip named <paramref name="said"/> may sound for <paramref name="kind"/>. Named for an action the gun does not have it may:
@@ -103,6 +108,8 @@ namespace RavenfieldVR.Weapons
             if (d.TMagIn >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.MagIn, d.TMagIn));
             if (d.TSlideBack >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.SlideBack, d.TSlideBack));
             if (d.TSlideForward >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.SlideForward, d.TSlideForward));
+            if (d.TCoverOpen >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.CoverOpen, d.TCoverOpen));
+            if (d.TCoverShut >= 0f) keyframes.Add(new KeyValuePair<MechSound, float>(MechSound.CoverShut, d.TCoverShut));
 
             // A particle burst is no sound (MatchCues skips them too): one first in line took the mag-out slot and moved every
             // later sound one slot on.

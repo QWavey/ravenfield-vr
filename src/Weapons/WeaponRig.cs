@@ -125,7 +125,7 @@ namespace RavenfieldVR.Weapons
         public string HandsMethod = "estimated";
 
         // Reload timeline keyframes (seconds from reload start, -1 = not seen) and fire keyframes.
-        public float TMagOut = -1f, TMagIn = -1f, TSlideBack = -1f, TSlideForward = -1f;
+        public float TMagOut = -1f, TMagIn = -1f, TSlideBack = -1f, TSlideForward = -1f, TCoverOpen = -1f, TCoverShut = -1f;
         public float TFireSlideBack = -1f, TFireSlideForward = -1f;
         public float ReloadDuration;
 

@@ -971,7 +971,7 @@ namespace RavenfieldVR.Weapons
             Vector3 tumble = Vector3.Cross(insert, aim).normalized * Random.Range(6f, 9f) + Random.insideUnitSphere * 1.5f;
             old.Drop(velocity, tumble);
             _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
-            _sys.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f, 0f, Data);
+            _held.Sounds.Play(MechSound.MagKnock, mouth.position, 0.9f); // (the gun's own where it has one: the C8's MAG KICK, the QJB201's Box_Hip)
             _held.Nudge(-insert * 0.06f);
         }
 

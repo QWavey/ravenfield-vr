@@ -589,12 +589,12 @@ namespace RavenfieldVR.Tests
             {
                 Check(said(n) == "MagIn", $"Cue names: '{n}' is the magazine going in ({said(n)})");
             }
-            foreach (string n in new[] { "MINIMI R BOLT COME", "g36k_foley_charging_handle_release", "pump forward", "wfoly_sn_alpha50_\u62c9\u6813_01",
+            foreach (string n in new[] { "CZ Bren Pull", "ars_HK416_pull_release", "M1878 Break open", "BreakClose", "MINIMI R BOLT COME", "g36k_foley_charging_handle_release", "pump forward", "wfoly_sn_alpha50_\u62c9\u6813_01",
                                          "\u4e0a\u819b", "wfoly_ar_mcharlie_reload_\u7a7a\u6302\u91ca\u653e", "Renetti_reload_empty_xmagslrg_charge" })
             {
                 Check(said(n) == "Slide", $"Cue names: '{n}' is the bolt ({said(n)})");
             }
-            foreach (string n in new[] { "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "get mag", "Cloth mag take", "AK-47_drop",
+            foreach (string n in new[] { "M1878 Break open Inspect", "Hecate bolt open inspect", "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "get mag", "Cloth mag take", "AK-47_drop",
                                          "\u63e1\u62a4\u6728" })
             {
                 Check(said(n) == "Other", $"Cue names: '{n}' is no action's ({said(n)})");
@@ -610,7 +610,8 @@ namespace RavenfieldVR.Tests
                          new[] { "MINIMI AMMO UP AND SHELL", "BeltOn" }, new[] { "PKM AMMO UP", "BeltOn" }, new[] { "QJB201_Belt_Deploy", "BeltOn" },
                          new[] { "MINIMI AMMO DOWN", "BeltOff" }, new[] { "PKM AMMO OUT 2~1", "BeltOff" }, new[] { "QJB201_Belt_Out", "BeltOff" },
                          new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }, new[] { "p01_ar_mike4_selectsemi_on", "Selector" },
-                         new[] { "m4a1_foley_fire_select", "Selector" }, new[] { "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "Selector" }, new[] { "smg_dry_fire_01", "DryFire" }
+                         new[] { "m4a1_foley_fire_select", "Selector" }, new[] { "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "Selector" }, new[] { "smg_dry_fire_01", "DryFire" },
+                         new[] { "95 MAG KICK", "Knock" }, new[] { "C8 MAG KONCK", "Knock" }, new[] { "416f mag peng", "Knock" }, new[] { "QJB201_Box_Hip", "Knock" }
                      })
             {
                 Check(said(n[0]) == n[1], $"Cue names: '{n[0]}' is {n[1]} ({said(n[0])})");
