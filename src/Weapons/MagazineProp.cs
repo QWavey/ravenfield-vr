@@ -54,6 +54,8 @@ namespace RavenfieldVR.Weapons
         /// if it despawns first they go back to this reserve, so leaving a half-full magazine behind costs nothing.
         /// </summary>
         public AmmoState Owner;
+        /// <summary>Moving hulls it passes through, let go inside them (see <see cref="OutOfTheLevel"/>).</summary>
+        private readonly List<Collider> _passedHulls = new List<Collider>();
         /// <summary>
         /// On the rail after being pulled out of its seat: where the hand was along the rail at the pull minus the
         /// magazine's depth then, so the magazine moves with the hand's pull from there (0 when it went onto the rail
@@ -851,6 +853,18 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Hulls it was let go inside before meet it again: left ignored, a magazine once dropped in a seat sank through that vehicle's floor for good.
+            foreach (Collider hull in _passedHulls)
+            {
+                if (hull != null)
+                {
+                    foreach (Collider c in _colliders)
+                    {
+                        Physics.IgnoreCollision(c, hull, false);
+                    }
+                }
+            }
+            _passedHulls.Clear();
             Bounds b = _colliders[0].bounds;
             for (int i = 1; i < _colliders.Length; i++)
             {
@@ -882,6 +896,7 @@ namespace RavenfieldVR.Weapons
                         if (c.enabled && Physics.ComputePenetration(c, ct.position, ct.rotation, level, lt.position, lt.rotation, out _, out _))
                         {
                             Physics.IgnoreCollision(c, level, true);
+                            _passedHulls.Add(level);
                         }
                     }
                     continue;
