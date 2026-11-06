@@ -358,7 +358,8 @@ namespace RavenfieldVR.Weapons
             hand.Model.Solid = null;
         }
 
-        private string ShapeKey => "prop:" + WeaponKey + ":" + Kind;
+        /// <summary>A made stand-in's shape is its own (a cube): under the type's key the fingers closed on that cube round the real magazine for the session.</summary>
+        private string ShapeKey => "prop:" + WeaponKey + ":" + Kind + (OwnCopy ? "" : ":made");
 
         /// <summary>
         /// A magazine whose meshes could not be read had box colliders: once its model is measured they become the

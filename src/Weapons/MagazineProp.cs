@@ -556,7 +556,12 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             float frontHalf = (fMax - fMin) * 0.5f + step * 0.5f, sideHalf = (sMax - sMin) * 0.5f + step * 0.5f;
-            GripSections[_sectionKey] = new Vector2(frontHalf, sideHalf);
+            if (OwnCopy)
+            {
+                // (A made stand-in's cube kept for the type: every later magazine, its own copy too, was held by the box's widths as a box,
+                // out on the fingers, until the content came again; props scout, 2026-11-06.)
+                GripSections[_sectionKey] = new Vector2(frontHalf, sideHalf);
+            }
             ApplySection(frontHalf, sideHalf);
         }
 
