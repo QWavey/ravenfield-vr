@@ -10,6 +10,7 @@
 - A light tick in your finger when a semi-automatic gun's trigger resets.
 - A long gun laid on something solid kicks half as hard: a machine gun on a ledge, on its bipod, or fired lying down.
 - The hand closes round the real magazine again after a stand-in was held: a magazine taken during a reload could leave every later one of that gun held like a box.
+- Another gun's magazine pushed at the well says WRONG MAG.
 - A magazine let go just short of its latch says TAP IT HOME (it looks seated, but the gun has none yet).
 - Magazines fit sister guns: one pulled from a soldier's HK416-B goes into your HK416-A.
 - Your last grenade leaves the hand when thrown with the trigger too.

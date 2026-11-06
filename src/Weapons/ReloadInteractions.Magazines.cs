@@ -504,6 +504,10 @@ namespace RavenfieldVR.Weapons
                 {
                     _refusedAt = Time.unscaledTime;
                     off.Haptic(0.04f, 70f, 0.55f); // felt only: no knock sound against the gun (user, 2026-10-16)
+                    if (prop.Kind == PropKind.Magazine && !Ours(prop))
+                    {
+                        _sys.FlashMessage("WRONG MAG"); // (taken up from another gun: it looks like one, and a buzz said nothing of why it did not go in)
+                    }
                 }
                 return;
             }
