@@ -233,6 +233,12 @@ namespace RavenfieldVR.Weapons
                 }
             }
             FillFromBank(d);
+            // The gun's own fire-mode sound, which the game plays only on a change to its sub weapon, for a selector with no clip named for it.
+            AudioClip modeClip = w.changeFireModeAudio != null ? w.changeFireModeAudio.clip : null;
+            if (!d.Cues.ContainsKey(MechSound.Selector) && modeClip != null && modeClip.length < WholeReloadSeconds)
+            {
+                AddCue(d, MechSound.Selector, new SoundCue { Kind = CueKind.ClipSlice, Clip = modeClip, Start = 0f, Length = modeClip.length });
+            }
         }
 
         /// <summary>A clip this long is a whole reload (or most of one), not the sound of one action: the game's own actions are under 0.7 s.</summary>
