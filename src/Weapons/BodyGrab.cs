@@ -652,7 +652,7 @@ namespace RavenfieldVR.Weapons
                 // The palm rests on the bone and every finger closes until it touches it (as on a gun's grip): round a wrist or an
                 // arm, flat on a chest, not a fist inside him.
                 Collider held = boneCollider;
-                hand.Model.Solid = p => (held.ClosestPoint(p) - p).sqrMagnitude < 0.009f * 0.009f;
+                hand.Model.Solid = p => held != null && (held.ClosestPoint(p) - p).sqrMagnitude < 0.009f * 0.009f; // (gone with his body before the hold ends)
                 hand.Model.SolidAnchor = bone.transform;
                 hand.Model.SolidVersion++;
             }

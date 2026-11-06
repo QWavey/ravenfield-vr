@@ -339,6 +339,10 @@ namespace RavenfieldVR.Input
             for (int h = 0; h < 2; h++)
             {
                 Trigger[h] = input.GetAnalogActionData(_triggerPull, ref analog, AnalogSize, HandSource[h]) == EVRInputError.None && analog.bActive ? analog.x : 0f;
+                if (Trigger[h] <= 0f && (Held[(int)DigitalAction.Fire, h] || Held[(int)DigitalAction.Use, h]))
+                {
+                    Trigger[h] = 1f; // a trigger that only clicks: held, the finger stayed open between the shots' flashes (hands scout, 2026-11-06)
+                }
                 Grip[h] = input.GetAnalogActionData(_gripPull, ref analog, AnalogSize, HandSource[h]) == EVRInputError.None && analog.bActive ? analog.x : (Held[(int)DigitalAction.Grab, h] ? 1f : 0f);
             }
             Move = input.GetAnalogActionData(_move, ref analog, AnalogSize, OpenVR.k_ulInvalidInputValueHandle) == EVRInputError.None && analog.bActive
