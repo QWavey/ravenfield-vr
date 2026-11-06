@@ -417,7 +417,9 @@ namespace RavenfieldVR.Weapons
                 }
                 // Snap it shut with a flick of the wrist, like the real thing. (Not in a pause, the dashboard or a menu: the match is
                 // frozen, as the release buttons are gated; round 11.)
-                if (Breaks && Ammo.Open && !_coverHeld && !VRGameInput.GunInputBlocked && Time.unscaledTime - _openedAt > 0.35f && dom.OwnAngularVelocity.magnitude > 9f)
+                // (Nor with a shell on its way in: the action snapped shut on it and it jumped back to the hand.)
+                if (Breaks && Ammo.Open && !_coverHeld && !VRGameInput.GunInputBlocked && Time.unscaledTime - _openedAt > 0.35f && dom.OwnAngularVelocity.magnitude > 9f
+                    && !(off.Held is MagazineProp seating && seating.OnRail))
                 {
                     SetBreakOpen(false);
                 }
@@ -740,7 +742,10 @@ namespace RavenfieldVR.Weapons
                     Consider(6, d / (radius * 1.1f), ref choice, ref best);
                 }
             }
-            if (Manual && (Data.Hinge == HingeKind.FeedCover || Data.Hinge == HingeKind.BreakAction && Breaks))
+            // (A revolver's crane too, swung out: pushed shut by hand. It was only B or the flick, and a hand on it did nothing. Shut, the cylinder is
+            // where the hand cups the gun: it is not opened so.)
+            if (Manual && (Data.Hinge == HingeKind.FeedCover || Data.Hinge == HingeKind.BreakAction && Breaks
+                           || Data.Hinge == HingeKind.Cylinder && Breaks && Ammo.Open && Data.HingePath != null))
             {
                 float d = CoverZoneDistance(palm);
                 if (d < radius)

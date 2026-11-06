@@ -33,6 +33,7 @@ NOT_BY_PATTERN = {
     'TRIGGER TO PUMP': "the pump's cue to the player (FlashMessage) on a grip-only pull, no check result",
     'TAP IT HOME': "the cue to the player (FlashMessage) on a magazine let go at its latch, no check result",
     'WRONG MAG': "the cue to the player (FlashMessage) on another gun's magazine pushed at the well, no check result",
+    'OPEN IT': "the cue to the player (FlashMessage) on a shell pushed at a shut break action, no check result",
     '(OVER THE FLASH LIMIT)': 'AutoTest raises the limiter with Problem(...) beside it',
     'LET GO': "AutoTest raises the support pull's failures with Problem(...)",
     'STILL HOLDS': "AutoTest raises the support pull's failures with Problem(...)",

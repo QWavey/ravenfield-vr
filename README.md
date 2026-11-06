@@ -85,7 +85,7 @@ A magazine fits its own gun and that gun's sister variants (the same part of the
 
 **Shotguns with a tube** take shells one at a time at the loading port; semi-automatic ones cycle themselves after each shot, pump guns need the pump.
 
-**Break-action shotguns, revolvers and break-action launchers:** press B to open (the barrels tip down, the cylinder swings out, fired cases fall out). Push shells into the chambers from your pouch (a revolver with a speedloader takes all six at once). Flick your wrist up or press B to close.
+**Break-action shotguns, revolvers and break-action launchers:** press B to open (the barrels tip down, the cylinder swings out, fired cases fall out). Push shells into the chambers from your pouch (a revolver with a speedloader takes all six at once). Flick your wrist up or press B to close, or close it by hand (lift the barrels, push the cylinder in).
 
 **Machine guns** with a feed cover: grab the cover's rear latch and lift it (with the cover shut and the belt in the feed the box will not come off). Drop the old box (B), slide a new box onto its rails (a short, heavy slide), then take the belt end at the mouth of the box and lay it on the feed tray under the cover; it clicks in. Press the cover down over the belt and rack if the bolt is forward. The counter walks you through it: `LAY BELT`, `CLOSE COVER`, `RACK`.
 

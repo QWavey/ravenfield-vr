@@ -510,6 +510,10 @@ namespace RavenfieldVR.Weapons
                         _sys.FlashMessage("WRONG MAG"); // (taken up from another gun: it looks like one, and a buzz said nothing of why it did not go in)
                         Log.InfoOnce("wrongmag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: refused a magazine of {prop.WeaponKey} (part '{prop.Data?.MagazineName}', this gun's '{Data.MagazineName}').");
                     }
+                    else if (prop.Kind == PropKind.Shell && Breaks && !Ammo.Open)
+                    {
+                        _sys.FlashMessage("OPEN IT"); // (a shell at a shut break action or cylinder: B opens it)
+                    }
                 }
                 return;
             }
