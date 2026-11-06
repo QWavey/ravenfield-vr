@@ -248,6 +248,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>How far behind the barrel's end the game's muzzle transform sits (m), where it sits inside the gun: the QJB201's, 57 cm. 0 for nearly every gun.</summary>
         public float MuzzleInside;
 
+        /// <summary>The lowest point of the gun's bipod, as the model draws it (gun space). Zero: none.</summary>
+        public Vector3 BipodFoot;
+
         /// <summary>The gun's trigger, moved by the finger on the controller's: at a full pull it turns by this many degrees about the axis and moves by this much (gun space).</summary>
         public int[] TriggerPath;
         public Vector3 TriggerAxis;

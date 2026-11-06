@@ -1605,6 +1605,10 @@ namespace RavenfieldVR.Weapons
             {
                 strength *= fd.Handgun ? oneHand : oneHand * (1f - VRConfig.TwoHandRecoilReduction.Value);
             }
+            if (sub == null && Rested(fd, kind))
+            {
+                strength = Mathf.Min(strength, VRConfig.RecoilStrength.Value) * RestedKick;
+            }
             float kick = ShotKick(c, fd, kind, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
             // Critically damped spring peak = v0 / (omega * e), omega ~ 12 (StepRecoil): ~0.9 m/s per kick unit gives ~2.7 cm
@@ -1636,6 +1640,24 @@ namespace RavenfieldVR.Weapons
             {
                 Casings.Eject(this);
             }
+        }
+
+        /// <summary>What a gun laid on something solid still kicks, of a shouldered gun's.</summary>
+        private const float RestedKick = 0.5f;
+
+        /// <summary>
+        /// A long gun laid on something solid: its bipod's feet, or the gun under the support hand, just above a level surface, the gun itself
+        /// about level. A machine gun on a ledge or fired lying down kicked as hard as one held in the air. One short ray, at a shot.
+        /// </summary>
+        internal bool Rested(WeaponRigData d, WeaponClass kind)
+        {
+            if (d.Handgun || kind == WeaponClass.Launcher || AutoTest.Requested || Rig.DirToWorld(d.Up).y < 0.7f)
+            {
+                return false;
+            }
+            bool bipod = d.BipodFoot.sqrMagnitude > 0f;
+            Vector3 foot = bipod ? d.BipodFoot : d.HasSupportPoint ? d.SupportPoint : Vector3.Lerp(d.GripPoint, d.MuzzlePoint, 0.5f);
+            return PropPhysics.SurfaceUnder(Rig.ToWorld(foot) + Vector3.up * 0.03f, bipod ? 0.08f : 0.13f);
         }
 
         /// <summary>

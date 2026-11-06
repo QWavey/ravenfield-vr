@@ -18,7 +18,7 @@ namespace RavenfieldVR.Input
         Fire, Grab, MagRelease, SlideRelease, FireMode, Sprint, Use, WeaponNext, Kick,
         Squad, Map, Loadout, Scoreboard, Pause, VRMenu, Countermeasures, ModKeys,
         // The game's slow motion (its Slowmotion key): it had no button in VR (user, 2026-10-18 evening: "theres no button for
-        // slowmotion rn"; task 273). B held on Touch (a tap drops the magazine); the right thumbstick's double click before
+        // slowmotion rn"; task 273). A pressed twice on Touch (B is the magazine release); the right thumbstick's double click before
         // (user, 2026-10-19 night: "do another button, i dont want middle double press"; task 313).
         SlowMotion
     }

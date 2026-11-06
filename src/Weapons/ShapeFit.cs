@@ -871,9 +871,10 @@ namespace RavenfieldVR.Weapons
                 Collider c = null;
                 if (p.Points.Length >= 4 && !p.CookFailed)
                 {
+                    MeshCollider mc = null;
                     try
                     {
-                        var mc = go.AddComponent<MeshCollider>();
+                        mc = go.AddComponent<MeshCollider>();
                         mc.convex = true;
                         mc.sharedMesh = p.Mesh;
                         // Cooking failed (PhysX logs it): the collider has no shape and would touch everything. Its box
@@ -892,6 +893,10 @@ namespace RavenfieldVR.Weapons
                     {
                         p.CookFailed = true;
                         c = null;
+                        if (mc != null)
+                        {
+                            UnityEngine.Object.DestroyImmediate(mc); // (left, it touched everything, and in no list to be taken off again)
+                        }
                     }
                 }
                 if (c == null)

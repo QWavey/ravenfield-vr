@@ -1056,6 +1056,46 @@ namespace RavenfieldVR.Weapons
             d.Notes += $"trigger '{best.name}' follows the finger ";
         }
 
+        /// <summary>A bipod's parts, by name: the QJB201's, the PKM's legs, the Chinese guns' 脚架.</summary>
+        internal static readonly Regex BipodName = new Regex(@"bipod|脚架", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// The lowest point of a bipod the model draws, where a gun laid down stands (<see cref="HeldWeapon.Rested"/>). Folded along the barrel
+        /// it is simply higher up; hidden (a mod's bipod key) it is none.
+        /// </summary>
+        private static void FindBipod(WeaponRigData d, Transform[] all, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Handgun || d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.Up.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            float lowest = float.MaxValue;
+            foreach (Transform t in all)
+            {
+                if (!BipodName.IsMatch(t.name) || !sampler.IdleVisible(t))
+                {
+                    continue;
+                }
+                Bounds box = sampler.GunSpaceBoundsNear(t, gunIdle, 0.8f);
+                if (box.size.sqrMagnitude < 1e-6f)
+                {
+                    continue;
+                }
+                Vector3 e = box.extents;
+                float reach = Mathf.Abs(d.Up.x) * e.x + Mathf.Abs(d.Up.y) * e.y + Mathf.Abs(d.Up.z) * e.z;
+                float foot = Vector3.Dot(box.center, d.Up) - reach;
+                if (foot < lowest)
+                {
+                    lowest = foot;
+                    d.BipodFoot = box.center - d.Up * reach;
+                }
+            }
+            if (lowest < float.MaxValue)
+            {
+                d.Notes += "a bipod to rest on ";
+            }
+        }
+
         private static bool Related(Transform t, Transform part) => part != null && (t == part || t.IsChildOf(part) || part.IsChildOf(t));
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));

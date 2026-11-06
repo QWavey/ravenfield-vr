@@ -206,6 +206,20 @@ namespace RavenfieldVR.Weapons
                      || held != null && held.Weapon != null && level.transform.IsChildOf(held.Weapon.transform));
         }
 
+        /// <summary>A level surface to stand a thing on, at most <paramref name="reach"/> under <paramref name="at"/> (not a wall's face, not the held gun's stand-in).</summary>
+        internal static bool SurfaceUnder(Vector3 at, float reach)
+        {
+            int n = Physics.RaycastNonAlloc(at, Vector3.down, SurfaceHits, reach, ~BodyMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                if (SurfaceHits[i].normal.y > 0.6f && !GunCollider.IsStandIn(SurfaceHits[i].collider) && IsLevelFor(SurfaceHits[i].collider, null))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>No floor of the level within 3 m under <paramref name="at"/>: under the ground (or out over a drop).</summary>
         internal static bool NothingUnder(Vector3 at, IList<Collider> own)
         {

@@ -115,6 +115,7 @@ namespace RavenfieldVR.Tests
             CoverScoreTests(mod);
             CueNameTests(mod);
             SisterMagazineTests(mod);
+            BipodNameTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -568,6 +569,20 @@ namespace RavenfieldVR.Tests
         /// A feed cover opens from anywhere its grab zone reaches (CoverLever, user 2026-11-05: "some MGS cant be opened"): on the QJB201's
         /// short cover, a palm on either side of the hinge lifted 12 cm turns it the opening way, about as far as on a long PKM cover.
         /// </summary>
+        /// <summary>The bipod names read from the mods' bundles (2026-11-06), and nothing else a gun has.</summary>
+        private static void BipodNameTests(System.Reflection.Assembly mod)
+        {
+            var field = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer")?.GetField("BipodName", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Check(field != null, "Bipod: name rule found");
+            if (field == null)
+            {
+                return;
+            }
+            var name = (System.Text.RegularExpressions.Regex)field.GetValue(null);
+            Check(name.IsMatch("QJB201_Bipod_Left") && name.IsMatch("bipod_feet_base") && name.IsMatch("\u811a\u67b6" + "1"), "Bipod: named parts are found");
+            Check(!name.IsMatch("Handguard") && !name.IsMatch("Stock") && !name.IsMatch("Barrel"), "Bipod: other parts are not");
+        }
+
         /// <summary>A magazine fits its own gun and sister guns with the same part of the same size, and no other.</summary>
         private static void SisterMagazineTests(System.Reflection.Assembly mod)
         {
