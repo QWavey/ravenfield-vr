@@ -837,6 +837,7 @@ namespace RavenfieldVR.Weapons
             if (w != null && w.isOverheating && VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) && !VRGameInput.GunInputBlocked)
             {
                 FlashMessage("OVERHEATED");
+                Log.InfoOnce("overheated:" + w.name, $"{w.name}: trigger pulled while overheated.");
                 Rig.Dominant.Haptic(0.01f, 250f, 0.25f);
             }
         }

@@ -1609,6 +1609,7 @@ namespace RavenfieldVR.Weapons
             if (sub == null && Rested(fd, kind))
             {
                 strength = Mathf.Min(strength, VRConfig.RecoilStrength.Value) * RestedKick;
+                Log.InfoOnce("rested:" + fd.Key, $"{fd.Key}: fired laid on something solid, the kick halved ({(fd.BipodFoot.sqrMagnitude > 0f ? "on its bipod" : "under the support hand")}).");
             }
             float kick = ShotKick(c, fd, kind, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);

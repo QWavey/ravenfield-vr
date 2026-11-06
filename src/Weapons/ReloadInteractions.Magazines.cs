@@ -507,6 +507,7 @@ namespace RavenfieldVR.Weapons
                     if (prop.Kind == PropKind.Magazine && !Ours(prop))
                     {
                         _sys.FlashMessage("WRONG MAG"); // (taken up from another gun: it looks like one, and a buzz said nothing of why it did not go in)
+                        Log.InfoOnce("wrongmag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: refused a magazine of {prop.WeaponKey} (part '{prop.Data?.MagazineName}', this gun's '{Data.MagazineName}').");
                     }
                 }
                 return;
@@ -1005,6 +1006,10 @@ namespace RavenfieldVR.Weapons
             switch (prop.Kind)
             {
                 case PropKind.Magazine:
+                    if (prop.WeaponKey != Data.Key)
+                    {
+                        Log.InfoOnce("sistermag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: took a sister gun's magazine ({prop.WeaponKey}).");
+                    }
                     Ammo.InsertMagazine(prop.Rounds);
                     _held.Sounds.Play(MechSound.MagIn, at);
                     _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
@@ -1199,6 +1204,7 @@ namespace RavenfieldVR.Weapons
                     _almostSeated = prop;
                     // It looks seated, 4 to 8 mm short, and the gun has no magazine: said, or a reload ended on a gun that will not fire.
                     _sys.FlashMessage("TAP IT HOME");
+                    Log.InfoOnce("taphome:" + Data.Key, $"{Data.Key}: a magazine let go at its latch ({prop.RailDepth * 100f:0.0} of {prop.RailLength * 100f:0.0} cm in).");
                 }
                 _atDetent = false;
                 return;

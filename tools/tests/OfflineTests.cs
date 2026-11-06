@@ -37,6 +37,7 @@ namespace RavenfieldVR.Tests
             LauncherTests();
             SetupUninstallTests();
             SetupKeepAndRestoreTests();
+            SetupStoppedUninstallTests();
             SetupInstallTests();
             SetupForeignLoaderTests();
             SetupMovedGameTests();
@@ -2439,6 +2440,62 @@ namespace RavenfieldVR.Tests
                     catch (System.IO.IOException)
                     {
                     }
+                }
+            }
+        }
+
+        /// <summary>A file in use stops an uninstall part way: its record comes back, so a second try finishes the job.</summary>
+        private static void SetupStoppedUninstallTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-stopped-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+            try
+            {
+                void Write(string rel, string text)
+                {
+                    string p = System.IO.Path.Combine(game, rel);
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(p));
+                    System.IO.File.WriteAllText(p, text);
+                }
+                Write("ravenfield.exe", "");
+                Write(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll", "mod");
+                Write(@"BepInEx\core\BepInEx.dll", "loader");
+                Write(@"BepInEx\LogOutput.log", "log");
+                Write(Installer.ManifestRelative, "version=test\ninstalledBepInEx=True\nadded=BepInEx\\core\\BepInEx.dll\nadded=BepInEx\\plugins\\RavenfieldVR\\RavenfieldVR.dll\n");
+                System.IO.Directory.CreateDirectory(steam);
+                Installer.SteamDirOverride = steam;
+                var log = new List<string>();
+                var installer = new Installer(log.Add);
+                bool stopped = false;
+                using (System.IO.File.Open(System.IO.Path.Combine(game, @"BepInEx\LogOutput.log"), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None))
+                {
+                    try
+                    {
+                        installer.Uninstall(game, keepSettings: false);
+                    }
+                    catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+                    {
+                        stopped = true;
+                    }
+                }
+                Check(stopped && System.IO.File.Exists(System.IO.Path.Combine(game, Installer.ManifestRelative)),
+                      "Setup uninstall stopped by a file in use: its record is back (" + string.Join(" | ", log) + ")");
+                installer.Uninstall(game, keepSettings: false);
+                Check(!System.IO.Directory.Exists(System.IO.Path.Combine(game, "BepInEx")), "Setup uninstall tried again: it finishes (" + string.Join(" | ", log) + ")");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup stopped uninstall: threw " + e);
+            }
+            finally
+            {
+                Installer.SteamDirOverride = null;
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
                 }
             }
         }
