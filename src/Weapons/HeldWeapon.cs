@@ -1433,7 +1433,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             // Never the pose it held empty (a gun drawn empty is still in it for a moment after its first round is in).
-            if (Time.unscaledTime - _lastShotAt > 0.6f && now != _emptyState)
+            if (Time.unscaledTime - _lastShotAt > 0.6f && now != _emptyState && !ammo.SlideLocked) // (the animator is told 0 with the slide locked: its slide-back pose learned as the loaded one left it back after a refill)
             {
                 _loadedRestState = now;
                 AnimatorPoses[key] = (now, _emptyState);

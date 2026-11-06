@@ -1048,7 +1048,7 @@ namespace RavenfieldVR.Weapons
                     _magVolumeRetryAt = 0f;
                 }
             }
-            if (_magVolume == null && !_magVolumeTried)
+            if (_magVolume == null && !_magVolumeTried && !Weapon.reloading) // (a reload parks the part, shrunk: measured so it stood for the type's seated magazine)
             {
                 _magVolumeTried = true;
                 _magVolumeTries++;
