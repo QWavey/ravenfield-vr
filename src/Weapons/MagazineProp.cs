@@ -67,6 +67,8 @@ namespace RavenfieldVR.Weapons
         /// it has come out a little. At the grab it sits at full depth, which counted as pushed home: it re-seated at once.
         /// </summary>
         public bool FromSeat;
+        /// <summary>Pulled from its seat and tugged a few millimetres out: pushed home from there it seats (see <see cref="FromSeat"/>).</summary>
+        public bool TuggedFromSeat;
         /// <summary>The rail depth last frame (whether it is going in or coming out).</summary>
         public float PrevDepth;
         /// <summary>

@@ -325,6 +325,7 @@ namespace RavenfieldVR.Weapons
             // through the receiver (user, 2026-10-16: "it always needs to exit how it entered").
             prop.RailLateral0 = lateral0;
             prop.FromSeat = true;
+            prop.TuggedFromSeat = false;
             prop.MovingIn = false;
             prop.TurnDepth = prop.RailDepth;
             prop.PrevDepth = prop.RailDepth;
@@ -655,7 +656,14 @@ namespace RavenfieldVR.Weapons
             }
             if (prop.FromSeat)
             {
-                return; // just pulled out of its seat: neither seated again nor drawn home until it comes out a little
+                // Tugged 5 mm and pushed back home it seats (under the 1.5 cm above it never did, drawn fully in and not in the gun: the
+                // let-go dropped it out of a full well; rail scout, 2026-11-06).
+                prop.TuggedFromSeat |= prop.RailDepth < prop.RailLength - 0.005f;
+                if (!prop.TuggedFromSeat || prop.RailDepth < prop.RailLength * 0.985f)
+                {
+                    return; // just pulled out of its seat: neither seated again nor drawn home until it comes out a little
+                }
+                prop.FromSeat = false;
             }
             if (refused)
             {
@@ -1153,6 +1161,13 @@ namespace RavenfieldVR.Weapons
                     SeatProp(off, prop);
                     return;
                 }
+            }
+            if (prop.OnRail && prop.FromSeat && AcceptsNow(prop))
+            {
+                // Taken by the seated magazine and let go before it came out (a hand on the well, a squeeze that meant the gun): it stays in.
+                // It fell out of a full well, or waited at the latch, with nothing pulled.
+                SeatProp(off, prop);
+                return;
             }
             if (_palmed != null)
             {
