@@ -299,6 +299,15 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The magazine's box as the analysis measured it, whatever a copy's later replaced it with.</summary>
         public Bounds AnalysedMagBounds => MagBoundsAdopted ? MagBoundsAnalysed : MagBounds;
+
+        /// <summary>
+        /// This gun's well takes that gun's magazine: the same gun, or a sister gun with the same part of the same size. A magazine fitted only the
+        /// exact variant it came from: one pulled from a soldier's HK416-B would not go into an HK416-A, with nothing to say why.
+        /// </summary>
+        internal bool TakesMagazineOf(WeaponRigData other) =>
+            ReferenceEquals(other, this) || other != null && !string.IsNullOrEmpty(MagazineName) && MagazineName == other.MagazineName && IsPistol == other.IsPistol
+            && (AnalysedMagBounds.size - other.AnalysedMagBounds.size).sqrMagnitude < 0.005f * 0.005f;
+
         public Vector3 MuzzlePoint;
         /// <summary>
         /// Where the drawn barrel's front lies along the aim (gun-body space, metres from its origin), set only for a one-round

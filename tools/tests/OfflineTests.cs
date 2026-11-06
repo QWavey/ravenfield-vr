@@ -114,6 +114,7 @@ namespace RavenfieldVR.Tests
             CoverLeverTests(mod);
             CoverScoreTests(mod);
             CueNameTests(mod);
+            SisterMagazineTests(mod);
             UserListTests(mod);
             StraightOffLineTests(mod);
             HandLoadingBagTests(mod);
@@ -567,6 +568,30 @@ namespace RavenfieldVR.Tests
         /// A feed cover opens from anywhere its grab zone reaches (CoverLever, user 2026-11-05: "some MGS cant be opened"): on the QJB201's
         /// short cover, a palm on either side of the hinge lifted 12 cm turns it the opening way, about as far as on a long PKM cover.
         /// </summary>
+        /// <summary>A magazine fits its own gun and sister guns with the same part of the same size, and no other.</summary>
+        private static void SisterMagazineTests(System.Reflection.Assembly mod)
+        {
+            Type data = mod.GetType("RavenfieldVR.Weapons.WeaponRigData");
+            var takes = data?.GetMethod("TakesMagazineOf", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Check(takes != null, "Sister magazines: TakesMagazineOf found");
+            if (takes == null)
+            {
+                return;
+            }
+            object Gun(string name, float length)
+            {
+                object d = Activator.CreateInstance(data);
+                data.GetField("MagazineName").SetValue(d, name);
+                data.GetField("MagBounds").SetValue(d, new UnityEngine.Bounds(UnityEngine.Vector3.zero, new UnityEngine.Vector3(0.03f, length, 0.08f)));
+                return d;
+            }
+            bool Fits(object a, object b) => (bool)takes.Invoke(a, new[] { b });
+            object a4 = Gun("HK416\u5f39\u5323", 0.2f), b4 = Gun("HK416\u5f39\u5323", 0.202f), drum = Gun("HK416\u5f39\u5323", 0.14f), other = Gun("AK Mag", 0.2f), none = Gun(null, 0.2f);
+            Check(Fits(a4, a4) && Fits(a4, b4) && Fits(b4, a4), "Sister magazines: the same part fits a sister gun");
+            Check(!Fits(a4, drum), "Sister magazines: a drum of the same name does not");
+            Check(!Fits(a4, other) && !Fits(none, Gun(null, 0.2f)), "Sister magazines: another part, or a gun with no named part, does not");
+        }
+
         /// <summary>Clip names from the mods' sound banks (read from the bundles, 2026-11-06): each goes to its own action.</summary>
         private static void CueNameTests(System.Reflection.Assembly mod)
         {

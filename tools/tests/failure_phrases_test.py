@@ -31,6 +31,7 @@ NOT_BY_PATTERN = {
     'OPEN COVER': "the gun counter's message (FlashCounter) when a box is held by its belt",
     'EMPTY MAG': "the message (FlashMessage) as the pouch hands out an empty magazine, loading by hand with the reserve out",
     'TRIGGER TO PUMP': "the pump's cue to the player (FlashMessage) on a grip-only pull, no check result",
+    'TAP IT HOME': "the cue to the player (FlashMessage) on a magazine let go at its latch, no check result",
     '(OVER THE FLASH LIMIT)': 'AutoTest raises the limiter with Problem(...) beside it',
     'LET GO': "AutoTest raises the support pull's failures with Problem(...)",
     'STILL HOLDS': "AutoTest raises the support pull's failures with Problem(...)",

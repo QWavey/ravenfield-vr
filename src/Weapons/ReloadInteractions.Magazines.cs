@@ -47,9 +47,11 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             // This gun's kind of magazine only: one picked up from another weapon was taken as the fresh one.
-            return off.Held is MagazineProp fresh && fresh.Kind == PropKind.Magazine && fresh.Go != null && fresh.WeaponKey == Data.Key
-                   && fresh.DistanceTo(SeatedMagBaseWorld) < 0.2f;
+            return off.Held is MagazineProp fresh && fresh.Go != null && FitsWell(fresh) && fresh.DistanceTo(SeatedMagBaseWorld) < 0.2f;
         }
+
+        /// <summary>A magazine of this gun or of a sister gun (see <see cref="WeaponRigData.TakesMagazineOf"/>).</summary>
+        private bool FitsWell(MagazineProp prop) => prop.Kind == PropKind.Magazine && (prop.WeaponKey == Data.Key || Data.TakesMagazineOf(prop.Data));
 
         /// <summary>Tactical reload: the released magazine goes into the off hand, beside the fresh one.</summary>
         private void TacticalEject(VRHand off)
@@ -406,7 +408,7 @@ namespace RavenfieldVR.Weapons
 
         private bool AcceptsNow(MagazineProp prop)
         {
-            if (prop.WeaponKey != Data.Key || !Manual)
+            if (prop.WeaponKey != Data.Key && !FitsWell(prop) || !Manual)
             {
                 return false;
             }
@@ -839,7 +841,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private bool TryMagKick(VRHand off, MagazineProp prop)
         {
-            if (prop.Kind != PropKind.Magazine || prop.WeaponKey != Data.Key || !Manual || !Ammo.UsesDetachableMag || !Ammo.MagInserted
+            if (!FitsWell(prop) || !Manual || !Ammo.UsesDetachableMag || !Ammo.MagInserted
                 || _ejecting != null || Ammo.BoxLocked)
             {
                 _kickPrevAlong = float.NaN;
