@@ -10,7 +10,7 @@ namespace RavenfieldVR.Weapons
 {
     // WeaponAnalyzer, part: when in the reload the mod plays its sounds. The class and how a weapon is analysed as a whole: WeaponAnalyzer.cs.
     /// <summary>What a clip's own name says it is the sound of.</summary>
-    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell, Selector, DryFire, Knock }
+    internal enum CueName { Unknown, MagOut, MagIn, Slide, Other, CoverUp, CoverDown, BeltOn, BeltOff, Shell, Selector, DryFire, Knock, Grab, TakeMag }
 
     /// <summary>
     /// The sound of an action, read from its clip's name. Cues were matched to the actions by time alone, and 11 of the sounds over the mods
@@ -37,6 +37,8 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex SelectorWord = new Regex(@"select|切换单发|切换连发", RegexOptions.IgnoreCase);
         private static readonly Regex DryFireWord = new Regex(@"dry[ _-]?fire|empty[ _-]?click", RegexOptions.IgnoreCase);
         private static readonly Regex KnockWord = new Regex(@"(mag|box)[ _-]?(kick|knock|konck|peng|hip)", RegexOptions.IgnoreCase);
+        private static readonly Regex GrabWord = new Regex(@"(ar|hand)_grab|握护木", RegexOptions.IgnoreCase);
+        private static readonly Regex TakeMagWord = new Regex(@"get[ _-]?mag|mag[ _-]?take|mag[a-z ]* and get", RegexOptions.IgnoreCase);
 
         internal static CueName Of(string name)
         {
@@ -49,6 +51,7 @@ namespace RavenfieldVR.Weapons
             return Showing.IsMatch(name) ? CueName.Other : BeltOn.IsMatch(name) ? CueName.BeltOn : BeltOff.IsMatch(name) ? CueName.BeltOff
                 : CoverUp.IsMatch(name) ? CueName.CoverUp : CoverDown.IsMatch(name) ? CueName.CoverDown : ShellIn.IsMatch(name) ? CueName.Shell
                 : SelectorWord.IsMatch(name) ? CueName.Selector : DryFireWord.IsMatch(name) ? CueName.DryFire : KnockWord.IsMatch(name) ? CueName.Knock
+                : GrabWord.IsMatch(name) ? CueName.Grab : TakeMagWord.IsMatch(name) ? CueName.TakeMag
                 : MagOut.IsMatch(name) ? CueName.MagOut : MagIn.IsMatch(name) ? CueName.MagIn : Slide.IsMatch(name) ? CueName.Slide
                 : Other.IsMatch(name) ? CueName.Other : CueName.Unknown;
         }
@@ -72,6 +75,8 @@ namespace RavenfieldVR.Weapons
                 case CueName.Selector: return MechSound.Selector;
                 case CueName.DryFire: return MechSound.DryFire;
                 case CueName.Knock: return MechSound.MagKnock;
+                case CueName.Grab: return MechSound.HandGrab;
+                case CueName.TakeMag: return MechSound.Pouch;
                 default: return null;
             }
         }
@@ -348,12 +353,12 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < _bank.clips.Length; i++)
             {
                 AudioClip clip = _bank.clips[i];
-                if (clip == null || clip.length >= WholeReloadSeconds)
+                if (clip == null)
                 {
                     continue;
                 }
                 MechSound? kind = CueNames.SoundOf(CueNames.Of(clip.name), clip.name, d.Cues.ContainsKey(MechSound.SlideBack));
-                if (kind.HasValue && !d.Cues.ContainsKey(kind.Value))
+                if (kind.HasValue && !d.Cues.ContainsKey(kind.Value) && (clip.length < WholeReloadSeconds || kind == MechSound.Pouch)) // (a "get mag" runs a second)
                 {
                     AddCue(d, kind.Value, ToCue(new SampledCue { Function = "PlaySoundBank", IntParameter = i }));
                 }

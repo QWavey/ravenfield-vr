@@ -398,7 +398,7 @@ namespace RavenfieldVR.Weapons
                 Log.InfoOnce("rocketheld:" + Data.Key, $"Rocket from the pouch for {Data.Key}: {drawn} drawn renderer(s), {size * 100f:0} cm across, "
                                                        + $"{Vector3.Distance(prop.Go.transform.position, off.Palm.position) * 100f:0} cm from the palm, layer {prop.Go.layer}.");
             }
-            _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.6f);
+            _held.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.6f); // (the gun's own "get mag" where it has one)
             off.Haptic(0.03f, 140f, 0.45f);
         }
 

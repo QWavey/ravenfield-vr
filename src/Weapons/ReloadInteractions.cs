@@ -885,6 +885,10 @@ namespace RavenfieldVR.Weapons
             _supportRest = -1f;
             _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value && !GripData.IsPistol);
             off.Haptic(0.02f, 120f, 0.35f);
+            if (Data.Cues.ContainsKey(MechSound.HandGrab))
+            {
+                _held.Sounds.Play(MechSound.HandGrab, off.Palm.position, 0.6f); // (the hand on the handguard, where the mod ships its sound)
+            }
         }
 
         /// <summary>

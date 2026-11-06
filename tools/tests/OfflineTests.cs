@@ -594,8 +594,7 @@ namespace RavenfieldVR.Tests
             {
                 Check(said(n) == "Slide", $"Cue names: '{n}' is the bolt ({said(n)})");
             }
-            foreach (string n in new[] { "M1878 Break open Inspect", "Hecate bolt open inspect", "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "get mag", "Cloth mag take", "AK-47_drop",
-                                         "\u63e1\u62a4\u6728" })
+            foreach (string n in new[] { "M1878 Break open Inspect", "Hecate bolt open inspect", "ADS Up", "Tuck In", "fly_smg_spray_inspect_pt1", "\u68c0\u89c6\u97f3\u6548 - Trim-[AudioTrimmer.com]", "AK-47_drop" })
             {
                 Check(said(n) == "Other", $"Cue names: '{n}' is no action's ({said(n)})");
             }
@@ -611,7 +610,9 @@ namespace RavenfieldVR.Tests
                          new[] { "MINIMI AMMO DOWN", "BeltOff" }, new[] { "PKM AMMO OUT 2~1", "BeltOff" }, new[] { "QJB201_Belt_Out", "BeltOff" },
                          new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }, new[] { "p01_ar_mike4_selectsemi_on", "Selector" },
                          new[] { "m4a1_foley_fire_select", "Selector" }, new[] { "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "Selector" }, new[] { "smg_dry_fire_01", "DryFire" },
-                         new[] { "95 MAG KICK", "Knock" }, new[] { "C8 MAG KONCK", "Knock" }, new[] { "416f mag peng", "Knock" }, new[] { "QJB201_Box_Hip", "Knock" }
+                         new[] { "95 MAG KICK", "Knock" }, new[] { "C8 MAG KONCK", "Knock" }, new[] { "416f mag peng", "Knock" }, new[] { "QJB201_Box_Hip", "Knock" },
+                         new[] { "ars_generic_AR_grab_3", "Grab" }, new[] { "AlphaAK_foley_hand_grab", "Grab" }, new[] { "\u0048K416\u63e1\u62a4\u6728", "Grab" },
+                         new[] { "M240 GET MAG", "TakeMag" }, new[] { "get mag 2", "TakeMag" }, new[] { "Cloth mag take", "TakeMag" }, new[] { "C8 MAG RECYLE AND GET", "TakeMag" }
                      })
             {
                 Check(said(n[0]) == n[1], $"Cue names: '{n[0]}' is {n[1]} ({said(n[0])})");
