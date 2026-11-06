@@ -70,7 +70,8 @@ namespace RavenfieldVR.Weapons
                     VRGameInput.SupportTriggerOwned = true;
                     VRGameInput.SupportTriggerLightsOnly = false;
                 }
-                if (mag.OnRail || !VRInput.GetPressed(trigger, h.Side)) // (its top is inside the well on the rail: no round out through the gun)
+                // (Its top is inside the well on the rail: no round out through the gun. Nor with the laser on a panel: the click let one out.)
+                if (mag.OnRail || VRGameInput.GunInputBlocked || !VRInput.GetPressed(trigger, h.Side))
                 {
                     continue;
                 }

@@ -142,11 +142,13 @@ namespace RavenfieldVR.UI
             if (VRInput.GetPressed(DigitalAction.VRMenu))
             {
                 VRInput.Consume(DigitalAction.VRMenu);
+                ModKeys.Close(); // (one panel at a time: the two overlapped, the nearer taking the laser; panels scout, 2026-11-06)
                 Settings.Toggle();
             }
             if (VRInput.GetPressed(DigitalAction.ModKeys))
             {
                 VRInput.Consume(DigitalAction.ModKeys);
+                Settings.Close();
                 ModKeys.Toggle();
             }
             if (Settings.IsOpen && (Settings.Changed || Time.unscaledTime >= _nextSettingsRefresh))
