@@ -92,6 +92,11 @@ namespace RavenfieldVR.Weapons
                 if (hand.Tracked && (thrown || CanStrap(hand)) && Throw(weapon, hand, v, thrown))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
+                    if (!weapon.HasLoadedAmmo() && !weapon.HasSpareAmmo())
+                    {
+                        // The last one: a grenade that was no more stayed in the fist, and the trigger only buzzed (the grip's throw puts it away below).
+                        _sys.PutAwayAfterThrow();
+                    }
                 }
             }
             // Holding by the grip: opening the hand in a throwing motion lets the grenade go, as in other VR games (a slow

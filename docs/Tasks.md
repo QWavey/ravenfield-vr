@@ -2838,6 +2838,7 @@ The game not started. 1.16.9 not played yet when this began (two short flat star
 - [x] The QJB201's lens flash and fireball start at the barrel's end (`MuzzleInside`), not at its muzzle transform in the receiver, where the gun hid them.
 - [x] A magazine fits sister guns (the same part, the same size): one taken from a soldier's HK416-B goes into an HK416-A. It fitted only the exact variant it came from, refused with a buzz and no word.
 - [x] Review of the day's diff: the saved height is not raised while paused or in a menu (a headset carried about); the hanging belt is taken where it is drawn, swung; a selector trigger left waiting is cleared. Refuted: melee at a car with no wall (the game's cast starts every distance at the maximum), dry fire to a donor's clip (`SoundDonors` serves four kinds only).
+- [x] The last grenade thrown by the trigger leaves the hand: it stayed in the fist, spent, where the grip's throw put it away.
 - Scouted clean: the 13 small modules (one cosmetic note: visor dirt fades out after its setting is turned off), every animator's speed parameter (none defaults to 0), the mods' animation events (sound and reload only), the vanilla DMR (its bolt really does not move).
 - Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
 
