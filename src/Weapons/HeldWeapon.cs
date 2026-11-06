@@ -1658,7 +1658,7 @@ namespace RavenfieldVR.Weapons
             }
             bool bipod = d.BipodFoot.sqrMagnitude > 0f;
             Vector3 foot = bipod ? d.BipodFoot : d.HasSupportPoint ? d.SupportPoint : Vector3.Lerp(d.GripPoint, d.MuzzlePoint, 0.5f);
-            return PropPhysics.SurfaceUnder(Rig.ToWorld(foot) + Vector3.up * 0.03f, bipod ? 0.08f : 0.13f);
+            return PropPhysics.SurfaceUnder(Rig.ToWorld(foot) + Vector3.up * 0.03f, bipod ? 0.19f : 0.13f); // (a bipod's foot is read folded where a mod's key unfolds it: legs of 15 cm)
         }
 
         /// <summary>

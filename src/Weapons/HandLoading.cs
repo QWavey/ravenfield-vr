@@ -148,7 +148,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool MagazineFromPouch(WeaponSystem sys, VRHand hand, Weapon last)
         {
-            if (!Enabled || sys.Held != null || hand.Held != null || !hand.GrabPressed || last == null || !sys.Zones.InPouch(hand.Palm.position))
+            if (!Enabled || sys.Held != null || hand.Held != null || !hand.GrabPressed || last == null || !GameContext.PlayerOnFoot || !sys.Zones.InPouch(hand.Palm.position))
             {
                 return false;
             }
