@@ -148,7 +148,8 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool MagazineFromPouch(WeaponSystem sys, VRHand hand, Weapon last)
         {
-            if (!Enabled || sys.Held != null || hand.Held != null || !hand.GrabPressed || last == null || !GameContext.PlayerOnFoot || !sys.Zones.InPouch(hand.Palm.position))
+            if (!Enabled || sys.Held != null || hand.Held != null || !hand.GrabPressed || last == null || !GameContext.PlayerOnFoot || !sys.Zones.InPouch(hand.Palm.position)
+                || sys.Zones.HolsterNearerThanPouch(hand.Palm.position, -1)) // (the off hip's pistol: a squeeze for it took a magazine)
             {
                 return false;
             }
