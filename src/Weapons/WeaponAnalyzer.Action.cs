@@ -622,13 +622,13 @@ namespace RavenfieldVR.Weapons
         /// of the box, the slide or the cover itself.
         /// </summary>
         private static void FindBeltParts(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
-            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler)
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, Weapon w)
         {
             if (d.Hinge != HingeKind.FeedCover || d.MagazinePath == null)
             {
                 return;
             }
-            d.BeltDrawnByAnimator = sampler.AmmoDrawsParts;
+            d.BeltDrawnByAnimator = d.Animated && sampler.AmmoDrawsParts(w.configuration);
             var box = new List<Transform>();
             Transform mag = WeaponRig.Resolve(root, d.MagazinePath);
             if (mag != null)

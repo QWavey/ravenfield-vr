@@ -207,7 +207,6 @@ namespace RavenfieldVR.Weapons
                     HasAim = true;
                     SampleSightModes(config);
                 }
-                SampleAmmoDrawing(config); // (last: an animator can stay in its empty pose once told 0, which nothing before may see)
                 return true;
             }
             catch (Exception e)
@@ -252,18 +251,17 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        /// <summary>Whether this gun's animator draws parts by its round count: gone at none that are there at full.</summary>
-        public bool AmmoDrawsParts { get; private set; }
-
         /// <summary>
-        /// With no rounds, what goes: on a layer of their own the "loaded ammo" clips scale the QJB201's 11 rounds of belt away and park the
-        /// MK46's 12 out of sight. Six parts or more is a belt drawn so, not a bolt caught back with its handle and spring.
+        /// Whether this gun's animator draws parts by its round count, asked once its sampling is over (told 0 an animator can stay in its
+        /// empty pose) and only of a belt gun. With no rounds, what goes: on a layer of their own the "loaded ammo" clips scale the QJB201's
+        /// 11 rounds of belt away and park the MK46's 12 out of sight. Six parts or more is a belt drawn so, not a bolt caught back with its
+        /// handle and spring.
         /// </summary>
-        private void SampleAmmoDrawing(Weapon.Configuration config)
+        public bool AmmoDrawsParts(Weapon.Configuration config)
         {
-            if (!Has(Weapon.LOADED_AMMO_PARAMETER_HASH) || _anim.layerCount < 2)
+            if (_holder == null || _anim == null || !Has(Weapon.LOADED_AMMO_PARAMETER_HASH) || _anim.layerCount < 2)
             {
-                return;
+                return false;
             }
             SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo));
             Step(0.5f);
@@ -286,9 +284,9 @@ namespace RavenfieldVR.Weapons
                     gone++;
                 }
             }
-            AmmoDrawsParts = gone >= 6;
             SetInt(Weapon.LOADED_AMMO_PARAMETER_HASH, Mathf.Max(1, config.ammo)); // (the model left as it was: bounds are read off it later)
             Step(0.5f);
+            return gone >= 6;
         }
 
         private void SampleReload(Weapon.Configuration config)
