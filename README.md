@@ -8,6 +8,7 @@ What you get:
 - Free hands. The gun sits in your hand and fires where its barrel points; nothing is glued to anything. Each weapon's own finger pose (from its mod's arm rig) shapes your hand around its grip, or switch to the weapon's own first-person arms, moved to your controllers by IK: the gun hand holds the grip as the gun's animation does, the other hand its foregrip and its magazines as the reload does, and off the gun its fingers follow your controller. With your hands empty the arms of the last gun you held stay on both hands.
 - Manual reloading for every gun, modded ones included: magazines slide in and out along the well, slides, bolts, charging handles and pumps move with your hand, break-action shotguns and revolvers open, machine guns have feed covers. Your ammo pouch shows what the gun takes.
 - The mod's own sounds for each action (magazine out, magazine in, rack back, slam home), cut out of its reload audio, so a reload sounds like what your hands are doing instead of the whole reload clip playing at once.
+- A gun that kicks by how it is held: one hand, two hands, on the shoulder, or laid on something solid (a machine gun on a ledge, on its bipod, or fired lying down kicks half as hard). Its trigger moves with your finger.
 - Semi/auto switching on guns that have it, and the fire-mode, flashlight, laser, bipod and inspect keys of weapon and mutator scripts reachable from the controllers.
 - Fallen soldiers drop their weapons; pick one up and it replaces the one in that slot.
 - Grenades with a pin you pull and an arm you throw with; melee weapons that hit when you swing them.
@@ -77,6 +78,8 @@ The counter on the side of your gun shows its state: `28+1` (28 in the magazine 
 4. If the slide locked back on empty, press A, or pull the slide or charging handle back and let it go. Or slam the magazine home: driven in hard, it knocks the slide forward and chambers a round, as in Boneworks (a gentle push leaves it locked).
 
 Tactical reload with one hand: push a fresh magazine hard into the base of the seated one and it knocks the old one out, then slide the new one in. This works where the magazine sticks out of the gun; pistols and guns whose well swallows the magazine (KRISS Vector style) need B or a hand pull.
+
+A magazine fits its own gun and that gun's sister variants (the same part of the same size): one pulled from a soldier's HK416-B goes into your HK416-A. Let go just short of its latch, it says `TAP IT HOME`.
 
 **Bolt-action, lever and pump guns** move only by hand: pull the bolt or pump back and push it forward again to chamber the next round. Let go half way and it stays there.
 
