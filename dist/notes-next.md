@@ -3,6 +3,8 @@
 - Every action sounds like itself: clips are matched by their names as well as their timing. The MRAD's magazine no longer plays its bolt, the PPSh's magazine coming out no longer plays it going in.
 - Machine guns have their own cover and belt sounds where the mod ships them (MK46, PKM, PKP, Type 80, QJB201) instead of the bolt's.
 - More guns use their own bolt and shell sounds instead of a vanilla weapon's, and their own selector, empty click, magazine knock, hand on the handguard and magazine out of the pouch.
+- The selector lever moves on the XM8, MG3 and QBZ-95 family when you switch fire mode.
+- A hanging belt swings with the gun.
 - The last grenade thrown leaves no grenade on the belt to reach for.
 - The lens of a gun drawn with its magnifier selected sits on the magnifier's line.
 - An eye height saved crouched or sitting corrects itself, and a headset put on late still calibrates.

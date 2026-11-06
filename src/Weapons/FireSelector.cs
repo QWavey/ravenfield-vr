@@ -58,14 +58,40 @@ namespace RavenfieldVR.Weapons
             {
                 w.SetSingleFire();
                 SemiByPlayer.Add(w);
+                MoveLever(w, SwitchSemi);
                 return "SEMI";
             }
             if (SemiByPlayer.Remove(w))
             {
                 w.SetAutoFire();
+                MoveLever(w, SwitchAuto);
                 return "AUTO";
             }
             return null;
+        }
+
+        private static readonly int SwitchSemi = Animator.StringToHash("switchsemi"), SwitchAuto = Animator.StringToHash("switchauto");
+
+        /// <summary>
+        /// The gun's own selector lever, where its animator has the triggers for it: the XM8's, the MG3's and the QBZ-95's clips move it and
+        /// no script of theirs ever plays them, so it stayed on auto (read from the bundles, 2026-11-06). A gun with a fire-mode script of its
+        /// own never comes here.
+        /// </summary>
+        private static void MoveLever(Weapon w, int trigger)
+        {
+            Animator animator = w.animator;
+            if (animator == null || !animator.isActiveAndEnabled)
+            {
+                return;
+            }
+            foreach (AnimatorControllerParameter p in animator.parameters)
+            {
+                if (p.nameHash == trigger && p.type == AnimatorControllerParameterType.Trigger)
+                {
+                    animator.SetTrigger(trigger);
+                    return;
+                }
+            }
         }
 
         /// <summary>
