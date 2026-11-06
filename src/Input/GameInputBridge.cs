@@ -789,7 +789,11 @@ namespace RavenfieldVR.Input
             // Seat switching: Sprint has no job in a seat (it is read on foot only, in UpdateSprint), so its press moves the
             // player to the next seat. The game's own seat keys take it, swapping with an AI passenger the same way they do.
             // Sprint is the left stick's click on the controllers and the Vive wand's trackpad click.
-            if (VRInput.GetPressed(DigitalAction.Sprint))
+            // Not with a hand on the wheel or stick: a stray click of the left stick left the seat at speed, the engine off or an AI at the
+            // controls (vehicles scout, 2026-11-06). Let go and click.
+            Rig.VRRig seatRig = Rig.VRRig.Instance;
+            bool steering = seatRig != null && (seatRig.Hands[0].Role == Rig.HandRole.Cockpit || seatRig.Hands[1].Role == Rig.HandRole.Cockpit);
+            if (VRInput.GetPressed(DigitalAction.Sprint) && !steering)
             {
                 int next = NextSeatIndex(actor.seat);
                 if (next >= 0)
