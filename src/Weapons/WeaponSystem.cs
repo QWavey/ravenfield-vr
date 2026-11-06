@@ -1263,7 +1263,11 @@ namespace RavenfieldVR.Weapons
             {
                 _gripLetGoAt = -1f;
             }
-            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > 0.12f)
+            // (A longer moment with the other hand at work on the gun: a grip loosened for a tenth of a second mid-reload dropped the gun, and the
+            // magazine on its way in with it.)
+            HandRole working = Rig.Off.Role;
+            float grace = working == HandRole.Magazine || working == HandRole.Slide || working == HandRole.Hinge || working == HandRole.Belt ? 0.3f : 0.12f;
+            if (_gripLetGoAt >= 0f && Time.unscaledTime - _gripLetGoAt > grace)
             {
                 _gripLetGoAt = -1f;
                 Actor actor = GameContext.PlayerActor;

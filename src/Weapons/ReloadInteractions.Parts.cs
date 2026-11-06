@@ -314,6 +314,7 @@ namespace RavenfieldVR.Weapons
 
         private bool _beltHeld;
         private BeltStrip _belt;
+        private float _beltTakenAt;
         /// <summary>The belt slipped from the hand (pulled out to its length): it hangs from the box mouth until taken again.</summary>
         private bool _beltHanging;
         /// <summary>The belt was laid by hand while the cover was open: it shows until the cover is lifted again (274).</summary>
@@ -447,6 +448,7 @@ namespace RavenfieldVR.Weapons
         private void BeginBelt(VRHand off)
         {
             _beltHeld = true;
+            _beltTakenAt = Time.unscaledTime;
             _beltHanging = false;
             off.Role = HandRole.Belt;
             if (_belt == null)
@@ -483,7 +485,7 @@ namespace RavenfieldVR.Weapons
             // The belt's end (just ahead of the fingers) onto the feed tray, taken from 7 cm (the palm within 4.5 cm of one
             // point was fiddly with the gun in the other hand); a tick as the end comes near, so the tray is found by feel.
             float toTray = Vector3.Distance(off.Palm.position + off.Palm.Forward * 0.02f, FeedTrayWorld);
-            if (toTray < 0.07f)
+            if (toTray < 0.07f && Time.unscaledTime - _beltTakenAt > 0.15f) // (where the mouth lies by the tray the squeeze that took it laid it)
             {
                 CompleteBelt(off);
             }
