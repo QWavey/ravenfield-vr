@@ -386,6 +386,20 @@ R870's grip, 29 cm under the bore): no shotgun could be loaded by hand, while th
   started into its tube was drawn home on its own by a spring, up to 1.6 m/s; that was replaced by sliding with the
   hand.)
 
+- **Sounds by name** (`CueNames` in `WeaponAnalyzer.Sounds.cs`): a clip goes to an action by what the mod called it before when it
+  plays; `CueNames.Allows` keeps a named clip off another action's slot, and `FillFromBank` gives an action with no cue a clip of the
+  gun's own bank. Long clips are cut at the reload's actions, the cover's lift and shut among them.
+- **Which magazines fit** (`WeaponRigData.TakesMagazineOf`): its own gun, or a gun with the same magazine part of the same size within
+  5 mm (the HK416-A to -E). `ReloadInteractions.Ours` is that for any prop: a sister's rounds count as this gun's when stowed. Another
+  gun's magazine pushed at the well says `WRONG MAG`.
+- **A rest** (`HeldWeapon.Rested`): a long gun about level with a level surface just under its bipod's feet (`FindBipod`, by name) or
+  under the support hand kicks half as hard. One ray per shot, nothing per frame.
+- **The trigger** (`FindTrigger`, `ApplyTrigger`): the part by name near the grip, moved by the finger: the fire clip's own motion, else
+  14 degrees about its origin, else a 6 mm slide where its origin is not on the part. `TickTriggerReset` is a tick as a semi-automatic
+  gun's trigger is let forward.
+- **Made stand-ins measure for themselves.** A magazine made because the gun's own part is parked keeps its shape under its own key
+  (`OwnCopy`, `ShapeKey`): under the type's key its cube was every later magazine's grip for the session.
+
 ### 3.8 Drops, holsters, pouch, throws (`Weapons/WeaponDrops.cs`, `Weapons/WeaponSystem.cs`, `Weapons/HolsterDisplay.cs`, `Weapons/PouchDisplay.cs`, `Weapons/ThrowAndMelee.cs`, `Weapons/GrenadeDud.cs`, `Weapons/BodyZones.cs`)
 
 - **Dropped weapons**: bots drop their weapon as an inert copy of its third-person model, now copied from **only the
