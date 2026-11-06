@@ -292,7 +292,8 @@ namespace RavenfieldVR.Weapons
             Transform head = _vrRig.Head;
             Vector3 eye = _rig.ToWorld(_eyePoint);
             float dist = Vector3.Distance(head.position, eye);
-            bool active = aiming || dist < 0.22f;
+            // (Near the head and pointing along the look: a gun held close at a reload rendered the whole scene a second time for nobody.)
+            bool active = aiming || dist < 0.22f && Vector3.Dot(head.forward, _rig.AimWorld) > 0.6f;
             if (!active)
             {
                 _camera.enabled = false;

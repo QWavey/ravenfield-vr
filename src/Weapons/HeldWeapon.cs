@@ -1758,7 +1758,9 @@ namespace RavenfieldVR.Weapons
             }
             if (want > 0f)
             {
-                _steadyStrength = strength; // kept while it eases out after the aim, so the ease-out is smooth
+                // Kept while it eases out after the aim, so the ease-out is smooth; eased itself: a sight switched at the eye changed it at once,
+                // and the gun and its next shot stepped by the filter's lag in one frame.
+                _steadyStrength = _steadyWeight > 0f ? Mathf.MoveTowards(_steadyStrength, strength, dt * 3f) : strength;
             }
             _steadyWeight = Mathf.MoveTowards(_steadyWeight, want, dt * 5f);
             // A snap turn turns the whole rig, the gun with it, in one frame: started again there, not followed as a swing (the
@@ -2121,7 +2123,7 @@ namespace RavenfieldVR.Weapons
                 // floating in front of the red dot, a visor that was not there (user, 2026-10-20 night: "some guns have a 2nd
                 // visor ... happens on the patriot"; the PATRIOT TAC's Spec Ops mode). Only a gun whose model has one gets a
                 // lens: parts the sight mode moves in (a magnifier flipping behind the dot) or a magnifier named in the model.
-                _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null ? 1 : 0;
+                _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null || Rig.Data.HasScopeModel ? 1 : 0;
                 if (_modeOptic == 0)
                 {
                     Log.InfoOnce("modelens-none:" + Rig.Data.Key, $"{Rig.Data.Key}: its narrower sight mode has no optic in the model (no part moves with the mode, no magnifier): no lens of the mod's is drawn for it.");
