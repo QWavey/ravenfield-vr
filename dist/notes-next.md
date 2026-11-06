@@ -19,3 +19,7 @@
 - The lens of a gun drawn with its magnifier selected sits on the magnifier's line.
 - An eye height saved crouched or sitting corrects itself, and a headset put on late still calibrates.
 - No seat change while a hand is on the wheel or stick: a stray stick click no longer leaves the driver's seat at speed.
+- In slow motion the gun stops at a wall however fast the hand swings; a gun let go or a dud thrown flies with the hand's speed, as a magazine does.
+- A soldier held by the neck and knocked down by your other fist becomes a body in your hand; the grip no longer stays on nothing.
+- No seat switch in a locked vehicle: the game left the seat and refused the next.
+- Setup says so when a Steam step failed instead of Done, and an uninstall stopped by a file in use can be run again.
