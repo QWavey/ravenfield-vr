@@ -178,6 +178,7 @@ namespace RavenfieldVR.Weapons
                         VRGameInput.SuppressFire = true;
                     }
                     UpdateSubWeaponReloadTarget();
+                    SayOverheated();
                 }
                 catch (Exception e)
                 {
@@ -822,6 +823,20 @@ namespace RavenfieldVR.Weapons
                 Held.OnShot(weapon);
                 Rig.Dominant.Model?.TriggerShot();
                 _lensFlash?.OnShot(Held, weapon);
+            }
+        }
+
+        /// <summary>
+        /// A trigger pulled on a gun too hot to fire: the game's Fire returns before anything is asked, so the pull did nothing at all, and the
+        /// flat game's heat bar is no part of VR.
+        /// </summary>
+        private void SayOverheated()
+        {
+            Weapon w = Held?.Weapon;
+            if (w != null && w.isOverheating && VRInput.GetPressed(DigitalAction.Fire, VRInput.GunHand) && !VRGameInput.GunInputBlocked)
+            {
+                FlashMessage("OVERHEATED");
+                Rig.Dominant.Haptic(0.01f, 250f, 0.25f);
             }
         }
 
