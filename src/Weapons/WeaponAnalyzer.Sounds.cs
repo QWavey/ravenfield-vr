@@ -33,7 +33,7 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex CoverDown = new Regex(Cover + @"(down|close|shut|lock)", RegexOptions.IgnoreCase);
         private static readonly Regex BeltOn = new Regex(@"ammo[ _-]?up|belt[ _-]?(deploy|lay|on)", RegexOptions.IgnoreCase);
         private static readonly Regex BeltOff = new Regex(@"ammo[ _-]?(down|out)|belt[ _-]?(out|off)", RegexOptions.IgnoreCase);
-        private static readonly Regex ShellIn = new Regex(@"shell[ _-]?(in|insert|load)(?![a-z])", RegexOptions.IgnoreCase);
+        private static readonly Regex ShellIn = new Regex(@"shell[ _-]?(in|insert|load)(?![a-z])|sideload|^m\d+_load", RegexOptions.IgnoreCase);
         private static readonly Regex SelectorWord = new Regex(@"select|切换单发|切换连发", RegexOptions.IgnoreCase);
         private static readonly Regex DryFireWord = new Regex(@"dry[ _-]?fire|empty[ _-]?click", RegexOptions.IgnoreCase);
         private static readonly Regex KnockWord = new Regex(@"(mag|box)[ _-]?(kick|knock|konck|peng|hip)", RegexOptions.IgnoreCase);

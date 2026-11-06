@@ -608,7 +608,7 @@ namespace RavenfieldVR.Tests
                          new[] { "MINIMI CAP DOWN", "CoverDown" }, new[] { "PKM CAP DOWN~1", "CoverDown" }, new[] { "QJB201_Cap_Lock_2", "CoverDown" },
                          new[] { "MINIMI AMMO UP AND SHELL", "BeltOn" }, new[] { "PKM AMMO UP", "BeltOn" }, new[] { "QJB201_Belt_Deploy", "BeltOn" },
                          new[] { "MINIMI AMMO DOWN", "BeltOff" }, new[] { "PKM AMMO OUT 2~1", "BeltOff" }, new[] { "QJB201_Belt_Out", "BeltOff" },
-                         new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }, new[] { "p01_ar_mike4_selectsemi_on", "Selector" },
+                         new[] { "shell insert", "Shell" }, new[] { "ShellInsert1", "Shell" }, new[] { "m1014_load_first", "Shell" }, new[] { "ARS_M500_SideLoad", "Shell" }, new[] { "p01_ar_mike4_selectsemi_on", "Selector" },
                          new[] { "m4a1_foley_fire_select", "Selector" }, new[] { "\u5207\u6362\u5355\u53d1-[AudioTrimmer.com]", "Selector" }, new[] { "smg_dry_fire_01", "DryFire" },
                          new[] { "95 MAG KICK", "Knock" }, new[] { "C8 MAG KONCK", "Knock" }, new[] { "416f mag peng", "Knock" }, new[] { "QJB201_Box_Hip", "Knock" },
                          new[] { "ars_generic_AR_grab_3", "Grab" }, new[] { "AlphaAK_foley_hand_grab", "Grab" }, new[] { "\u0048K416\u63e1\u62a4\u6728", "Grab" },
