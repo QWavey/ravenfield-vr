@@ -345,6 +345,29 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private Vector3 BeltHangEnd => BeltSideExit + Vector3.down * (BeltReach * 0.65f) + Rig.AimWorld * 0.03f;
 
+        // The hanging belt's end, in the play space (walking drags nothing): about 1.2 swings a second, settling in three or four.
+        private Vector3 _hangAt, _hangVel;
+        private int _hangFrame = -10;
+        private const float HangStiffness = 60f, HangDamping = 3.5f;
+
+        /// <summary>The end of a hanging belt lags the gun and swings back, on a spring: rigidly under the box it looked like a rod. Started afresh when it starts hanging.</summary>
+        private Vector3 SwungEnd(Vector3 rest)
+        {
+            Transform space = _sys.Rig.Root;
+            Vector3 home = space.InverseTransformPoint(rest);
+            if (Time.frameCount > _hangFrame + 1)
+            {
+                _hangAt = home;
+                _hangVel = Vector3.zero;
+            }
+            _hangFrame = Time.frameCount;
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            _hangVel += ((home - _hangAt) * HangStiffness - _hangVel * HangDamping) * dt;
+            _hangAt += _hangVel * dt;
+            _hangAt = home + Vector3.ClampMagnitude(_hangAt - home, BeltReach * 0.35f);
+            return space.TransformPoint(_hangAt);
+        }
+
         /// <summary>
         /// Out over the box's side from the belt's mouth, at the mouth's height: where a belt hanging, or held below the box, turns
         /// down (the curve's control point, and the hanging belt's grab line goes through it).
@@ -582,7 +605,7 @@ namespace RavenfieldVR.Weapons
             }
             else if (_beltHanging)
             {
-                to = BeltHangEnd;
+                to = SwungEnd(BeltHangEnd);
             }
             else
             {
