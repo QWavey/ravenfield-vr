@@ -1631,6 +1631,7 @@ namespace RavenfieldVR.Weapons
             {
                 _system.Rig.Off.Haptic(0.03f, 160f, amp * 0.7f);
             }
+            _triggerResetDue = !c.auto;
             Reload.OnShot();
             _magnifierFlip.OnShot();
             // The action throws the case out with the shot: a self-loading gun (or any gun with assisted reloading, whose

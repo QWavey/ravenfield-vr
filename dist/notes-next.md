@@ -7,6 +7,7 @@
 - A hanging belt swings with the gun.
 - The gun's trigger moves with your finger.
 - A gun too hot to fire says OVERHEATED when you pull the trigger.
+- A light tick in your finger when a semi-automatic gun's trigger resets.
 - A long gun laid on something solid kicks half as hard: a machine gun on a ledge, on its bipod, or fired lying down.
 - A magazine let go just short of its latch says TAP IT HOME (it looks seated, but the gun has none yet).
 - Magazines fit sister guns: one pulled from a soldier's HK416-B goes into your HK416-A.

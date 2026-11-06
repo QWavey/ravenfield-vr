@@ -2842,6 +2842,7 @@ The game not started. 1.16.9 not played yet when this began (two short flat star
 - [x] New: a long gun laid on something solid kicks half as hard (`HeldWeapon.Rested`): its bipod's feet (`FindBipod`, by name) or the gun under the support hand just above a level surface, the gun about level. One short ray per shot.
 - [x] A hull that throws while cooking leaves no shapeless collider behind (`ShapeFit.AddColliders`). Input scout: Use held after leaving a seat is no bug (the game's `useConsumed` holds it); a trigger let go in a 0.5 s gap leaves the pin out and the grenade in hand, which is safe. Left: GunVolume's 24 entries thrash only with seven guns in turn, and 4 MB each is the cost of more.
 - [x] A trigger pulled on an overheated gun says OVERHEATED: the game's `Fire` returns first, no click, and its heat bar is not in VR.
+- [x] New: a light tick in the finger as a semi-automatic gun's trigger is let forward after a shot (`TickTriggerReset`).
 - Scouted clean: the 13 small modules (one cosmetic note: visor dirt fades out after its setting is turned off), every animator's speed parameter (none defaults to 0), the mods' animation events (sound and reload only), the vanilla DMR (its bolt really does not move).
 - Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
 

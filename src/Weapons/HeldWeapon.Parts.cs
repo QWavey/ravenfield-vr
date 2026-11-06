@@ -72,6 +72,7 @@ namespace RavenfieldVR.Weapons
             ApplyBoltTurn(d, slideShare, handle);
             ApplyHinge(d);
             ApplyTrigger(d);
+            TickTriggerReset();
             ApplyChamberShells(d);
             ApplySightParts();
 
@@ -261,6 +262,19 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal bool HandleLockedAlone => Rig.Handle != null && !BoltLockedAlone && !KnobLockedAlone && Reload != null
                                            && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
+
+        /// <summary>A shot of a gun that fires once a pull, its trigger not yet let forward.</summary>
+        private bool _triggerResetDue;
+
+        /// <summary>The trigger let forward after a shot: the sear's small click in the finger, where the gun can fire again.</summary>
+        private void TickTriggerReset()
+        {
+            if (_triggerResetDue && Input.VRInput.GetTrigger(Input.VRInput.GunHand) < 0.45f)
+            {
+                _triggerResetDue = false;
+                _system.Rig.Dominant.Haptic(0.004f, 240f, 0.12f);
+            }
+        }
 
         private Quaternion _triggerRest;
         private Vector3 _triggerRestPos;
