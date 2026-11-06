@@ -2828,6 +2828,8 @@ The game not started. 1.16.9 not played yet when this began (two short flat star
 - [x] The MG3 (its reload one clip) gets cover sounds too: the times the reload lifts and shuts the cover are cut points like the others. Named also: the selector, an empty click and the old magazine knocked out use the gun's own clip where it has one (`selector_on`, `smg_dry_fire`, `MAG KICK`).
 - [x] Lens on the sight mode in use: drawn with its magnifier selected, a gun's lens sat on the first sight's eye point and dimmed on the magnifier's own line. Rebuilt when another magnified mode is taken.
 - [x] Height: a saved height the head stays 12 cm above for 3 s is raised (taken crouched or sitting, the view stood too high and physical crouch never fired). A calibration short of samples starts over instead of giving up until the next change of view (the headset put on late).
+- [x] No seat switch with a hand on the wheel or stick (a stray left stick click left the driver's seat at speed). A knife reaches no vehicle through a wall.
+- [x] `tools/bundles/sound_banks.py` kept for the next audit.
 - Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
 
 ### 364. Bug hunt on magazines, belts and machine guns, to 40% (user, 2026-11-05: "on mag inserting ... on belt etc because still kinda bugged and some MGS cant be opened and many other bugs with other weapons like full reload sound playing when pulling back bolt or pulliung out mag")

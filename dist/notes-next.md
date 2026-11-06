@@ -5,3 +5,4 @@
 - More guns use their own bolt and shell sounds instead of a vanilla weapon's.
 - The lens of a gun drawn with its magnifier selected sits on the magnifier's line.
 - An eye height saved crouched or sitting corrects itself, and a headset put on late still calibrates.
+- No seat change while a hand is on the wheel or stick: a stray stick click no longer leaves the driver's seat at speed.
