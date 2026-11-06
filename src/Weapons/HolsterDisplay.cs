@@ -54,7 +54,7 @@ namespace RavenfieldVR.Weapons
                 int slot = show ? zones.SlotAtSpot(spot) : -1;
                 Weapon w = slot >= 0 && slot < actor.weapons.Length ? actor.weapons[slot] : null;
                 // (Nor the second weapon held in the free hand.)
-                WeaponManager.WeaponEntry entry = w != null && w != actor.activeWeapon && (_sys.Second == null || w != _sys.Second.Weapon) ? w.weaponEntry : null;
+                WeaponManager.WeaponEntry entry = w != null && w != actor.activeWeapon && (_sys.Second == null || w != _sys.Second.Weapon) && !Spent(w) ? w.weaponEntry : null;
                 Shown s = _shown[spot];
                 if (entry == null || entry.prefab == null)
                 {
@@ -183,6 +183,9 @@ namespace RavenfieldVR.Weapons
         /// the back or hangs head-down from the belt. Classic layout: long guns muzzle up behind the shoulder, pistols
         /// muzzle-down on the hips, gear across the chest. Barrel and top come from the model's measured frame.
         /// </summary>
+        /// <summary>The last grenade thrown: the slot stays the actor's (a resupply fills it), and showed a grenade on the belt that drew nothing to throw.</summary>
+        internal static bool Spent(Weapon w) => w is ThrowableWeapon && !w.HasAnyAmmo();
+
         private static void Place(Shown s, BodyZones zones, int spot)
         {
             Vector3 fwd = zones.TorsoForward, right = zones.TorsoRight, up = Vector3.up;

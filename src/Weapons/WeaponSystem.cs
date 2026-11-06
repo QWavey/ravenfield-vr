@@ -1081,7 +1081,7 @@ namespace RavenfieldVR.Weapons
             int slot = Zones.HolsterAt(hand.Palm.position, includeChest: Held == null || !Held.Aiming, skipSlot: skip);
             // A short tick when the hand reaches a holster with something in it: holsters are found by feel.
             bool usable = slot >= 0 && actor != null && actor.weapons != null && slot < actor.weapons.Length && actor.weapons[slot] != null
-                          && (gunHand || actor.weapons[slot] != actor.activeWeapon);
+                          && (gunHand || actor.weapons[slot] != actor.activeWeapon) && !HolsterDisplay.Spent(actor.weapons[slot]);
             // The gun hand gets nothing at the second weapon's holster either: its copy is hidden (HolsterDisplay), so the spot
             // looks empty. A grab there drew that weapon, which put the held one away and then the second one too (2026-10-19).
             if (usable && gunHand && Second != null && actor.weapons[slot] == Second.Weapon)
@@ -1114,7 +1114,8 @@ namespace RavenfieldVR.Weapons
             }
             // (Only where the game draws at all: in deep water nothing is, and the free hand's second weapon was drawn and fired
             // there; holster hunt, 2026-10-21.)
-            if (!gunHand && Second == null && Held != null && Held.Weapon != null && SecondWeapon.CanPair(Held.Weapon, actor.weapons[slot])
+            // (The gun still drawn: the gun hand holstering it this same frame left Held set, and the pair was begun and put away again.)
+            if (!gunHand && Second == null && Held != null && Held.Weapon != null && actor.activeWeapon == Held.Weapon && SecondWeapon.CanPair(Held.Weapon, actor.weapons[slot])
                 && actor.CanUnholsterWeapon() && !actor.weapons[slot].IsToggleable())
             {
                 // A second weapon of another kind (primary, secondary, launcher): held in this hand beside the drawn one
