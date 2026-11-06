@@ -2869,6 +2869,7 @@ The game not started. 1.16.9 not played yet when this began (two short flat star
 - The support hand walked through: the pistol cup, the let-go, foregrip to magazine, walking and a palm through the gun read sound. Left to feel in the headset: the two-handed steer comes on in 0.1 s (a quick snap of up to 25 degrees); recoil and a long slide along a handguard count toward the buzz of the stretch (15 cm), not near its 60 cm let-go; an untracked support hand keeps the gun supported until it is seen again.
 - Scouted clean: the 13 small modules (one cosmetic note: visor dirt fades out after its setting is turned off), every animator's speed parameter (none defaults to 0), the mods' animation events (sound and reload only), the vanilla DMR (its bolt really does not move).
 - Scouted, left: under a low ceiling the view sinks after 3 s (chosen on purpose in 2026-10-20's review); on-foot Recenter only serves the menus; the second gun's scope camera goes by head distance alone (not confirmed on screen).
+- 1.16.10 built and installed at the user's word ("yes please build the setup"). None of it seen in the headset yet: first a seated magazine squeezed and let go, a locked slide touched, a machine gun's cover and belt sounds, a gun rested on a ledge, a sister magazine.
 
 ### 364. Bug hunt on magazines, belts and machine guns, to 40% (user, 2026-11-05: "on mag inserting ... on belt etc because still kinda bugged and some MGS cant be opened and many other bugs with other weapons like full reload sound playing when pulling back bolt or pulliung out mag")
 

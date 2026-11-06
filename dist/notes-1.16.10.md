@@ -1,0 +1,28 @@
+## Ravenfield VR 1.16.10
+
+- Every action sounds like itself: clips are matched by their names as well as their timing. The MRAD's magazine no longer plays its bolt, the PPSh's magazine coming out no longer plays it going in.
+- Machine guns have their own cover and belt sounds where the mod ships them (MK46, PKM, PKP, Type 80, QJB201) instead of the bolt's.
+- More guns use their own bolt and shell sounds instead of a vanilla weapon's, and their own selector, empty click, magazine knock, hand on the handguard and magazine out of the pouch.
+- The selector lever moves on the XM8, MG3 and QBZ-95 family when you switch fire mode.
+- A hanging belt swings with the gun.
+- The gun's trigger moves with your finger.
+- A gun too hot to fire says OVERHEATED when you pull the trigger.
+- A light tick in your finger when a semi-automatic gun's trigger resets.
+- A long gun laid on something solid kicks half as hard: a machine gun on a ledge, on its bipod, or fired lying down.
+- The hand closes round the real magazine again after a stand-in was held: a magazine taken during a reload could leave every later one of that gun held like a box.
+- Another gun's magazine pushed at the well says WRONG MAG.
+- A seated magazine you squeeze and let go without pulling it out stays in; it used to fall out or wait at its latch. Tugged a little and pushed back, it seats.
+- A magazine let go just short of its latch says TAP IT HOME (it looks seated, but the gun has none yet).
+- A squeeze at a dropped gun takes the gun, not a magazine lying by it, and a magazine in reach wins over the pouch.
+- A revolver's cylinder swung out can be pushed shut by hand; a shell pushed at a shut action says OPEN IT.
+- A locked slide you touch and let go stays locked; it used to slam home. A bolt left half way comes back half way, and a short pull let go clicks home.
+- Magazines fit sister guns: one pulled from a soldier's HK416-B goes into your HK416-A.
+- Your last grenade leaves the hand when thrown with the trigger too.
+- The last grenade thrown leaves no grenade on the belt to reach for.
+- The lens of a gun drawn with its magnifier selected sits on the magnifier's line.
+- An eye height saved crouched or sitting corrects itself, and a headset put on late still calibrates.
+- No seat change while a hand is on the wheel or stick: a stray stick click no longer leaves the driver's seat at speed.
+- In slow motion the gun stops at a wall however fast the hand swings; a gun let go or a dud thrown flies with the hand's speed, as a magazine does.
+- A soldier held by the neck and knocked down by your other fist becomes a body in your hand; the grip no longer stays on nothing.
+- No seat switch in a locked vehicle: the game left the seat and refused the next.
+- Setup says so when a Steam step failed instead of Done, and an uninstall stopped by a file in use can be run again.
