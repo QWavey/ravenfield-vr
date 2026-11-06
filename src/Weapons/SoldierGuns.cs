@@ -74,9 +74,15 @@ namespace RavenfieldVR.Weapons
             _rig = rig;
         }
 
+        private static readonly System.Predicate<Weapon> Reloaded = g => g == null || g.ammo > 0;
+
         /// <summary>Once a frame, before the body grab.</summary>
         internal void Update()
         {
+            if (Unloaded.Count > 0)
+            {
+                Unloaded.RemoveWhere(Reloaded); // (his next magazine is in: shot dry later, it was still taken for the one pulled out)
+            }
             if (Time.unscaledTime >= _nextPrune)
             {
                 _nextPrune = Time.unscaledTime + 10f;
@@ -157,7 +163,7 @@ namespace RavenfieldVR.Weapons
             float within = LookWithin + (a1 - a0).magnitude * 0.5f;
             foreach (Actor a in ActorManager.instance.actors)
             {
-                if (a == null || a == player || a.dead || !a.aiControlled || a.IsSeated())
+                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled || a.IsSeated())
                 {
                     continue;
                 }
@@ -185,7 +191,9 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 Weapon w = a.activeWeapon;
-                if (w == null || w.thirdPersonTransform == null || !ShapeOf(w, out Bounds local))
+                // (Not his ammo box, medic bag or grenade: taken in the middle of a resupply, his AI waited for a box that was gone.)
+                if (w == null || w.thirdPersonTransform == null || w is ThrowableWeapon || a.hasAmmoBox && a.activeWeaponSlot == a.ammoBoxSlot
+                    || a.hasMedipack && a.activeWeaponSlot == a.medipackSlot || !ShapeOf(w, out Bounds local))
                 {
                     continue;
                 }

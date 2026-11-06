@@ -34,6 +34,11 @@ namespace RavenfieldVR.Weapons
             if (wrested != null)
             {
                 wrested.MagOut = SoldierGuns.LeftUnloaded(w);
+                wrested.SubAmmo = SubAmmoOf(w); // (a launcher he had fired came back with its default grenade)
+                if (wrested.MagOut)
+                {
+                    HideMagazine(wrested);
+                }
             }
             return wrested;
         }
@@ -72,6 +77,11 @@ namespace RavenfieldVR.Weapons
             if (dropped != null)
             {
                 dropped.MagOut = SoldierGuns.LeftUnloaded(w); // (a magazine pulled out of it: picked up it read 0 with one seated)
+                dropped.SubAmmo = SubAmmoOf(w);
+                if (dropped.MagOut)
+                {
+                    HideMagazine(dropped); // (it lay there with one and came up without)
+                }
             }
             float ms = (float)watch.Elapsed.TotalMilliseconds;
             _deathDrops++;
