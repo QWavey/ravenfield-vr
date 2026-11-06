@@ -1504,6 +1504,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _held.SlideOffset = 0f;
+            _returning = false; // (a rack ended here: the switch to a sub weapon gave the gun now in hand the old one's slam)
         }
     }
 }

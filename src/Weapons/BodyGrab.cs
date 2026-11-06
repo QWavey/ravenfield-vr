@@ -1469,6 +1469,10 @@ namespace RavenfieldVR.Weapons
             Quaternion facing = Quaternion.SlerpUnclamped(_turn[older], _turn[newer], u);
             // Set going at the speed that takes it there in this step (see the class: the joint's physics sees how fast it moves).
             float dt = Time.fixedDeltaTime;
+            if (dt < 1e-5f)
+            {
+                return; // the game's time stop (a katana finisher) sets the fixed step to 0: no infinite velocity from it
+            }
             _body.velocity = (place - _body.position) / dt;
             (facing * Quaternion.Inverse(_body.rotation)).ToAngleAxis(out float angle, out Vector3 axis);
             angle = angle > 180f ? angle - 360f : angle;

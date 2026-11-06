@@ -79,6 +79,7 @@ namespace RavenfieldVR.Weapons
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
+            RealTimeFlight.Begin(body); // (thrown hard in slow motion it dropped at the feet)
             PropPhysics.IgnorePlayer(colliders);
             foreach (Collider c in colliders)
             {

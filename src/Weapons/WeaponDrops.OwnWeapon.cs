@@ -85,6 +85,7 @@ namespace RavenfieldVR.Weapons
             body.velocity = velocity;
             body.angularVelocity = angularVelocity;
             SetUpBody(body, colliders);
+            RealTimeFlight.Begin(body); // (the hand's speed is real time: in slow motion a gun let go mid-swing fell straight down off the hand)
             PropPhysics.IgnorePlayer(colliders);
             OutOfTheGround(root.transform, colliders, WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null && WeaponSystem.Instance.Rig.Head != null
                 ? WeaponSystem.Instance.Rig.Head.position : (Vector3?)null);
