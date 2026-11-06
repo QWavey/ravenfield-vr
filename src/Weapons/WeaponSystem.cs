@@ -299,7 +299,7 @@ namespace RavenfieldVR.Weapons
             _secondUntrackedAt = -1f;
             // With Grip to hold off the free hand keeps its weapon as the gun hand does, until it is put back at its holster
             // (UpdateHolster); it went away the moment the grip opened (round 11).
-            if (!Second.Hand.GrabHeld && VRConfig.GripToHoldWeapon.Value)
+            if (!Second.Hand.GrabHeld && VRConfig.GripToHoldWeapon.Value && !GameContext.GameMenuOpen && !GameManager.IsPaused()) // (as the gun hand's: a grip let go in a pause holstered it in the frozen match)
             {
                 // Let go: back into its holster (a grenade let go in a throwing motion is thrown first).
                 SecondWeapon let = Second;
