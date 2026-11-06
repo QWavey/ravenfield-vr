@@ -88,6 +88,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (p.nameHash == trigger && p.type == AnimatorControllerParameterType.Trigger)
                 {
+                    animator.ResetTrigger(trigger == SwitchSemi ? SwitchAuto : SwitchSemi); // (one still waiting, in a state with no way out: it took the lever the wrong way later)
                     animator.SetTrigger(trigger);
                     return;
                 }

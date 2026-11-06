@@ -761,7 +761,7 @@ namespace RavenfieldVR.Weapons
                     // Along the belt as it hangs: out over the box's side, then down beside it (a straight line from the mouth to its
                     // end ran through the box, where a hand reaching for the belt found the box first).
                     Vector3 side = BeltSideExit;
-                    d = Mathf.Min(d, Mathf.Min(DistanceToSegment(palm, BeltStartWorld, side), DistanceToSegment(palm, side, BeltHangEnd)));
+                    d = Mathf.Min(d, Mathf.Min(DistanceToSegment(palm, BeltStartWorld, side), DistanceToSegment(palm, side, BeltEndDrawn)));
                 }
                 if (d < radius)
                 {

@@ -750,7 +750,9 @@ namespace RavenfieldVR.Rig
         {
             float saved = VRConfig.EyeHeight.Value;
             float y = HeadLocal.y;
-            if (saved <= 0.3f || VRConfig.SeatedMode.Value || !HeadTracked || AutoTest.Requested || Shots.Enabled || y < saved + TallerThanSaved || y > 2.1f)
+            // (Not paused or in a menu: the head moves on its own there, a headset carried about or laid on a shelf, as RoomscaleFollow says.)
+            if (saved <= 0.3f || VRConfig.SeatedMode.Value || !HeadTracked || AutoTest.Requested || Shots.Enabled || y < saved + TallerThanSaved || y > 2.1f
+                || GameManager.IsPaused() || GameContext.GameMenuOpen)
             {
                 _tallerSince = -1f;
                 return;

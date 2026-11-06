@@ -368,6 +368,9 @@ namespace RavenfieldVR.Weapons
             return space.TransformPoint(_hangAt);
         }
 
+        /// <summary>Where the hanging belt's end is drawn, swung as it is (the grab took it at its rest, up to 11 cm from the end in view).</summary>
+        private Vector3 BeltEndDrawn => Time.frameCount <= _hangFrame + 1 ? _sys.Rig.Root.TransformPoint(_hangAt) : BeltHangEnd;
+
         /// <summary>
         /// Out over the box's side from the belt's mouth, at the mouth's height: where a belt hanging, or held below the box, turns
         /// down (the curve's control point, and the hanging belt's grab line goes through it).
