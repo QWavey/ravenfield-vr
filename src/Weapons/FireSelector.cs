@@ -72,6 +72,15 @@ namespace RavenfieldVR.Weapons
 
         private static readonly int SwitchSemi = Animator.StringToHash("switchsemi"), SwitchAuto = Animator.StringToHash("switchauto");
 
+        /// <summary>A gun drawn again in semi: the animator starts over on its authored lever, which read auto on a gun firing single shots.</summary>
+        internal static void ShowLever(Weapon w)
+        {
+            if (w != null && SemiByPlayer.Contains(w))
+            {
+                MoveLever(w, SwitchSemi);
+            }
+        }
+
         /// <summary>
         /// The gun's own selector lever, where its animator has the triggers for it: the XM8's, the MG3's and the QBZ-95's clips move it and
         /// no script of theirs ever plays them, so it stayed on auto (read from the bundles, 2026-11-06). A gun with a fire-mode script of its

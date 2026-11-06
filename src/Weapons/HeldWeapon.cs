@@ -243,6 +243,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
+                FireSelector.ShowLever(weapon);
                 Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
                 if (_inertiaOmega > 0f && _inertiaOmega < 14f)
                 {
