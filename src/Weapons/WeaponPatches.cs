@@ -273,9 +273,34 @@ namespace RavenfieldVR.Weapons
     [HarmonyPatch(typeof(Weapon), nameof(Weapon.ReloadDone))]
     internal static class WeaponReloadDonePatch
     {
-        private static void Postfix(Weapon __instance)
+        /// <summary>
+        /// A gun reloaded by hand is not filled behind the hand: a mod's "unholster is reload" or "change fire mode is reload" reached the
+        /// game's fill past <see cref="WeaponReloadPatch"/>, and with the state adopted after it a gun holstered with its magazine out came back
+        /// with one in, the rounds off the reserve, the old magazine still in the hand (reload scout, 2026-11-06). The first draw has no
+        /// state yet: filled as authored.
+        /// </summary>
+        private static bool Prefix(Weapon __instance, out bool __state)
         {
-            if (WeaponHooks.PlayerWeaponInVR(__instance))
+            __state = false;
+            if (!WeaponHooks.PlayerWeaponInVR(__instance) || VRConfig.ReloadNow != ReloadMode.Manual)
+            {
+                return true;
+            }
+            try
+            {
+                AmmoState state = WeaponSystem.Instance.StateFor(__instance.GetActiveSubWeapon(), create: false);
+                __state = state != null && state.Participates;
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Weapon.ReloadDone prefix (VR)", e);
+            }
+            return !__state;
+        }
+
+        private static void Postfix(Weapon __instance, bool __state)
+        {
+            if (!__state && WeaponHooks.PlayerWeaponInVR(__instance))
             {
                 try
                 {
