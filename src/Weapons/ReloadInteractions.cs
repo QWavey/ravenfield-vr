@@ -1498,7 +1498,7 @@ namespace RavenfieldVR.Weapons
                 // Switching weapons with a magazine in hand: keep holding it (it can be seated once this weapon is
                 // drawn again, stowed, or dropped).
                 prop.OnRail = false;
-                if (prop.Owner == null && prop.WeaponKey == Data.Key)
+                if (prop.Owner == null && Ours(prop))
                 {
                     prop.Owner = Ammo;
                 }

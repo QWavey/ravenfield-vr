@@ -53,6 +53,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>A magazine of this gun or of a sister gun (see <see cref="WeaponRigData.TakesMagazineOf"/>).</summary>
         private bool FitsWell(MagazineProp prop) => prop.Kind == PropKind.Magazine && (prop.WeaponKey == Data.Key || Data.TakesMagazineOf(prop.Data));
 
+        /// <summary>This gun's prop of any kind, or a sister gun's magazine: its rounds are this gun's (stowed, a sister's were lost with no gun of its own to go to).</summary>
+        private bool Ours(MagazineProp prop) => prop.WeaponKey == Data.Key || FitsWell(prop);
+
         /// <summary>Tactical reload: the released magazine goes into the off hand, beside the fresh one.</summary>
         private void TacticalEject(VRHand off)
         {
@@ -408,7 +411,7 @@ namespace RavenfieldVR.Weapons
 
         private bool AcceptsNow(MagazineProp prop)
         {
-            if (prop.WeaponKey != Data.Key && !FitsWell(prop) || !Manual)
+            if (!Ours(prop) || !Manual)
             {
                 return false;
             }
@@ -1153,7 +1156,7 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (Stows(off))
                 {
-                    _sys.ReturnRounds(palmed, palmed.Rounds, palmed.WeaponKey == Data.Key ? Ammo : null);
+                    _sys.ReturnRounds(palmed, palmed.Rounds, Ours(palmed) ? Ammo : null);
                     palmed.Rounds = 0;
                     palmed.Destroy();
                 }
@@ -1165,14 +1168,14 @@ namespace RavenfieldVR.Weapons
             if (Stows(off))
             {
                 // Stowed: the rounds go back to this weapon's reserve, or to the weapon the magazine belongs to.
-                _sys.ReturnRounds(prop, prop.Rounds, prop.WeaponKey == Data.Key ? Ammo : null);
+                _sys.ReturnRounds(prop, prop.Rounds, Ours(prop) ? Ammo : null);
                 prop.Rounds = 0;
                 prop.Destroy();
                 _sys.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.5f);
                 off.Haptic(0.02f, 120f, 0.3f);
                 return;
             }
-            if (prop.Owner == null && prop.WeaponKey == Data.Key)
+            if (prop.Owner == null && Ours(prop))
             {
                 prop.Owner = Ammo;
             }
