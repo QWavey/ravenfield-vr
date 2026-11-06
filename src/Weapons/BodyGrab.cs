@@ -802,9 +802,10 @@ namespace RavenfieldVR.Weapons
                 Release(i, hand, thrown: false); // let go (or pulled away): his AI back
                 return;
             }
-            if (a.dead)
+            if (a.dead || a.ragdoll != null && a.ragdoll.IsRagdoll())
             {
-                // Killed by something else meanwhile: a body to hold.
+                // Killed by something else meanwhile, or knocked down by the other fist: a body to hold (kept by the neck, he lay flat
+                // under a grip with nothing in it, and could not get up while it lasted).
                 _holds[i] = null;
                 ResumeAi(a);
                 Attach(i, hand, a, hand.PalmCentre);
