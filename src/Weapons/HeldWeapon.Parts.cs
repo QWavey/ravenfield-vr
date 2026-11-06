@@ -71,6 +71,7 @@ namespace RavenfieldVR.Weapons
             _boltPiece?.SetOffset(Rig, d.SlideTravel * ((d.CarveHandle || d.AddedHandle) && d.SlidePath != null ? handle : fraction));
             ApplyBoltTurn(d, slideShare, handle);
             ApplyHinge(d);
+            ApplyTrigger(d);
             ApplyChamberShells(d);
             ApplySightParts();
 
@@ -260,6 +261,36 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal bool HandleLockedAlone => Rig.Handle != null && !BoltLockedAlone && !KnobLockedAlone && Reload != null
                                            && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
+
+        private Quaternion _triggerRest;
+        private Vector3 _triggerRestPos;
+        private bool _triggerTaken;
+
+        /// <summary>The gun's trigger as far back as the finger has pulled the controller's. Written whole each frame: the fire clip moves some of them too.</summary>
+        private void ApplyTrigger(WeaponRigData d)
+        {
+            Transform t = Rig.Trigger;
+            if (t == null)
+            {
+                return;
+            }
+            if (!_triggerTaken)
+            {
+                _triggerRest = t.localRotation;
+                _triggerRestPos = t.localPosition;
+                _triggerTaken = true;
+            }
+            float pull = Input.VRInput.GetTrigger(Input.VRInput.GunHand);
+            Quaternion turn = Quaternion.identity;
+            if (d.TriggerAngle > 0f)
+            {
+                Vector3 axisWorld = Rig.DirToWorld(d.TriggerAxis);
+                turn = Quaternion.AngleAxis(d.TriggerAngle * pull, t.parent != null ? t.parent.InverseTransformDirection(axisWorld) : axisWorld);
+            }
+            t.localRotation = turn * _triggerRest;
+            Vector3 move = Rig.DirToWorld(d.TriggerMove) * pull;
+            t.localPosition = _triggerRestPos + (t.parent != null ? t.parent.InverseTransformVector(move) : move);
+        }
 
         /// <summary>Swings the hinged part, and a catch that turns with it, about their own pivots, on the axes the mod's reload opens them.</summary>
         private void ApplyHinge(WeaponRigData d)

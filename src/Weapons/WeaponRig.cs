@@ -245,6 +245,12 @@ namespace RavenfieldVR.Weapons
         public Vector3 HingePivot;
         public float HingeOpenAngle;
 
+        /// <summary>The gun's trigger, moved by the finger on the controller's: at a full pull it turns by this many degrees about the axis and moves by this much (gun space).</summary>
+        public int[] TriggerPath;
+        public Vector3 TriggerAxis;
+        public float TriggerAngle;
+        public Vector3 TriggerMove;
+
         /// <summary>A catch beside the feed cover that the reload turns as it opens: its part, axis and degrees (the QJB201's latch; most covers have none).</summary>
         public int[] HingeCatchPath;
         public Vector3 HingeCatchAxis;
@@ -406,6 +412,7 @@ namespace RavenfieldVR.Weapons
         public readonly Transform Bolt;
         public readonly Transform Hinge;
         public readonly Transform HingeCatch;
+        public readonly Transform Trigger;
         public readonly Transform Magazine;
         /// <summary>The slide's companions (<see cref="WeaponRigData.SlideCompanionPaths"/>), same order.</summary>
         public readonly Transform[] SlideCompanions;
@@ -450,6 +457,7 @@ namespace RavenfieldVR.Weapons
             Bolt = Resolve(root, data.BoltPath);
             Hinge = Resolve(root, data.HingePath);
             HingeCatch = Resolve(root, data.HingeCatchPath);
+            Trigger = Resolve(root, data.TriggerPath);
             Magazine = Resolve(root, data.MagazinePath);
             var arms = new List<Renderer>();
             foreach (int[] p in data.ArmRendererPaths)

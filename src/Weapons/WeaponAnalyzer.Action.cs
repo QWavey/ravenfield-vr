@@ -989,6 +989,73 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>How far a trigger turns with no motion of its own in the fire clip (degrees), and slides where its origin is not its pivot (m).</summary>
+        private const float TriggerTurn = 14f, TriggerSlide = 0.006f;
+
+        /// <summary>
+        /// The gun's own trigger, to follow the finger on the controller's (it stood still under a pulled finger). By name, near the grip and
+        /// trigger-sized; its motion the fire clip's where the clip has one. Else a turn about its own origin, its foot going back, where the origin
+        /// lies on the part; a part modelled in the gun's space has its origin elsewhere (the AS Val's parts at the gun's zero), and it only slides.
+        /// </summary>
+        private static void FindTrigger(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root, Transform gunBody,
+            Transform muzzle, HashSet<Transform> armRelated, HashSet<Transform> gunBones, PoseSampler sampler, RigidPose gunIdle)
+        {
+            if (d.Action == ActionType.Melee || d.Action == ActionType.Throwable || d.AimAxis.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            Transform best = null;
+            Bounds bestBox = default;
+            float nearest = 0.14f;
+            foreach (Transform t in all)
+            {
+                if (!TriggerName.IsMatch(t.name) || t.name.IndexOf("guard", StringComparison.OrdinalIgnoreCase) >= 0
+                    || !IsPartCandidate(t, root, gunBody, muzzle, armRelated, gunBones) || !sampler.IdleVisible(t))
+                {
+                    continue;
+                }
+                Bounds box = sampler.GunSpaceBoundsNear(t, gunIdle, 0.8f);
+                bool bone = box.size.sqrMagnitude < 1e-6f;
+                if (!bone && box.size.magnitude > 0.1f)
+                {
+                    continue; // a trigger group with its housing, no trigger
+                }
+                float distance = Vector3.Distance(bone ? sampler.RelIdle[index[t]].position : box.center, d.GripPoint);
+                if (distance < nearest)
+                {
+                    nearest = distance;
+                    best = t;
+                    bestBox = box;
+                }
+            }
+            if (best == null)
+            {
+                return;
+            }
+            int i = index[best];
+            d.TriggerPath = WeaponRig.PathOf(root, best);
+            if (sampler.FireRotMax[i] >= 3f && sampler.FireRotMax[i] <= 40f)
+            {
+                d.TriggerAxis = sampler.FireRotAxis[i].normalized;
+                d.TriggerAngle = sampler.FireRotMax[i];
+            }
+            else if (sampler.FireMax[i] >= 0.002f && sampler.FireMax[i] <= 0.02f)
+            {
+                d.TriggerMove = sampler.FireVec[i];
+            }
+            else if (bestBox.size.sqrMagnitude < 1e-6f || bestBox.SqrDistance(sampler.RelIdle[i].position) < 0.02f * 0.02f)
+            {
+                Vector3 across = Vector3.Cross(d.Up, d.AimAxis).normalized;
+                d.TriggerAxis = Vector3.Dot(Quaternion.AngleAxis(TriggerTurn, across) * -d.Up, d.AimAxis) < 0f ? across : -across;
+                d.TriggerAngle = TriggerTurn;
+            }
+            else
+            {
+                d.TriggerMove = -d.AimAxis * TriggerSlide;
+            }
+            d.Notes += $"trigger '{best.name}' follows the finger ";
+        }
+
         private static bool Related(Transform t, Transform part) => part != null && (t == part || t.IsChildOf(part) || part.IsChildOf(t));
 
         private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));

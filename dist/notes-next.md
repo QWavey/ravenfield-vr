@@ -5,6 +5,7 @@
 - More guns use their own bolt and shell sounds instead of a vanilla weapon's, and their own selector, empty click, magazine knock, hand on the handguard and magazine out of the pouch.
 - The selector lever moves on the XM8, MG3 and QBZ-95 family when you switch fire mode.
 - A hanging belt swings with the gun.
+- The gun's trigger moves with your finger.
 - The last grenade thrown leaves no grenade on the belt to reach for.
 - The lens of a gun drawn with its magnifier selected sits on the magnifier's line.
 - An eye height saved crouched or sitting corrects itself, and a headset put on late still calibrates.

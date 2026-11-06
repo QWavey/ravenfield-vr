@@ -716,6 +716,7 @@ namespace RavenfieldVR.Weapons
                 Guarded(d, "hinge", () => DetectHinge(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w, gunIdle));
                 Guarded(d, "shells", () => AnalyzeShells(d, all, index, root, armRelated, sampler, gunIdle, w));
                 Guarded(d, "belt", () => FindBeltParts(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, w));
+                Guarded(d, "trigger", () => FindTrigger(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));
                 d.CyclesByHand = d.Action == ActionType.Manual
                                  || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration != null && w.configuration.cooldown >= 0.45f;
                 if (d.Animated && sampler.HasReload && (d.Action == ActionType.SelfLoading || d.Action == ActionType.Manual))

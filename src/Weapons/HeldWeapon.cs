@@ -2605,6 +2605,12 @@ namespace RavenfieldVR.Weapons
                 Rig.HingeCatch.localRotation = _catchRestLocal;
                 _catchOverridden = false;
             }
+            if (_triggerTaken && Rig.Trigger != null)
+            {
+                Rig.Trigger.localRotation = _triggerRest;
+                Rig.Trigger.localPosition = _triggerRestPos;
+                _triggerTaken = false;
+            }
             HingeOpenness = 0f;
             RestoreChamberShells();
             RestoreSightParts();
