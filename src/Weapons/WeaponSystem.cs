@@ -1226,6 +1226,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private float _gripLetGoAt = -1f;
+        private bool _openedOnThrow;
         private Vector3 _letGoVelocity, _letGoAngular, _letGoPalm;
 
         /// <summary>
@@ -1249,7 +1250,19 @@ namespace RavenfieldVR.Weapons
             if (Held.Rig.Data.Action == ActionType.Throwable && Time.unscaledTime - _throwables.GripThrowAt < 0.5f)
             {
                 _gripLetGoAt = -1f; // that release was a throw
+                _openedOnThrow |= dom.GrabReleased;
                 return;
+            }
+            if (_openedOnThrow)
+            {
+                // Thrown by the trigger and the grip opened just after: the next grenade goes back, as the grip's own throw leaves the hand. Its
+                // let-go was spent on the throw, and it stayed in an open palm.
+                _openedOnThrow = false;
+                if (!dom.GrabHeld && Held.Rig.Data.Action == ActionType.Throwable)
+                {
+                    PutAwayAfterThrow();
+                    return;
+                }
             }
             if (dom.GrabReleased)
             {

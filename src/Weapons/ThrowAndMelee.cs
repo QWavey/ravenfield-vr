@@ -87,7 +87,7 @@ namespace RavenfieldVR.Weapons
                 _armed = false;
                 // Not from a hand out of view: its own velocity reads zero then and the body's motion alone (walking) threw the grenade
                 // from a palm riding on the rig (round 11); the free hand and the grip are not worked in a tracking gap either.
-                Vector3 v = ThrowableHandler.Released(hand);
+                Vector3 v = ThrowableHandler.ReleasedSwing(hand);
                 bool thrown = v.magnitude > 1.1f;
                 if (hand.Tracked && (thrown || CanStrap(hand)) && Throw(weapon, hand, v, thrown))
                 {
@@ -277,6 +277,16 @@ namespace RavenfieldVR.Weapons
         internal static Vector3 Released(VRHand hand) =>
             hand.ThrowVelocity() + hand.BodyThrowVelocity() * (VRConfig.ThrowVelocityMultiplier.Value - 1f);
 
+        /// <summary>
+        /// As <see cref="Released"/>, never slower than the swing itself: backing away as it is thrown, the walk cancelled the hand's speed, and a
+        /// trigger let go in a throw did nothing (the grip's throw had this already).
+        /// </summary>
+        internal static Vector3 ReleasedSwing(VRHand hand)
+        {
+            Vector3 v = Released(hand), body = hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
+            return v.magnitude < body.magnitude * 0.7f ? body : v;
+        }
+
         /// <summary>Fused grenades get a pin; bags, kits, charges and other throwables do not.</summary>
         internal static bool HasPin(ThrowableWeapon weapon)
         {
@@ -427,7 +437,9 @@ namespace RavenfieldVR.Weapons
                 if (!_pinPulled && VRInput.GetPressed(DigitalAction.SlideRelease, dom.Side) && !GameContextBlocksThrow())
                 {
                     VRInput.Consume(DigitalAction.SlideRelease, dom.Side);
-                    PullPin(null); // one-handed: the thumb flicks the ring off
+                    // One-handed: the thumb flicks the ring off. (With the other hand already on it, the ring is in that hand: pulled to nowhere,
+                    // the hand stayed in the pin's pose, good for nothing else until the grenade had gone.)
+                    PullPin(_holdingPin ? off : null);
                 }
             }
             if (_ringHand != null && (!_ringHand.GrabHeld || !_ringHand.Tracked))

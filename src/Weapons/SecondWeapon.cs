@@ -239,7 +239,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!trigger && _triggerWas && Armed)
             {
-                Vector3 v = ThrowableHandler.Released(Hand);
+                Vector3 v = ThrowableHandler.ReleasedSwing(Hand);
                 if (v.magnitude > 1.1f)
                 {
                     Throw(v);
