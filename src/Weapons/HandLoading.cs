@@ -110,7 +110,8 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             VRHand other = sys.Rig.Hands[0] == hand ? sys.Rig.Hands[1] : sys.Rig.Hands[0];
-            if (!(other.Held is MagazineProp mag) || mag.Kind != PropKind.Magazine || !Applies(mag.Owner) || !sys.Zones.InPouch(hand.Palm.position))
+            if (!(other.Held is MagazineProp mag) || mag.Kind != PropKind.Magazine || !Applies(mag.Owner) || !sys.Zones.InPouch(hand.Palm.position)
+                || sys.Zones.HolsterNearerThanPouch(hand.Palm.position, -1))
             {
                 return false;
             }

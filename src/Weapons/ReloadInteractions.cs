@@ -788,7 +788,7 @@ namespace RavenfieldVR.Weapons
             // out when the hand passes the hip a moment later. Parts of the gun win when about as close.
             // (Not when the seated magazine is within reach: the pouch won, spent a magazine's rounds from the reserve and
             // the fresh one could not go in; 255.I1-1.)
-            if (Manual && _sys.Zones.InPouch(palm)
+            if (Manual && _sys.Zones.InPouch(palm) && !(caught != null && Ours(caught)) // (a magazine of this gun in reach wins, as said above: by the scores a pouch 5 cm off took a squeeze 8 cm from it)
                 && !(Ammo.UsesDetachableMag && Ammo.MagInserted && Vector3.Distance(palm, SeatedMagBaseWorld) < radius * 1.1f)
                 && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f)
                 && !_sys.Zones.HolsterNearerThanPouch(palm, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1))

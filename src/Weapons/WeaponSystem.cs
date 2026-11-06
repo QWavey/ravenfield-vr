@@ -437,6 +437,10 @@ namespace RavenfieldVR.Weapons
                     }
                     continue;
                 }
+                if (Drops != null && Drops.GunNearer(palm, prop.DistanceTo(palm)))
+                {
+                    continue; // a dropped gun nearer the hand than this magazine: it took the magazine lying by it, the gun left on the ground (grip scout, 2026-11-06)
+                }
                 VRInput.Consume(DigitalAction.Grab, h.Side);
                 prop.Attach(h);
                 prop.FollowHand();

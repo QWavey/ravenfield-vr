@@ -13,6 +13,7 @@
 - Another gun's magazine pushed at the well says WRONG MAG.
 - A seated magazine you squeeze and let go without pulling it out stays in; it used to fall out or wait at its latch. Tugged a little and pushed back, it seats.
 - A magazine let go just short of its latch says TAP IT HOME (it looks seated, but the gun has none yet).
+- A squeeze at a dropped gun takes the gun, not a magazine lying by it, and a magazine in reach wins over the pouch.
 - Magazines fit sister guns: one pulled from a soldier's HK416-B goes into your HK416-A.
 - Your last grenade leaves the hand when thrown with the trigger too.
 - The last grenade thrown leaves no grenade on the belt to reach for.

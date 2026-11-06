@@ -327,10 +327,15 @@ namespace RavenfieldVR.Weapons
             return reach;
         }
 
-        private DroppedWeapon Nearest(Vector3 palm)
+        private DroppedWeapon Nearest(Vector3 palm) => Nearest(palm, out _);
+
+        /// <summary>A dropped gun within reach, nearer the palm than <paramref name="than"/>: a squeeze there is for the gun.</summary>
+        internal bool GunNearer(Vector3 palm, float than) => Nearest(palm, out float distance) != null && distance < than;
+
+        private DroppedWeapon Nearest(Vector3 palm, out float bestDist)
         {
             DroppedWeapon best = null;
-            float bestDist = PickupReach;
+            bestDist = PickupReach;
             foreach (DroppedWeapon d in _drops)
             {
                 if (d.Go == null || d.Colliders == null)
