@@ -209,7 +209,8 @@ namespace RavenfieldVR.Weapons
                     float clipStart = 0f;
                     foreach (KeyValuePair<AudioClip, float> whole in wholeClips)
                     {
-                        if (at >= whole.Value - 0.15f && at - whole.Value <= whole.Key.length)
+                        // (A long clip named for one action is that action's alone: the PPSh's 1.3 s "mag_in_click" on nothing else.)
+                        if (at >= whole.Value - 0.15f && at - whole.Value <= whole.Key.length && CueNames.Allows(CueNames.Of(whole.Key.name), kind, true))
                         {
                             clip = whole.Key;
                             clipStart = whole.Value;
