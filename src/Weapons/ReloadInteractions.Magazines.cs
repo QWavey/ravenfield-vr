@@ -972,7 +972,7 @@ namespace RavenfieldVR.Weapons
             RigidPose seat = SeatPose;
             Vector3 insert = seat.TransformDirection(old.InsertDirLocal);
             Vector3 up = Rig.UpWorld, aim = Rig.AimWorld;
-            Vector3 gunRight = Vector3.Cross(up, aim).normalized;
+            Vector3 gunRight = Vector3.Cross(up.y >= 0f ? up : -up, aim).normalized; // (the player's right of the gun: rolled over, its own right sent the magazine at the gun hand)
             // Away from the gun hand: to the left of a right hand's gun, to the right of a left hand's.
             Vector3 side = _sys.Rig.Dominant.IsLeft ? gunRight : -gunRight;
             float width = Mathf.Max(0.02f, old.CrossHalf * 2f);
