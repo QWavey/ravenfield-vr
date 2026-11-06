@@ -188,6 +188,8 @@ namespace RavenfieldVR.Weapons
             }
         }
         private bool _beltLifted;
+        /// <summary>Off the tray only because the cover is up: shut, it is laid again. A gun put down so comes back so.</summary>
+        internal bool BeltOnlyLifted => BeltLifted;
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
         public bool SpentInChamber
         {

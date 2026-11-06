@@ -163,7 +163,7 @@ namespace RavenfieldVR.Weapons
             AmmoState st = w != null && WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
             bool cover = st != null && st.Participates && st.HasCover;
             coverOpen = cover && st.CoverOpen;
-            beltUnlaid = cover && st.MagInserted && !st.BeltLaid;
+            beltUnlaid = cover && st.MagInserted && !st.BeltLaid && !st.BeltOnlyLifted; // (lifted only, it read as never laid: the counter said LAY BELT over the belt it had)
         }
 
         /// <summary>Nothing chambered, the action closed and not locked back, rounds left to feed: the next round needs a stroke.</summary>
