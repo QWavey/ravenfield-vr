@@ -922,7 +922,7 @@ namespace RavenfieldVR.Weapons
                 melee.DamageHitbox(direction, hitAlly);
                 return true;
             }
-            if (hitVehicle.collider != null)
+            if (hitVehicle.collider != null && hitVehicle.distance <= blocking) // (not through a wall, as the two above)
             {
                 melee.HitVehicle(direction, hitVehicle);
                 return true;
