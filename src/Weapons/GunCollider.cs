@@ -1392,7 +1392,8 @@ namespace RavenfieldVR.Weapons
                 Jumped = true;
                 return;
             }
-            Body.velocity = Vector3.ClampMagnitude(delta / dt, Time.time < _softUntil ? PressSpeed : MaxSpeed);
+            // (The limit in game units: slow motion's fixed step shrinks with the time scale, and a hand at its real speed outran 25 m/s of them, went through a wall and jumped.)
+            Body.velocity = Vector3.ClampMagnitude(delta / dt, Time.time < _softUntil ? PressSpeed : MaxSpeed / BodyGrab.SlowMotion());
             Quaternion dq = TargetRot * Runtime.RigidPose.Conjugate(Body.rotation);
             dq.ToAngleAxis(out float angle, out Vector3 axis);
             if (angle > 180f)
