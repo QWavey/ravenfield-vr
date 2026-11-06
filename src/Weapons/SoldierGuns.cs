@@ -330,7 +330,7 @@ namespace RavenfieldVR.Weapons
                 gun.OnAmmoChanged();
                 return false;
             }
-            _sys.Sounds.Play(MechSound.MagOut, hand.PalmCentre, 0.8f);
+            _sys.Sounds.Play(MechSound.MagOut, hand.PalmCentre, 0.8f, 0f, rig.Data); // (his gun's own)
             hand.Haptic(0.06f, 120f, 0.7f);
             Log.InfoOnce("soldiermag:" + gun.name, $"Pulled the magazine ({rounds} rounds) out of {soldier.name}'s {gun.name}: he reloads.");
             return true;

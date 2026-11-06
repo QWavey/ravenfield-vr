@@ -177,15 +177,15 @@ namespace RavenfieldVR.Weapons
             };
         }
 
+        /// <summary>The last grenade thrown: the slot stays the actor's (a resupply fills it), and showed a grenade on the belt that drew nothing to throw.</summary>
+        internal static bool Spent(Weapon w) => w is ThrowableWeapon && !w.HasAnyAmmo();
+
         /// <summary>
         /// Boneworks layout: long guns hang down the back from the shoulder (grip up where the hand reaches over, muzzle
         /// low), pistols sit muzzle-down along the ribs under the arm with the grip forward, gear lies across the small of
         /// the back or hangs head-down from the belt. Classic layout: long guns muzzle up behind the shoulder, pistols
         /// muzzle-down on the hips, gear across the chest. Barrel and top come from the model's measured frame.
         /// </summary>
-        /// <summary>The last grenade thrown: the slot stays the actor's (a resupply fills it), and showed a grenade on the belt that drew nothing to throw.</summary>
-        internal static bool Spent(Weapon w) => w is ThrowableWeapon && !w.HasAnyAmmo();
-
         private static void Place(Shown s, BodyZones zones, int spot)
         {
             Vector3 fwd = zones.TorsoForward, right = zones.TorsoRight, up = Vector3.up;

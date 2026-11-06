@@ -617,6 +617,13 @@ namespace RavenfieldVR.Tests
             {
                 Check(said(n[0]) == n[1], $"Cue names: '{n[0]}' is {n[1]} ({said(n[0])})");
             }
+            var allows = names.GetMethod("Allows", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Type kinds = mod.GetType("RavenfieldVR.Weapons.CueName"), sounds = mod.GetType("RavenfieldVR.Weapons.MechSound");
+            Func<string, string, bool, bool> may = (name, kind, has) => (bool)allows.Invoke(null, new[] { Enum.Parse(kinds, name), Enum.Parse(sounds, kind), has });
+            Check(may("Unknown", "MagOut", true) && may("MagIn", "MagIn", true) && may("Slide", "SlideForward", true), "Cue names: a clip goes to its own action, and an unnamed one anywhere");
+            Check(!may("MagIn", "MagOut", true) && !may("Slide", "MagIn", true) && !may("Other", "MagOut", false), "Cue names: a clip named for another action, or for none, does not");
+            Check(may("MagOut", "SlideBack", false), "Cue names: named for an action the gun does not have it may (the M1878's latch)");
+            Check(may("CoverUp", "CoverOpen", true) && !may("CoverUp", "SlideBack", false), "Cue names: a cover's sound is the cover's alone");
             Check((bool)closing.Invoke(null, new object[] { "ARS_M500_PumpIn" }) && !(bool)closing.Invoke(null, new object[] { "ARS_M500_PumpOut" }), "Cue names: a pump going forward says so");
             Check((bool)closing.Invoke(null, new object[] { "MINIMI R BOLT GO" }) && (bool)closing.Invoke(null, new object[] { "wfoly_sn_alpha50_reload_\u7a7a\u4ed3\u67aa\u6813\u5173\u95ed" }), "Cue names: a bolt going home says so");
             Check(!(bool)closing.Invoke(null, new object[] { "MINIMI R BOLT COME" }) && !(bool)closing.Invoke(null, new object[] { "wfoly_sn_alpha50_\u62c9\u6813_01" }), "Cue names: a bolt pulled back does not");
