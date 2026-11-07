@@ -158,6 +158,14 @@ namespace RavenfieldVR.Weapons
                     body.velocity = velocity;
                     body.angularVelocity = spin;
                     RealTimeFlight.Begin(body); // (in slow motion, real time until it touches something, as a magazine)
+                    // Made at the palm, inside the hand's own gun stand-in and beside the player's body: let through as a magazine let go is
+                    // (the autotest's toss at 3 m/s left at 2.3, 2026-11-08).
+                    Collider[] pieces = p.GetComponentsInChildren<Collider>();
+                    PropPhysics.IgnorePlayer(pieces);
+                    foreach (Collider c in pieces)
+                    {
+                        GunCollider.Current?.OnPropDropped(c);
+                    }
                 }
             }
             else if (p is GrenadeProjectile grenade)
