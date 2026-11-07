@@ -790,6 +790,7 @@ namespace RavenfieldVR.Weapons
                 // on the move walked out of the hand, the walk still playing, and the hold let go at 45 cm (body scout, 2026-11-07). Given his AI
                 // back he plans again, as after any path of his that is cancelled.
                 walking.CancelPath(isMovementOverride: true);
+                walking.fire = false; // (and his trigger: set in the Update now stopped, a soldier taken mid-burst went on firing where he faced)
             }
             if (a.controller != null)
             {
