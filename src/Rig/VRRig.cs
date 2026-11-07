@@ -1158,6 +1158,25 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        private Camera _springOf;
+        private FirstPersonCameraLook _spring;
+
+        /// <summary>
+        /// Where a seat's camera sits, without the game's head bob: a cabin camera with <c>FirstPersonCameraLook</c> rides a spring the vehicle's
+        /// acceleration pushes, up to 12 cm, and the eyes took it, so the whole view slid about the cabin as the vehicle sped up, braked or hit
+        /// something, the head not moving (seats scout, 2026-11-08). Its rest, as the game keeps it, from the camera's parent.
+        /// </summary>
+        private Vector3 SeatCameraRest(Camera cam)
+        {
+            if (!ReferenceEquals(_springOf, cam))
+            {
+                _springOf = cam;
+                _spring = cam.GetComponent<FirstPersonCameraLook>();
+            }
+            Transform t = cam.transform;
+            return _spring != null && t.parent != null ? t.parent.TransformPoint(_spring.originPosition) : t.position;
+        }
+
         private RigidPose AnchorPose(FpsActorController player, out Camera cam)
         {
             cam = player != null ? player.fpCamera : null;
@@ -1168,7 +1187,7 @@ namespace RavenfieldVR.Rig
                 // and following that rotation would make head-aimed turrets chase their own view.
                 Seat seatOfCam = player != null && player.actor.IsSeated() ? player.actor.seat : null;
                 Quaternion rot = seatOfCam != null ? seatOfCam.transform.rotation : overrideCam.transform.rotation;
-                return Level(new RigidPose(overrideCam.transform.position, rot));
+                return Level(new RigidPose(SeatCameraRest(overrideCam), rot));
             }
             if (player == null)
             {
