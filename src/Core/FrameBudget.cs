@@ -152,6 +152,7 @@ namespace RavenfieldVR.Core
 
         private static void Report()
         {
+            Log.ReportRepeats();
             float hz = 1000f / _budgetMs;
             string preset = VRConfig.Graphics.Value.ToString();
             string gpu = _gpuFrames > 0

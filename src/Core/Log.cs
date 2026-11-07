@@ -39,13 +39,44 @@ namespace RavenfieldVR.Core
         public static void ExceptionOnce(string context, Exception e)
         {
             bool first;
+            string key = "guard:" + context + ":" + e.GetType().Name + ":" + e.Message;
             lock (Once)
             {
-                first = Once.Add("guard:" + context + ":" + e.GetType().Name + ":" + e.Message);
+                first = Once.Add(key);
+                if (!first)
+                {
+                    Repeats.TryGetValue(key, out int n);
+                    Repeats[key] = n + 1;
+                }
             }
             if (first)
             {
                 Exception(context, e);
+            }
+        }
+
+        /// <summary>
+        /// How often each exception logged once has come again since the last report. One line stood for every one: the 1.16.11 log showed a
+        /// single NullReferenceException where a sound threw every 30 s and stopped what it sounded for each time (2026-11-08).
+        /// </summary>
+        private static readonly Dictionary<string, int> Repeats = new Dictionary<string, int>();
+
+        /// <summary>Writes how often the exceptions logged once came again (and forgets the counts); nothing when none did. Once a minute, with the frame rate line.</summary>
+        public static void ReportRepeats()
+        {
+            List<KeyValuePair<string, int>> seen;
+            lock (Once)
+            {
+                if (Repeats.Count == 0)
+                {
+                    return;
+                }
+                seen = new List<KeyValuePair<string, int>>(Repeats);
+                Repeats.Clear();
+            }
+            foreach (KeyValuePair<string, int> kv in seen)
+            {
+                Warn($"Thrown again {kv.Value} time(s) since the last report: {kv.Key.Substring("guard:".Length)}");
             }
         }
 
