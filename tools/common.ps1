@@ -19,7 +19,7 @@ function Get-SteamLibraries {
     $libs.Add(($steam -replace '/', '\'))
     $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'
     if (Test-Path $vdf) {
-        foreach ($m in (Select-String -Path $vdf -Pattern '"path"\s+"([^"]+)"' -AllMatches).Matches) {
+        foreach ($m in (Select-String -Path $vdf -Encoding UTF8 -Pattern '"path"\s+"([^"]+)"' -AllMatches).Matches) {
             $p = $m.Groups[1].Value -replace '\\\\', '\'
             if (-not $libs.Contains($p)) { $libs.Add($p) }
         }

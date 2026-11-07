@@ -87,7 +87,7 @@ namespace RavenfieldVR.UI
             }
             _height = 24f;
             Label("Mod keys", 36, FontStyle.Bold, UiKit.TextColor, 52f);
-            Label("Keys that weapon and mutator scripts are listening for. Press one to send it to that script.", 19, FontStyle.Normal, UiKit.MutedText, 34f);
+            Label("Keys that weapon and mutator scripts are listening for. Press one to send it to that script.", 19, FontStyle.Normal, UiKit.MutedText, 56f); // (two lines: at 34 the second was cut off)
 
             Section(weapon != null ? "This weapon: " + StripTags(weapon.name) : "This weapon");
             if (weaponKeys.Count == 0)
@@ -104,8 +104,15 @@ namespace RavenfieldVR.UI
             {
                 Label("No mutator or mod script reads a key right now.", 20, FontStyle.Italic, UiKit.MutedText, 46f);
             }
+            int shown = 0;
             foreach (ScriptKey k in otherKeys)
             {
+                // (The panel does not scroll: with no end to the rows it grew past the view, its Close button with it.)
+                if (shown++ == MaxOtherRows)
+                {
+                    Label((otherKeys.Count - MaxOtherRows) + " more not shown.", 20, FontStyle.Italic, UiKit.MutedText, 46f);
+                    break;
+                }
                 string owner = k.Script != null ? StripTags(k.Script.behaviour ?? k.Script.name) : "";
                 KeyRow(k, k.Purpose == ScriptKeyPurpose.Other ? k.Label : $"{k.Label} · {owner}");
             }
@@ -150,6 +157,8 @@ namespace RavenfieldVR.UI
             _height += height;
             return rt;
         }
+
+        private const int MaxOtherRows = 12;
 
         private void Label(string text, int size, FontStyle style, Color color, float height)
         {

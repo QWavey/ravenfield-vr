@@ -303,7 +303,7 @@ namespace RavenfieldVR.Weapons
         /// A radius about the drop's root that holds every one of its colliders. The colliders are rigidly parented to the
         /// root at unit scale, so the distance from the root to a collider's centre does not change as the drop tumbles; the
         /// world-box extent over-bounds the collider in any orientation. Over-estimating only skips less, never a reachable
-        /// drop, so <see cref="Nearest"/> stays exact.
+        /// drop, so <see cref="Nearest(Vector3)"/> stays exact.
         /// </summary>
         private static float ReachOf(Transform root, List<Collider> colliders)
         {

@@ -127,6 +127,18 @@ GunVolume                      (the drawn model as depth from 5 directions: a so
   soldiers walk past the view and the title is placed behind them), `ComfortVignette`, `CockpitControls` (steering
   wheel and flight stick you grab).
 
+**How the game's picture reaches the eyes (2026-11-07, Tasks 366).** The eyes are one camera of the mod's (`VRRig.Camera`); the game's cameras
+are suppressed (`CameraSuppressor`: no stereo target, their `PostProcessLayer`s and image effects off). The game's look is not on its world
+cameras. `PostProcessingManager` sits on a last camera of its own (`_Managers/Global Post-processing`) whose `finalLayer` sees layer 28: the
+`Ingame` volume (grade and bloom, priority -1), the goggles' volume (`Night Vision` profile: ColorGrading, Bloom, Grain; global, priority 100,
+switched by `NightVision.ToggleEnable` through its `activatedObject`) and a mod's volumes. `RegisterWorldCamera` gives each world camera a layer
+that sees layer 29 alone, the AO volume. So anything that wants the game's look in the eyes takes `finalLayer`'s mask, never the reference
+camera's: `VRRig.UpdatePostProcessing` adds a `PostProcessLayer` to the eye camera while the goggles are on or `PostProcessing` is set, with the
+final mask (plus the world camera's for AO only with `PostProcessing`), and turns it off after. Without either no post-processing runs in the
+eyes at all, which is the default and the reason VR costs what it does. The goggles are toggled by the off hand's grip at the side of the head
+(`BodyZones.UpdateGestures`, `VRGameInput.GogglesGesturePressed`, `KeyBinds.Goggles`) or by a holster press of a toggled item
+(`WeaponSystem`), and the flat tube vignette is hidden (`NightVisionVignettePatch`).
+
 ### 3.4 The glove and how hands hold things (`Rig/HandModel.cs`, `Rig/GloveMesh.cs`, `Weapons/ModHand.cs`, `Weapons/GunVolume.cs`)
 
 This is the system rebuilt in this session. The user's report: "the hands are clipping inside the Glock and the AK …
@@ -868,8 +880,8 @@ Other discoveries:
   trigger, reloaded by a timer, put back when let go). Its glove follows its kick, its draw clip is skipped as the gun
   hand's is, and its shape is measured from the first frame in the hand (2026-10-21: before, the measurement waited for
   the game's draw time and failed, and the glove had nothing to close on while the weapon hung beside it).
-- Long-standing (README): night vision and camera effects not copied to the headset; third-person/death cameras turn
-  only around the vertical axis; magenta materials replaced by approximations.
+- Long-standing (README): camera effects other than the game's post-processing are not copied to the headset; third-person/death
+  cameras turn only around the vertical axis; magenta materials replaced by approximations.
 
 ---
 

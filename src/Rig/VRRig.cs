@@ -388,7 +388,8 @@ namespace RavenfieldVR.Rig
             }
             _wasDead = dead;
 
-            float moving = Mode == RigMode.OnFoot ? VRGameInput.MoveStick.magnitude : 0f;
+            // (Not a stick held down into a menu or a pause: nothing moves there, and the tunnel stayed over the menu until it was let go.)
+            float moving = Mode == RigMode.OnFoot && !GameContext.GameMenuOpen && !GameManager.IsPaused() ? VRGameInput.MoveStick.magnitude : 0f;
             _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value);
             _damage.Update();
             _mud?.Update();
@@ -724,8 +725,18 @@ namespace RavenfieldVR.Rig
                 }
                 else
                 {
-                    Log.Info($"Eye height {h:0.00} m does not look like standing; not saved (use Calibrate now, or Seated play).");
+                    // Measured again, as a window short of samples is: ended here it waited for a change of view with nothing said, physical
+                    // crouch off and the eyes at the game's own height all the while (spawned sitting, or the headset on a desk; rig scout, 2026-11-07).
+                    if (!_oddHeightLogged)
+                    {
+                        _oddHeightLogged = true;
+                        Log.Info($"Eye height {h:0.00} m does not look like standing; not saved, measuring on (or use Calibrate now, or Seated play).");
+                    }
+                    _calibration.Clear();
+                    _calibrationStart = Time.unscaledTime;
+                    return;
                 }
+                _oddHeightLogged = false;
                 EndCalibration();
             }
             else if (elapsed > 6f)
@@ -736,6 +747,8 @@ namespace RavenfieldVR.Rig
                 _calibrationStart = Time.unscaledTime;
             }
         }
+
+        private bool _oddHeightLogged;
 
         /// <summary>How far above the saved eye height a head has to stay before that height is taken to be wrong (m).</summary>
         private const float TallerThanSaved = 0.12f;
@@ -1184,31 +1197,45 @@ namespace RavenfieldVR.Rig
 
         private Camera _ppSourceOf;
         private PostProcessLayer _ppSource;
+        private bool _gogglesLogged;
 
+        /// <summary>
+        /// The game's picture in the eyes. It has two post-process layers, and only one holds its look: each world camera gets a layer that sees
+        /// the ambient occlusion volume alone (PostProcessingManager.RegisterWorldCamera, layer 29), and a separate last camera,
+        /// <see cref="PostProcessingManager.finalLayer"/>, sees layer 28: the grade, the bloom and the night vision volume the goggles switch on
+        /// (read in the game's files, 2026-11-07). The eyes took the world camera's mask, so they never saw the goggles, nor the grade with
+        /// PostProcessing on (user, 2026-11-07: "doesnt work at all it just does nothing and isnt even in my vr view"). On while the goggles are;
+        /// the world camera's own layer joins only with PostProcessing on (ambient occlusion cannot be seen through the goggles and costs a depth pass).
+        /// </summary>
         private void UpdatePostProcessing(Camera reference)
         {
-            // The game's night vision is a post-process profile (its green grade) on a volume the goggles switch on: drawn in
-            // the headset only with post-processing, which is off by default, so the eyes got only the grey actor glow
-            // (user, 2026-10-16: "it's just grey, and on the flat screen"). On while the goggles are.
-            bool want = VRConfig.PostProcessing.Value || NightVision.isEnabled;
+            bool goggles = NightVision.isEnabled;
+            bool want = VRConfig.PostProcessing.Value || goggles;
             // (The layer is looked up only when wanted, and once per reference camera: a GetComponent every frame.)
             if (want && !ReferenceEquals(_ppSourceOf, reference))
             {
                 _ppSourceOf = reference;
                 _ppSource = reference.GetComponent<PostProcessLayer>();
             }
-            PostProcessLayer source = want ? _ppSource : null;
-            if (!want || source == null || PpResources == null)
+            PostProcessingManager manager = want ? PostProcessingManager.instance : null;
+            PostProcessLayer final = manager != null ? manager.finalLayer : null;
+            if (!want || final == null || PpResources == null)
             {
                 if (_postProcess != null && _postProcess.enabled)
                 {
                     _postProcess.enabled = false;
                 }
+                if (want && goggles && !_gogglesLogged)
+                {
+                    _gogglesLogged = true;
+                    Log.Warn("Night vision is on, and the game's post-processing could not be found: the eyes show no green.");
+                }
+                _gogglesLogged &= goggles;
                 return;
             }
             if (_postProcess == null)
             {
-                object resources = PpResources.GetValue(source);
+                object resources = manager.ppResources != null ? manager.ppResources : PpResources.GetValue(final);
                 if (resources == null)
                 {
                     return;
@@ -1219,16 +1246,31 @@ namespace RavenfieldVR.Rig
                 PpResources.SetValue(_postProcess, resources);
                 go.SetActive(true);
             }
-            _postProcess.volumeLayer = source.volumeLayer;
+            bool all = VRConfig.PostProcessing.Value;
+            LayerMask volumes = final.volumeLayer;
+            if (all && _ppSource != null)
+            {
+                volumes |= _ppSource.volumeLayer;
+            }
+            _postProcess.volumeLayer = volumes;
             _postProcess.volumeTrigger = Camera.transform;
-            // Temporal AA smears in VR; fall back to FXAA when the game uses it.
-            _postProcess.antialiasingMode = source.antialiasingMode == PostProcessLayer.Antialiasing.TemporalAntialiasing
-                ? PostProcessLayer.Antialiasing.FastApproximateAntialiasing
-                : source.antialiasingMode;
+            // Temporal AA smears in VR; fall back to FXAA when the game uses it. (Through the goggles none: the eyes have MSAA, and the grain hides it.)
+            _postProcess.antialiasingMode = !all ? PostProcessLayer.Antialiasing.None
+                : final.antialiasingMode == PostProcessLayer.Antialiasing.TemporalAntialiasing ? PostProcessLayer.Antialiasing.FastApproximateAntialiasing
+                : final.antialiasingMode;
             _postProcess.stopNaNPropagation = true;
             if (!_postProcess.enabled)
             {
                 _postProcess.enabled = true;
+            }
+            if (goggles != _gogglesLogged)
+            {
+                // (For the next play log: the one line that says whether the eyes took the goggles' volume.)
+                _gogglesLogged = goggles;
+                if (goggles)
+                {
+                    Log.Info($"Night vision on: the eyes' post-processing sees layers {volumes.value:X8}, HDR {Camera.allowHDR}.");
+                }
             }
         }
 
@@ -1437,7 +1479,7 @@ namespace RavenfieldVR.Rig
 
     /// <summary>
     /// The goggles' tube vignette is a flat screen picture: in VR it became a 72-degree frame floating in front of the eyes.
-    /// Hidden there; the green grade (VRRig.UpdatePostProcessing) covers the whole view.
+    /// Hidden there; the green grade (<see cref="VRRig"/>'s post-processing) covers the whole view.
     /// </summary>
     [HarmonyLib.HarmonyPatch(typeof(NightVision), nameof(NightVision.ToggleEnable))]
     internal static class NightVisionVignettePatch

@@ -1684,7 +1684,7 @@ namespace RavenfieldVR.Setup
                     {
                         if (add)
                         {
-                            failed |= !SteamPlayEntry.Apply(Log);
+                            failed |= !SteamPlayEntry.Ensure(SteamPlayEntry.CachePath(), Log);
                         }
                         else
                         {

@@ -188,12 +188,22 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>How long a hand on the wheel or stick may go untracked before it counts as gone (s).</summary>
+        private const float TrackingGrace = 0.2f;
+
+        private readonly float[] _trackedAt = new float[2];
+
         private void UpdateHand(VRHand hand)
         {
             int i = (int)hand.Side;
             // A hand that loses tracking lets go: the last steering or stick deflection stayed in, and the vehicle kept
-            // turning (or the aircraft kept rolling) until the controller came back.
-            bool holding = hand.Tracked && hand.GrabHeld;
+            // turning (or the aircraft kept rolling) until the controller came back. After a moment: a flicker of a frame or two dropped the wheel
+            // at full lock and straightened the car at once, the grip still shut and no new squeeze taking it back (cockpit scout, 2026-11-07).
+            if (hand.Tracked)
+            {
+                _trackedAt[i] = Time.unscaledTime;
+            }
+            bool holding = Time.unscaledTime - _trackedAt[i] < TrackingGrace && hand.GrabHeld;
             // Read against the seat from the render that posed it (PalmInSeat): grabs, the stick and the wheel alike.
             Vector3 palm = PalmInSeat(hand);
             // A grip that closed on the way to the rim takes it too (GetHeldUnclaimed), not only a squeeze made at the rim: the

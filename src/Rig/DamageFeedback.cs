@@ -123,10 +123,12 @@ namespace RavenfieldVR.Rig
             {
                 healthShare = TestHealthShare;
             }
+            // (Held in a pause: the veil beat on behind the menu.)
+            float dt = GameManager.IsPaused() ? 0f : Time.unscaledDeltaTime;
             // Below half health, fully at a quarter; eased in and out over a second or two.
-            _lowHealth = Mathf.MoveTowards(_lowHealth, Mathf.Clamp01((0.5f - healthShare) * 4f), Time.unscaledDeltaTime);
+            _lowHealth = Mathf.MoveTowards(_lowHealth, Mathf.Clamp01((0.5f - healthShare) * 4f), dt);
             // The heartbeat: a double beat, faster the lower the health (70 to 110 a minute).
-            _beatPhase = (_beatPhase + Time.unscaledDeltaTime * Mathf.Lerp(70f, 110f, _lowHealth) / 60f) % 1f;
+            _beatPhase = (_beatPhase + dt * Mathf.Lerp(70f, 110f, _lowHealth) / 60f) % 1f;
             float beat = Mathf.Exp(-Mathf.Pow((_beatPhase - 0.08f) / 0.05f, 2f)) + 0.6f * Mathf.Exp(-Mathf.Pow((_beatPhase - 0.3f) / 0.05f, 2f));
             bool alive = actor != null && !actor.dead;
             // screen_effects.py G at the beat's peak, a little under it between beats.

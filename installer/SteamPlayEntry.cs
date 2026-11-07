@@ -37,6 +37,26 @@ namespace RavenfieldVR.Setup
 
         public static bool Remove(Action<string> log) => Change(CachePath(), false, log);
 
+        /// <summary>
+        /// Whether the entry is there once <see cref="Change"/> has been asked to add it: it returns whether the file changed, so an entry already
+        /// in the list read as a failure, and every Setup run after the first ended with "start the launcher by hand" (installer scout, 2026-11-07).
+        /// </summary>
+        public static bool Ensure(string file, Action<string> log)
+        {
+            if (Change(file, true, log))
+            {
+                return true;
+            }
+            try
+            {
+                return File.Exists(file) && IsPresent(file) == true;
+            }
+            catch (Exception e) when (e is IOException || e is InvalidDataException || e is UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>Whether the cache holds the entry; null when Ravenfield's app info is not in it.</summary>
         public static bool? IsPresent(string file)
         {
@@ -118,8 +138,19 @@ namespace RavenfieldVR.Setup
                 File.Delete(temp);
                 throw new InvalidDataException("the changed Steam app cache did not have the expected entry; Steam's file was left as it was.");
             }
-            File.Copy(file, file + ".rfvr-backup", true);
-            SteamLaunchOption.ReplaceFile(temp, file);
+            try
+            {
+                File.Copy(file, file + ".rfvr-backup", true);
+                SteamLaunchOption.ReplaceFile(temp, file);
+            }
+            finally
+            {
+                // (A locked or read-only cache threw here and left a whole copy of Steam's cache beside it.)
+                if (File.Exists(temp))
+                {
+                    File.Delete(temp);
+                }
+            }
             log(add ? "Added \"Ravenfield VR\" to the list Steam shows when you press Play on Ravenfield." : "Removed \"Ravenfield VR\" from Steam's Play list.");
             return true;
         }

@@ -147,10 +147,19 @@ namespace RavenfieldVR.Rig
 
         private bool _wasUnderwater;
 
+        /// <summary>Seconds of play: what the dirt ages by.</summary>
+        private float _clock;
+
         public void Update()
         {
             Subscribe();
-            float now = Time.unscaledTime;
+            // Its own clock, stopped in a pause (not slowed in slow motion: the dirt is on the visor): on the wall clock a blast's dirt ran down and was
+            // gone behind the menu.
+            if (!GameManager.IsPaused())
+            {
+                _clock += Time.unscaledDeltaTime;
+            }
+            float now = _clock;
             bool dead = Util.GameContext.PlayerActor == null || Util.GameContext.PlayerActor.dead;
             // Coming up out of the water: drops on the view, as approved (Tasks 209 I, drawn by LensEffects; optional,
             // off by default).
@@ -317,7 +326,7 @@ namespace RavenfieldVR.Rig
                 // Big wet spots run down slowly; specks stay where they landed.
                 s.Fall = size > 0.05f ? Mathf.Lerp(0.002f, 0.006f, R()) * (water ? 3f : 1f) : water ? 0.004f : 0f;
                 s.Stretch = size > 0.05f ? Mathf.Lerp(0.05f, 0.3f, R()) : 0f;
-                s.Born = Time.unscaledTime;
+                s.Born = _clock;
                 float shade = Mathf.Lerp(0.8f, 1.2f, R());
                 // Dirt: brown-grey and see-through (small specks denser), not a glow.
                 float alpha = Mathf.Lerp(0.75f, 0.4f, Mathf.Clamp01(size / 0.11f)) * Mathf.Lerp(0.7f, 1f, strength);

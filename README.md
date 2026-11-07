@@ -58,7 +58,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 Other gestures:
 
 - **Holsters** (laid out like Boneworks): weapons are carried by what they are. Rifles, launchers and other long weapons hang down your back from the shoulders, grip up (weapon side first, then the other shoulder); pistols sit under your arms; grenades, kits and tools at the small of your back, then on the front of your belt. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it, and the weapon there eases out a little. Put a gun back where it lives and let go to have both hands free. `HolsterLayout = Classic` (or "Holsters: Classic" on the panel) brings back the earlier layout: pistols on the hips, gear on the chest.
-- **Night vision:** grip with your off hand at the side of your head.
+- **Night vision:** grip with your off hand at the side of your head; a short buzz says it took. The view turns the game's green, with its grain and bloom.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
 - **Crouching in real life** crouches your soldier.
 - **Aiming down sights** is just bringing the sights to your eye. Scopes switch to their magnified lens.
@@ -226,7 +226,7 @@ No .NET SDK needed:
 
 ## Known limitations
 
-- The game's night vision shows in the headset (its colour grading is drawn there while the goggles are on), but image effects a
+- The game's night vision shows in the headset (its green, grain and bloom, while the goggles are on). Image effects a mod puts straight on the game's camera are not copied to the eyes.
   mod attaches to the game's own camera (scripts drawing over its picture) are not copied to the headset camera.
 - Third-person vehicle cameras and the death camera follow the game's camera position, turning with it only around the vertical axis.
 - Ravenscript mods that draw their own screen-space UI get the same head-locked HUD treatment as the game's HUD.

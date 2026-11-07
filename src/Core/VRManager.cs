@@ -397,6 +397,9 @@ namespace RavenfieldVR.Core
             _pausedForDashboard = false;
             _pausedForHeadset = false;
             Input.VRInput.OnSceneChanged();
+            // (Crouch and prone toggled by the stick are cleared by a death or a seat: alive to the end of a match, the next map's soldier spawned
+            // crouched or prone, the view lowered with him; rig scout, 2026-11-07.)
+            VRGameInput.ResetToggles();
             _speedBeforePause = 1f;
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
             SmallShadows.OnSceneChanged();

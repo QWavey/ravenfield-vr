@@ -189,10 +189,11 @@ namespace RavenfieldVR.Input
             {
                 _fireHeldThroughSwap = false;
             }
-            else if (GameManager.IsPaused())
+            else if (GameManager.IsPaused() || (menu || PanelOpen) && PointerOverUI)
             {
                 // Held through a pause (the dashboard, or the very press on Resume that closes the menu): let go first, or the match came
-                // back with a shot nobody pulled for (input scout, 2026-11-04).
+                // back with a shot nobody pulled for (input scout, 2026-11-04). The same for a trigger held on a panel: the laser swept off it,
+                // or the panel closed by the other hand, fired the gun at whatever the laser was on (UI scout, 2026-11-07).
                 _fireHeldThroughSwap = true;
             }
             if (!VRInput.GetHeld(DigitalAction.Use, off))

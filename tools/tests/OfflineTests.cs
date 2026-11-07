@@ -3059,6 +3059,9 @@ namespace RavenfieldVR.Tests
                 Check(first && SteamPlayEntry.IsPresent(copy) == !present.Value, "Play entry: " + (present.Value ? "removed" : "added") + " on a copy (" + string.Join(" / ", log) + ")");
                 bool back = SteamPlayEntry.Change(copy, present.Value, log.Add);
                 Check(back && SteamPlayEntry.IsPresent(copy) == present.Value, "Play entry: put back as it was");
+                // Asked again with the entry there: the file does not change, and that is no failure (Setup said so on every run after the first).
+                SteamPlayEntry.Change(copy, true, log.Add);
+                Check(!SteamPlayEntry.Change(copy, true, log.Add) && SteamPlayEntry.Ensure(copy, log.Add), "Play entry: already there counts as there");
                 if (!present.Value)
                 {
                     Check(SameBytes(original, System.IO.File.ReadAllBytes(copy)), "Play entry: the cache is byte for byte as before after add + remove");

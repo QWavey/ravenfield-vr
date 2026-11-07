@@ -259,6 +259,7 @@ namespace RavenfieldVR.Weapons
                 VRGameInput.GogglesGesturePressed = true;
                 VRInput.Consume(DigitalAction.Grab, off.Side);
                 off.Haptic(0.04f, 120f, 0.5f);
+                Log.Info("Goggles: the hand at the side of the head switched them."); // (the next play log tells a gesture that never came from a picture that never changed)
             }
         }
 
