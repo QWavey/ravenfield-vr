@@ -58,7 +58,54 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            return w.GetAimFov() < 40f;
+            return w.GetAimFov() < 40f && !HasOwnReticle(w, rig);
+        }
+
+        /// <summary>A reticle the model draws itself: a material named as one (the mods' "reticle_ui_stencil" on a scope's glass).</summary>
+        private static readonly System.Text.RegularExpressions.Regex ReticleName =
+            new System.Text.RegularExpressions.Regex(@"retic|recticle|crosshair|cross_hair", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private static readonly Dictionary<string, bool> OwnReticle = new Dictionary<string, bool>();
+
+        /// <summary>
+        /// The model's scope draws a reticle of its own on its glass: the mod's lens is not put over it. It was, with its duplex crosshair, the
+        /// flat game's 2D scope as it looks, in front of the real one (user, 2026-11-08: "some guns still get a vanilla scope over tehir real one";
+        /// the mk18 ACOG, mg3-acog, MRAD and AK-105 have such a material in the export). Without the lens the scope is seen as the model is, its
+        /// reticle on the glass, unmagnified.
+        /// </summary>
+        internal static bool HasOwnReticle(Weapon w, WeaponRig rig)
+        {
+            string key = rig.Data.Key ?? w.name;
+            if (OwnReticle.TryGetValue(key, out bool known))
+            {
+                return known;
+            }
+            string found = null;
+            foreach (Renderer r in w.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+                foreach (Material m in r.sharedMaterials)
+                {
+                    if (m != null && ReticleName.IsMatch(m.name))
+                    {
+                        found = r.name + " (" + m.name + ")";
+                        break;
+                    }
+                }
+                if (found != null)
+                {
+                    break;
+                }
+            }
+            OwnReticle[key] = found != null;
+            if (found != null)
+            {
+                Log.Info($"{key}: its scope draws its own reticle ({found}): no lens of the mod's over it.");
+            }
+            return found != null;
         }
 
         public VRScope(VRRig vrRig, WeaponRig rig) : this(vrRig, rig, rig.Data.EyePoint, rig.Data.EyeDirection,
