@@ -164,6 +164,10 @@ namespace RavenfieldVR.Weapons
             {
                 RealTimeGrenades.Begin(grenade); // (in slow motion it went at a fifth of the throw and dropped near the feet)
             }
+            else
+            {
+                RealTimeProjectiles.Begin(p); // (a molotov, a C4 charge: the same)
+            }
         }
 
         private static readonly AccessTools.FieldRef<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>> ChargesOf =

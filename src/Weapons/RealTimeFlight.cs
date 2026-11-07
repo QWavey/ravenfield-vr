@@ -94,6 +94,107 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
+    /// The same for what else the hand throws that the game moves itself (<c>Projectile.UpdatePosition</c>: a molotov, a C4 charge): in slow
+    /// motion its step is taken in real time, through the game's own <c>Travel</c> (its hits, a charge sticking, a molotov bursting), until
+    /// it stops on something; then the world's pace. Its first step, the game's muzzle travel, is the game's.
+    /// </summary>
+    internal static class RealTimeProjectiles
+    {
+        private sealed class Flight
+        {
+            public float Expire;
+            public float Flown;
+        }
+
+        private static readonly Dictionary<Projectile, Flight> Flying = new Dictionary<Projectile, Flight>();
+        private static readonly AccessTools.FieldRef<Projectile, float> ExpireOf = AccessTools.FieldRefAccess<Projectile, float>("expireTime");
+        private static readonly System.Reflection.MethodInfo TravelMethod = AccessTools.Method(typeof(Projectile), "Travel");
+        private static readonly object[] Args = new object[1];
+
+        internal static int Count => Flying.Count;
+
+        internal static void Begin(Projectile p)
+        {
+            float s = Time.timeScale;
+            if (p == null || p is GrenadeProjectile || p is RigidbodyProjectile || TravelMethod == null || s <= 0.01f || s >= 0.999f || Core.VRConfig.SlowedHands)
+            {
+                return;
+            }
+            if (Flying.Count > 32)
+            {
+                var gone = new List<Projectile>();
+                foreach (Projectile k in Flying.Keys)
+                {
+                    if (k == null || !k.isActiveAndEnabled)
+                    {
+                        gone.Add(k);
+                    }
+                }
+                foreach (Projectile k in gone)
+                {
+                    Flying.Remove(k);
+                }
+            }
+            Flying[p] = new Flight { Expire = ExpireOf(p) };
+        }
+
+        internal static bool Step(Projectile p)
+        {
+            if (!Flying.TryGetValue(p, out Flight f))
+            {
+                return true;
+            }
+            if (!Mathf.Approximately(ExpireOf(p), f.Expire))
+            {
+                Flying.Remove(p); // (pooled and fired again, by anyone)
+                return true;
+            }
+            if (p.performInfantryInitialMuzzleTravel)
+            {
+                return true; // (its first step: the game's travel back from the muzzle)
+            }
+            float s = Time.timeScale;
+            if (s < 0.01f)
+            {
+                return false;
+            }
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            f.Flown += dt;
+            if (s >= 0.999f || f.Flown > 3f)
+            {
+                p.velocity *= s;
+                Flying.Remove(p);
+                return true;
+            }
+            p.velocity += Physics.gravity * p.configuration.gravityMultiplier * dt;
+            Args[0] = p.velocity * dt;
+            bool on;
+            try
+            {
+                on = (bool)TravelMethod.Invoke(p, Args);
+            }
+            catch (System.Exception e)
+            {
+                Core.Log.ExceptionOnce("RealTimeProjectiles.Travel", e);
+                Flying.Remove(p);
+                return true;
+            }
+            if (!on || !p.enabled)
+            {
+                p.velocity *= s; // (stopped on something: the world's pace from here)
+                Flying.Remove(p);
+            }
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Projectile), "UpdatePosition")]
+    internal static class RealTimeProjectilePatch
+    {
+        private static bool Prefix(Projectile __instance) => RealTimeProjectiles.Count == 0 || RealTimeProjectiles.Step(__instance);
+    }
+
+    /// <summary>
     /// A magazine the player lets go of in slow motion flies as it would in real time until it first touches something. The
     /// hand's velocity is measured in real time (the player's arms are not slowed), and the slowed world took it as game speed:
     /// at the game's slow motion (time scale 0.2) a magazine let go at 1 m/s went on at a fifth of that, stopped by the hand and

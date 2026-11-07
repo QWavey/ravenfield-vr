@@ -5,7 +5,7 @@
 - A scope with a reticle of its own (the ACOG on the mk18 and the MG3, the MRAD, the AK-105 and others) is seen as it is, its own reticle on its glass, instead of under the mod's lens with a plain crosshair. It is not magnified then.
 - No more of the mod's own scope over a real scope on guns whose model has a scope and a second, narrower sight mode (since 1.16.10).
 - Inside a vehicle the view no longer slides about the cabin as it speeds up or brakes (the flat game's head bob, which moved your whole view in VR).
-- In slow motion a grenade, an ammo bag or a round you throw flies at the speed you threw it until it lands (a grenade went at a fifth of the throw and dropped near your feet).
+- In slow motion a grenade, molotov, C4 charge, ammo bag or round you throw flies at the speed you threw it until it lands (a grenade went at a fifth of the throw and dropped near your feet).
 - In slow motion a magazine let go or dropped out beside the gun flies on in real time again (touching the gun made it hang in the air).
 - A gun that comes with no reserve shows 0 in the pouch and on the wrist (it said the reserve was without end).
 - A magazine dropped in a vehicle seat that fell through the floor no longer stays under the vehicle for good.
