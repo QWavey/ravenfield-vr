@@ -217,6 +217,7 @@ namespace RavenfieldVR.Weapons
             {
                 VRInput.SetGunHand(VRInput.Dominant);
             }
+            SyncDrawnSlot(GameContext.PlayerActor);
             UpdateLooseProps();
             Drops.Update();
             FireSelector.Update();
@@ -1519,6 +1520,25 @@ namespace RavenfieldVR.Weapons
             _rigs.Clear();
             _attachFailed.Clear(); // as the analysis's failures: tried again in the new scene (lifecycle hunt, 2026-10-20)
             WeaponAnalyzer.ForgetFailed(); // a weapon whose analysis threw is analysed again in the new scene (2026-10-19)
+        }
+
+        /// <summary>
+        /// The game's slot number follows the gun really drawn: <c>Actor.EquipNewWeaponEntry</c> (a map's trigger, a mutator, a script) draws one without
+        /// setting it, and everything that read the slot after that read the wrong one: the next-weapon button's order, the holster a gun goes back
+        /// to, a pickup beside the gun in the hand (pickups scout, 2026-11-08). Only a gun of the player's own slots (a seat's gun is not one).
+        /// </summary>
+        private static void SyncDrawnSlot(Actor actor)
+        {
+            if (actor == null || actor.dead || actor.activeWeapon == null || actor.weapons == null)
+            {
+                return;
+            }
+            int s = System.Array.IndexOf(actor.weapons, actor.activeWeapon);
+            if (s >= 0 && s != actor.activeWeaponSlot)
+            {
+                Log.InfoOnce("slotsync:" + actor.activeWeapon.name, $"The drawn {actor.activeWeapon.name} is in slot {s + 1}, the game had slot {actor.activeWeaponSlot + 1}: set (a gun drawn by a script or trigger).");
+                actor.activeWeaponSlot = s;
+            }
         }
 
         public void Dispose()
