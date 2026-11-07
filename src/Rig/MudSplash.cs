@@ -145,7 +145,8 @@ namespace RavenfieldVR.Rig
             }
         }
 
-        private bool _wasUnderwater;
+        /// <summary>How long the eyes have been under water (s).</summary>
+        private float _underFor;
 
         /// <summary>Seconds of play: what the dirt ages by.</summary>
         private float _clock;
@@ -164,12 +165,15 @@ namespace RavenfieldVR.Rig
             // Coming up out of the water: drops on the view, as approved (Tasks 209 I, drawn by LensEffects; optional,
             // off by default).
             Actor me = Util.GameContext.PlayerActor;
-            bool under = me != null && !me.dead && me.immersedInWater;
-            if (_wasUnderwater && !under && !dead && VRConfig.WaterDrops.Value) // dying under water is no surfacing
+            // The eyes under, a moment at least: the game's immersedInWater is the chest, and wading out left drops on a view that never went
+            // under; the surface's own waves dip over a head held at it.
+            bool under = me != null && !me.dead && VRConfig.WaterDrops.Value && _head != null && WaterLevel.IsInWater(_head.position);
+            float underFor = under ? _underFor + Time.unscaledDeltaTime : 0f;
+            if (!under && _underFor >= 0.2f && !dead) // dying under water is no surfacing
             {
                 LensEffects.Instance?.WaterDrops();
             }
-            _wasUnderwater = under;
+            _underFor = underFor;
             bool any = false;
             // Nothing live and nothing on screen: skip the per-frame scan of all slots (the common case between blasts).
             if (_liveCount == 0 && !_shown)
