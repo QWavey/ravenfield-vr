@@ -46,6 +46,7 @@ namespace RavenfieldVR.Rig
         private readonly ComfortVignette _vignette;
         private readonly DamageFeedback _damage;
         private readonly MudSplash _mud;
+        private readonly UnderwaterVeil _underwater;
         private readonly LensEffects _lens;
         private readonly CockpitControls _cockpit;
         private readonly VehicleTouchEnter _touchEnter;
@@ -125,6 +126,7 @@ namespace RavenfieldVR.Rig
                 try
                 {
                     _mud = new MudSplash(Camera.transform);
+                    _underwater = new UnderwaterVeil(Camera.transform);
                 }
                 catch (System.Exception e)
                 {
@@ -395,6 +397,7 @@ namespace RavenfieldVR.Rig
                 NightVision.isEnabled ? VRConfig.GogglesTube.Value : 0f);
             _damage.Update();
             _mud?.Update();
+            _underwater?.Update();
             UpdateGunShade(player);
         }
 
@@ -1503,6 +1506,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
+            Log.Guard("Rig.Underwater.Destroy", () => _underwater?.Destroy());
             Log.Guard("Rig.Lens.Destroy", () => _lens?.Destroy());
             Log.Guard("Rig.ShowBody", RestoreBody); // VR switched off on foot: the flat game's body and its rule again
             Log.Guard("Rig.Sun", RestoreSun);

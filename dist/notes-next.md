@@ -1,6 +1,8 @@
 ## Ravenfield VR (next, after 1.16.10)
 
 - Night vision shows in the headset: the view turns the game's green, with its grain and bloom, and the edge of the view goes dark as through tubes. The goggles were switching, and the VR camera could not see them.
+- Under water the view turns the game's deep blue: it stayed as clear as air, because the game draws that on the flat screen only.
+- Water drops on the view come only when your eyes really went under, not from wading out.
 - Your gun and arms go out of the sun in the shade, as they do on the flat screen: with shadows off they stayed sunlit inside a building.
 - With post-processing on in the config, the view now has the game's colour grading and bloom too; it only had ambient occlusion.
 - Squad pointing: a car can be pointed at to send the squad in (ENTER, GET OUT, TAKE IT on your hand); the sky says NOTHING THERE and alone it says NO SQUAD, instead of GO TO and an order's sound for nothing.

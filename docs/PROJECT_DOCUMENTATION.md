@@ -141,8 +141,9 @@ eyes at all, which is the default and the reason VR costs what it does. The gogg
 (`BodyZones.UpdateGestures`, `VRGameInput.GogglesGesturePressed`, `KeyBinds.Goggles`) or by a holster press of a toggled item
 (`WeaponSystem`), and the flat tube vignette and fade are hidden (`NightVisionVignettePatch`, `NightVisionFadePatch`); `ComfortVignette` holds
 a floor (`GogglesTube`) as the tube instead. Other things the flat game does on a camera of its own and the eyes must do themselves: the view model
-out of the sun in shade (`FPLightIntensity`, here `VRRig.UpdateGunShade` by the sun's culling mask). `IRFlaresRenderer` draws for every camera, so its
-strobes need nothing.
+out of the sun in shade (`FPLightIntensity`, here `VRRig.UpdateGunShade` by the sun's culling mask), the water's blue (`UnderwaterCamera.OnGUI`, here
+`UnderwaterVeil`). `IRFlaresRenderer` draws for every camera, so its strobes need nothing. Anything in the game's `OnGUI`, `OnRenderImage`, `OnPreCull` or
+`OnPostRender` is a place to look when something the flat game shows is missing in the headset.
 
 ### 3.4 The glove and how hands hold things (`Rig/HandModel.cs`, `Rig/GloveMesh.cs`, `Weapons/ModHand.cs`, `Weapons/GunVolume.cs`)
 
