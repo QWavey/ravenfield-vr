@@ -14,7 +14,8 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 - The M1 GARRET's bolt and clip: two causes fixed (a sound that threw in the middle of the clip's seat; an empty clip taken off the ground and pressed in). Its log lines now tell the rest: "the last round fired, the empty clip thrown out, the bolt locked back / NOT LOCKED", "a clip refused ...". Ask what happens now.
 - A lens over a real scope: my own Tasks 365 rule reverted; a scope whose model draws its own reticle (a `reticle`-named material, e.g. `reticle_ui_stencil`) gets no mod lens at all and is seen unmagnified; the log names each gun the mod draws a lens for, and each it steps aside for. Ask which guns still do, and whether a real scope should be magnified again (a design call: the mod's lens over it hides its reticle).
-- New controls to tell the user about: in a gun seat a free hand's grip aims (lock-ons, zoom cameras); on the game's menus B is the right mouse button.
+- New controls to tell the user about: in a gun seat a free hand's grip aims (lock-ons, zoom cameras); on the game's menus B is the right mouse button; at a mortar the right stick sets the range; with the C4 in the hand A sets off its thrown charges (they could never go off in VR: the vanilla C4 is a `RemoteDetonatorWeapon`, set off in flat play by aim and fire).
+- Found by reading the game's weapon kinds one by one (a lens that worked: a subclass of `Weapon` with a `Fire` or hit of its own the mod never names): the C4 above, the Air Horn (its blast is `Airhorn.ShootMeleeRay` on the trigger; the mod suppressed every melee trigger), thrown bags (`RigidbodyProjectile` sets its body's speed once in `Awake`, so `Projectile.velocity` did nothing). Also: the logs' "reprojected" count counted the always-on async flag (0x04); `PerfProbe.Reused` counts real reuse now, so older logs' "64 of 64 reprojected" means nothing.
 - The MG belt through the box (the MG3): not found. The strip keeps out of `Data.MagBounds` in the seat's frame, and the MG3 shows its model's own belt when laid. Ask which belt: the one hanging from the box with the cover up, the one held, or the one lying on the gun; and which box: the one in the gun, one in the hand, or one on the ground.
 - Two scouts restarted (pickups, seats with cameras of their own): their findings go into Tasks 367.
 
@@ -27,7 +28,8 @@ Where the work stands, for whoever picks it up next, a compacted session include
 5. Squad pointing: a car says ENTER, the sky NOTHING THERE.
 6. A soldier on the move taken by the neck: he stops walking and firing.
 7. A pistol in the free hand throws cases. A trigger held on a menu does not fire when the laser leaves it.
-8. From the last run: a seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
+8. C4: throw two charges, press A with the C4 in the hand: both go off ("A set off 2 charge(s)" in the log). The Air Horn on the trigger knocks soldiers in front of its bell over. An ammo bag tossed gently lands near.
+9. From the last run: a seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
 
 The user's log is `BepInEx/LogOutput.log`, overwritten by the next game start: copy it before anything else.
 
