@@ -157,7 +157,12 @@ namespace RavenfieldVR.Weapons
                 {
                     body.velocity = velocity;
                     body.angularVelocity = spin;
+                    RealTimeFlight.Begin(body); // (in slow motion, real time until it touches something, as a magazine)
                 }
+            }
+            else if (p is GrenadeProjectile grenade)
+            {
+                RealTimeGrenades.Begin(grenade); // (in slow motion it went at a fifth of the throw and dropped near the feet)
             }
         }
 

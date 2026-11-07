@@ -478,6 +478,7 @@ namespace RavenfieldVR.Weapons
             c.Body.interpolation = RigidbodyInterpolation.Interpolate;
             c.Body.velocity = velocity;
             c.Body.angularVelocity = spin;
+            RealTimeFlight.Begin(c.Body); // (the hand's speed is real time: in slow motion a round let go dropped at the fingers)
             PropPhysics.IgnorePlayer(c.Collider); // (switched off and on, the collider forgot its ignored pairs)
             c.Born = Time.time;
             // (To the list's end: it is in order of age, and the next shot with the pool full took a case thrown a moment ago from where it first lay.)

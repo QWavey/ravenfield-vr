@@ -1,7 +1,98 @@
+using System.Collections.Generic;
+using HarmonyLib;
 using UnityEngine;
 
 namespace RavenfieldVR.Weapons
 {
+    /// <summary>
+    /// A hand-thrown grenade in slow motion flies as in real time until it first touches something, as a magazine does (RealTimeFlight). A
+    /// grenade has no body: the game moves it in its own Update by game time, so one thrown hard in slow motion went at a fifth of the
+    /// throw and dropped near the feet (slow-motion scout, 2026-11-08; the dud with its pin in already flew in real time). Here its step
+    /// is taken in real time with real gravity, its velocity kept in real m/s; at its first touch (the game's own cast says so) it is
+    /// given back to the world's pace and the game's step bounces it. Paused, it waits; slow motion ended, the world's pace on.
+    /// </summary>
+    internal static class RealTimeGrenades
+    {
+        private sealed class Flight
+        {
+            public float Fuse;
+            public float Flown;
+        }
+
+        private static readonly Dictionary<GrenadeProjectile, Flight> Flying = new Dictionary<GrenadeProjectile, Flight>();
+        private static readonly AccessTools.FieldRef<GrenadeProjectile, float> FuseOf = AccessTools.FieldRefAccess<GrenadeProjectile, float>("detonationTime");
+        private static readonly AccessTools.FieldRef<GrenadeProjectile, Vector3> SpinAxisOf = AccessTools.FieldRefAccess<GrenadeProjectile, Vector3>("rotationAxis");
+        private static readonly AccessTools.FieldRef<GrenadeProjectile, float> SpinOf = AccessTools.FieldRefAccess<GrenadeProjectile, float>("angularSpeed");
+        private const int GameMask = 2101249; // (GrenadeProjectile.LAYER_MASK)
+
+        internal static int Count => Flying.Count;
+
+        /// <summary>Right after a throw by hand set its velocity (the hand's, real m/s): in slow motion it flies in real time from here.</summary>
+        internal static void Begin(GrenadeProjectile g)
+        {
+            float s = Time.timeScale;
+            if (g == null || s <= 0.01f || s >= 0.999f || Core.VRConfig.SlowedHands)
+            {
+                return;
+            }
+            if (Flying.Count > 32)
+            {
+                var gone = new List<GrenadeProjectile>();
+                foreach (GrenadeProjectile k in Flying.Keys)
+                {
+                    if (k == null || !k.isActiveAndEnabled)
+                    {
+                        gone.Add(k);
+                    }
+                }
+                foreach (GrenadeProjectile k in gone)
+                {
+                    Flying.Remove(k);
+                }
+            }
+            Flying[g] = new Flight { Fuse = FuseOf(g), Flown = 0f };
+        }
+
+        /// <summary>Its step this frame: false when taken here (the game's skipped), true for the game's own.</summary>
+        internal static bool Step(GrenadeProjectile g)
+        {
+            if (!Flying.TryGetValue(g, out Flight f))
+            {
+                return true;
+            }
+            if (!Mathf.Approximately(FuseOf(g), f.Fuse))
+            {
+                Flying.Remove(g); // (a pooled grenade thrown again, by anyone: its flight was another's)
+                return true;
+            }
+            float s = Time.timeScale;
+            if (s < 0.01f)
+            {
+                return false; // paused or the time stop: it waits as the world does
+            }
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            f.Flown += dt;
+            Vector3 v = g.velocity + Physics.gravity * dt;
+            Vector3 step = v * dt;
+            if (s >= 0.999f || f.Flown > 3f || step.sqrMagnitude > 1e-10f && Physics.SphereCast(new Ray(g.transform.position, step), g.radius, out _, step.magnitude * 2f, GameMask))
+            {
+                g.velocity *= s; // at the world's pace from here: the game's step bounces it
+                Flying.Remove(g);
+                return true;
+            }
+            g.velocity = v;
+            g.transform.position += step;
+            g.transform.Rotate(SpinAxisOf(g), SpinOf(g) * dt); // (its tumble, as the game's step turns it)
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(GrenadeProjectile), "Update")]
+    internal static class RealTimeGrenadePatch
+    {
+        private static bool Prefix(GrenadeProjectile __instance) => RealTimeGrenades.Count == 0 || RealTimeGrenades.Step(__instance);
+    }
+
     /// <summary>
     /// A magazine the player lets go of in slow motion flies as it would in real time until it first touches something. The
     /// hand's velocity is measured in real time (the player's arms are not slowed), and the slowed world took it as game speed:
@@ -19,7 +110,8 @@ namespace RavenfieldVR.Weapons
         /// <summary>The time scale the body's velocity is made out for (1: none).</summary>
         private float _scale = 1f;
         private float _maxSpin;
-        private float _until;
+        /// <summary>Real seconds it has flown (a pause adds none: by the clock, a pause of over 3 s ended the flight mid-air on resume).</summary>
+        private float _flown;
         /// <summary>The bodies flying as one with this one (a soldier's bones), or null.</summary>
         private RealTimeFlight[] _group;
         /// <summary>The scale it ended from, and the physics step it ended in: a touch's other handlers read it (ScaleAtTouch).</summary>
@@ -96,7 +188,7 @@ namespace RavenfieldVR.Weapons
             }
             RealTimeFlight f = body.GetComponent<RealTimeFlight>() ?? body.gameObject.AddComponent<RealTimeFlight>();
             f._body = body;
-            f._until = Time.unscaledTime + 3f;
+            f._flown = 0f;
             if (f._scale >= 0.999f)
             {
                 f._maxSpin = body.maxAngularVelocity;
@@ -129,7 +221,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             float s = Time.timeScale;
-            if (s >= 0.999f || Time.unscaledTime > _until)
+            if (s >= 0.999f || _flown > 3f)
             {
                 End();
                 return;
@@ -138,6 +230,7 @@ namespace RavenfieldVR.Weapons
             {
                 return; // (the game's time stop, a katana finisher: no rescale by a zero scale, it waits as the world does)
             }
+            _flown += Time.fixedDeltaTime / s; // (a physics step is fixedDeltaTime of game time, that over the scale in real time)
             if (!Mathf.Approximately(s, _scale))
             {
                 Rescale(s);
