@@ -32,7 +32,9 @@ Where the work stands, for whoever picks it up next, a compacted session include
 6. A soldier on the move taken by the neck: he stops walking and firing.
 7. A pistol in the free hand throws cases. A trigger held on a menu does not fire when the laser leaves it.
 8. C4: throw two charges, press A with the C4 in the hand: both go off ("A set off 2 charge(s)" in the log). The Air Horn on the trigger knocks soldiers in front of its bell over. An ammo bag tossed gently lands near.
-9. From the last run: a seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
+9. The MG belt: a box in with the cover up, the gun turned on its side: the hanging rounds' tips stay out of the box (MG3, MG3 ACOG).
+10. Slow motion: a grenade, bag or molotov thrown flies at the throw's speed until it lands; a magazine let go beside the gun flies on.
+11. From the last run: a seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
 
 The user's log is `BepInEx/LogOutput.log`, overwritten by the next game start: copy it before anything else.
 
