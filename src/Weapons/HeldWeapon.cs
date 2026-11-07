@@ -188,7 +188,8 @@ namespace RavenfieldVR.Weapons
                     _scope = LensFor(system.Rig, rig, _scopeMode);
                     // (Which guns get it, for a report of a lens over a real scope: the flat game showed its 2D scope picture on these.)
                     Log.InfoOnce("mainlens:" + rig.Data.Key, $"{rig.Data.Key}: the mod's lens drawn for its scope (the flat game's 2D scope picture), "
-                                                             + $"{(rig.Data.HasScopeModel ? "on the scope model's ocular" : "at eye relief, no scope found in the model")}.");
+                                                             + $"{(rig.Data.HasScopeModel ? "on the scope model's ocular" : "at eye relief, no scope found in the model")}; "
+                                                             + $"its 2D picture: {VRScope.DescribeOverlay(weapon)}.");
                 }
                 else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
                 {

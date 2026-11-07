@@ -61,6 +61,36 @@ namespace RavenfieldVR.Weapons
             return w.GetAimFov() < 40f && !HasOwnReticle(w, rig);
         }
 
+        /// <summary>
+        /// The flat game's 2D scope picture as words, for the log: each image in it (its name, its sprite or texture and size, its share of the
+        /// screen, whether its texture is readable). A gun's own reticle is drawn there; the mod's lens draws a duplex of its own instead (user,
+        /// 2026-11-08: "some guns still get a vanilla scope over tehir real one"). Read to see whether those pictures can be put on the lens.
+        /// </summary>
+        internal static string DescribeOverlay(Weapon w)
+        {
+            GameObject o = w != null && w.configuration != null ? w.configuration.scopeAimObject : null;
+            if (o == null)
+            {
+                return "none";
+            }
+            var parts = new List<string>();
+            foreach (UnityEngine.UI.Graphic g in o.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            {
+                Texture tex = g.mainTexture;
+                string what = g is UnityEngine.UI.Image img && img.sprite != null ? $"sprite '{img.sprite.name}' {img.sprite.rect.width:0}x{img.sprite.rect.height:0}"
+                    : tex != null ? $"texture '{tex.name}' {tex.width}x{tex.height}" : "no texture";
+                Rect r = g.rectTransform.rect;
+                bool readable = tex is Texture2D t2 && t2.isReadable;
+                parts.Add($"{g.GetType().Name} '{g.name}' {what}, {r.width:0}x{r.height:0} units, alpha {g.color.a:0.00}{(readable ? ", readable" : "")}");
+                if (parts.Count >= 6)
+                {
+                    break;
+                }
+            }
+            Renderer[] renderers = o.GetComponentsInChildren<Renderer>(true);
+            return parts.Count == 0 && renderers.Length == 0 ? "no image in it" : string.Join("; ", parts.ToArray()) + (renderers.Length > 0 ? $"; {renderers.Length} renderer(s)" : "");
+        }
+
         /// <summary>A reticle the model draws itself: a material named as one (the mods' "reticle_ui_stencil" on a scope's glass).</summary>
         private static readonly System.Text.RegularExpressions.Regex ReticleName =
             new System.Text.RegularExpressions.Regex(@"retic|recticle|crosshair|cross_hair", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
