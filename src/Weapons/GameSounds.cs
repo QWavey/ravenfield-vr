@@ -82,6 +82,8 @@ namespace RavenfieldVR.Weapons
             new Cut("Step1", 0f, 0f, 1f, 1.2f), new Cut("Step9", 0f, 0f, 1f, 1.15f), new Cut("Step10", 0f, 0f, 1f, 1.25f)
         };
 
+        private static readonly Cut[] NoCuts = new Cut[0];
+
         private static Cut[] CutsFor(MechSound kind, bool pistol)
         {
             switch (kind)
@@ -173,7 +175,9 @@ namespace RavenfieldVR.Weapons
                 {
                     for (int pistol = 0; pistol < 2; pistol++)
                     {
-                        foreach (Cut cut in CutsFor(kind, pistol == 1))
+                        // (A kind with no table of its own, HandGrab: its null threw here, on the first sound looked up, and every scan after
+                        // it threw in Preload, in the middle of the weapons' frame; the 1.16.11 log, holster and pouch silent the first time.)
+                        foreach (Cut cut in CutsFor(kind, pistol == 1) ?? NoCuts)
                         {
                             _wanted.Add(cut.Name);
                         }
@@ -202,7 +206,7 @@ namespace RavenfieldVR.Weapons
             {
                 for (int pistol = 0; pistol < 2; pistol++)
                 {
-                    foreach (Cut cut in CutsFor(kind, pistol == 1))
+                    foreach (Cut cut in CutsFor(kind, pistol == 1) ?? NoCuts)
                     {
                         if (Loaded.TryGetValue(cut.Name, out AudioClip clip) && clip != null && clip.loadState == AudioDataLoadState.Unloaded)
                         {
@@ -221,7 +225,7 @@ namespace RavenfieldVR.Weapons
             {
                 for (int pistol = 0; pistol < 2; pistol++)
                 {
-                    foreach (Cut cut in CutsFor(kind, pistol == 1))
+                    foreach (Cut cut in CutsFor(kind, pistol == 1) ?? NoCuts)
                     {
                         if (Named(cut.Name) != null)
                         {

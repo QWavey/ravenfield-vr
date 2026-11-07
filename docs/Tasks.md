@@ -2819,6 +2819,18 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 367. Bug hunt and improve to 60% (user, 2026-11-08 morning: "Lets continue with bughunts, improvements etc. there could still be alot of bugs ... /work-until-limit 60%")
+
+The game not started. The user played 1.16.11 first: their log is kept in `reports/shots/user-1107/game-log.txt` (Medium, later Ultra; no goggles used, no exception but one).
+
+The user's reports:
+- [ ] (a) "the m1 garands bolt doesnt stay back when empty or reloaded by hand and i cant reload it rn" (the M1 GARRET).
+- [ ] (b) "some guns still get a vanilla scope over tehir real one" (which guns not given; Task 325 was the PATRIOT TAC's).
+- [ ] (c) "The MG bullets as a lane ... are still clipping through the mags and have no collision with the MG mags (discovered on MG32 for example)": the belt through the box (the MG3).
+
+Found and fixed:
+- [x] From the log: `GameSounds.Named` threw a NullReferenceException in `Weapons.Update` (`WeaponSystem.UpdateHolster` playing the holster sound). `MechSound.HandGrab` (added in Tasks 365) has no cut table, `CutsFor` returns null for it, and the three loops over the table did `foreach` on that null: the first sound looked up threw while the wanted names were gathered, and every scan after (each 30 s while a name was missing) threw again in `Preload`, in the middle of the weapons' frame. The log's "No game sound loaded for Holster / Pouch / Casing / CasingSoft / MagLip" came from it. All three loops take `?? NoCuts`; `tools/tests/game_clips_test.py` fails on a loop without it (checked against the old file: 3 failures).
+
 ### 366. Improve and bug hunt to 50% (user, 2026-11-07: "yes please build the setup / after that please continue to /work-until-limit 50%")
 
 The game not started. 1.16.10 built first (setup in `dist/`). `docs/HANDOVER.md` holds where things stand, kept current through the run. Mid-run the user: "Night vision doesnt work at all it just does nothing and isnt even in my vr view / put it on your list / Also while you work document more and make sure that you understand it if things get compacted later...". So this entry is kept as the run goes: what was found, why, and what is left.

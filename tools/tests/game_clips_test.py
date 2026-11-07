@@ -45,6 +45,17 @@ def main():
     if made:
         failures.append("AudioClip.Create in " + ", ".join(made) + ": the mod's sounds are the game's only")
 
+    # (Every loop over the table survives a kind with none: HandGrab's null threw on the first sound of the 1.16.11 log, and every scan
+    # after it threw in the middle of the weapons' frame.)
+    with open(os.path.join(ROOT, "src", "Weapons", "GameSounds.cs"), encoding="utf-8-sig") as f:
+        source = f.read()
+    loops = re.findall(r"foreach \(Cut cut in CutsFor\([^)]*\)([^)]*)\)", source)
+    if not loops:
+        failures.append("no loop over CutsFor found in GameSounds.cs: the pattern no longer reads it")
+    for rest in loops:
+        if "?? NoCuts" not in rest:
+            failures.append("a loop over CutsFor without ?? NoCuts: a kind with no table throws there")
+
     for failure in failures:
         print("FAIL", failure)
     print(f"game clips: {len(cuts)} cuts of {len(set(c[0] for c in cuts))} clips checked, {len(failures)} failures")
