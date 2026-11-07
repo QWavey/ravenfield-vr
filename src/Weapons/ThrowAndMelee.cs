@@ -716,6 +716,44 @@ namespace RavenfieldVR.Weapons
             PullPin(null);
             Throw(weapon, hand, lob, true);
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
+            // In slow motion (0.2) the same throw: with SlowMotionHands Normal it flies at the throw's speed in real time until it lands (it went
+            // at a fifth of it and dropped near the feet; 2026-11-08).
+            until = Time.realtimeSinceStartup + 3f;
+            while (!weapon.CanFire() && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            if (!weapon.CanFire() || VRConfig.SlowedHands || Time.timeScale < 0.999f)
+            {
+                yield break;
+            }
+            float scaleBefore = Time.timeScale;
+            try
+            {
+                GameManager.SetTimeScale(0.2f);
+                yield return null;
+                PullPin(null);
+                Throw(weapon, hand, lob, true);
+                GrenadeProjectile g = null;
+                foreach (Projectile p in _lastThrown)
+                {
+                    g = g ?? p as GrenadeProjectile;
+                }
+                if (g != null)
+                {
+                    Vector3 from = g.transform.position;
+                    float t0 = Time.realtimeSinceStartup;
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    float dt = Time.realtimeSinceStartup - t0, went = Vector3.Distance(g.transform.position, from);
+                    float real = lob.magnitude * dt;
+                    report($"pin pulled, slow motion (0.2): {went:0.0} m in its first {dt:0.00} s of real time (thrown at {lob.magnitude:0} m/s: {real:0.0} m)"
+                           + (went < real * 0.5f ? " (NOT IN REAL TIME: it went at the slowed world's pace)" : ""));
+                }
+            }
+            finally
+            {
+                GameManager.SetTimeScale(scaleBefore > 0f ? scaleBefore : 1f);
+            }
         }
 
         /// <summary>
