@@ -375,8 +375,7 @@ namespace RavenfieldVR.Weapons
             {
                 if (p != null)
                 {
-                    p.velocity = velocity;
-                    p.transform.rotation = Quaternion.LookRotation(dir);
+                    ThrowableHandler.Launch(p, velocity, dir, Hand.AngularVelocity); // (a bag's body too)
                     LastLiveCount++;
                 }
             }

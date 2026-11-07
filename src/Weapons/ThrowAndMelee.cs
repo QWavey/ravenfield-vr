@@ -137,6 +137,27 @@ namespace RavenfieldVR.Weapons
 
         private static bool GameContextBlocksThrow() => VRGameInput.GunInputBlocked; // a menu, the laser on a panel, or the match paused
 
+        /// <summary>
+        /// A thrown thing on its way at the hand's speed, facing where it goes. An ammo bag or medic kit is a body of its own: its speed is
+        /// set once as it is made (<c>RigidbodyProjectile.Awake</c>, the prefab's speed along the aim) and its velocity field is never read,
+        /// so every bag flew off at that speed however it was tossed (scout on throwables, 2026-11-08). Its body takes the swing and the
+        /// hand's spin. For both hands' throws.
+        /// </summary>
+        internal static void Launch(Projectile p, Vector3 velocity, Vector3 dir, Vector3 spin)
+        {
+            p.velocity = velocity;
+            p.transform.rotation = Quaternion.LookRotation(dir);
+            if (p is RigidbodyProjectile)
+            {
+                Rigidbody body = p.GetComponent<Rigidbody>();
+                if (body != null && !body.isKinematic)
+                {
+                    body.velocity = velocity;
+                    body.angularVelocity = spin;
+                }
+            }
+        }
+
         private static readonly AccessTools.FieldRef<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>> ChargesOf =
             AccessTools.FieldRefAccess<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>>("registeredProjectiles");
 
@@ -263,20 +284,7 @@ namespace RavenfieldVR.Weapons
                 }
                 else
                 {
-                    p.velocity = velocity;
-                    p.transform.rotation = Quaternion.LookRotation(dir);
-                    // An ammo bag or medic kit is a body of its own: its speed is set once as it is made (RigidbodyProjectile.Awake, the prefab's
-                    // speed along the aim) and its velocity field is never read, so every bag flew off at that speed however it was tossed
-                    // (scout on throwables, 2026-11-08). It leaves with the hand's swing and spin, as a grenade does.
-                    if (p is RigidbodyProjectile)
-                    {
-                        Rigidbody body = p.GetComponent<Rigidbody>();
-                        if (body != null && !body.isKinematic)
-                        {
-                            body.velocity = velocity;
-                            body.angularVelocity = hand.AngularVelocity;
-                        }
-                    }
+                    Launch(p, velocity, dir, hand.AngularVelocity);
                 }
                 LastLiveCount++;
             }
