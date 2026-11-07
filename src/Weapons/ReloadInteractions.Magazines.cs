@@ -586,6 +586,13 @@ namespace RavenfieldVR.Weapons
                     prop.RailHandOffset = 0f;
                     prop.RailLateral0 = lateral;
                 }
+                else if (rocket && !lined && Time.unscaledTime > _refusedAt + 1f && NoseFirst(prop, hold, seat, insert))
+                {
+                    // Its warhead at the mouth: a rocket goes in tail first, and held the other way it stopped there with nothing said.
+                    _refusedAt = Time.unscaledTime;
+                    off.Haptic(0.04f, 70f, 0.55f);
+                    _sys.FlashMessage("TAIL FIRST");
+                }
                 if (lined)
                 {
                     prop.OnRail = true;
@@ -755,6 +762,16 @@ namespace RavenfieldVR.Weapons
             float lateral = Vector3.ProjectOnPlane(rel, insert).magnitude;
             float angle = Vector3.Angle(tail - nose, insert);
             return lateral < 0.12f && along > -0.12f && along < RocketTakenIn && angle < 60f;
+        }
+
+        /// <summary>A rocket at the launcher's mouth the wrong way round: its warhead end there, pointing into the tube.</summary>
+        private static bool NoseFirst(MagazineProp prop, RigidPose hold, RigidPose seat, Vector3 insert)
+        {
+            Vector3 mouth = seat.TransformPoint(prop.TipLocal) - insert * prop.RailLength;
+            Vector3 tail = hold.TransformPoint(prop.TipLocal), nose = hold.TransformPoint(prop.BaseLocal);
+            Vector3 rel = nose - mouth;
+            float along = Vector3.Dot(rel, insert);
+            return Vector3.ProjectOnPlane(rel, insert).magnitude < 0.12f && along > -0.12f && along < RocketTakenIn && Vector3.Angle(tail - nose, insert) > 120f;
         }
 
         /// <summary>
