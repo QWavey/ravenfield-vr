@@ -41,6 +41,20 @@ namespace RavenfieldVR.Weapons
         /// <summary>The frame <see cref="Follow"/> last set it: no longer followed (VR stopped, the grab system gone), it switches off.</summary>
         private int _followedFrame;
 
+        /// <summary>The fists' layer given back as it was (its collision row), for flat play after VR: left set, colliders a later map put on it met ragdolls alone.</summary>
+        internal static void GiveLayerBack()
+        {
+            if (_layer >= 0 && _savedRow != null)
+            {
+                for (int other = 0; other < 32; other++)
+                {
+                    Physics.IgnoreLayerCollision(_layer, other, _savedRow[other]);
+                }
+            }
+            _savedRow = null;
+            _layer = -2;
+        }
+
         /// <summary>
         /// The layer the fists use, set to meet ragdoll bones only: one with no name that no collider of the scene is on (unnamed was
         /// not enough: a map or a mod may still use one, and its colliders would have stopped colliding with anything but ragdolls),

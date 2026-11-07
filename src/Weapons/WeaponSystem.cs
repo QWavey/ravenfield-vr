@@ -218,6 +218,7 @@ namespace RavenfieldVR.Weapons
                 VRInput.SetGunHand(VRInput.Dominant);
             }
             SyncDrawnSlot(GameContext.PlayerActor);
+            MagazineProp.ReleasePassedHulls();
             UpdateLooseProps();
             Drops.Update();
             FireSelector.Update();
@@ -1544,6 +1545,7 @@ namespace RavenfieldVR.Weapons
         public void Dispose()
         {
             Camera.onPreCull -= CountFlatFrames;
+            Log.Guard("HandBody.GiveLayerBack", HandBody.GiveLayerBack); // (its collision row as the map had it, for flat play after VR)
             if (Second != null)
             {
                 Log.Guard("Second.PutAway", Second.PutAway); // the other hand's weapon back in its holster too (lifecycle hunt)

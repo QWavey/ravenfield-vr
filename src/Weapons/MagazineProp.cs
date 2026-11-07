@@ -56,6 +56,56 @@ namespace RavenfieldVR.Weapons
         public AmmoState Owner;
         /// <summary>Moving hulls it passes through, let go inside them (see <see cref="OutOfTheLevel"/>).</summary>
         private readonly List<Collider> _passedHulls = new List<Collider>();
+        private float _hullCheckAt;
+
+        /// <summary>
+        /// A few times a second: a hull a magazine was let go inside meets it again once it is out of it. Only a new let-go gave it back, so one
+        /// dropped in a seat that fell through the floor lay under the vehicle, which drove through it (physics scout, 2026-11-08).
+        /// </summary>
+        internal static void ReleasePassedHulls()
+        {
+            float now = Time.time;
+            foreach (MagazineProp p in Alive)
+            {
+                if (p._passedHulls.Count == 0 || now < p._hullCheckAt || p._colliders == null)
+                {
+                    continue;
+                }
+                p._hullCheckAt = now + 0.2f;
+                for (int k = p._passedHulls.Count - 1; k >= 0; k--)
+                {
+                    Collider hull = p._passedHulls[k];
+                    bool inside = false;
+                    if (hull != null)
+                    {
+                        Transform ht = hull.transform;
+                        foreach (Collider c in p._colliders)
+                        {
+                            if (c != null && c.enabled && Physics.ComputePenetration(c, c.transform.position, c.transform.rotation, hull, ht.position, ht.rotation, out _, out _))
+                            {
+                                inside = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (inside)
+                    {
+                        continue;
+                    }
+                    if (hull != null)
+                    {
+                        foreach (Collider c in p._colliders)
+                        {
+                            if (c != null)
+                            {
+                                Physics.IgnoreCollision(c, hull, false);
+                            }
+                        }
+                    }
+                    p._passedHulls.RemoveAt(k);
+                }
+            }
+        }
         /// <summary>
         /// On the rail after being pulled out of its seat: where the hand was along the rail at the pull minus the
         /// magazine's depth then, so the magazine moves with the hand's pull from there (0 when it went onto the rail
