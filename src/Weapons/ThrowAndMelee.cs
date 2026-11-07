@@ -44,6 +44,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Grenades put away with their pin pulled: drawn again, the pin is still out (it does not grow back).</summary>
         private readonly HashSet<ThrowableWeapon> _pulledPutAway = new HashSet<ThrowableWeapon>();
 
+        /// <summary>The last throw's projectiles (the autotest reads a bag's speed off one).</summary>
+        private readonly List<Projectile> _lastThrown = new List<Projectile>();
+
         /// <summary>Live projectiles the last throw spawned (the autotest checks a pinned throw spawns none).</summary>
         internal int LastLiveCount { get; private set; }
 
@@ -272,12 +275,14 @@ namespace RavenfieldVR.Weapons
                 muzzle.localPosition = savedPos;
                 muzzle.localRotation = savedRot;
             }
+            _lastThrown.Clear();
             foreach (Projectile p in _spawned)
             {
                 if (p == null)
                 {
                     continue;
                 }
+                _lastThrown.Add(p);
                 if (strapTo != null && p is GrenadeProjectile && TryStrap(p, strapTo, carrier, hand.Palm.position))
                 {
                     // strapped
@@ -670,6 +675,7 @@ namespace RavenfieldVR.Weapons
             if (!_usesPin)
             {
                 report("throwable without a pin");
+                yield return NoPinSelfCheck(weapon, report);
                 yield break;
             }
             float until = Time.realtimeSinceStartup + 3f;
@@ -705,6 +711,58 @@ namespace RavenfieldVR.Weapons
             PullPin(null);
             Throw(weapon, hand, lob, true);
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
+        }
+
+        /// <summary>
+        /// Autotest for what has no pin (2026-11-08): a bag thrown at 3 m/s must leave at 3 m/s (its body's speed was the prefab's, whatever the
+        /// toss); a C4 charge thrown, then A pressed on the detonator in the hand, must go off (no charge thrown in VR ever went off).
+        /// </summary>
+        private IEnumerator NoPinSelfCheck(ThrowableWeapon weapon, System.Action<string> report)
+        {
+            float until = Time.realtimeSinceStartup + 3f;
+            while ((!weapon.unholstered || !weapon.CanFire()) && Time.realtimeSinceStartup < until)
+            {
+                yield return null;
+            }
+            if (!weapon.CanFire())
+            {
+                yield break;
+            }
+            VRHand hand = _sys.Rig.Dominant;
+            Vector3 flat = Vector3.ProjectOnPlane(_sys.Rig.Head.forward, Vector3.up).normalized;
+            Vector3 toss = (flat + Vector3.up * 0.4f).normalized * 3f;
+            Throw(weapon, hand, toss, true);
+            Projectile first = null;
+            foreach (Projectile p in _lastThrown)
+            {
+                first = first ?? p;
+            }
+            if (first is RigidbodyProjectile)
+            {
+                yield return new WaitForFixedUpdate();
+                Rigidbody body = first != null ? first.GetComponent<Rigidbody>() : null;
+                float speed = body != null ? body.velocity.magnitude : -1f;
+                report($"bag tossed at 3.0 m/s: {(body == null ? "NO BODY ON IT" : Mathf.Abs(speed - 3f) < 0.6f ? $"left at {speed:0.0} m/s" : $"NOT THE TOSS: left at {speed:0.0} m/s")}");
+            }
+            if (weapon is RemoteDetonatorWeapon detonator)
+            {
+                List<RemoteDetonatedProjectile> charges = ChargesOf(detonator);
+                int thrown = 0;
+                foreach (RemoteDetonatedProjectile c in charges ?? new List<RemoteDetonatedProjectile>())
+                {
+                    thrown += c != null ? 1 : 0;
+                }
+                yield return new WaitForSecondsRealtime(1.5f); // (landed and stuck)
+                Input.VRInput.SimulatePress(DigitalAction.SlideRelease, hand.Side);
+                yield return new WaitForSecondsRealtime(1.2f); // (its detonate delay, 0.3 s on the vanilla C4)
+                int left = 0;
+                foreach (RemoteDetonatedProjectile c in charges ?? new List<RemoteDetonatedProjectile>())
+                {
+                    left += c != null && c.gameObject.activeInHierarchy ? 1 : 0;
+                }
+                report($"C4: {thrown} charge(s) out, A pressed: {(thrown == 0 ? "NO CHARGE THROWN" : left == 0 ? "set off" : $"NOT SET OFF ({left} still out)")}; "
+                       + $"{(_sys.Held != null && _sys.Held.Weapon == weapon ? "the detonator still in the hand" : "the detonator put away")}");
+            }
         }
 
         /// <summary>
