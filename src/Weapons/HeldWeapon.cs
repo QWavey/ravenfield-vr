@@ -186,6 +186,9 @@ namespace RavenfieldVR.Weapons
                 {
                     _scopeMode = weapon.GetSightModeIndex();
                     _scope = LensFor(system.Rig, rig, _scopeMode);
+                    // (Which guns get it, for a report of a lens over a real scope: the flat game showed its 2D scope picture on these.)
+                    Log.InfoOnce("mainlens:" + rig.Data.Key, $"{rig.Data.Key}: the mod's lens drawn for its scope (the flat game's 2D scope picture), "
+                                                             + $"{(rig.Data.HasScopeModel ? "on the scope model's ocular" : "at eye relief, no scope found in the model")}.");
                 }
                 else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
                 {
@@ -2107,7 +2110,10 @@ namespace RavenfieldVR.Weapons
                 // floating in front of the red dot, a visor that was not there (user, 2026-10-20 night: "some guns have a 2nd
                 // visor ... happens on the patriot"; the PATRIOT TAC's Spec Ops mode). Only a gun whose model has one gets a
                 // lens: parts the sight mode moves in (a magnifier flipping behind the dot) or a magnifier named in the model.
-                _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null || Rig.Data.HasScopeModel ? 1 : 0;
+                // (Not a scope model alone: added in Tasks 365 for a 1x-4x scope, it put the mod's lens, with its duplex reticle, over the real scope of
+                // every gun with a scope tube and a narrower mode, which is only the flat game's zoom on a gun that never had a 2D scope; user,
+                // 2026-11-08: "some guns still get a vanilla scope over tehir real one".)
+                _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null ? 1 : 0;
                 if (_modeOptic == 0)
                 {
                     Log.InfoOnce("modelens-none:" + Rig.Data.Key, $"{Rig.Data.Key}: its narrower sight mode has no optic in the model (no part moves with the mode, no magnifier): no lens of the mod's is drawn for it.");
@@ -2120,6 +2126,8 @@ namespace RavenfieldVR.Weapons
                 if (wanted && _modeScopes[i] == null)
                 {
                     _modeScopes[i] = new VRScope(_system.Rig, Rig, line);
+                    Log.InfoOnce($"modelens:{Rig.Data.Key}:{i}", $"{Rig.Data.Key}: the mod's lens drawn for sight mode {i} ({line.Fov:0} degrees), "
+                                                                + $"{(Rig.Data.SightPartPaths.Count > 0 ? "parts move with the mode" : "a magnifier in the model")}.");
                 }
                 if (_modeScopes[i] != null)
                 {
