@@ -1264,3 +1264,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `dist/RavenfieldVR-Setup-1.16.11.exe`): the run of Tasks 366. Night vision in the eyes (`finalLayer`'s mask; section 3.3), `GogglesTube`,
    `UpdateGunShade`, `UnderwaterVeil`, `MenuMouse` and B as the right button, a free hand's cases, squad pointing at vehicles and the sky, a neck hold
    that stops a soldier's path and trigger, `ScriptKeys.Caller`, `SteamPlayEntry.Ensure`.
+34. **1.16.12** (2026-11-08, built and installed, not published; notes in `dist/notes-1.16.12.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.12.exe`): the run of Tasks 367, with game tests again. `BeltStrip.Place` keeps a round's ends out of the box
+   (`BeltAgainstDrawnBox` measures it in the MG check), `ThrowableHandler.Detonate` (the C4), `Airhorn` on the trigger, `ThrowableHandler.Launch`
+   (bags' bodies), `RealTimeGrenades` and `RealTimeProjectiles` (slow-motion throws), `RealTimeFlight` counting flight time, `GameSounds.NoCuts`,
+   `VRScope.HasOwnReticle`, `PerfProbe.Reused`, `AmmoState.ShownSpare`, `MortarRangePatch`, `MagazineProp.ReleasePassedHulls`, `HandBody.GiveLayerBack`.
