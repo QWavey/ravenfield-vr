@@ -50,6 +50,27 @@ namespace RavenfieldVR.Input
             VRGameInput.Enabled && c.inputEnabled && c.movementInputEnabled && !GameManager.gameOver && !GameContext.GameMenuOpen;
     }
 
+    /// <summary>
+    /// A mortar's range: the game takes it from the mouse wheel alone (<c>FpsActorController.RangeInput</c>), so in VR it stayed at its default
+    /// (2026-11-08). The right stick up and down while sitting at one, a full push about 60 m a second.
+    /// </summary>
+    [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.RangeInput))]
+    internal static class MortarRangePatch
+    {
+        private const float MetresPerSecond = 60f;
+
+        private static void Postfix(FpsActorController __instance, ref float __result)
+        {
+            Actor actor = __instance.actor;
+            if (!VehicleInput.ShouldDrive(__instance) || actor == null || !actor.IsSeated() || !(actor.seat.activeWeapon is Mortar mortar) || mortar.rangeChangeSpeed <= 0f)
+            {
+                return;
+            }
+            float y = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value).y;
+            __result += y * MetresPerSecond * Time.deltaTime / mortar.rangeChangeSpeed;
+        }
+    }
+
     [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.CarInput))]
     internal static class CarInputPatch
     {
