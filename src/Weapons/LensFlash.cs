@@ -118,7 +118,10 @@ namespace RavenfieldVR.Weapons
 
         private void Pend(HeldWeapon held, WeaponRigData data, Weapon weapon)
         {
-            _shots.Add(Time.unscaledTime); // every shot counts for the glow's rate, two in one frame too
+            if (held != null)
+            {
+                _shots.Add(Time.unscaledTime); // every shot of the drawn gun counts for the glow's rate, two in one frame too
+            }
             ShotsSeen++;
             // The other gun's shot still undecided (the drawn gun and the free hand's second weapon firing in one frame): kept aside
             // and decided after this one, not overwritten (only the last shot flashed; review, 2026-10-20).
@@ -416,15 +419,19 @@ namespace RavenfieldVR.Weapons
             // The gun's own flash size places the plume; the player's strength setting only scales how bright it is.
             float size = FlashSize(data, w, info, FlashCameOut(w, info));
             float strength = Mathf.Max(0.05f, VRConfig.LensFlashStrength.Value);
-            _gun = w;
-            _gunMuzzle = muzzle; // the glow of sustained fire sits on the barrel that fired last
-            // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
-            // flash-less set it to nothing, and the glow went out in the middle of a burst).
-            float gunSize = info.Particles ? FlashSize(data, w, info, true) : size;
-            _gunSize = gunSize * strength;
-            _gunSizeRaw = gunSize; // (the strength scales the brightness only: the glow's occlusion is measured by its size)
-            _gunAuto = w.configuration.auto;
-            _gunHeld = held; // (before the flash-less return: the glow was measured against the gun before)
+            // (The one glow is the drawn gun's: a shot of the free hand's took it over, and a burst's glow went out and climbed back.)
+            if (held != null)
+            {
+                _gun = w;
+                _gunMuzzle = muzzle; // the glow of sustained fire sits on the barrel that fired last
+                // The glow of sustained fire is the gun's own flash size, whether or not this one shot flashed (a shot judged
+                // flash-less set it to nothing, and the glow went out in the middle of a burst).
+                float gunSize = info.Particles ? FlashSize(data, w, info, true) : size;
+                _gunSize = gunSize * strength;
+                _gunSizeRaw = gunSize; // (the strength scales the brightness only: the glow's occlusion is measured by its size)
+                _gunAuto = w.configuration.auto;
+                _gunHeld = held; // (before the flash-less return: the glow was measured against the gun before)
+            }
             if (size <= 0f)
             {
                 if (info.Any && TellOnce(_toldNoFlash, w)) // a smoke grenade or a knife has no flash to miss

@@ -46,6 +46,9 @@ namespace RavenfieldVR.Core
         private static readonly HashSet<Renderer> InLod = new HashSet<Renderer>();
         private static bool _applied;
         private static float _scanAt = -1f, _nextPass;
+        private static bool _scopedSeen;
+        private static int _remeasure;
+        private const int RemeasuredAPass = 64;
 
         /// <summary>The graphics bench's own choice while it runs (null: the setting's).</summary>
         internal static bool? Bench;
@@ -133,8 +136,11 @@ namespace RavenfieldVR.Core
             {
                 Scan();
             }
-            if (now >= _nextPass)
+            // (The lens up or down is a pass at once: a tiny crate stayed hidden in the magnified view until the next one came.)
+            bool scoped = now - Weapons.VRScope.LensDrawnAt < 0.5f;
+            if (now >= _nextPass || scoped != _scopedSeen)
             {
+                _scopedSeen = scoped;
                 _nextPass = now + 0.2f;
                 Pass();
             }
@@ -241,6 +247,18 @@ namespace RavenfieldVR.Core
             TakeThreshold(rig.Camera); // (the render scale may have changed: the frame rate hold, the panel)
             // A magnified lens on: everything drawn (a crate hidden as three pixels of an eye is twelve through a 4x scope).
             bool scoped = Time.unscaledTime - Weapons.VRScope.LensDrawnAt < 0.5f;
+            // A few are measured again each pass, in turn: a prop a map's script moved up to the player stayed hidden by where it stood at the scan, and
+            // a bounds read of every one, five times a second, would cost more than hiding them saves.
+            for (int n = 0; n < RemeasuredAPass && Tracked.Count > 0; n++)
+            {
+                _remeasure = (_remeasure + 1) % Tracked.Count;
+                Entry moved = Tracked[_remeasure];
+                if (moved.Renderer != null)
+                {
+                    moved.Centre = moved.Renderer.bounds.center;
+                    Tracked[_remeasure] = moved;
+                }
+            }
             int hidden = 0;
             for (int i = 0; i < Tracked.Count; i++)
             {

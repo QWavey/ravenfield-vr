@@ -225,23 +225,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 // The flat game's casing particles give way to real cases (Casings), here and on its sub weapons.
-                foreach (Weapon w in weapon.GetComponentsInChildren<Weapon>(true))
-                {
-                    ParticleSystem[] casings = w.configuration != null ? w.configuration.casingParticles : null;
-                    if (casings == null)
-                    {
-                        continue;
-                    }
-                    foreach (ParticleSystem p in casings)
-                    {
-                        ParticleSystemRenderer pr = p != null ? p.GetComponent<ParticleSystemRenderer>() : null;
-                        if (pr != null && pr.enabled)
-                        {
-                            pr.enabled = false;
-                            _hiddenCasings.Add(pr);
-                        }
-                    }
-                }
+                Casings.HideFlat(weapon, _hiddenCasings);
                 Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
                 FireSelector.ShowLever(weapon);
                 Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
@@ -341,14 +325,7 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 _shadowOnly.Clear();
-                foreach (ParticleSystemRenderer pr in _hiddenCasings)
-                {
-                    if (pr != null)
-                    {
-                        pr.enabled = true;
-                    }
-                }
-                _hiddenCasings.Clear();
+                Casings.ShowFlat(_hiddenCasings);
             });
         }
 
@@ -1181,6 +1158,13 @@ namespace RavenfieldVR.Weapons
         private readonly List<Renderer> _shadowOnly = new List<Renderer>();
         /// <summary>The weapon's casing particles, hidden while held (real cases fly instead).</summary>
         private readonly List<ParticleSystemRenderer> _hiddenCasings = new List<ParticleSystemRenderer>();
+
+        /// <summary>A gun handed over from the free hand: what that hand hid is put back when this hold ends.</summary>
+        internal void TakeHiddenCasings(List<ParticleSystemRenderer> hidden)
+        {
+            _hiddenCasings.AddRange(hidden);
+            hidden.Clear();
+        }
 
         public void Update()
         {
@@ -2670,14 +2654,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _shadowOnly.Clear();
-            foreach (ParticleSystemRenderer pr in _hiddenCasings)
-            {
-                if (pr != null)
-                {
-                    pr.enabled = true;
-                }
-            }
-            _hiddenCasings.Clear();
+            Casings.ShowFlat(_hiddenCasings);
             _boltPiece?.Destroy();
             SetHandModelsSuppressed(false);
             if (_system.Rig.Dominant.Model != null)

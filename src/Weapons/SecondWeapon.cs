@@ -126,6 +126,7 @@ namespace RavenfieldVR.Weapons
                 hand.Model.WeaponGripThumbCurl = Rig.Data.GripThumbCurl;
             }
             _gripHand = Rig != null && !(weapon is ThrowableWeapon) ? ModHand.Find(weapon.transform, Rig.Data.ArmRight) : null;
+            Casings.HideFlat(weapon, _hiddenCasings); // (real cases here too, as in the gun hand)
             // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
             Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
             _usesPin = weapon is ThrowableWeapon pinned && ThrowableHandler.HasPin(pinned);
@@ -391,6 +392,8 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        private readonly System.Collections.Generic.List<ParticleSystemRenderer> _hiddenCasings = new System.Collections.Generic.List<ParticleSystemRenderer>();
+
         private float _cycleReadyAt;
         private bool _animatedCycle; // the coming stroke follows a shot whose fire animation cycled the action itself
 
@@ -406,7 +409,12 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Ammo.BoltOpen = false;
-            Ammo.RackBack(); // (the spent case is not thrown: Casings throws from the main gun's port)
+            bool spent = Ammo.SpentInChamber;
+            Ammo.RackBack();
+            if (spent)
+            {
+                Casings.Eject(Weapon, Rig, Hand);
+            }
             bool animated = _animatedCycle;
             _animatedCycle = false;
             if (Ammo.RackForward())
@@ -512,6 +520,11 @@ namespace RavenfieldVR.Weapons
             _kickRotVel += new Vector2(-(180f * kick * climbShare), Random.Range(-25f, 25f)) * strength;
             Hand.Haptic(0.03f + kick * 0.01f, 180f, Mathf.Clamp01(0.35f + kick * 0.15f));
             Hand.Model?.TriggerShot();
+            // The action throws the case out with the shot (the gun hand's rule; a pump's or bolt's goes on its stroke, CycleForTheHand).
+            if (Ammo != null && Ammo.Participates ? Ammo.CyclesItself : Rig.Data.Action == ActionType.NoAmmo)
+            {
+                Casings.Eject(Weapon, Rig, Hand);
+            }
         }
 
         /// <summary>Posed in its hand, the hand's grip on the weapon's grip, with its kick.</summary>
@@ -705,6 +718,7 @@ namespace RavenfieldVR.Weapons
                 FinishReload();
             }
             KeepPulledPin();
+            _sys.Held?.TakeHiddenCasings(_hiddenCasings); // (the gun hand drew it with them already off, so it never knew them)
             FreeHand();
         }
 
@@ -766,6 +780,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The hand empty again: free to take things, closing on nothing.</summary>
         private void FreeHand()
         {
+            Casings.ShowFlat(_hiddenCasings);
             // Its pin part as the model has it: a grenade put away with its pin out is hidden again by whichever hand draws it
             // (TakePulled, the grenade hand's SetupPin), and one handed over must not give its next holder a hidden scale to keep.
             RestorePin();

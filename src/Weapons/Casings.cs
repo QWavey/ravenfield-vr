@@ -73,9 +73,10 @@ namespace RavenfieldVR.Weapons
         /// size and drawn by a plain mesh: they were the mod's made 12-gauge shell on every shotgun (user, 2026-10-22: "shotguns
         /// are not displayed with their real shells"). Read at its real size: hidden while held, it is scaled to nothing.
         /// </summary>
-        private static OwnShell OwnShellOf(HeldWeapon held, Kind kind)
+        private static OwnShell OwnShellOf(HeldWeapon held, Kind kind) => OwnShellOf(held.ActiveRig, kind);
+
+        private static OwnShell OwnShellOf(WeaponRig rig, Kind kind)
         {
-            WeaponRig rig = held.ActiveRig;
             if (kind != Kind.Shell || rig.Magazine == null || !WeaponAnalyzer.ShellSized(rig.Data.MagBounds))
             {
                 return null;
@@ -132,11 +133,60 @@ namespace RavenfieldVR.Weapons
         internal static bool ThrowsOwnShells(HeldWeapon held) => held != null && held.ActiveWeapon != null && OwnShellOf(held, KindOf(held)) != null;
 
         /// <summary>The weapon throws cases in the flat game (and so in VR).</summary>
-        public static bool Ejects(HeldWeapon held)
+        public static bool Ejects(HeldWeapon held) => Ejects(held?.ActiveWeapon);
+
+        private static bool Ejects(Weapon w)
         {
-            Weapon w = held?.ActiveWeapon;
             ParticleSystem[] p = w != null ? w.configuration.casingParticles : null;
             return p != null && p.Length > 0 && p[0] != null;
+        }
+
+        /// <summary>
+        /// The port a case leaves by: on a gun with several (two barrels side by side, a pair of pistols) the one of the barrel that fired, as the
+        /// game plays its puff (<c>casingParticles[muzzleIndex % Length]</c>). The game has moved on to the next muzzle by the time a shot is told.
+        /// </summary>
+        private static Transform PortOf(Weapon w)
+        {
+            ParticleSystem[] p = w.configuration.casingParticles;
+            int muzzles = w.configuration.muzzles != null ? w.configuration.muzzles.Length : 0;
+            int fired = muzzles > 1 ? (w.currentMuzzleIndex + muzzles - 1) % muzzles : 0;
+            ParticleSystem port = p[fired % p.Length];
+            return (port != null ? port : p[0]).transform;
+        }
+
+        /// <summary>The flat game's casing particles of this weapon and its sub weapons switched off (real cases take their place), kept in <paramref name="hidden"/>.</summary>
+        internal static void HideFlat(Weapon weapon, List<ParticleSystemRenderer> hidden)
+        {
+            foreach (Weapon w in weapon.GetComponentsInChildren<Weapon>(true))
+            {
+                ParticleSystem[] casings = w.configuration != null ? w.configuration.casingParticles : null;
+                if (casings == null)
+                {
+                    continue;
+                }
+                foreach (ParticleSystem p in casings)
+                {
+                    ParticleSystemRenderer pr = p != null ? p.GetComponent<ParticleSystemRenderer>() : null;
+                    if (pr != null && pr.enabled)
+                    {
+                        pr.enabled = false;
+                        hidden.Add(pr);
+                    }
+                }
+            }
+        }
+
+        /// <summary>What <see cref="HideFlat"/> switched off, on again.</summary>
+        internal static void ShowFlat(List<ParticleSystemRenderer> hidden)
+        {
+            foreach (ParticleSystemRenderer pr in hidden)
+            {
+                if (pr != null)
+                {
+                    pr.enabled = true;
+                }
+            }
+            hidden.Clear();
         }
 
         /// <summary>
@@ -145,23 +195,32 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static void Eject(HeldWeapon held, bool live = false)
         {
-            if (held == null || !Ejects(held) || held.ActiveRig.GunBody == null)
+            if (held != null)
+            {
+                Eject(held.ActiveWeapon, held.ActiveRig, Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Dominant.Velocity : Vector3.zero, live);
+            }
+        }
+
+        /// <summary>The same out of a gun in the free hand (it threw none: a pistol beside a rifle fired with no brass, a pump's shell stayed in nowhere).</summary>
+        internal static void Eject(Weapon weapon, WeaponRig rig, Rig.VRHand hand) => Eject(weapon, rig, hand != null ? hand.Velocity : Vector3.zero, false);
+
+        private static void Eject(Weapon weapon, WeaponRig rig, Vector3 hand, bool live)
+        {
+            if (rig == null || !Ejects(weapon) || rig.GunBody == null)
             {
                 return;
             }
-            WeaponRig rig = held.ActiveRig;
             WeaponRigData d = rig.Data;
-            Transform port = held.ActiveWeapon.configuration.casingParticles[0].transform;
+            Transform port = PortOf(weapon);
             Vector3 right = rig.DirToWorld(Vector3.Cross(d.Up, d.AimAxis).normalized);
             Vector3 up = rig.UpWorld, back = -rig.AimWorld;
-            Vector3 hand = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Dominant.Velocity : Vector3.zero;
             Vector3 velocity = hand + right * Random.Range(1.8f, 2.6f) + up * Random.Range(0.8f, 1.5f) + back * Random.Range(0.1f, 0.5f);
             // The port is where the gun was drawn last frame (it is placed again before this frame renders): led by the hand's
             // motion over a frame, or on a swing the case came out a couple of centimetres behind the port (visual hunt, 2026-10-20).
             Vector3 lead = hand * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            Kind kind = KindOf(held);
+            Kind kind = KindOf(rig, weapon);
             Case c = Spawn(kind, live, port.position + lead + right * 0.01f, Quaternion.LookRotation(right, up), velocity,
-                Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f, OwnShellOf(held, kind));
+                Random.insideUnitSphere * 25f + rig.DirToWorld(d.Up) * 10f, OwnShellOf(rig, kind));
             if (live && HandLoading.Enabled && VRConfig.LoseRoundOnRack.Value && kind != Kind.Shell)
             {
                 c.Key = d.Key;
@@ -188,13 +247,20 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private static Kind KindOf(HeldWeapon held)
+        private static Kind KindOf(HeldWeapon held) => KindOf(held.ActiveRig, held.ActiveWeapon);
+
+        private static Kind KindOf(WeaponRig rig, Weapon weapon)
         {
-            WeaponRigData d = held.ActiveRig.Data;
-            Weapon.Configuration c = held.ActiveWeapon.configuration;
+            WeaponRigData d = rig.Data;
+            Weapon.Configuration c = weapon.configuration;
             // A slug gun's are shells too, when its own shell part is one (the R870 [SLUG]'s and M1878 Slugs' were rifle cases).
-            if ((c.projectilesPerShot > 1 || held.ActiveRig.Magazine != null && WeaponAnalyzer.ShellSized(d.AnalysedMagBounds)) // (not a copy's box)
+            if ((c.projectilesPerShot > 1 || rig.Magazine != null && WeaponAnalyzer.ShellSized(d.AnalysedMagBounds)) // (not a copy's box)
                 && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual))
+            {
+                return Kind.Shell;
+            }
+            // A self-loading shotgun's, magazine-fed: three pellets or more (a double-barrelled pistol fires two). They were rifle cases.
+            if (c.projectilesPerShot > 2 && !d.Handgun)
             {
                 return Kind.Shell;
             }
@@ -414,6 +480,9 @@ namespace RavenfieldVR.Weapons
             c.Body.angularVelocity = spin;
             PropPhysics.IgnorePlayer(c.Collider); // (switched off and on, the collider forgot its ignored pairs)
             c.Born = Time.time;
+            // (To the list's end: it is in order of age, and the next shot with the pool full took a case thrown a moment ago from where it first lay.)
+            Alive.Remove(c);
+            Alive.Add(c);
         }
 
         /// <summary>A round loaded into a magazine: put away, nothing back to the reserve (it is in the magazine now).</summary>
