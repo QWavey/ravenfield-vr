@@ -5,6 +5,8 @@
 - A scope with a reticle of its own (the ACOG on the mk18 and the MG3, the MRAD, the AK-105 and others) is seen as it is, its own reticle on its glass, instead of under the mod's lens with a plain crosshair. It is not magnified then.
 - No more of the mod's own scope over a real scope on guns whose model has a scope and a second, narrower sight mode (since 1.16.10).
 - Inside a vehicle the view no longer slides about the cabin as it speeds up or brakes (the flat game's head bob, which moved your whole view in VR).
+- A gun that comes with no reserve shows 0 in the pouch and on the wrist (it said the reserve was without end).
+- A magazine dropped in a vehicle seat that fell through the floor no longer stays under the vehicle for good.
 - The Air Horn blows on the trigger again, at what you point it at (it did nothing, and swung it hit like a club).
 - C4 works: throw the charges with the trigger as before, then press A with the C4 in your hand to set them off (they could not be set off in VR at all). The C4 stays in your hand after the last charge.
 - An ammo bag or medic kit flies the way you toss it (it always left at one fixed speed).
