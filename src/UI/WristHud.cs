@@ -151,7 +151,7 @@ namespace RavenfieldVR.UI
             AmmoState a = held != null && held.ActiveAmmo != null && held.ActiveAmmo.Participates ? held.ActiveAmmo : null;
             float hp = Mathf.Max(0f, actor.health);
             string counter = a != null ? a.CounterText() : null;
-            int spare = a == null ? -2 : a.InfiniteSpare ? -1 : a.SpareAmmo;
+            int spare = a == null ? -2 : a.ShownSpare;
             int hpWhole = Mathf.RoundToInt(hp);
             bool becameVisible = !_wasVisible;
             _wasVisible = true;

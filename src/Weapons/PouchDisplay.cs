@@ -104,7 +104,7 @@ namespace RavenfieldVR.Weapons
             t.position = top - rot * (topLocal * scale);
             GrabPoint = top - Vector3.up * Mathf.Min(0.03f, along * scale);
 
-            int spare = ammo.InfiniteSpare ? -1 : ammo.SpareAmmo;
+            int spare = ammo.ShownSpare;
             // Loaded by hand with the reserve out, the pouch still hands out empty magazines and rounds without end: said so.
             bool byHand = HandLoading.Applies(ammo);
             if (spare != _shownSpare || ammo.Capacity != _shownCapacity || kind != _shownKind || byHand != _shownByHand)

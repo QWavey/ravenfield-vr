@@ -254,6 +254,13 @@ namespace RavenfieldVR.Weapons
 
         public bool InfiniteSpare => Weapon.HasInfiniteSpareAmmo();
 
+        /// <summary>
+        /// The reserve as the displays show it: -1 for one without end (the game's -2), else the rounds, never under 0. The game's own -1 is a
+        /// gun with no reserve that is never resupplied (<c>Weapon.AllowsResupply</c>), and the pouch and the wrist read every negative as
+        /// without end: such a gun said "∞" (displays scout, 2026-11-08).
+        /// </summary>
+        public int ShownSpare => InfiniteSpare ? -1 : Mathf.Max(0, SpareAmmo);
+
         /// <summary>The trigger pull that sent the slide forward does not also fire: held until the trigger is let go.</summary>
         public bool HoldFireUntilTriggerUp;
 
