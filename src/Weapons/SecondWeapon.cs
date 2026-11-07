@@ -224,6 +224,14 @@ namespace RavenfieldVR.Weapons
                 StartReload();
                 return;
             }
+            if (held && Weapon.isOverheating && Time.unscaledTime > _overheatSaidAt + 1f)
+            {
+                // Too hot to fire: the game's Fire returns before anything happens, and the flat game's heat bar is no part of VR. Said as the
+                // gun hand's is (WeaponSystem.SayOverheated); the free hand's pull did nothing at all.
+                _overheatSaidAt = Time.unscaledTime;
+                _sys.FlashMessage("OVERHEATED");
+                Hand.Haptic(0.01f, 250f, 0.25f);
+            }
             if (held)
             {
                 Vector3 aim = Rig.GunBody != null ? Rig.AimWorld : Weapon.transform.forward;
@@ -407,6 +415,7 @@ namespace RavenfieldVR.Weapons
         private readonly System.Collections.Generic.List<ParticleSystemRenderer> _hiddenCasings = new System.Collections.Generic.List<ParticleSystemRenderer>();
         private readonly System.Collections.Generic.List<Renderer> _shadowOnly = new System.Collections.Generic.List<Renderer>();
         private float _oneHandRecoil = 1.6f;
+        private float _overheatSaidAt = -10f;
         /// <summary>The magazine's parts hidden while its timed reload has it out (the gun hand's are hidden by its own state).</summary>
         private bool _magHidden;
 
