@@ -784,6 +784,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void TakeNeck(int i, VRHand hand, Actor a)
         {
+            if (a.controller is AiActorController walking)
+            {
+                // His path too: the controller off stops its own Update only, and the actor reads its velocity from the path every frame. A soldier
+                // on the move walked out of the hand, the walk still playing, and the hold let go at 45 cm (body scout, 2026-11-07). Given his AI
+                // back he plans again, as after any path of his that is cancelled.
+                walking.CancelPath(isMovementOverride: true);
+            }
             if (a.controller != null)
             {
                 a.controller.enabled = false;

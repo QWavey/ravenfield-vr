@@ -3,6 +3,7 @@
 - Night vision shows in the headset: the view turns the game's green, with its grain and bloom, and the edge of the view goes dark as through tubes. The goggles were switching, and the VR camera could not see them.
 - Your gun and arms go out of the sun in the shade, as they do on the flat screen: with shadows off they stayed sunlit inside a building.
 - With post-processing on in the config, the view now has the game's colour grading and bloom too; it only had ambient occlusion.
+- A soldier taken by the neck stops walking: one on the move used to walk out of your hand.
 - A gun in your free hand throws its cases, a pump's shell on its stroke, as the gun hand's does.
 - Semi-automatic shotguns throw shells, not rifle cases, and a gun with two barrels side by side throws from the one that fired.
 - A shot from the free hand no longer cuts the glow of a burst from the gun hand.
