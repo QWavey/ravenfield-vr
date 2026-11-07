@@ -192,6 +192,38 @@ namespace RavenfieldVR.Weapons
 
         private static bool Same(Vector3 a, Vector3 b) => a.x == b.x && a.y == b.y && a.z == b.z;
 
+        /// <summary>
+        /// Autotest: of the rounds drawn, how many have their middle in <paramref name="box"/> (in <paramref name="frame"/>, the box shrunk by
+        /// <paramref name="depth"/>), and how many reach into it that deep with any corner (a round's ends through a wall). 0 when not shown.
+        /// </summary>
+        internal int RoundsIn(Runtime.RigidPose frame, Bounds box, float depth, out int drawn, out int reaching)
+        {
+            drawn = reaching = 0;
+            if (_root == null || !_root.activeInHierarchy)
+            {
+                return 0;
+            }
+            Bounds inner = box;
+            inner.extents = Vector3.Max(Vector3.zero, box.extents - Vector3.one * depth);
+            Vector3 origin = _root.transform.position;
+            int n = _roundVerts.Length, middles = 0;
+            for (int i = 0; i < _lastCount; i++)
+            {
+                Vector3 mid = Vector3.zero;
+                bool reaches = false;
+                for (int k = 0; k < n; k++)
+                {
+                    Vector3 v = _verts[i * n + k];
+                    mid += v;
+                    reaches |= inner.Contains(frame.InverseTransformPoint(origin + v));
+                }
+                drawn++;
+                middles += inner.Contains(frame.InverseTransformPoint(origin + mid / n)) ? 1 : 0;
+                reaching += reaches ? 1 : 0;
+            }
+            return middles;
+        }
+
         /// <summary>The belt went round the box when it was last laid out.</summary>
         private bool _around;
 

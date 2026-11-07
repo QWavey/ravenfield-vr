@@ -6600,7 +6600,8 @@ namespace RavenfieldVR.Core
                         }
                         if (held.Rig.Data.Hinge == HingeKind.FeedCover)
                         {
-                            yield return held.Reload.MgHandReloadSelfCheck(lines.Add); // the whole belt reload through the hand's own grabs (252 af, o)
+                            int beltIndex = index;
+                            yield return held.Reload.MgHandReloadSelfCheck(lines.Add, (shot, at, distance) => MagazineSideShot(held, $"{shot}-{beltIndex:000}-{entry.name}", at, distance)); // the whole belt reload through the hand's own grabs (252 af, o), the belt measured against the box
                         }
                         if (want && action == ActionType.SelfLoading)
                         {

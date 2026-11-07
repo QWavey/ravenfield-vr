@@ -17,13 +17,73 @@ namespace RavenfieldVR.Weapons
     public sealed partial class ReloadInteractions
     {
         /// <summary>
+        /// Autotest: the belt against the box as it is drawn (user, 2026-11-08: "The MG bullets as a lane ... are still clipping through the mags
+        /// and have no collision with the MG mags (discovered on MG32 for example)"). The strip keeps out of <c>Data.MagBounds</c> at the seat;
+        /// this measures where the box's own renderers really are in that frame (an animator can carry the box part off its seat, and a box
+        /// copy can be drawn at another size), and how many of the strip's rounds lie in the box as drawn and as kept out.
+        /// </summary>
+        private string BeltAgainstDrawnBox(string when)
+        {
+            if (_belt == null)
+            {
+                return $"belt {when}: no strip";
+            }
+            RigidPose seat = SeatPose;
+            Bounds drawn = default(Bounds);
+            bool any = false;
+            int renderers = 0;
+            Transform mag = Rig.Magazine;
+            if (mag != null)
+            {
+                foreach (Renderer r in mag.GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled || r.forceRenderingOff || !r.gameObject.activeInHierarchy || r is ParticleSystemRenderer)
+                    {
+                        continue;
+                    }
+                    Mesh m = r is SkinnedMeshRenderer ? null : r.GetComponent<MeshFilter>()?.sharedMesh;
+                    Bounds lb = m != null ? m.bounds : default(Bounds);
+                    for (int c = 0; c < 8; c++)
+                    {
+                        Vector3 sign = new Vector3((c & 1) == 0 ? -1f : 1f, (c & 2) == 0 ? -1f : 1f, (c & 4) == 0 ? -1f : 1f);
+                        // (A skinned box by its world box: its mesh's own box is in its root bone's frame.)
+                        Vector3 world = m != null ? r.transform.TransformPoint(lb.center + Vector3.Scale(lb.extents, sign)) : r.bounds.center + Vector3.Scale(r.bounds.extents, sign);
+                        Vector3 inSeat = seat.InverseTransformPoint(world);
+                        if (!any)
+                        {
+                            drawn = new Bounds(inSeat, Vector3.zero);
+                            any = true;
+                        }
+                        else
+                        {
+                            drawn.Encapsulate(inSeat);
+                        }
+                    }
+                    renderers++;
+                }
+            }
+            Bounds kept = Data.MagBounds;
+            int inKept = _belt.RoundsIn(seat, kept, 0.004f, out int shown, out int reachKept);
+            string s = $"belt {when}: {shown} round(s) drawn, {inKept} with their middle and {reachKept} with an end 4 mm into the keep-out box";
+            if (!any)
+            {
+                return s + $"; the box part draws nothing ({(mag != null ? $"scale {mag.lossyScale.magnitude:0.0000}" : "no part")})";
+            }
+            int inDrawn = _belt.RoundsIn(seat, drawn, 0.004f, out _, out int reachDrawn);
+            Vector3 off = (drawn.center - kept.center) * 100f, grow = (drawn.size - kept.size) * 100f;
+            bool apart = off.magnitude > 1.5f || Mathf.Abs(grow.x) > 2f || Mathf.Abs(grow.y) > 2f || Mathf.Abs(grow.z) > 2f;
+            return s + $", {inDrawn} and {reachDrawn} into the box as drawn ({renderers} renderer(s)); the drawn box {off.ToString("0.0")} cm off the keep-out box's middle, "
+                     + $"{grow.ToString("0.0")} cm larger{(apart ? " (NOT KEPT OUT OF THE BOX AS DRAWN)" : "")}{(inDrawn > 0 || reachDrawn > 1 ? " (THE BELT PASSES THROUGH THE BOX)" : "")}";
+        }
+
+        /// <summary>
         /// Autotest: a machine gun's whole reload by hand, through the hand's own grabs: every step is a squeeze where a
         /// player's hand would be, nothing is called directly (user, 2026-10-16: "reloading is sooo buggy and doesnt even
         /// work manually"). The cover opened at its latch, the box pulled out along its line, a fresh one taken from the
         /// pouch and seated along its line, the belt taken at the box's mouth and laid on the tray, the cover pushed shut;
         /// then it must be ready to fire. Each step says what took the squeeze when it went wrong.
         /// </summary>
-        internal IEnumerator MgHandReloadSelfCheck(System.Action<string> report)
+        internal IEnumerator MgHandReloadSelfCheck(System.Action<string> report, System.Action<string, Vector3, float> sideShot = null)
         {
             VRHand off = _sys.Rig.Off;
             if (!Manual || Ammo == null || !Ammo.HasCover || Data.Hinge != HingeKind.FeedCover || !Ammo.UsesDetachableMag)
@@ -145,6 +205,33 @@ namespace RavenfieldVR.Weapons
                 {
                     yield break;
                 }
+                // The belt hanging from the fresh box, the gun level and then rolled each way (a belt through the box "only if the mg is turned a
+                // little", 2026-11-04): measured against the box as drawn, and pictured.
+                if (VRConfig.BeltByHand.Value && !Ammo.BeltLaid)
+                {
+                    VRHand dom = _sys.Rig.Dominant;
+                    int domSide = (int)dom.Side;
+                    RigidPose? domWas = VRHand.Scripted[domSide];
+                    RigidPose domRaw = dom.Raw;
+                    try
+                    {
+                        foreach (float roll in new[] { 0f, 25f, -25f, 50f })
+                        {
+                            VRHand.Scripted[domSide] = roll == 0f ? domWas : new RigidPose(domRaw.position, Quaternion.AngleAxis(roll, Rig.AimWorld) * domRaw.rotation);
+                            for (int f = 0; f < 4; f++)
+                            {
+                                yield return null;
+                            }
+                            report(BeltAgainstDrawnBox(roll == 0f ? "hanging, the gun level" : $"hanging, the gun rolled {roll:0} deg"));
+                            sideShot?.Invoke(roll == 0f ? "belt-1-hanging" : $"belt-1-hanging-roll{roll:0}", BeltStartWorld, 0.4f);
+                        }
+                    }
+                    finally
+                    {
+                        VRHand.Scripted[domSide] = domWas;
+                    }
+                    yield return null;
+                }
 
                 // 5. The belt: taken at the box's mouth, brought onto the tray.
                 if (VRConfig.BeltByHand.Value && !Ammo.BeltLaid)
@@ -162,6 +249,11 @@ namespace RavenfieldVR.Weapons
                     {
                         PalmTo(Vector3.Lerp(beltAt, FeedTrayWorld, i / 20f));
                         yield return null;
+                        if (i == 10 && tookBelt)
+                        {
+                            report(BeltAgainstDrawnBox("held halfway to the tray"));
+                            sideShot?.Invoke("belt-2-held", BeltStartWorld, 0.4f);
+                        }
                     }
                     bool laid = Ammo.BeltLaid;
                     VRInput.SimulatedGrab[side] = false;
