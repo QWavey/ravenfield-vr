@@ -8,7 +8,8 @@ Where the work stands, for whoever picks it up next, a compacted session include
 - Last setup: **1.16.11** (`dist/RavenfieldVR-Setup-1.16.11.exe`), built 2026-11-07 at the user's word; it carries night vision and all of Tasks 366. `dist/notes-next.md` is empty after it. A new setup is built only when the user asks, with a new patch version.
 - Installed in the game: the 1.16.11 build, the suite passing on it.
 - Current run: Tasks 367, `/work-until-limit 60` (2026-11-08). Ceiling pinned in `.claude/wul-config`; meter: `bash .claude/wul-read.sh`. The user played 1.16.11 before it: their log is `reports/shots/user-1107/game-log.txt`.
-- The game is not started for tests ("DO NOT open the Game to test and stuff"). None of 1.16.10 or later has been seen in a headset.
+- Game tests are allowed again since 2026-11-08 (the user: "from now on you can test the game anytime and test in it , if i dont want it or pause that you dont do it i will tell you.. But while tests run work on other things."). Run them in the background (`python tools/vrshots.py --no-build --weapon "=NAME"`, `--autotest`) and keep working; check `tasklist` for ravenfield.exe first; start Steam with `explorer.exe "C:\Program Files (x86)\Steam\steam.exe"`, never from the shell (memory: steam-msix-container). Stop when the user says so. None of 1.16.10 or later has been seen in the user's headset.
+- The MG belt: the user asked to look for it in the game ("maybe you see the issue too somehow on mgs"). The MG reload self-check now measures the hanging and held belt against the box as drawn (`BeltAgainstDrawnBox`, gun level and rolled 25/-25/50 deg) and takes `belt-1-hanging*`/`belt-2-held` pictures. First run: MG3 and PKM.
 
 ## Open from Tasks 367 (the user's reports of 2026-11-08)
 
