@@ -390,7 +390,9 @@ namespace RavenfieldVR.Rig
 
             // (Not a stick held down into a menu or a pause: nothing moves there, and the tunnel stayed over the menu until it was let go.)
             float moving = Mode == RigMode.OnFoot && !GameContext.GameMenuOpen && !GameManager.IsPaused() ? VRGameInput.MoveStick.magnitude : 0f;
-            _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value);
+            // (Through the goggles the edge of the view stays dark: the game's tube picture, which in VR was a flat frame, as the tunnel draws it.)
+            _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value,
+                NightVision.isEnabled ? VRConfig.GogglesTube.Value : 0f);
             _damage.Update();
             _mud?.Update();
         }

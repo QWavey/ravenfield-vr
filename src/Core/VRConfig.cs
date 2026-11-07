@@ -45,6 +45,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<MirrorMode> Mirror;
         public static ConfigEntry<float> NearClip;
         public static ConfigEntry<bool> PostProcessing;
+        public static ConfigEntry<float> GogglesTube;
         public static ConfigEntry<bool> BodyShadow;
         public static ConfigEntry<bool> WristFrameRate;
         public static ConfigEntry<float> MinFarClip;
@@ -187,6 +188,8 @@ namespace RavenfieldVR.Core
                 new ConfigDescription("Camera near plane in metres. Lower lets you bring scopes closer to your eye.", new AcceptableValueRange<float>(0.005f, 0.2f)));
             PostProcessing = cfg.Bind("Rendering", "PostProcessing", false,
                 "Copy the game's post-processing stack (colour grading, bloom, AO) onto the VR camera. Costs performance.");
+            GogglesTube = cfg.Bind("Rendering", "GogglesTube", 0.5f,
+                new ConfigDescription("How dark the edge of the view is through night vision goggles, as the game's tube picture is on the flat screen. 0: none.", new AcceptableValueRange<float>(0f, 1f)));
             BodyShadow = cfg.Bind("Rendering", "BodyShadow", false,
                 "Your own soldier's shadow on foot and in first-person seats. Off: the body is the flat game's, its head at your eyes and its arms and gun in the game's " +
                 "own animation, so with shadows on its shadow fell across your hands and gun and moved on its own in front of you.");

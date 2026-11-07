@@ -171,6 +171,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `GameCamerasOnePixel` | off | To try: the game's own screen cameras (drawing nothing in VR, kept on for its logic) render into one pixel instead of the whole screen, which may save about 0.7 ms of processor time a frame. Applies at once; on the panel's second page ("Game cameras into 1 px") |
 | `HoldFrameRate` | off | While frames keep missing the headset's rate, lower the preset's costliest settings a step at a time (shadow distance, shadows, level of detail, grass, per-pixel lights, last 15% of the resolution, that one only when the GPU is the cause: with the CPU the limit it would only blur the view) and bring them back when there is room. The wrist display says how many steps. Also on the panel ("Hold the frame rate") |
 | `PostProcessing` | off | Copy the game's colour grading, bloom and AO to the headset (costs frame rate) |
+| `GogglesTube` | 0.5 | How dark the edge of the view is through night vision goggles. 0: none |
 | `WristFrameRate` | on | The wrist display also shows the share of frames at the headset's rate and the GPU's time a frame (last few seconds) |
 | `BodyShadow` | off | Your own soldier's shadow on foot and in first-person seats. Its arms and gun move in the game's animation, not yours, so the shadow wanders across your hands |
 | `Hands` | VRHands | VRHands, or WeaponArms for the weapon's own first-person arms (with no weapon in the hand, the arms of the last one you held) |

@@ -64,9 +64,10 @@ namespace RavenfieldVR.Rig
 
         /// <param name="motion">0..1 locomotion intensity this frame.</param>
         /// <param name="strength">user setting 0..1.</param>
-        public void Update(float motion, float strength)
+        /// <param name="floor">The least it shows, moving or not (0..1): the goggles' tube.</param>
+        public void Update(float motion, float strength, float floor = 0f)
         {
-            float target = Mathf.Clamp01(motion) * strength;
+            float target = Mathf.Max(Mathf.Clamp01(motion) * strength, floor);
             float rate = target > _current ? 6f : 3f;
             _current = Mathf.MoveTowards(_current, target, rate * Time.unscaledDeltaTime);
             bool visible = _current > 0.01f;
