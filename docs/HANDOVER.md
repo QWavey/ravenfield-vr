@@ -59,6 +59,8 @@ Quest 3 through Link into SteamVR. Settings that differ from the defaults: `Hand
 5. One action walked frame by frame: "what if the hand does half of it".
 6. A state left set after its action ends; a cache keyed by type filled in a passing state; clocks mixed.
 7. A review of the run's own diff before the end.
+8. A value added to an enum without its row in every switch over it (`MechSound.HandGrab` had no cut table: a null looped over threw in the weapons' frame for two releases). And read a user's log for "Thrown again": `Log.ExceptionOnce` writes an exception once, so before 2026-11-08 one line could stand for hundreds.
+9. A run's own rule that widened what a feature applies to (a scope tube counting as an optic put the mod's lens over real scopes): when a report says "still", look at what the last run widened first.
 
 ## Open questions for the user
 
