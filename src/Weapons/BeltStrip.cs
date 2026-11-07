@@ -120,6 +120,7 @@ namespace RavenfieldVR.Weapons
             float length = span.magnitude;
             int count = Mathf.Min(Mathf.Clamp(Mathf.CeilToInt(length / Pitch), 2, MaxRounds), Mathf.Max(0, rounds));
             Vector3 sag = Vector3.down * Mathf.Min(0.04f, length * 0.12f);
+            Bounds plainBox = keepOutBox; // (the box itself, for the rounds' ends below)
             if (keepOut.HasValue)
             {
                 keepOutBox = RoundBox(from, keepOutBox, keepOut.Value, barrel);
@@ -167,6 +168,24 @@ namespace RavenfieldVR.Weapons
                     }
                 }
                 Vector3 axis = keepOut.HasValue ? Vector3.Slerp(gun, free, Mathf.Clamp01(Clearance(from + p, keepOut.Value, keepOutBox) / 0.06f)) : free;
+                if (keepOut.HasValue)
+                {
+                    // Its ends out of the box too, not only its middle: turned between the gun's line and the belt's, a round whose middle was
+                    // kept just out of a face had its tip 3 cm long through it. Measured in the game with the gun rolled 50 deg: 16 of 17 hanging
+                    // rounds with an end in the MG3 ACOG's box (user, 2026-11-08: "The MG bullets as a lane ... are still clipping through the
+                    // mags ... discovered on MG32"). Pushed out by the deeper end, twice (one push can bring the other end in at a corner).
+                    for (int pass = 0; pass < 2; pass++)
+                    {
+                        Vector3 tip = from + p + axis * RoundHalf, tail = from + p - axis * RoundHalf;
+                        Vector3 outTip = KeptOut(tip, keepOut.Value, plainBox) - tip, outTail = KeptOut(tail, keepOut.Value, plainBox) - tail;
+                        Vector3 push = outTip.sqrMagnitude >= outTail.sqrMagnitude ? outTip : outTail;
+                        if (push.sqrMagnitude < 1e-8f)
+                        {
+                            break;
+                        }
+                        p += push;
+                    }
+                }
                 Vector3 up = Vector3.Cross(axis, way);
                 Quaternion rot = Quaternion.LookRotation(axis, up.sqrMagnitude > 1e-6f ? up : Vector3.Cross(axis, Vector3.right));
                 for (int k = 0; k < n; k++)
