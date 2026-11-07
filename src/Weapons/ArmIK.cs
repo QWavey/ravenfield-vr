@@ -177,7 +177,9 @@ namespace RavenfieldVR.Weapons
                     // Where the glove is placed off the tracked hand (holding a magazine on the well's line, kept out of the
                     // gun, carried with a heavy gun's lag): the arm goes there too; it held the hand where the hidden glove
                     // was not (bug hunt 251.7).
-                    if (off.Role == HandRole.Magazine || off.Role == HandRole.Body || off.Role == HandRole.Free)
+                    // (And a second gun in this hand: its glove sits on that gun's own grip pose, 4 cm off the tracked hand; the arm stayed on the
+                    // tracked hand, the gun off its fingers with the weapon's arms drawn; arms scout, 2026-11-08.)
+                    if (off.Role == HandRole.Magazine || off.Role == HandRole.Body || off.Role == HandRole.Free || off.Role == HandRole.Weapon)
                     {
                         // The glove pinned on a magazine it pushed home (ReloadInteractions' seated hold) or on a soldier it grabbed, the gun in
                         // the other hand: the arm goes where the glove is drawn, not to the controller (round-3 scout, 2026-10-28), eased in and
@@ -366,9 +368,9 @@ namespace RavenfieldVR.Weapons
             }
             else if (hand.Model != null)
             {
-                if (hand.Role == HandRole.Body)
+                if (hand.Role == HandRole.Body || hand.Role == HandRole.Weapon)
                 {
-                    placed = hand.Model.WithSnap(placed); // (on a soldier it grabbed, a passed gun in the other hand)
+                    placed = hand.Model.WithSnap(placed); // (on a soldier it grabbed, a passed gun in the other hand; a second gun on its own grip)
                 }
                 Quaternion turn = placed.rotation * RigidPose.Conjugate(tracked.rotation);
                 at = placed.position + turn * (at - tracked.position);
