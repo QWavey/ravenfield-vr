@@ -207,6 +207,10 @@ namespace RavenfieldVR.Weapons
                 }
                 _lightMode = (_lightMode + 1) % 4;
             }
+            else if (laser != null && light != null && laser.Script != light.Script)
+            {
+                Input.ScriptKeys.Tap(laser.Key); // one key, two scripts: a tap for one left the other's light dark for good
+            }
             else
             {
                 Input.ScriptKey only = laser ?? light; // one key: the gun's own script steps its modes

@@ -255,11 +255,26 @@ namespace RavenfieldVR.Input
             Seen.Clear();
         }
 
+        /// <summary>
+        /// The script asking. In a script's own coroutine <c>ResolveCurrent</c> has no answer (the game's own resolver asks the coroutine last): a key
+        /// polled there was never seen, not listed, and a tap meant for that script could not find it.
+        /// </summary>
+        private static ScriptedBehaviour Caller()
+        {
+            ScriptedBehaviour script = ScriptedBehaviour.ResolveCurrent();
+            if (script != null)
+            {
+                return script;
+            }
+            LuaCoroutine running = LuaCoroutine.invokingCoroutine;
+            return running != null ? running.scriptedBehaviour : null;
+        }
+
         /// <param name="key">Canonical key name.</param>
         /// <param name="kind">0 held, 1 went down, 2 went up.</param>
         internal static bool Query(string key, int kind)
         {
-            ScriptedBehaviour script = ScriptedBehaviour.ResolveCurrent();
+            ScriptedBehaviour script = Caller();
             if (script != null)
             {
                 Observe(script, key);

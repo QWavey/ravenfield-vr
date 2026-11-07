@@ -40,6 +40,27 @@ namespace RavenfieldVR.UI
         /// </summary>
         internal static Actor Enemy { get; private set; }
 
+        /// <summary>The vehicle point the game picked along the line (enter, leave, take over), or null: the game's, as it is for a flag out of the mod's reach.</summary>
+        internal static SquadOrderPoint VehiclePoint()
+        {
+            SquadOrderPoint point = SquadPointUi.instance != null ? SquadPointUi.instance.aimPoint : null;
+            return IsPointedVehicle(point) ? point : null;
+        }
+
+        /// <summary>A vehicle's point the line really is on: the game's pick reaches about 18 degrees, and a go-to beside a parked car turned into getting in it.</summary>
+        internal static bool IsPointedVehicle(SquadOrderPoint point) =>
+            point != null && (point.type == SquadOrderPoint.ObjectiveType.Enter || point.type == SquadOrderPoint.ObjectiveType.Exit || point.type == SquadOrderPoint.ObjectiveType.Commandeer)
+            && Vector3.Angle(Line.direction, point.transform.position - Line.origin) < VehicleDegrees;
+
+        private static string VehicleOrder(SquadOrderPoint point) =>
+            point.type == SquadOrderPoint.ObjectiveType.Enter ? "ENTER" : point.type == SquadOrderPoint.ObjectiveType.Exit ? "GET OUT" : "TAKE IT";
+
+        private const float VehicleDegrees = 8f;
+
+        /// <summary>A go-to along the line has somewhere to go: the game's own ray, ground or water (<c>IssueSquadRaycastOrder</c>).</summary>
+        internal static bool LandsSomewhere() =>
+            Physics.Raycast(Line, 999999f, 1) || WaterLevel.Raycast(Line, out _);
+
         /// <summary>How far off the pointing line an enemy may be (degrees), or the body's own half width there when wider.</summary>
         private const float EnemyDegrees = 4f;
 
@@ -262,9 +283,15 @@ namespace RavenfieldVR.UI
             // Just above the hand, facing the eye.
             Vector3 at = palm + Vector3.up * 0.075f;
             _label.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - head.position, Vector3.up));
-            // What the order will be, from the pointing itself: the game's own text can name a flag that is hidden in VR.
-            string order = !Pointing ? "POINT WITH A HAND" : Enemy != null ? EnemyOrder(Enemy) : Objective != null ? ObjectiveOrder(Objective)
-                : (Line.direction.y < -0.7f ? "REGROUP" : "GO TO");
+            // What the order will be, from the pointing itself: the game's own text can name a flag that is hidden in VR. And what it will not be: with
+            // nobody to tell, or the sky on the line, it read GO TO, and the order's sound and grunt went out for nothing.
+            SquadOrderPoint vehicle = VehiclePoint();
+            string order = !Pointing ? "POINT WITH A HAND" : Enemy != null ? EnemyOrder(Enemy)
+                : !SquadHandSigns.HasSquadmates() ? "NO SQUAD"
+                : Objective != null ? ObjectiveOrder(Objective)
+                : vehicle != null ? VehicleOrder(vehicle)
+                : Line.direction.y < -0.7f ? "REGROUP"
+                : LandsSomewhere() ? "GO TO" : "NOTHING THERE";
             // The label is refitted only when its text changed or it came back (and the frame after, once laid out), and its
             // colours are set only when they change: all of it ran every frame the squad button was held (and TextMesh.text's
             // getter builds a new string on every read, so the last text set is remembered).
@@ -481,8 +508,10 @@ namespace RavenfieldVR.UI
             {
                 return;
             }
-            // The game's own order for that flag (attack or defend it), exactly as it would give it for a flag in view.
-            __result = SquadPointing.Objective != null ? SquadPointing.Objective.squadOrderPoint : null;
+            // The game's own order for that flag (attack or defend it), exactly as it would give it for a flag in view. A vehicle's point is left as the game
+            // picked it: narrowed to flags alone, a car could not be pointed at to send the squad in (it went to the ground behind it).
+            __result = SquadPointing.Objective != null ? SquadPointing.Objective.squadOrderPoint
+                : SquadPointing.IsPointedVehicle(__result) ? __result : null;
         }
     }
 
@@ -508,7 +537,14 @@ namespace RavenfieldVR.UI
                     __instance.CancelPointSquadOrder();
                     return false;
                 }
-                __instance.readyToIssueRegroupOrder = SquadPointing.Line.direction.y < -0.7f;
+                bool regroup = SquadPointing.Line.direction.y < -0.7f;
+                // (At the sky with no flag, enemy or vehicle on the line: the game's ray finds nothing and only the order's sound goes out.)
+                if (SquadPointing.Enemy == null && SquadPointing.Objective == null && SquadPointing.VehiclePoint() == null && !regroup && !SquadPointing.LandsSomewhere())
+                {
+                    __instance.CancelPointSquadOrder();
+                    return false;
+                }
+                __instance.readyToIssueRegroupOrder = regroup;
                 if (SquadPointing.Enemy != null && SquadPointUi.instance != null)
                 {
                     // The game's attack-target order for the enemy pointed at: its squad attacks them (or, alone, the enemy is

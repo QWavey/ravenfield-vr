@@ -584,8 +584,10 @@ namespace RavenfieldVR.Input
         {
             // The menu or one of the mod's panels under the laser takes these buttons: a press made then does nothing to the gun,
             // and a fire-mode press still waiting out its window is dropped rather than switching the mode after the panel closed
-            // (bug hunt 2026-10-19: the A press and the assisted reload went through an open panel).
-            if (GunInputBlocked)
+            // (bug hunt 2026-10-19: the A press and the assisted reload went through an open panel). Nor knocked down: the game keeps the gun as active with
+            // its object off, and the press went to a script that was not listening, buzzed, and was logged as a switch (script keys scout, 2026-11-07).
+            Actor down = GameContext.PlayerActor;
+            if (GunInputBlocked || down != null && down.fallenOver)
             {
                 CancelModePress();
                 return;

@@ -3,6 +3,8 @@
 - Night vision shows in the headset: the view turns the game's green, with its grain and bloom, and the edge of the view goes dark as through tubes. The goggles were switching, and the VR camera could not see them.
 - Your gun and arms go out of the sun in the shade, as they do on the flat screen: with shadows off they stayed sunlit inside a building.
 - With post-processing on in the config, the view now has the game's colour grading and bloom too; it only had ambient occlusion.
+- Squad pointing: a car can be pointed at to send the squad in (ENTER, GET OUT, TAKE IT on your hand); the sky says NOTHING THERE and alone it says NO SQUAD, instead of GO TO and an order's sound for nothing.
+- Mod scripts that read their keys in a coroutine are found, and a laser and a light on one key in two scripts both switch.
 - The squad map takes a click where you point: orders went nowhere or to a point nobody chose.
 - B is the right mouse button on the game's menus: a weapon's options, the team config's parts, the map's context menu.
 - Tactics map: the arrow follows the laser, and holding B and sweeping over an arrow takes the order off.
