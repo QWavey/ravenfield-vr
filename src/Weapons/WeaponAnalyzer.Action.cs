@@ -257,6 +257,16 @@ namespace RavenfieldVR.Weapons
                     d.HandlePath = WeaponRig.PathOf(root, handle);
                     d.HandleRestLocal = sampler.IdleLocalPosition(handle);
                     d.HandleTravel = handleVec;
+                    // Moved in the fire clip as the bolt is (at least 1.5 cm and 40% of the bolt's stroke there): an operating rod, not an AR's
+                    // charging handle. Taken for one, the M1 GARRET's rod went home with the bolt locked back on its emptied clip (user,
+                    // 2026-11-08: "the bolt stays back but the hatch doesnt it goes forward again").
+                    float handleFires = index.TryGetValue(handle, out int hci) && hci < sampler.FireMax.Length ? sampler.FireMax[hci] : 0f;
+                    float boltFires = index.TryGetValue(slide, out int sci) && sci < sampler.FireMax.Length ? sampler.FireMax[sci] : 0f;
+                    d.HandleCycles = handleFires >= 0.015f && handleFires >= 0.4f * boltFires;
+                    if (d.HandleCycles)
+                    {
+                        d.Notes += $"handle '{handle.name}' moves {handleFires * 100f:0.0} cm in the fire clip with the bolt ({boltFires * 100f:0.0}): it rides with it and stays back with it ";
+                    }
                     Bounds hb = sampler.GunSpaceBoundsNear(handle, gunIdle, 0.5f);
                     d.RackPoint = hb.size.sqrMagnitude > 1e-6f ? hb.center : gunIdle.InverseTransformPoint(sampler.Idle(handle).position);
                     if (hb.size.sqrMagnitude > 1e-6f)

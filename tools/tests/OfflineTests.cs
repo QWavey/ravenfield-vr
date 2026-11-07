@@ -132,6 +132,49 @@ namespace RavenfieldVR.Tests
             ImageEffectTests(mod);
             RestingBodyTests(mod);
             ReusedFrameTests(mod);
+            RackSplitTests(mod);
+        }
+
+        /// <summary>
+        /// A rack sound's two strokes (RackSplit.Split, 2026-11-08): a clip with the pull, a quiet gap and the slide home is cut in the gap;
+        /// one stroke, or one with a faint rattle after it, is not cut.
+        /// </summary>
+        private static void RackSplitTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo split = mod.GetType("RavenfieldVR.Weapons.RackSplit")?.GetMethod("Split",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(split != null, "Rack split: RackSplit.Split found");
+            if (split == null)
+            {
+                return;
+            }
+            const int hz = 44100;
+            float[] Clip(float seconds, params float[][] bursts) // each burst: from, to (s), level
+            {
+                var s = new float[(int)(seconds * hz) * 2];
+                for (int f = 0; f < s.Length / 2; f++)
+                {
+                    float time = f / (float)hz, a = 0f;
+                    foreach (float[] bu in bursts)
+                    {
+                        if (time >= bu[0] && time < bu[1])
+                        {
+                            a = Math.Max(a, bu[2] * (float)Math.Sin(f * 0.7));
+                        }
+                    }
+                    s[2 * f] = s[2 * f + 1] = a;
+                }
+                return s;
+            }
+            float At(float[] s) => (float)split.Invoke(null, new object[] { s, 2, hz });
+            float two = At(Clip(0.5f, new[] { 0.02f, 0.12f, 0.9f }, new[] { 0.22f, 0.3f, 0.8f }));
+            Check(two > 0.12f && two < 0.22f, $"Rack split: pull, 100 ms gap, home: cut in the gap ({two:0.000} s)");
+            float one = At(Clip(0.4f, new[] { 0.02f, 0.15f, 0.9f }));
+            Check(one < 0f, $"Rack split: one stroke: not cut ({one:0.000})");
+            float rattle = At(Clip(0.4f, new[] { 0.02f, 0.12f, 0.9f }, new[] { 0.2f, 0.3f, 0.15f }));
+            Check(rattle < 0f, $"Rack split: one stroke and a faint rattle: not cut ({rattle:0.000})");
+            float close = At(Clip(0.4f, new[] { 0.02f, 0.1f, 0.9f }, new[] { 0.11f, 0.2f, 0.9f }));
+            Check(close < 0f, $"Rack split: two strokes with no gap between: not cut ({close:0.000})");
         }
 
         /// <summary>

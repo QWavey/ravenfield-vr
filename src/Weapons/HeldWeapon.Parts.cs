@@ -21,7 +21,9 @@ namespace RavenfieldVR.Weapons
             // driven action left open part-way (BoltOpen, not locked) keeps its handle with it: the handle snapped home on
             // release while the pump stayed back (2026-10-19, ARS M500: handleTravel 7.5 cm, slideTravel 12.4 cm).
             bool heldOpenByHand = ActiveAmmo != null && ActiveAmmo.BoltOpen && !ActiveAmmo.SlideLocked;
-            float handle = Reload != null && !Reload.IsRacking && !heldOpenByHand && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
+            // (An operating rod, HandleCycles, is no such handle: it stays back with the bolt.)
+            float handle = Reload != null && !Reload.IsRacking && !heldOpenByHand && !d.HandleCycles
+                           && (Rig.Handle != null || (d.CarveHandle || d.AddedHandle) && d.SlidePath != null) ? 0f : fraction;
             // Locked open with the bolt under the racked handle: the handle home (or where the hand has it), the bolt back.
             bool boltAlone = BoltLockedAlone;
             float slideShare = boltAlone && !Reload.IsRacking ? 0f : fraction;
@@ -262,7 +264,7 @@ namespace RavenfieldVR.Weapons
         /// so after the last round the T was hardly in reach, the sight switch or the magnifier took the grab, and a rack that did
         /// start drew the T jumping back out of the hand (user, 2026-10-20: "some m4a1 racks got unrackable again"; rack hunt).
         /// </summary>
-        internal bool HandleLockedAlone => Rig.Handle != null && !BoltLockedAlone && !KnobLockedAlone && Reload != null
+        internal bool HandleLockedAlone => Rig.Handle != null && !Rig.Data.HandleCycles && !BoltLockedAlone && !KnobLockedAlone && Reload != null
                                            && (ActiveAmmo ?? Ammo) is AmmoState a && a.SlideLocked && ReferenceEquals(ActiveRig, Rig);
 
         /// <summary>A shot of a gun that fires once a pull, its trigger not yet let forward.</summary>

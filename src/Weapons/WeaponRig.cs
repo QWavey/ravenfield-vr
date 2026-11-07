@@ -204,6 +204,11 @@ namespace RavenfieldVR.Weapons
         /// <summary>Handle travel vector at full rack (gun-body space).</summary>
         public Vector3 HandleTravel;
         /// <summary>
+        /// The handle moves with the bolt when the gun fires (an M1's operating rod, an AK's carrier handle): it rides with the bolt and
+        /// stays back with it when the action locks open. An AR's charging handle does not move in the fire clip, and goes home alone.
+        /// </summary>
+        public bool HandleCycles;
+        /// <summary>
         /// The bolt under a racked handle that carries it (the slide part is the handle: an M4's bolt under its charging
         /// handle, a PKM's under its 拉机柄). Locked open on an empty magazine only this stays back; the handle goes home.
         /// </summary>

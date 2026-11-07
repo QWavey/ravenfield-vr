@@ -48,6 +48,119 @@ namespace RavenfieldVR.Weapons
     }
 
     /// <summary>
+    /// Where a short clip holding both strokes of a rack (the slide back, then home) turns from one to the other: the quietest point of the
+    /// gap after its first loud stroke, before a second one (user, 2026-11-08: "when i slide the slide back, the slide back and forth slide
+    /// plays and not only slide back", on most guns and pistols: a gun's whole rack sound was bound to its pull). Read from the clip's samples
+    /// once (a clip decompressed on load: others cannot be read, <see cref="Readable"/>); -1 for one stroke, or not read.
+    /// </summary>
+    internal static class RackSplit
+    {
+        private static readonly Dictionary<int, float> Known = new Dictionary<int, float>();
+
+        internal static bool Readable(AudioClip clip) =>
+            clip != null && clip.loadType == AudioClipLoadType.DecompressOnLoad && clip.loadState == AudioDataLoadState.Loaded;
+
+        internal static float Of(AudioClip clip)
+        {
+            if (clip == null || clip.length >= WeaponAnalyzer.WholeReloadSeconds)
+            {
+                return -1f;
+            }
+            int id = clip.GetInstanceID();
+            if (Known.TryGetValue(id, out float at))
+            {
+                return at;
+            }
+            at = -1f;
+            try
+            {
+                at = Readable(clip) ? Find(clip) : -1f;
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("racksplit-x:" + clip.name, $"Sound '{clip.name}' could not be read for its strokes: {e.Message}");
+            }
+            Known[id] = at;
+            Log.InfoOnce("racksplit:" + clip.name, at > 0f
+                ? $"Sound '{clip.name}' ({clip.length:0.00} s) holds both strokes of a rack: back to {at:0.00} s, home after."
+                : $"Sound '{clip.name}' ({clip.length:0.00} s): {(Readable(clip) ? "one stroke" : $"its samples cannot be read ({clip.loadType})")}.");
+            return at;
+        }
+
+        /// <summary>
+        /// The loudest point of each 10 ms; the first stroke where it first passes half the clip's peak; then a gap under a fifth of the peak
+        /// for 30 ms or more, followed by a second stroke over 40% of it. The cut: the gap's quietest 10 ms. Pure over the samples: the
+        /// offline tests check it.
+        /// </summary>
+        internal static float Split(float[] samples, int channels, int frequency)
+        {
+            int ch = Mathf.Max(1, channels);
+            int win = Mathf.Max(1, frequency / 100);
+            int frames = samples.Length / ch;
+            int n = frames / win;
+            if (n < 8)
+            {
+                return -1f;
+            }
+            var env = new float[n];
+            float peak = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float m = 0f;
+                for (int k = i * win * ch, end = (i + 1) * win * ch; k < end; k++)
+                {
+                    float a = Math.Abs(samples[k]);
+                    if (a > m)
+                    {
+                        m = a;
+                    }
+                }
+                env[i] = m;
+                peak = Math.Max(peak, m);
+            }
+            if (peak < 1e-4f)
+            {
+                return -1f;
+            }
+            int first = Array.FindIndex(env, e => e >= 0.5f * peak);
+            int quietFrom = -1, quietFor = 0;
+            for (int i = first + 1; i < n; i++)
+            {
+                if (env[i] < 0.2f * peak)
+                {
+                    if (quietFrom < 0)
+                    {
+                        quietFrom = i;
+                    }
+                    quietFor++;
+                    continue;
+                }
+                if (quietFor >= 3 && env[i] >= 0.4f * peak)
+                {
+                    int best = quietFrom;
+                    for (int k = quietFrom; k < i; k++)
+                    {
+                        if (env[k] < env[best])
+                        {
+                            best = k;
+                        }
+                    }
+                    return (best + 0.5f) * win / frequency;
+                }
+                quietFrom = -1;
+                quietFor = 0;
+            }
+            return -1f;
+        }
+
+        private static float Find(AudioClip clip)
+        {
+            var data = new float[clip.samples * Mathf.Max(1, clip.channels)];
+            return clip.GetData(data, 0) ? Split(data, clip.channels, clip.frequency) : -1f;
+        }
+    }
+
+    /// <summary>
     /// Plays a held weapon's own sounds for manual actions, one action at a time: a reload clip is never played
     /// end to end, only the slice that belongs to what the player just did. With none of its own, the game's sound for the action
     /// (GameSounds).
@@ -80,6 +193,70 @@ namespace RavenfieldVR.Weapons
 
         public void Play(MechSound kind, Vector3 position, float volume = 1f)
         {
+            _kind = kind;
+            try
+            {
+                PlayKind(kind, position, volume);
+            }
+            finally
+            {
+                _kind = null;
+            }
+        }
+
+        /// <summary>The action being played (for a rack's strokes, <see cref="Stroke"/>); null for the shot's cues.</summary>
+        private MechSound? _kind;
+
+        /// <summary>The last rack sound the slide's pull played its first stroke of: home plays its second.</summary>
+        private AudioClip _rackClip;
+
+        /// <summary>
+        /// A rack's one stroke of a clip holding both: the pull its first, home its second (home only from the clip the pull played: a gun's
+        /// own home sound may have two parts of its own). A clip whose samples cannot be read: on a gun with a home sound of its own apart
+        /// from it (so the pull's clip is the whole rack), its first 55%. False: played as it is.
+        /// </summary>
+        private bool Stroke(AudioClip clip, float volume)
+        {
+            if (clip == null || _kind != MechSound.SlideBack && _kind != MechSound.SlideForward || clip.length >= WeaponAnalyzer.WholeReloadSeconds)
+            {
+                return false;
+            }
+            float split = RackSplit.Of(clip);
+            if (split <= 0f && !RackSplit.Readable(clip) && _kind == MechSound.SlideBack && clip.length > 0.25f && HasOwnHomeApart(clip))
+            {
+                split = clip.length * 0.55f;
+                Log.InfoOnce("rackguess:" + clip.name, $"{_rig.Data.Key}: its pull's sound '{clip.name}' cannot be read, and the gun has a home sound apart: its first 55% for the pull.");
+            }
+            if (split <= 0f)
+            {
+                return false;
+            }
+            if (_kind == MechSound.SlideBack)
+            {
+                _rackClip = clip;
+                return PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = split }, volume);
+            }
+            return clip == _rackClip && PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = split, Length = clip.length - split }, volume);
+        }
+
+        private bool HasOwnHomeApart(AudioClip back)
+        {
+            if (!_rig.Data.Cues.TryGetValue(MechSound.SlideForward, out List<SoundCue> home))
+            {
+                return false;
+            }
+            foreach (SoundCue c in home)
+            {
+                if (c.Clip != null && c.Clip != back || c.Clips != null && c.Clips.Length > 0 && Array.IndexOf(c.Clips, back) < 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void PlayKind(MechSound kind, Vector3 position, float volume)
+        {
             if (VRConfig.ModWeaponSounds.Value)
             {
                 if (_rig.Data.Cues.TryGetValue(kind, out List<SoundCue> cues) && cues.Count > 0)
@@ -93,6 +270,10 @@ namespace RavenfieldVR.Weapons
                     {
                         return;
                     }
+                }
+                else if (kind == MechSound.SlideForward && _rackClip != null && Stroke(_rackClip, volume))
+                {
+                    return; // (no home sound of its own: the second stroke of the rack its pull played)
                 }
                 // No sound of its own for this action: the same action of a vanilla weapon of its class.
                 SoundCue donor = SoundDonors.Find(_rig.Data, kind);
@@ -177,6 +358,10 @@ namespace RavenfieldVR.Weapons
                 {
                     return PlayStartOf(clip, Audible(bank.clipVolume));
                 }
+                if (Stroke(clip, Audible(bank.clipVolume)))
+                {
+                    return true;
+                }
                 AudioSource src = OneShotSource(_rig.Weapon.reloadAudio != null ? _rig.Weapon.reloadAudio : _rig.Weapon.audio);
                 src.PlayOneShot(clip, Audible(bank.clipVolume));
                 return true;
@@ -211,6 +396,10 @@ namespace RavenfieldVR.Weapons
             {
                 return PlayStartOf(clip, cue.Volume * volume);
             }
+            if (Stroke(clip, cue.Volume * volume))
+            {
+                return true;
+            }
             AudioSource src = OneShotSource(template);
             src.PlayOneShot(clip, cue.Volume * Audible(template != null ? template.volume : 1f) * volume);
             return true;
@@ -242,6 +431,10 @@ namespace RavenfieldVR.Weapons
             if (Whole(src.clip))
             {
                 return PlayStartOf(src.clip, Audible(src.volume) * volume);
+            }
+            if (Stroke(src.clip, Audible(src.volume) * volume))
+            {
+                return true;
             }
             // The object is normally inactive until the animation enables it, so play its clip through our source.
             AudioSource player = OneShotSource(src);
