@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
+using RavenfieldVR.Util;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -15,6 +16,9 @@ namespace RavenfieldVR.UI
     public sealed class VRInputModule : BaseInputModule
     {
         public Camera EventCamera;
+
+        /// <summary>The module at work, for what the game asks of the mouse (<see cref="MenuMouse"/>).</summary>
+        internal static VRInputModule Live { get; private set; }
 
         /// <summary>Set by the UI system each frame: whether the laser is live and where it comes from.</summary>
         public bool PointerActive;
@@ -94,6 +98,7 @@ namespace RavenfieldVR.UI
             {
                 _data = new PointerEventData(eventSystem) { pointerId = -1 };
             }
+            Live = this;
             UpdateTriggers();
             if (!PointerActive || EventCamera == null)
             {
@@ -156,6 +161,12 @@ namespace RavenfieldVR.UI
             if (press && over != null)
             {
                 Press(over);
+            }
+            // B is the right button on the game's menus: a weapon entry's options, a team config's parts, the squad map's context menu. The laser only
+            // ever sent the left, so all of it was out of reach with nothing to say it was there.
+            if (over != null && !_pressed && VRInput.GetPressed(DigitalAction.MagRelease) && (GameContext.GameMenuOpen || !GameContext.InGame))
+            {
+                RightClick(over);
             }
             if (_pressed && (_triggerReleased[(int)_pressHand] || !_triggerDown[(int)_pressHand]))
             {
@@ -327,6 +338,31 @@ namespace RavenfieldVR.UI
 
         /// <summary>The hand whose trigger made the current press (the laser may move to the other hand meanwhile).</summary>
         private Hand _pressHand;
+
+        /// <summary>A right click in one go: nothing the game does with the right button waits for it to be let go.</summary>
+        private void RightClick(GameObject over)
+        {
+            _data.button = PointerEventData.InputButton.Right;
+            _data.eligibleForClick = true;
+            _data.pressPosition = _data.position;
+            _data.pointerPressRaycast = _data.pointerCurrentRaycast;
+            GameObject pressed = ExecuteEvents.ExecuteHierarchy(over, _data, ExecuteEvents.pointerDownHandler) ?? ExecuteEvents.GetEventHandler<IPointerClickHandler>(over);
+            _data.pointerPress = pressed;
+            _data.rawPointerPress = over;
+            if (pressed != null)
+            {
+                ExecuteEvents.Execute(pressed, _data, ExecuteEvents.pointerUpHandler);
+                if (pressed == ExecuteEvents.GetEventHandler<IPointerClickHandler>(over))
+                {
+                    ExecuteEvents.Execute(pressed, _data, ExecuteEvents.pointerClickHandler);
+                }
+            }
+            _data.eligibleForClick = false;
+            _data.pointerPress = null;
+            _data.rawPointerPress = null;
+            _data.button = PointerEventData.InputButton.Left;
+            VRInput.Haptic(PointerHand, 0.01f, 200f, 0.25f);
+        }
 
         private void Press(GameObject over)
         {

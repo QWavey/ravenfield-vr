@@ -57,6 +57,7 @@ Change anything in SteamVR: **Settings → Controllers → Manage controller bin
 
 Other gestures:
 
+- **In the game's menus:** the trigger is the left mouse button and **B the right one** (a weapon entry's options, the squad map's context menu). On the tactics map press a spawn point and drag to another to send an attack; hold B and sweep the laser over an arrow to take it off.
 - **Holsters** (laid out like Boneworks): weapons are carried by what they are. Rifles, launchers and other long weapons hang down your back from the shoulders, grip up (weapon side first, then the other shoulder); pistols sit under your arms; grenades, kits and tools at the small of your back, then on the front of your belt. Reach there with your weapon hand and grip; a short buzz tells you your hand is at a holster with something in it, and the weapon there eases out a little. Put a gun back where it lives and let go to have both hands free. `HolsterLayout = Classic` (or "Holsters: Classic" on the panel) brings back the earlier layout: pistols on the hips, gear on the chest.
 - **Night vision:** grip with your off hand at the side of your head; a short buzz says it took. The view turns the game's green, with its grain and bloom.
 - **Map:** turn the back of your off-hand wrist toward your face. Health and ammo appear on your wrist.
