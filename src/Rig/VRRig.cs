@@ -1199,6 +1199,10 @@ namespace RavenfieldVR.Rig
         private PostProcessLayer _ppSource;
         private bool _gogglesLogged;
 
+        /// <summary>Self-test: the eyes' post-processing is running and can see this volume.</summary>
+        internal bool EyesSee(PostProcessVolume volume) =>
+            _postProcess != null && _postProcess.enabled && volume != null && (_postProcess.volumeLayer.value & 1 << volume.gameObject.layer) != 0;
+
         /// <summary>
         /// The game's picture in the eyes. It has two post-process layers, and only one holds its look: each world camera gets a layer that sees
         /// the ambient occlusion volume alone (PostProcessingManager.RegisterWorldCamera, layer 29), and a separate last camera,

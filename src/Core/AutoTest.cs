@@ -5452,6 +5452,35 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// The goggles reach the eyes: switched by the gesture's own flag, the game's volume is on and the eye camera's post-processing can see it
+        /// (user, 2026-11-07: "Night vision doesnt work at all"; the eyes had a layer that could only see the AO volume, and no check said so).
+        /// </summary>
+        private static IEnumerator GogglesCheck(Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            ToggleableItem goggles = GameManager.instance != null ? GameManager.instance.defaultNightVisionGoggles : null;
+            var volume = goggles != null ? goggles.GetComponentInChildren<UnityEngine.Rendering.PostProcessing.PostProcessVolume>(true) : null;
+            if (rig == null || volume == null)
+            {
+                report("goggles: skipped (no rig or no goggles' volume)");
+                yield break;
+            }
+            bool was = NightVision.isEnabled;
+            Input.VRGameInput.GogglesGesturePressed = true;
+            yield return new WaitForSecondsRealtime(0.7f);
+            bool switched = NightVision.isEnabled != was, active = volume.isActiveAndEnabled, seen = rig.EyesSee(volume);
+            Input.VRGameInput.GogglesGesturePressed = true;
+            yield return new WaitForSecondsRealtime(0.7f);
+            string line = $"goggles: switched {switched}, the game's volume on {active} (layer {volume.gameObject.layer}), the eyes see it {seen}, back off {NightVision.isEnabled == was}";
+            if (!switched || !active || !seen)
+            {
+                line += " (NOT IN THE EYES)";
+                Problem(line);
+            }
+            report(line);
+        }
+
+        /// <summary>
         /// The drawn gun fires while sprinting: the game drops the trigger while sprinting unless allowFireWhileSprinting is set
         /// (user, 2026-10-19 night and 2026-10-20: "when running I cannot shoot", task 314).
         /// </summary>
@@ -6722,6 +6751,7 @@ namespace RavenfieldVR.Core
                             yield return GroundDriftCheck(lines.Add);
                             yield return HandVelocityCheck(lines.Add);
                             yield return SprintFireCheck(lines.Add);
+                            yield return GogglesCheck(lines.Add);
                             yield return BodyGrabCheck(lines.Add);
                             weapon = actor.weapons != null && (int)entry.slot < actor.weapons.Length ? actor.weapons[Mathf.Clamp((int)entry.slot, 0, actor.weapons.Length - 1)] : null;
                             if (weapon != null && actor.activeWeapon != weapon)
