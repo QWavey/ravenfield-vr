@@ -37,7 +37,9 @@ namespace RavenfieldVR.Weapons
             {
                 foreach (Renderer r in mag.GetComponentsInChildren<Renderer>())
                 {
-                    if (!r.enabled || r.forceRenderingOff || !r.gameObject.activeInHierarchy || r is ParticleSystemRenderer)
+                    // (Only what is at the box: the PKM's magazine part took in 46 renderers over 25 m.)
+                    if (!r.enabled || r.forceRenderingOff || !r.gameObject.activeInHierarchy || r is ParticleSystemRenderer
+                        || r.bounds.size.magnitude > 1f || (r.bounds.center - seat.position).magnitude > 0.5f)
                     {
                         continue;
                     }
@@ -218,11 +220,10 @@ namespace RavenfieldVR.Weapons
                         foreach (float roll in new[] { 0f, 25f, -25f, 50f })
                         {
                             VRHand.Scripted[domSide] = roll == 0f ? domWas : new RigidPose(domRaw.position, Quaternion.AngleAxis(roll, Rig.AimWorld) * domRaw.rotation);
-                            for (int f = 0; f < 4; f++)
-                            {
-                                yield return null;
-                            }
-                            report(BeltAgainstDrawnBox(roll == 0f ? "hanging, the gun level" : $"hanging, the gun rolled {roll:0} deg"));
+                            // (Settled: a machine gun follows the hand with its weight's lag, and after four frames it had not turned at all.)
+                            yield return new WaitForSecondsRealtime(0.8f);
+                            float rolled = Vector3.SignedAngle(Vector3.ProjectOnPlane(Vector3.up, Rig.AimWorld), Rig.UpWorld, Rig.AimWorld);
+                            report(BeltAgainstDrawnBox(roll == 0f ? "hanging, the gun level" : $"hanging, the gun rolled {roll:0} deg (measured {rolled:0})"));
                             sideShot?.Invoke(roll == 0f ? "belt-1-hanging" : $"belt-1-hanging-roll{roll:0}", BeltStartWorld, 0.4f);
                         }
                     }
