@@ -1260,3 +1260,7 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `dist/RavenfieldVR-Setup-1.16.10.exe`): the improve and bug hunt run to 75% (Tasks 365). Clips matched by name as well as timing; a seated
    magazine let go stays in, `TuggedFromSeat`; sister magazines (`TakesMagazineOf`); a made stand-in keeps its own shape key; the game's
    `ReloadDone` skipped in Manual; `BoltLeftAt`; `Rested`; `RealTimeFlight`; `RemoveInstalled` retryable.
+33. **1.16.11** (2026-11-07, built and installed, not published; notes in `dist/notes-1.16.11.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.11.exe`): the run of Tasks 366. Night vision in the eyes (`finalLayer`'s mask; section 3.3), `GogglesTube`,
+   `UpdateGunShade`, `UnderwaterVeil`, `MenuMouse` and B as the right button, a free hand's cases, squad pointing at vehicles and the sky, a neck hold
+   that stops a soldier's path and trigger, `ScriptKeys.Caller`, `SteamPlayEntry.Ensure`.

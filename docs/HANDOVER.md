@@ -5,8 +5,8 @@ Where the work stands, for whoever picks it up next, a compacted session include
 ## Right now
 
 - Branch `tasks-98-113`. Nothing is pushed: the user has problems with GitHub, so no push until they say so.
-- Last setup: **1.16.10** (`dist/RavenfieldVR-Setup-1.16.10.exe`), built 2026-11-07. Everything after it is in `dist/notes-next.md`: **the night vision fix is installed in the game but is not in that setup.** A new setup is built only when the user asks, with a new patch version.
-- Installed in the game: 4ad80c3 (DLL hash d9f50d4a6af9), the suite passing on it (436 in the main block).
+- Last setup: **1.16.11** (`dist/RavenfieldVR-Setup-1.16.11.exe`), built 2026-11-07 at the user's word; it carries night vision and all of Tasks 366. `dist/notes-next.md` is empty after it. A new setup is built only when the user asks, with a new patch version.
+- Installed in the game: the 1.16.11 build, the suite passing on it.
 - The run of Tasks 366 (`/work-until-limit 50`) was paused by the user at session 33%, week 58% (2026-11-07: "you can pause the limit just finish this run"). It does not resume by itself: only on a new request.
 - The game is not started for tests ("DO NOT open the Game to test and stuff"). None of 1.16.10 or later has been seen in a headset.
 
@@ -15,7 +15,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 In this order:
 
 1. **The user's headset test** of the list below, night vision first. Copy their log before anything else, and read it for the lines named there.
-2. **Setup 1.16.11** if they want one: it would carry everything in `dist/notes-next.md`. Only when asked.
+2. Whatever the test turns up comes first; a next setup (1.16.12) only when asked.
 3. **Two scouts were stopped before they reported**, so their areas are still unread. Start them only if the user wants scouts again:
    - Drops, pickups and the pouch against what the game still expects (`WeaponDrops.Pickup.cs`, `WeaponDrops.OwnWeapon.cs`, `PouchDisplay.cs`, `WeaponOverrides.cs`; a resupply with a magazine out, a script giving a weapon while one is held, a respawn with a new loadout).
    - Seats with cameras of their own: `BombCamera`, `LookAtCamera` (the attack boat's mortar), `AimTransform` (a helicopter minigun, the TOW), `PlayerRecoilCamera` (tank and APC guns). Can each be aimed in VR, or is its view stuck?

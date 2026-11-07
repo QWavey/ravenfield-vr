@@ -1,28 +1,2 @@
-## Ravenfield VR (next, after 1.16.10)
+## Ravenfield VR (next, after 1.16.11)
 
-- Night vision shows in the headset: the view turns the game's green, with its grain and bloom, and the edge of the view goes dark as through tubes. The goggles were switching, and the VR camera could not see them.
-- Under water the view turns the game's deep blue: it stayed as clear as air, because the game draws that on the flat screen only.
-- Water drops on the view come only when your eyes really went under, not from wading out.
-- Your gun and arms go out of the sun in the shade, as they do on the flat screen: with shadows off they stayed sunlit inside a building.
-- With post-processing on in the config, the view now has the game's colour grading and bloom too; it only had ambient occlusion.
-- Squad pointing: a car can be pointed at to send the squad in (ENTER, GET OUT, TAKE IT on your hand); the sky says NOTHING THERE and alone it says NO SQUAD, instead of GO TO and an order's sound for nothing.
-- Mod scripts that read their keys in a coroutine are found, and a laser and a light on one key in two scripts both switch.
-- The squad map takes a click where you point: orders went nowhere or to a point nobody chose.
-- B is the right mouse button on the game's menus: a weapon's options, the team config's parts, the map's context menu.
-- Tactics map: the arrow follows the laser, and holding B and sweeping over an arrow takes the order off.
-- Dialog lines that wait for you go on with any button, and mod tiles on the main menu show their text.
-- A soldier taken by the neck stops walking: one on the move used to walk out of your hand.
-- A gun in your free hand throws its cases, a pump's shell on its stroke, as the gun hand's does.
-- Semi-automatic shotguns throw shells, not rifle cases, and a gun with two barrels side by side throws from the one that fired.
-- A shot from the free hand no longer cuts the glow of a burst from the gun hand.
-- A case you throw stays on the ground as long as the others.
-- Small things hidden far away come back at once through a scope.
-- A trigger pulled on a menu no longer fires the gun when the laser moves off it or the menu closes.
-- A click that slips onto the next button no longer presses the first one; let go on a neighbouring button, nothing is pressed.
-- A new map starts standing: crouch or prone set with the stick no longer carries over from the last match.
-- The comfort tunnel leaves when a menu opens with the stick held.
-- A height measured sitting or with the headset on a desk is measured again, so physical crouch comes on when you stand.
-- The dirt of an explosion and the low-health heartbeat stop in a pause.
-- A flicker of lost tracking no longer drops the steering wheel or flight stick.
-- Mod keys: the description is no longer cut off, and a long list keeps its Close button.
-- Setup says Done with the Play list instructions when run again, instead of telling you to start the launcher by hand.
