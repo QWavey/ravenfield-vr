@@ -5,16 +5,33 @@ Where the work stands, for whoever picks it up next, a compacted session include
 ## Right now
 
 - Branch `tasks-98-113`. Nothing is pushed: the user has problems with GitHub, so no push until they say so.
-- Last setup: **1.16.10** (`dist/RavenfieldVR-Setup-1.16.10.exe`), built 2026-11-07. Everything after it is in `dist/notes-next.md`. A new setup is built only when the user asks, with a new patch version.
-- Current run: Tasks 366, `/work-until-limit 50`. Ceiling pinned in `.claude/wul-config`; read the meter with `bash .claude/wul-read.sh`.
+- Last setup: **1.16.10** (`dist/RavenfieldVR-Setup-1.16.10.exe`), built 2026-11-07. Everything after it is in `dist/notes-next.md`: **the night vision fix is installed in the game but is not in that setup.** A new setup is built only when the user asks, with a new patch version.
+- Installed in the game: 4ad80c3 (DLL hash d9f50d4a6af9), the suite passing on it (436 in the main block).
+- The run of Tasks 366 (`/work-until-limit 50`) was paused by the user at session 33%, week 58% (2026-11-07: "you can pause the limit just finish this run"). It does not resume by itself: only on a new request.
 - The game is not started for tests ("DO NOT open the Game to test and stuff"). None of 1.16.10 or later has been seen in a headset.
+
+## Tomorrow
+
+In this order:
+
+1. **The user's headset test** of the list below, night vision first. Copy their log before anything else, and read it for the lines named there.
+2. **Setup 1.16.11** if they want one: it would carry everything in `dist/notes-next.md`. Only when asked.
+3. **Two scouts were stopped before they reported**, so their areas are still unread. Start them only if the user wants scouts again:
+   - Drops, pickups and the pouch against what the game still expects (`WeaponDrops.Pickup.cs`, `WeaponDrops.OwnWeapon.cs`, `PouchDisplay.cs`, `WeaponOverrides.cs`; a resupply with a magazine out, a script giving a weapon while one is held, a respawn with a new loadout).
+   - Seats with cameras of their own: `BombCamera`, `LookAtCamera` (the attack boat's mortar), `AimTransform` (a helicopter minigun, the TOW), `PlayerRecoilCamera` (tank and APC guns). Can each be aimed in VR, or is its view stuck?
+4. **A small one, planned and not made:** a rocket held nose first stops at the launcher's mouth with no cue (`LooselyLined` wants the tail first, `ReloadInteractions.Magazines.cs` near line 568). Say TAIL FIRST there as WRONG MAG does, and add the phrase to `tools/tests/failure_phrases_test.py`.
+5. **Noted, low, if there is time:** Lua's `Input.mousePosition` is the desktop's; a flat hand at the sky buzzes with no order; a living swimmer held by the body keeps his AI's swim force; a limb still inside its trunk 5 s after a throw stays uncollided; a snap turn in the very frame a hand takes the wheel. `SpookOpsMode` restarts on Return only at its end panel (the pause menu still works).
 
 ## First things to check when the user next plays
 
-1. Night vision: off hand's grip at the side of the head. The log should say "Goggles: the hand at the side of the head switched them." and "Night vision on: the eyes' post-processing sees layers 10000000". Green, grain, bloom, a dark edge. If the lines come and the view stays plain, suspect the post-processing stack on the eye camera, not the gesture.
-2. A seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
+1. Night vision: off hand's grip at the side of the head. The log should say "Goggles: the hand at the side of the head switched them." and "Night vision on: the eyes' post-processing sees layers 10000000". Green, grain, bloom, a dark edge. If the lines come and the view stays plain, suspect the post-processing stack on the eye camera, not the gesture. If the first line never comes, the gesture.
+2. Diving: the view turns deep blue under water. Too dark is `UnderwaterVeil.Most`.
 3. The gun and arms indoors with the sun out: they should drop out of the sunlight.
-4. A soldier on the move taken by the neck: he stops walking and firing.
+4. The squad map: a click sends the squad where the laser is. B on a loadout entry opens its options. Tactics map: drag an arrow, hold B and sweep to take it off.
+5. Squad pointing: a car says ENTER, the sky NOTHING THERE.
+6. A soldier on the move taken by the neck: he stops walking and firing.
+7. A pistol in the free hand throws cases. A trigger held on a menu does not fire when the laser leaves it.
+8. From the last run: a seated magazine squeezed and let go; a locked slide touched; machine gun cover and belt sounds; a gun rested on a ledge; a sister magazine.
 
 The user's log is `BepInEx/LogOutput.log`, overwritten by the next game start: copy it before anything else.
 
