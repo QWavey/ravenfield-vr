@@ -368,12 +368,37 @@ namespace RavenfieldVR.Weapons
             Actor actor = __instance.actor;
             if (actor.IsSeated() && !actor.seat.CanUsePersonalWeapons())
             {
-                __result = false;
+                // A seat's own gun aims with a free hand's grip held (no hand on the wheel, the stick or a body). Off for good, the aim the game's
+                // seats read never came: a lock-on that wants the aim (`TargetTracker.requireAim`), a gun's zoom camera and a sight camera that
+                // moves in on the aim stayed as at rest, with no button that could change it (seats scout, 2026-11-08).
+                __result = SeatAimHeld(actor) && __instance.inputEnabled && !__instance.IsCursorFree() && !GameManager.gameOver;
                 return;
             }
             bool eye = WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Aiming;
             __result = eye && __instance.inputEnabled && !__instance.IsCursorFree() && !__instance.IsKicking()
                        && !actor.IsSwimming() && !actor.parachuteDeployed && !GameManager.gameOver;
+        }
+
+        /// <summary>In a seat with a gun of its own: a hand that holds nothing (not the wheel, the stick or a soldier) has its grip held.</summary>
+        private static bool SeatAimHeld(Actor actor)
+        {
+            if (!actor.seat.HasActiveWeaponNonHorn() || VRGameInput.PanelOpen && VRGameInput.PointerOverUI)
+            {
+                return false;
+            }
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            if (rig == null)
+            {
+                return false;
+            }
+            foreach (Rig.VRHand hand in rig.Hands)
+            {
+                if (hand != null && hand.Tracked && hand.Role == Rig.HandRole.Free && VRInput.GetHeld(DigitalAction.Grab, hand.Side))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

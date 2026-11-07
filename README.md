@@ -48,6 +48,7 @@ The launcher remembers your choice when you tick "Start this way from now on"; h
 | Left stick | Move. Click: sprint (you can shoot while sprinting). Double-click: VR settings. Hold: scoreboard | Steer and throttle (car), collective and yaw (helicopter), rudder and throttle (plane). Click: next seat |
 | Right stick | Turn. Up: jump. Flick down: crouch. Hold down: prone. Click: next weapon. Hold click: kick | Cyclic (helicopter, plane) |
 | B | Drop the magazine / open a break-action or revolver | Reload a mounted gun |
+| Grip (free hand) | | Aim the seat's gun: its zoom or sight camera, and a lock-on that needs aiming |
 | A | Slide or bolt release; pulls a grenade's pin. With the slide forward: fire mode (semi/auto, or the weapon's own mode switch; a switch that cannot be undone waits for a hold). Pressed twice: slow motion (also in menus and while dead; your hands keep your speed, or slow with the world with `SlowMotionHands` = Slowed) | Countermeasures. Hold: auto-hover (helicopter) |
 | X | Squad order (hold and point, release to send; the objectives' flags show with their names while you point; point at an enemy you can see to have the squad attack them). Pressed twice: pause menu | |
 | Y | Squad map. Hold: pause menu. Double: loadout | |
