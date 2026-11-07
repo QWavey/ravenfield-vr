@@ -1494,6 +1494,22 @@ namespace RavenfieldVR.Rig
     }
 
     /// <summary>
+    /// The goggles' fade as they come down is a flat screen picture as well (a black image the game shows for half a second on each switch, in
+    /// its <c>LateUpdate</c>): in VR that was a black rectangle in front of the view, the world around it. Hidden there.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(NightVision), "LateUpdate")]
+    internal static class NightVisionFadePatch
+    {
+        private static void Postfix(NightVision __instance)
+        {
+            if (VRManager.Active && __instance != null && __instance.blackOverlay != null && __instance.blackOverlay.enabled)
+            {
+                __instance.blackOverlay.enabled = false;
+            }
+        }
+    }
+
+    /// <summary>
     /// The game's use ray and ladder check read the view from the game camera. On foot that camera carries the HUD frame,
     /// which trails the head by up to 35 degrees while turning, so the rays went where the head had been. Those checks run
     /// with the head's own orientation (the position already matches) and the frame is put back after them: the HUD

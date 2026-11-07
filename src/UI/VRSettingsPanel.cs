@@ -211,6 +211,8 @@ namespace RavenfieldVR.UI
 
         private void BuildSpeed()
         {
+            // (Read each frame: it comes and goes live. The goggles draw it anyway while they are on.)
+            Choice("The game's colours and bloom", VRConfig.PostProcessing, new[] { false, true }, new[] { "Off", "On" });
             Choice("Game cameras into 1 px", VRConfig.GameCamerasOnePixel, new[] { false, true }, new[] { "Off", "On" });
             Choice("Scope lens every other frame", VRConfig.ScopeHalfRate, new[] { false, true }, new[] { "Off", "On" });
             Choice("Small objects without shadows", VRConfig.SmallObjectsNoShadows, new[] { false, true }, new[] { "Off", "On" });
