@@ -1269,3 +1269,7 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    (`BeltAgainstDrawnBox` measures it in the MG check), `ThrowableHandler.Detonate` (the C4), `Airhorn` on the trigger, `ThrowableHandler.Launch`
    (bags' bodies), `RealTimeGrenades` and `RealTimeProjectiles` (slow-motion throws), `RealTimeFlight` counting flight time, `GameSounds.NoCuts`,
    `VRScope.HasOwnReticle`, `PerfProbe.Reused`, `AmmoState.ShownSpare`, `MortarRangePatch`, `MagazineProp.ReleasePassedHulls`, `HandBody.GiveLayerBack`.
+35. **1.16.13** (2026-11-08, built and installed, not published; notes in `dist/notes-1.16.13.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.13.exe`): Tasks 368. Started with -vr and SteamVR closed, `VRManager.Start` starts SteamVR (vrstartup),
+   waits for its compositor and tries `OpenVRRuntime.Start` every 3 s for up to 2 minutes (`SteamVRWait`) before it plays flat;
+   `HeadsetWaitForm` waits 2 minutes for an answer once it started SteamVR itself.
