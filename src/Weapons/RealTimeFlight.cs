@@ -355,6 +355,11 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // (Which touch ends it, once per thing: the autotest's magazine still hung after the gun's touch was let through, 2026-11-08.)
+            if (enabled && other != null)
+            {
+                Core.Log.InfoOnce("rtf-end:" + other.name, $"Real-time flight of {name} ended by touching {other.name} (layer {other.gameObject.layer}, under {other.transform.root.name}).");
+            }
             End();
         }
 
