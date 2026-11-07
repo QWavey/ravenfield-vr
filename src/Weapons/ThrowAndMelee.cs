@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using HarmonyLib;
 using RavenfieldVR.Core;
 using RavenfieldVR.Input;
 using RavenfieldVR.Rig;
@@ -73,6 +74,11 @@ namespace RavenfieldVR.Weapons
             {
                 UpdatePin();
             }
+            if (weapon is RemoteDetonatorWeapon detonator && VRInput.GetPressed(DigitalAction.SlideRelease, hand.Side) && !GameContextBlocksThrow())
+            {
+                VRInput.Consume(DigitalAction.SlideRelease, hand.Side);
+                Detonate(detonator, hand);
+            }
             if (VRInput.GetPressed(DigitalAction.Fire, hand.Side) && !GameContextBlocksThrow())
             {
                 _armed = true;
@@ -92,9 +98,10 @@ namespace RavenfieldVR.Weapons
                 if (hand.Tracked && (thrown || CanStrap(hand)) && Throw(weapon, hand, v, thrown))
                 {
                     GripThrowAt = Time.unscaledTime; // the grip let go just after is not a second throw
-                    if (!weapon.HasLoadedAmmo() && !weapon.HasSpareAmmo())
+                    if (!weapon.HasLoadedAmmo() && !weapon.HasSpareAmmo() && !(weapon is RemoteDetonatorWeapon))
                     {
                         // The last one: a grenade that was no more stayed in the fist, and the trigger only buzzed (the grip's throw puts it away below).
+                        // (Not the C4's: in the hand it is the detonator of the charges thrown, set off with A.)
                         _sys.PutAwayAfterThrow();
                     }
                 }
@@ -129,6 +136,58 @@ namespace RavenfieldVR.Weapons
         }
 
         private static bool GameContextBlocksThrow() => VRGameInput.GunInputBlocked; // a menu, the laser on a panel, or the match paused
+
+        private static readonly AccessTools.FieldRef<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>> ChargesOf =
+            AccessTools.FieldRefAccess<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>>("registeredProjectiles");
+
+        /// <summary>
+        /// The C4's detonator: A sets off every charge it threw. The flat game sets them off with aim and fire (<c>RemoteDetonatorWeapon.Fire</c>
+        /// while aiming); in VR the trigger only throws, so a charge thrown by hand never went off (scout on throwables, 2026-11-08). Its own
+        /// way, the detonate animation and every charge after its delay; each charge at once on a detonator with no animator.
+        /// </summary>
+        private void Detonate(RemoteDetonatorWeapon detonator, VRHand hand)
+        {
+            List<RemoteDetonatedProjectile> charges = ChargesOf(detonator);
+            int count = 0;
+            if (charges != null)
+            {
+                foreach (RemoteDetonatedProjectile c in charges)
+                {
+                    count += c != null ? 1 : 0;
+                }
+            }
+            if (count == 0)
+            {
+                _sys.FlashMessage("NO CHARGES");
+                hand.Haptic(0.01f, 250f, 0.25f);
+                return;
+            }
+            try
+            {
+                if (detonator.animator != null)
+                {
+                    detonator.Fire(hand.Palm.Forward, true, true);
+                }
+                else
+                {
+                    foreach (RemoteDetonatedProjectile c in charges.ToArray())
+                    {
+                        if (c != null)
+                        {
+                            c.Detonate();
+                        }
+                    }
+                    charges.Clear();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("C4 detonate", e);
+                return;
+            }
+            hand.Haptic(0.05f, 60f, 0.7f);
+            Log.InfoOnce("detonate:" + detonator.name, $"{detonator.name}: A set off {count} charge(s){(detonator.animator == null ? " (no animator: each at once)" : "")}.");
+        }
 
         /// <summary>
         /// A live grenade (its pin out, or one without a pin) let go on a body the other hand holds is strapped to it, however
@@ -206,6 +265,18 @@ namespace RavenfieldVR.Weapons
                 {
                     p.velocity = velocity;
                     p.transform.rotation = Quaternion.LookRotation(dir);
+                    // An ammo bag or medic kit is a body of its own: its speed is set once as it is made (RigidbodyProjectile.Awake, the prefab's
+                    // speed along the aim) and its velocity field is never read, so every bag flew off at that speed however it was tossed
+                    // (scout on throwables, 2026-11-08). It leaves with the hand's swing and spin, as a grenade does.
+                    if (p is RigidbodyProjectile)
+                    {
+                        Rigidbody body = p.GetComponent<Rigidbody>();
+                        if (body != null && !body.isKinematic)
+                        {
+                            body.velocity = velocity;
+                            body.angularVelocity = hand.AngularVelocity;
+                        }
+                    }
                 }
                 LastLiveCount++;
             }
