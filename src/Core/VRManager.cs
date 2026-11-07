@@ -68,11 +68,47 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             GraphicsPresets.ResetHold(); // (before the eyes are sized from it)
-            if (!OpenVRRuntime.Start())
+            // Asked for VR in so many words (Steam's "Ravenfield VR" entry, the launcher, F6): SteamVR is started here when it is not running,
+            // and VR is tried again until SteamVR and the headset are ready. Tried once, the game started with SteamVR still coming up (through
+            // Oculus Link it takes its time) came up flat on the Oculus desktop for good (user, 2026-11-08: "ravenfield gets launched in VR mode
+            // but showed in oculus as Flat ... this only happens if I launch Ravenfield VR on steam directly with steamvr not already opened").
+            bool asked = CommandLineHas("-vr") || _retry;
+            float giveUpAt = Time.realtimeSinceStartup + SteamVRWait;
+            if (asked && !ProcessRuns("vrserver") && SteamVRInstalled())
             {
-                Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError);
-                FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nConnect the headset and check SteamVR, then press Try again (F6).");
-                yield break;
+                StartSteamVR();
+                WaitNotice("Starting SteamVR... Ravenfield goes into VR by itself once SteamVR and the headset are ready.");
+                // Up when its compositor runs (it starts with the headset); then a moment for it to settle.
+                while (Time.realtimeSinceStartup < giveUpAt && !ProcessRuns("vrcompositor"))
+                {
+                    yield return new WaitForSecondsRealtime(1f);
+                }
+                yield return new WaitForSecondsRealtime(2f);
+            }
+            int attempts = 0;
+            while (!OpenVRRuntime.Start())
+            {
+                attempts++;
+                if (!asked || Time.realtimeSinceStartup > giveUpAt || !SteamVRInstalled())
+                {
+                    Log.Warn("Continuing in flat mode: " + OpenVRRuntime.LastError + (attempts > 1 ? $" (tried {attempts} times)" : ""));
+                    FlatNotice("VR could not start: " + OpenVRRuntime.LastError + "\nConnect the headset and check SteamVR, then press Try again (F6).");
+                    yield break;
+                }
+                if (attempts == 1)
+                {
+                    Log.Info("VR did not start yet (" + OpenVRRuntime.LastError + "): trying again until SteamVR and the headset are ready.");
+                }
+                WaitNotice("Waiting for SteamVR and the headset... Ravenfield goes into VR by itself once they are ready.");
+                if (attempts % 10 == 0 && !ProcessRuns("vrserver"))
+                {
+                    StartSteamVR(); // (closed while it waited, or its start did not take)
+                }
+                yield return new WaitForSecondsRealtime(3f);
+            }
+            if (attempts > 0)
+            {
+                Log.Info($"VR started at its {attempts + 1}. try.");
             }
             _flatNotice = null;
             _retrying = false; // (left set by an F6 retry, the input notice below came with no OK to put it away; round-6 scout)
@@ -124,6 +160,66 @@ namespace RavenfieldVR.Core
             Log.Info($"VR active ({Time.realtimeSinceStartup:0.0} s after the game started).");
             // Content may have finished loading before VR came up; the warm-up skips rigs already analysed.
             WeaponWarmup.Start();
+        }
+
+        /// <summary>How long a start asked for with -vr waits for SteamVR and the headset before it plays flat (F6 tries again).</summary>
+        private const float SteamVRWait = 120f;
+
+        private static bool CommandLineHas(string flag) =>
+            Array.Exists(Environment.GetCommandLineArgs(), a => string.Equals(a, flag, StringComparison.OrdinalIgnoreCase));
+
+        private static bool ProcessRuns(string name)
+        {
+            try
+            {
+                System.Diagnostics.Process[] found = System.Diagnostics.Process.GetProcessesByName(name);
+                foreach (System.Diagnostics.Process p in found)
+                {
+                    p.Dispose(); // each holds an OS handle
+                }
+                return found.Length > 0;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private static bool SteamVRInstalled()
+        {
+            try
+            {
+                return Valve.VR.OpenVR.IsRuntimeInstalled();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Starts SteamVR as the launcher does: its vrstartup, else through Steam.</summary>
+        private static void StartSteamVR()
+        {
+            try
+            {
+                string root = Valve.VR.OpenVR.RuntimePath();
+                string startup = root != null ? System.IO.Path.Combine(root, System.IO.Path.Combine("bin", System.IO.Path.Combine("win64", "vrstartup.exe"))) : null;
+                string what = startup != null && System.IO.File.Exists(startup) ? startup : "steam://rungameid/250820";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(what) { UseShellExecute = true })?.Dispose();
+                Log.Info("SteamVR was not running: started (" + what + ").");
+            }
+            catch (Exception e)
+            {
+                Log.Warn("Could not start SteamVR: " + e.Message);
+            }
+        }
+
+        /// <summary>A notice while VR is on its way: no buttons (it goes on by itself), up as long as the wait.</summary>
+        private void WaitNotice(string text)
+        {
+            _flatNotice = text;
+            _flatNoticeUntil = Time.unscaledTime + SteamVRWait + 10f;
+            _retrying = true;
         }
 
         /// <summary>

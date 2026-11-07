@@ -655,12 +655,14 @@ namespace RavenfieldVR.Launcher
                     _status.Text = "SteamVR is running, but no headset is connected.";
                     break;
                 default:
-                    // No answer from SteamVR: asked again for up to 20 s (it answers once it is up), then the game tries.
+                    // No answer from SteamVR: asked again for up to 20 s (it answers once it is up), then the game tries. Two minutes when this
+                    // window started SteamVR: coming up through Oculus Link it took longer than 20 s, and the game then came up flat on the
+                    // Oculus desktop (user, 2026-11-08; the mod now also waits and tries again by itself when started with -vr).
                     if (_unknownSince == DateTime.MinValue)
                     {
                         _unknownSince = DateTime.UtcNow;
                     }
-                    if (DateTime.UtcNow - _unknownSince > TimeSpan.FromSeconds(20))
+                    if (DateTime.UtcNow - _unknownSince > TimeSpan.FromSeconds(_steamVRStartedAt != DateTime.MinValue ? 120 : 20))
                     {
                         Finish(PlayMode.VR);
                     }

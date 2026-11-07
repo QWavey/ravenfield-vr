@@ -2819,6 +2819,12 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 368. Started from Steam with SteamVR closed, the game came up flat on the Oculus desktop (user, 2026-11-08: "ravenfield gets launched in VR mode but showed in oculus as Flat and i cant get into VR mode because steam vr doesnt get launched correctly. this only happens if I launch Ravenfield VR on steam directly with steamvr not already opened")
+
+- [x] Read: both Steam accounts on the PC have the launcher in Ravenfield's launch options (the active one, 908221443, too), so Steam's "Ravenfield VR" entry goes through the launcher, which starts SteamVR and waits for the headset. Two ways it still ended flat: the launcher's wait started the game anyway after 20 s with no answer from SteamVR (through Oculus Link SteamVR takes longer to answer), and the mod tried VR once: a SteamVR that reported the headset but could not take an app yet, or one the XR plugin's own start had only just launched, failed that try, and the game stayed flat until F6. No log of the failed start was left (the test runs since overwrote the launcher's and the game's logs).
+- [x] The mod, started with -vr (or F6): starts SteamVR itself when vrserver is not running (vrstartup, as the launcher does), waits for its compositor, and tries VR again every 3 s for up to 2 minutes with a notice on the screen ("Starting SteamVR... Ravenfield goes into VR by itself"), before it plays flat. Started without -vr nothing changes. The launcher waits 2 minutes instead of 20 s for an answer once it started SteamVR itself.
+- [x] Tested in the game: vrshots with SteamVR closed: "SteamVR was not running: started (...vrstartup.exe)", "VR active (10.8 s after the game started)", the run with 0 problems. Not tested: a start through Oculus Link (needs the user's headset); the retry loop, which the null driver never needed.
+
 ### 367. Bug hunt and improve to 60% (user, 2026-11-08 morning: "Lets continue with bughunts, improvements etc. there could still be alot of bugs ... /work-until-limit 60%")
 
 The game not started. The user played 1.16.11 first: their log is kept in `reports/shots/user-1107/game-log.txt` (Medium, later Ultra; no goggles used, no exception but one).
