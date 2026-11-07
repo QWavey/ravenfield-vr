@@ -1649,6 +1649,8 @@ namespace RavenfieldVR.Rig
                     return 0.85f;
                 case HandRole.Foregrip:
                     return 0.75f;
+                case HandRole.Body:
+                    return 0.7f; // (round a neck, which sets no solid to close on: the fist went through it)
                 default:
                     return 1f;
             }
