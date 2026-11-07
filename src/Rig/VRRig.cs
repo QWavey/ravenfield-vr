@@ -706,7 +706,8 @@ namespace RavenfieldVR.Rig
             }
             float elapsed = Time.unscaledTime - _calibrationStart;
             float y = HeadLocal.y;
-            if (HeadTracked && y > 0.5f && _calibration.Count < _calibration.Capacity)
+            // (Not in a pause or a menu: it can run on for a long time now, and a headset carried about or laid on a shelf there is no standing height.)
+            if (HeadTracked && y > 0.5f && _calibration.Count < _calibration.Capacity && !GameManager.IsPaused() && !GameContext.GameMenuOpen)
             {
                 _calibration.Add(y);
             }

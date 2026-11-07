@@ -385,9 +385,11 @@ namespace RavenfieldVR.UI
             GameObject clickHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(over);
             // Pulling a trigger moves the controller: a laser that slipped just off the button it pressed still clicks it
             // (a short, steady click), as a finger lifting off a touch screen would. Only one of the pause menu's buttons
-            // took clicks in the headset. Off onto nothing: on another button (4 degrees is one button's width at the panel's distance) the
-            // dot sat on High and Medium was applied, render scale and all, so that press is let go with no click (UI scout, 2026-11-07).
-            bool steady = clickHandler == null && Vector3.Angle(_pressDir, PointerRay.direction) < ClickWobble && Time.unscaledTime - _pressTime < 0.8f;
+            // took clicks in the headset. Not onto another button (4 degrees is one button's width at the panel's distance): the dot sat on High and
+            // Medium was applied, render scale and all, so that press is let go with no click (UI scout, 2026-11-07). A menu's background may take
+            // clicks too, so it is the Selectable that counts, not any click handler.
+            bool onAnother = clickHandler != null && clickHandler != _data.pointerPress && clickHandler.GetComponent<UnityEngine.UI.Selectable>() != null;
+            bool steady = !onAnother && Vector3.Angle(_pressDir, PointerRay.direction) < ClickWobble && Time.unscaledTime - _pressTime < 0.8f;
             if (_data.pointerPress != null && _data.eligibleForClick && (_data.pointerPress == clickHandler || steady && !_data.dragging))
             {
                 ExecuteEvents.Execute(_data.pointerPress, _data, ExecuteEvents.pointerClickHandler);
