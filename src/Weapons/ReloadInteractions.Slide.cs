@@ -501,6 +501,7 @@ namespace RavenfieldVR.Weapons
                 FinishEject();
             }
             int rounds = Ammo.EjectMagazine();
+            Log.InfoOnce("enbloc-empty:" + Data.Key, $"{Data.Key}: the last round fired, the empty clip thrown out, the bolt {(Ammo.SlideLocked ? "locked back" : "NOT LOCKED")}.");
             MagazineProp clip = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
             clip.Owner = Ammo;
             Vector3 up = Rig.UpWorld, right = Rig.DirToWorld(Vector3.Cross(Data.Up, Data.AimAxis).normalized);

@@ -505,7 +505,17 @@ namespace RavenfieldVR.Weapons
                 {
                     _refusedAt = Time.unscaledTime;
                     off.Haptic(0.04f, 70f, 0.55f); // felt only: no knock sound against the gun (user, 2026-10-16)
-                    if (prop.Kind == PropKind.Magazine && !Ours(prop))
+                    if (prop.Kind == PropKind.Magazine && Data.EnBloc && Ours(prop) && Ammo.Chambered && !Ammo.SlideLocked && !Ammo.MagInserted)
+                    {
+                        // An M1's clip at a shut bolt: it goes in only through the open action (pull the rod back). It was a buzz and nothing more.
+                        _sys.FlashMessage("OPEN IT");
+                        Log.InfoOnce("enbloc-refused:" + Data.Key, $"{Data.Key}: a clip refused, the bolt shut on a round (it goes in through the open action).");
+                    }
+                    else if (prop.Kind == PropKind.Magazine && Data.EnBloc && Ours(prop) && Ammo.MagInserted)
+                    {
+                        Log.InfoOnce("enbloc-full:" + Data.Key, $"{Data.Key}: a clip refused, the gun counts one in already ({Ammo.MagRounds} rounds, bolt {(Ammo.SlideLocked ? "locked back" : "home")}).");
+                    }
+                    else if (prop.Kind == PropKind.Magazine && !Ours(prop))
                     {
                         _sys.FlashMessage("WRONG MAG"); // (taken up from another gun: it looks like one, and a buzz said nothing of why it did not go in)
                         Log.InfoOnce("wrongmag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: refused a magazine of {prop.WeaponKey} (part '{prop.Data?.MagazineName}', this gun's '{Data.MagazineName}').");

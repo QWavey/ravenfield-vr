@@ -117,6 +117,23 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool Pick(MechSound kind, WeaponRigData d, out GameSlice slice)
         {
+            // A sound never stops what it sounds for. Every action plays its sound in the middle of its own steps (the M1 GARRET's clip counted in,
+            // then its sound, then the bolt sent home): HandGrab's missing table threw here, and the step stopped half done, the clip in and the
+            // bolt still back, with one line in the log for all of it (Log.Guard reports a context once; the 1.16.11 log, 2026-11-08).
+            try
+            {
+                return PickSlice(kind, d, out slice);
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("GameSounds.Pick " + kind, e);
+                slice = default(GameSlice);
+                return false;
+            }
+        }
+
+        private static bool PickSlice(MechSound kind, WeaponRigData d, out GameSlice slice)
+        {
             slice = default(GameSlice);
             if (Find(d, kind, out AudioClip own, out float start, out float length, out float level))
             {
