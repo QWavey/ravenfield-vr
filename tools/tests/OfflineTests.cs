@@ -131,6 +131,28 @@ namespace RavenfieldVR.Tests
             PresetTerrainTests(mod);
             ImageEffectTests(mod);
             RestingBodyTests(mod);
+            ReusedFrameTests(mod);
+        }
+
+        /// <summary>
+        /// A frame the compositor reused (PerfProbe.Reused, 2026-11-08): reprojection for the CPU or the GPU, motion smoothing, or presented twice;
+        /// not the flag that only says asynchronous reprojection is on (every frame through Link), nor the predicted-frame count.
+        /// </summary>
+        private static void ReusedFrameTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo reused = mod.GetType("RavenfieldVR.Core.PerfProbe")?.GetMethod("Reused",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(reused != null, "Reused frames: PerfProbe.Reused found");
+            if (reused == null)
+            {
+                return;
+            }
+            foreach (uint[] c in new[] { new uint[] { 0x04, 1, 0 }, new uint[] { 0x00, 1, 0 }, new uint[] { 0xF4, 1, 0 }, new uint[] { 0x01, 1, 1 },
+                         new uint[] { 0x06, 1, 1 }, new uint[] { 0x0C, 1, 1 }, new uint[] { 0x04, 2, 1 } })
+            {
+                bool got = (bool)reused.Invoke(null, new object[] { c[0], c[1] });
+                Check(got == (c[2] == 1), $"Reused frames: flags 0x{c[0]:X2}, {c[1]} present(s) read as {(c[2] == 1 ? "reused" : "shown fresh")}");
+            }
         }
 
         /// <summary>

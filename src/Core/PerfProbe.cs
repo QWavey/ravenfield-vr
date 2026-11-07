@@ -45,6 +45,13 @@ namespace RavenfieldVR.Core
         private static readonly List<float> GpuTimes = new List<float>(20000);
         private static uint _lastTimingFrame;
         private static uint _missed, _dropped, _reprojected, _timedFrames;
+
+        /// <summary>
+        /// Whether the compositor reused a frame's image (openvr.h: reprojection for the CPU 0x01 or the GPU 0x02, motion smoothing 0x08, or
+        /// the frame presented more than once). Not any flag: 0x04 says only that asynchronous reprojection is on, and it is on with every
+        /// frame through Link, so the logs read "64 frames, 64 reprojected" at a steady 90 fps with the GPU at 1.3 ms (the 1.16.11 log, 2026-11-08).
+        /// </summary>
+        internal static bool Reused(uint reprojectionFlags, uint framePresents) => (reprojectionFlags & 0x0Bu) != 0 || framePresents > 1;
         private static int _gcStart = -1;
 
         /// <summary>A part of a section timed on its own, only in a profiled run (no cost otherwise): Begin when on, End after.</summary>
@@ -153,7 +160,7 @@ namespace RavenfieldVR.Core
                 }
                 _missed += t.m_nNumMisPresented;
                 _dropped += t.m_nNumDroppedFrames;
-                _reprojected += t.m_nReprojectionFlags != 0 ? 1u : 0u;
+                _reprojected += Reused(t.m_nReprojectionFlags, t.m_nNumFramePresents) ? 1u : 0u;
             }
             catch (Exception)
             {

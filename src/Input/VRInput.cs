@@ -409,7 +409,7 @@ namespace RavenfieldVR.Input
                         gpu += Timings[i].m_flTotalRenderGpuMs;
                         timed++;
                     }
-                    reprojected += Timings[i].m_nReprojectionFlags != 0 ? 1 : 0;
+                    reprojected += Core.PerfProbe.Reused(Timings[i].m_nReprojectionFlags, Timings[i].m_nNumFramePresents) ? 1 : 0;
                     dropped += Timings[i].m_nNumDroppedFrames;
                 }
                 if (timed > 0)
