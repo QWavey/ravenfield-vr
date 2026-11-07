@@ -82,6 +82,8 @@ Tactical reload with one hand: push a fresh magazine hard into the base of the s
 
 A magazine fits its own gun and that gun's sister variants (the same part of the same size): one pulled from a soldier's HK416-B goes into your HK416-A. Let go just short of its latch, it says `TAP IT HOME`.
 
+**The M1 GARRET (en-bloc clip):** after its last round the empty clip pings out of the top and the bolt stays back. Push a full clip from the pouch down into the open action: the bolt slams forward on its own and chambers the first round. With the bolt shut on a round a clip will not go in (`OPEN IT`: pull the rod back first), nor will the empty clip it threw out (`EMPTY CLIP`).
+
 **Bolt-action, lever and pump guns** move only by hand: pull the bolt or pump back and push it forward again to chamber the next round. Let go half way and it stays there.
 
 **Shotguns with a tube** take shells one at a time at the loading port; semi-automatic ones cycle themselves after each shot, pump guns need the pump.
@@ -90,7 +92,7 @@ A magazine fits its own gun and that gun's sister variants (the same part of the
 
 **Machine guns** with a feed cover: grab the cover's rear latch and lift it (with the cover shut and the belt in the feed the box will not come off). Drop the old box (B), slide a new box onto its rails (a short, heavy slide), then take the belt end at the mouth of the box and lay it on the feed tray under the cover; it clicks in. Press the cover down over the belt and rack if the bolt is forward. The counter walks you through it: `LAY BELT`, `CLOSE COVER`, `RACK`.
 
-**Rocket and grenade launchers:** grip at the pouch for a round and push it in.
+**Rocket and grenade launchers:** grip at the pouch for a round and push it in at the front, tail first (held the other way it says `TAIL FIRST`).
 
 **Grenades:** pull the pin with your other hand (grip the ring at the top and pull it away), or press A to flick it out one-handed. Nothing happens while you keep holding the grenade; hold the trigger, throw with your arm and let go of the trigger at the end of the throw, and the fuse starts as it leaves your hand. Thrown with the pin still in, it is a dud: it bounces and lies there, and picking it up puts it back in your pouch. Put the grenade away with the pin out and the pin goes back in. Smoke grenades work the same; ammo bags, medic bags and charges have no pin. **Melee weapons** hit what you swing them through. So does any gun, anywhere from its butt to its muzzle, and an empty hand closed into a fist (grip pressed, nothing held): punch.
 
