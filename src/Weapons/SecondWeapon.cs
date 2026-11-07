@@ -107,6 +107,17 @@ namespace RavenfieldVR.Weapons
                 weapon.gameObject.SetActive(true);
             }
             weapon.Unholster();
+            // An under-barrel launcher left selected (the gun hand's support trigger switches it in to fire or reload it): the game's Fire goes
+            // to the selected one, and this hand fired the launcher while counting the rifle's rounds. The free hand has no way to that
+            // launcher (its trigger is the gun hand's support trigger): back to the rifle (free-hand scout, 2026-11-08).
+            Weapon selected = weapon.GetActiveSubWeapon();
+            Projectile shell = selected != null && selected != weapon && selected.configuration != null && selected.configuration.projectilePrefab != null
+                ? selected.configuration.projectilePrefab.GetComponent<Projectile>() : null;
+            if (shell is ExplodingProjectile || shell is GrenadeProjectile)
+            {
+                Log.Guard("SecondWeapon: back to the rifle", () => weapon.EquipSubWeapon(-1));
+                Log.InfoOnce("second-ubgl:" + weapon.name, $"Second weapon: {weapon.name} came with its launcher '{selected.name}' selected: back to the rifle in the free hand.");
+            }
             hand.Role = weapon is ThrowableWeapon ? HandRole.Throwable : HandRole.Weapon;
             if (rig != null && rig.Data.Action == ActionType.Throwable)
             {
