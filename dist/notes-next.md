@@ -1,6 +1,7 @@
 ## Ravenfield VR (next, after 1.16.10)
 
 - Night vision shows in the headset: the view turns the game's green, with its grain and bloom, and the edge of the view goes dark as through tubes. The goggles were switching, and the VR camera could not see them.
+- Your gun and arms go out of the sun in the shade, as they do on the flat screen: with shadows off they stayed sunlit inside a building.
 - With post-processing on in the config, the view now has the game's colour grading and bloom too; it only had ambient occlusion.
 - A trigger pulled on a menu no longer fires the gun when the laser moves off it or the menu closes.
 - A click that slips onto the next button no longer presses the first one; let go on a neighbouring button, nothing is pressed.

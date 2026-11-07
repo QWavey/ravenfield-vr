@@ -395,6 +395,62 @@ namespace RavenfieldVR.Rig
                 NightVision.isEnabled ? VRConfig.GogglesTube.Value : 0f);
             _damage.Update();
             _mud?.Update();
+            UpdateGunShade(player);
+        }
+
+        /// <summary>The sun with the hands and gun taken out of its light (still set: the mask to put back), and since when the shade test has said otherwise.</summary>
+        private Light _shadedSun;
+        private int _sunMask;
+        private float _shadeChangeSince = -1f;
+
+        /// <summary>
+        /// The flat game keeps its view model out of the sun in shade: <c>FPLightIntensity</c> blacks the sun while the first-person camera alone
+        /// renders, by the game's own ray toward it. The eyes draw the gun in the world's pass, where that hook never runs, so with shadows off a gun
+        /// and the arms stayed sunlit inside a building (2026-11-07). The same here by the light's culling mask: the layer the hands and gun are on is
+        /// left out of the sun while the game says the player is in shade. A moment's wait each way: at a pillar's edge the test flips with the head.
+        /// </summary>
+        private void UpdateGunShade(FpsActorController player)
+        {
+            Light sun = GameManager.instance != null ? GameManager.instance.sceneSunlight : null;
+            bool shade = sun != null && player != null && player.fpLightIntensity != null && player.fpLightIntensity.isInShadow;
+            if (_shadedSun != null && _shadedSun != sun)
+            {
+                RestoreSun();
+            }
+            if (shade == (_shadedSun != null))
+            {
+                _shadeChangeSince = -1f;
+                return;
+            }
+            float now = Time.unscaledTime;
+            if (_shadeChangeSince < 0f)
+            {
+                _shadeChangeSince = now;
+            }
+            if (now - _shadeChangeSince < 0.2f)
+            {
+                return;
+            }
+            _shadeChangeSince = -1f;
+            if (shade)
+            {
+                _shadedSun = sun;
+                _sunMask = sun.cullingMask;
+                sun.cullingMask = _sunMask & ~(1 << FirstPersonLayer);
+            }
+            else
+            {
+                RestoreSun();
+            }
+        }
+
+        private void RestoreSun()
+        {
+            if (_shadedSun != null)
+            {
+                _shadedSun.cullingMask = _sunMask;
+            }
+            _shadedSun = null;
         }
 
         private void DetermineMode(FpsActorController player, out RigMode mode, out object key)
@@ -1449,6 +1505,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Lens.Destroy", () => _lens?.Destroy());
             Log.Guard("Rig.ShowBody", RestoreBody); // VR switched off on foot: the flat game's body and its rule again
+            Log.Guard("Rig.Sun", RestoreSun);
             foreach (VRHand h in Hands)
             {
                 if (h != null)

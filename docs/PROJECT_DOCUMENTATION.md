@@ -139,7 +139,10 @@ camera's: `VRRig.UpdatePostProcessing` adds a `PostProcessLayer` to the eye came
 final mask (plus the world camera's for AO only with `PostProcessing`), and turns it off after. Without either no post-processing runs in the
 eyes at all, which is the default and the reason VR costs what it does. The goggles are toggled by the off hand's grip at the side of the head
 (`BodyZones.UpdateGestures`, `VRGameInput.GogglesGesturePressed`, `KeyBinds.Goggles`) or by a holster press of a toggled item
-(`WeaponSystem`), and the flat tube vignette is hidden (`NightVisionVignettePatch`).
+(`WeaponSystem`), and the flat tube vignette and fade are hidden (`NightVisionVignettePatch`, `NightVisionFadePatch`); `ComfortVignette` holds
+a floor (`GogglesTube`) as the tube instead. Other things the flat game does on a camera of its own and the eyes must do themselves: the view model
+out of the sun in shade (`FPLightIntensity`, here `VRRig.UpdateGunShade` by the sun's culling mask). `IRFlaresRenderer` draws for every camera, so its
+strobes need nothing.
 
 ### 3.4 The glove and how hands hold things (`Rig/HandModel.cs`, `Rig/GloveMesh.cs`, `Weapons/ModHand.cs`, `Weapons/GunVolume.cs`)
 
