@@ -2595,8 +2595,15 @@ namespace RavenfieldVR.Weapons
             }
             yield return new WaitForSecondsRealtime(0.3f);
             bool thrown = !Ammo.MagInserted, lockedOpen = Ammo.SlideLocked;
+            // The empty clip it threw out, pushed at the open action: refused (taken, it left the bolt back and no full clip went in after it;
+            // user, 2026-11-08: "i cant reload it rn").
+            MagazineProp empty = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            empty.Owner = Ammo;
+            bool emptyRefused = !AcceptsNow(empty);
+            empty.Destroy();
             report($"en-bloc: bolt shut on a round: {(refusedShut ? "clip refused" : "CLIP TAKEN WITH THE BOLT SHUT")}; through the open action: "
                    + $"{(accepted && seated ? "clip in" : "CLIP NOT SEATED")}, {(released ? "bolt home on its own" : "BOLT NOT RELEASED")}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
+                   + $"an empty clip at the open action: {(emptyRefused ? "refused" : "EMPTY CLIP NOT REFUSED")}; "
                    + $"{shots} shot(s): {(thrown ? "empty clip thrown out" : "EMPTY CLIP NOT THROWN OUT")}, {(lockedOpen ? "bolt locked open" : "BOLT NOT LOCKED OPEN")}{(_pingSource != null ? $", ping '{_pingSource.clip.name}'" : "")}");
             // Back as it was.
             Ammo.SlideLocked = locked;
