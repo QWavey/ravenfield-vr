@@ -171,10 +171,11 @@ namespace RavenfieldVR.Weapons
                     {
                         _throwables.Update(Held);
                     }
-                    else if (Held != null && Held.Weapon is MeleeWeapon)
+                    else if (Held != null && Held.Weapon is MeleeWeapon && !(Held.Weapon is Airhorn))
                     {
                         // A blade hits what it is swung through (MeleeHandler), not on the trigger: the game's own attack on
                         // the trigger struck along the head's facing, a hit without a swing, and with a swing a second hit.
+                        // (Not the air horn: a blast from its bell on the trigger, the game's own, its cone along the muzzle the hand points.)
                         VRGameInput.SuppressFire = true;
                     }
                     UpdateSubWeaponReloadTarget();

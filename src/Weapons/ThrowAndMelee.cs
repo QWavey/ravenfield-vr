@@ -798,7 +798,9 @@ namespace RavenfieldVR.Weapons
         public void BeforeRender(HeldWeapon held)
         {
             var melee = held.Weapon as MeleeWeapon;
-            if (melee == null)
+            // The air horn is no blade: its blow is a blast on the trigger (Airhorn.ShootMeleeRay, a cone from its bell). Swung, it struck as a
+            // club with the blast's damage, and its trigger did nothing (scout on special weapons, 2026-11-08).
+            if (melee == null || melee is Airhorn)
             {
                 _hasLast = false;
                 return;
