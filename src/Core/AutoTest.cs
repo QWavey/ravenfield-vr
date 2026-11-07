@@ -5797,17 +5797,31 @@ namespace RavenfieldVR.Core
                 WeaponRigData d = held.Rig.Data;
                 Vector3 handToGun = held.Rig.ToWorld(d.GripPoint + d.AimAxis * 0.15f) - start.position;
                 Vector3 across = Vector3.Cross(Vector3.up, fwd);
+                // Since Tasks 351 (the user, 2026-10-28: loose magazines "dont collide with" guns) the gun meets a loose magazine and pushes it,
+                // at its own speed and 1 m/s more at most: what must not happen is a fling at the hand's speed. It expected the gun to pass
+                // through, and was not run again until 2026-11-08 ("NOT LEFT ALONE (pushed 46 cm)" for a push it was meant to give).
+                Rigidbody magBody = mag.Go.GetComponent<Rigidbody>();
+                float sweepStart = Time.realtimeSinceStartup, fastest = 0f;
                 for (int i = 0; i <= 40; i++)
                 {
                     Vector3 gunAt = before + Vector3.up * 0.03f + across * Mathf.Lerp(-0.35f, 0.35f, i / 40f);
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(gunAt - handToGun, start.rotation);
                     yield return null;
+                    fastest = magBody != null ? Mathf.Max(fastest, magBody.velocity.magnitude) : fastest;
                 }
-                yield return new WaitForSecondsRealtime(0.3f);
+                float sweepSpeed = 0.7f / Mathf.Max(0.05f, Time.realtimeSinceStartup - sweepStart);
+                for (float until = Time.realtimeSinceStartup + 0.3f; Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                    fastest = magBody != null ? Mathf.Max(fastest, magBody.velocity.magnitude) : fastest;
+                }
                 float moved = mag.Go != null ? Vector3.Distance(mag.Go.transform.position, before) : -1f;
                 Metric("magazine set down gently: cm the gun pushed it", moved * 100f);
+                Metric("magazine set down gently: fastest m/s the gun gave it", fastest);
                 report("magazine picked up, set down gently and the gun swept through it: "
-                       + (moved < 0f ? "GONE (vanished in the check)" : moved > 0.05f ? $"NOT LEFT ALONE (pushed {moved * 100f:0} cm)" : $"stayed ({moved * 100f:0.0} cm)"));
+                       + (moved < 0f ? "GONE (vanished in the check)"
+                          : fastest > sweepSpeed + 1.5f ? $"NOT PUSHED GENTLY: flung at {fastest:0.0} m/s by a gun sweeping at {sweepSpeed:0.0} m/s, {moved * 100f:0} cm"
+                          : moved > 0.05f ? $"pushed {moved * 100f:0} cm, at most {fastest:0.0} m/s (the gun at {sweepSpeed:0.0} m/s)" : $"stayed ({moved * 100f:0.0} cm)"));
             }
             finally
             {
