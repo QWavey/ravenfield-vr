@@ -6192,6 +6192,13 @@ namespace RavenfieldVR.Core
                 report("magazine let go in the ground: skipped (no ground in front)");
                 yield break;
             }
+            if (ground.rigidbody != null)
+            {
+                // (A vehicle's hull is no ground: a magazine let go in a moving body passes through it on purpose. The weapon run of 2026-11-08 stood
+                // by a tank and took its hull for the ground: "NOT LAID OUT ... ends -1152 cm above the ground".)
+                report($"magazine let go in the ground: skipped (in front is {ground.collider.name}, a body, not ground)");
+                yield break;
+            }
             foreach (float depth in new[] { 0.15f, 0.4f })
             {
                 MagazineProp mag = MagazineProp.Create(held.ActiveRig, PropKind.Magazine, 0);
