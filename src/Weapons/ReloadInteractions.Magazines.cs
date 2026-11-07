@@ -419,8 +419,10 @@ namespace RavenfieldVR.Weapons
             switch (prop.Kind)
             {
                 case PropKind.Magazine:
-                    // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber).
-                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || Ammo.SlideLocked || !Ammo.Chambered);
+                    // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber), and only with rounds in it: the
+                    // empty one the last shot threw out, picked up off the ground and pressed home, left the bolt locked on nothing to feed, and no
+                    // way took it out again, so no other clip went in (user, 2026-11-08: "i cant reload it rn").
+                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || prop.Rounds > 0 && (Ammo.SlideLocked || !Ammo.Chambered));
                 case PropKind.Rocket:
                     return Ammo.MagRounds == 0;
                 default:
@@ -505,7 +507,11 @@ namespace RavenfieldVR.Weapons
                 {
                     _refusedAt = Time.unscaledTime;
                     off.Haptic(0.04f, 70f, 0.55f); // felt only: no knock sound against the gun (user, 2026-10-16)
-                    if (prop.Kind == PropKind.Magazine && Data.EnBloc && Ours(prop) && Ammo.Chambered && !Ammo.SlideLocked && !Ammo.MagInserted)
+                    if (prop.Kind == PropKind.Magazine && Data.EnBloc && Ours(prop) && prop.Rounds == 0 && !Ammo.MagInserted)
+                    {
+                        _sys.FlashMessage("EMPTY CLIP"); // (the one the last shot threw out: a full one from the pouch goes in)
+                    }
+                    else if (prop.Kind == PropKind.Magazine && Data.EnBloc && Ours(prop) && Ammo.Chambered && !Ammo.SlideLocked && !Ammo.MagInserted)
                     {
                         // An M1's clip at a shut bolt: it goes in only through the open action (pull the rod back). It was a buzz and nothing more.
                         _sys.FlashMessage("OPEN IT");
