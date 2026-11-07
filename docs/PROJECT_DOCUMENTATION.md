@@ -127,6 +127,8 @@ GunVolume                      (the drawn model as depth from 5 directions: a so
   soldiers walk past the view and the title is placed behind them), `ComfortVignette`, `CockpitControls` (steering
   wheel and flight stick you grab).
 
+**A lens worth repeating (2026-11-07):** a feature written from reading the code and never seen in a headset or a run is not done. Task 252 (w) added post-processing for the goggles, the README said it worked, and the mask was wrong for three weeks; a silent no-op has no log line and no failing test. Features with a mechanism in the game's data want a check in `AutoTest` (`GogglesCheck`) and a log line that says the step took.
+
 **How the game's picture reaches the eyes (2026-11-07, Tasks 366).** The eyes are one camera of the mod's (`VRRig.Camera`); the game's cameras
 are suppressed (`CameraSuppressor`: no stereo target, their `PostProcessLayer`s and image effects off). The game's look is not on its world
 cameras. `PostProcessingManager` sits on a last camera of its own (`_Managers/Global Post-processing`) whose `finalLayer` sees layer 28: the
