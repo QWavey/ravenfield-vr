@@ -148,7 +148,21 @@ namespace RavenfieldVR.Weapons
             }
         }
 
-        private void OnCollisionEnter(Collision c) => End();
+        /// <summary>
+        /// A touch gives it back to the world's pace, but not a touch of what moves in real time itself: the gun in the hand (its stand-in),
+        /// the fists, the player's own body. Since loose magazines meet the held gun (Tasks 351) a magazine let go or knocked out beside
+        /// the gun brushed it at once and hung in the air at a fifth of its speed, the float Tasks 352 had fixed (the autotest's slow-motion
+        /// check, first run since, 2026-11-08: "0.10 m/s across ... HUNG IN THE AIR").
+        /// </summary>
+        private void OnCollisionEnter(Collision c)
+        {
+            Collider other = c.collider;
+            if (other != null && (GunCollider.IsStandIn(other) || HandBody.Is(other) || PropPhysics.IsPlayerCollider(other)))
+            {
+                return;
+            }
+            End();
+        }
 
         private void End()
         {
