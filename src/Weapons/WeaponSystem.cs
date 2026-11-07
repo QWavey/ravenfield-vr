@@ -861,7 +861,7 @@ namespace RavenfieldVR.Weapons
                 if (VRInput.GetPressed(DigitalAction.Use, Second.Hand.Side) && Time.unscaledTime - _lastDryFire > 0.15f)
                 {
                     _lastDryFire = Time.unscaledTime;
-                    Sounds.Play(MechSound.DryFire, Second.Hand.Palm.position, 0.8f);
+                    Sounds.Play(MechSound.DryFire, Second.Hand.Palm.position, 0.8f, 0f, Second.Rig?.Data); // (the gun's own click where it has one)
                     Second.Hand.Haptic(0.01f, 250f, 0.25f);
                     Second.Hand.Model?.TriggerShot();
                 }

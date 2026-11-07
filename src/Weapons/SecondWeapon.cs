@@ -127,6 +127,19 @@ namespace RavenfieldVR.Weapons
             }
             _gripHand = Rig != null && !(weapon is ThrowableWeapon) ? ModHand.Find(weapon.transform, Rig.Data.ArmRight) : null;
             Casings.HideFlat(weapon, _hiddenCasings); // (real cases here too, as in the gun hand)
+            // And what draws only a shadow, as in the gun hand: helper boxes and shadow proxies made a dark blob on the ground under the player.
+            foreach (Renderer r in weapon.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly && !r.forceRenderingOff)
+                {
+                    r.forceRenderingOff = true;
+                    _shadowOnly.Add(r);
+                }
+            }
+            if (Rig != null)
+            {
+                HeldWeapon.Handling(Rig.Data, weapon, out _oneHandRecoil, out _, out _);
+            }
             // A grenade put away with its pin out is drawn with it out (it came back a dud; review, 2026-10-20).
             Armed = weapon is ThrowableWeapon pulled && sys.Throwables != null && sys.Throwables.TakePulled(pulled);
             _usesPin = weapon is ThrowableWeapon pinned && ThrowableHandler.HasPin(pinned);
@@ -393,6 +406,10 @@ namespace RavenfieldVR.Weapons
         }
 
         private readonly System.Collections.Generic.List<ParticleSystemRenderer> _hiddenCasings = new System.Collections.Generic.List<ParticleSystemRenderer>();
+        private readonly System.Collections.Generic.List<Renderer> _shadowOnly = new System.Collections.Generic.List<Renderer>();
+        private float _oneHandRecoil = 1.6f;
+        /// <summary>The magazine's parts hidden while its timed reload has it out (the gun hand's are hidden by its own state).</summary>
+        private bool _magHidden;
 
         private float _cycleReadyAt;
         private bool _animatedCycle; // the coming stroke follows a shot whose fire animation cycled the action itself
@@ -515,15 +532,34 @@ namespace RavenfieldVR.Weapons
             // (By its class as the gun hand reads it: a launcher or machine gun classed as a rifle by its handgun flag lost their kick
             // floors in this hand; round-2 scout, 2026-10-27.)
             float kick = HeldWeapon.ShotKick(c, Rig.Data, _class, out float climbShare);
-            float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? 1.15f : 1.6f); // held in one hand
+            // Held in one hand: the gun hand's factor for its class held in one (it was 1.6 for every long gun, an SMG kicking 78% over the gun hand's).
+            float strength = VRConfig.RecoilStrength.Value * (Rig.Data.Handgun ? _oneHandRecoil : _oneHandRecoil * (1f - VRConfig.TwoHandRecoilReduction.Value));
             _kickPosVel += new Vector3(0f, 0.1f * kick, -0.9f * kick * Mathf.Max(0.3f, 2f - climbShare)) * strength;
             _kickRotVel += new Vector2(-(180f * kick * climbShare), Random.Range(-25f, 25f)) * strength;
-            Hand.Haptic(0.03f + kick * 0.01f, 180f, Mathf.Clamp01(0.35f + kick * 0.15f));
+            bool launcher = _class == WeaponClass.Launcher;
+            Hand.Haptic(launcher ? 0.18f : 0.03f + kick * 0.01f, launcher ? 90f : 180f, Mathf.Clamp01(0.35f + kick * 0.15f)); // (a launcher's thump, as the gun hand's)
             Hand.Model?.TriggerShot();
+            _sys.Rig.ShakeView(kick * (c.loud ? 1f : 0.6f)); // (the view's jolt too: the free hand's shots had none)
             // The action throws the case out with the shot (the gun hand's rule; a pump's or bolt's goes on its stroke, CycleForTheHand).
             if (Ammo != null && Ammo.Participates ? Ammo.CyclesItself : Rig.Data.Action == ActionType.NoAmmo)
             {
                 Casings.Eject(Weapon, Rig, Hand);
+            }
+        }
+
+        private void ShowMagazine(bool show)
+        {
+            if (Rig == null || Rig.MagazineParts == null || (show && !_magHidden))
+            {
+                return;
+            }
+            _magHidden = !show;
+            for (int i = 0; i < Rig.MagazineParts.Length; i++)
+            {
+                if (Rig.MagazineParts[i] != null && i < Rig.MagazinePartScales.Length)
+                {
+                    Rig.MagazineParts[i].localScale = show ? Rig.MagazinePartScales[i] : Vector3.one * 1e-4f;
+                }
             }
         }
 
@@ -534,6 +570,9 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Out of the gun while its timed reload runs (it stayed in, and the gun was full at the end with nothing going in or out). Written each
+            // frame while out: an animator writes these parts' scale too.
+            ShowMagazine(Ammo == null || !Ammo.UsesDetachableMag || Ammo.MagInserted);
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             const float stiffness = 150f;
             float damping = 2f * Mathf.Sqrt(stiffness);
@@ -781,6 +820,15 @@ namespace RavenfieldVR.Weapons
         private void FreeHand()
         {
             Casings.ShowFlat(_hiddenCasings);
+            foreach (Renderer r in _shadowOnly)
+            {
+                if (r != null)
+                {
+                    r.forceRenderingOff = false;
+                }
+            }
+            _shadowOnly.Clear();
+            ShowMagazine(true);
             // Its pin part as the model has it: a grenade put away with its pin out is hidden again by whichever hand draws it
             // (TakePulled, the grenade hand's SetupPin), and one handed over must not give its next holder a hidden scale to keep.
             RestorePin();

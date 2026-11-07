@@ -7,5 +7,6 @@
 - Inside a vehicle the view no longer slides about the cabin as it speeds up or brakes (the flat game's head bob, which moved your whole view in VR).
 - At a mortar (the attack boat's) the right stick up and down sets its range; it was the mouse wheel only and stayed at its default.
 - In a vehicle's gun seat, hold the grip of a free hand to aim: lock-ons that need aiming lock, and a gun's zoom and sight camera come in. Nothing aimed there before.
+- A gun in the free hand kicks as its kind does in one hand, jolts the view, clicks with its own dry click, and its magazine is out of it while it reloads.
 - A rocket held warhead first at the launcher's mouth says TAIL FIRST.
 

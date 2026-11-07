@@ -1111,7 +1111,7 @@ namespace RavenfieldVR.Weapons
         /// Per class: one-handed recoil multiplier (two-handed is the baseline), droop in degrees and how fast the gun
         /// follows the wrist (1/s) when held in one hand. Pistols are made for one hand; long and heavy guns are not.
         /// </summary>
-        private static void Handling(WeaponRigData d, Weapon w, out float oneHandRecoil, out float sag, out float follow)
+        internal static void Handling(WeaponRigData d, Weapon w, out float oneHandRecoil, out float sag, out float follow)
         {
             float length = Mathf.Abs(Vector3.Dot(d.MuzzlePoint - d.GripPoint, d.AimAxis));
             if (d.IsPistol)
