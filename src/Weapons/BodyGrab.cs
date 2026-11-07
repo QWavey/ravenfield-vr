@@ -531,6 +531,12 @@ namespace RavenfieldVR.Weapons
                 {
                     best.FallOver(); // the game's own: off a seat or ladder, weapon put away, ragdoll from the animated pose
                 }
+                if (!best.dead && best.controller is AiActorController swimmer)
+                {
+                    // (His path too: in water the game pushes a body along it every step, Actor.FixedUpdate's swim force from SwimInput, so a held
+                    // swimmer kept swimming against the hand and slipped out at 60 cm. He plans again once let go.)
+                    swimmer.CancelPath(isMovementOverride: true);
+                }
                 Attach(i, hand, best, palm);
             }
             catch (System.Exception e)
