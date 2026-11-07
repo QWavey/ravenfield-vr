@@ -13,7 +13,8 @@ Where the work stands, for whoever picks it up next, a compacted session include
 ## Open from Tasks 367 (the user's reports of 2026-11-08)
 
 - The M1 GARRET's bolt and clip: two causes fixed (a sound that threw in the middle of the clip's seat; an empty clip taken off the ground and pressed in). Its log lines now tell the rest: "the last round fired, the empty clip thrown out, the bolt locked back / NOT LOCKED", "a clip refused ...". Ask what happens now.
-- A lens over a real scope: my own Tasks 365 rule reverted; the log names each gun the mod draws a lens for. Ask which guns still do.
+- A lens over a real scope: my own Tasks 365 rule reverted; a scope whose model draws its own reticle (a `reticle`-named material, e.g. `reticle_ui_stencil`) gets no mod lens at all and is seen unmagnified; the log names each gun the mod draws a lens for, and each it steps aside for. Ask which guns still do, and whether a real scope should be magnified again (a design call: the mod's lens over it hides its reticle).
+- New controls to tell the user about: in a gun seat a free hand's grip aims (lock-ons, zoom cameras); on the game's menus B is the right mouse button.
 - The MG belt through the box (the MG3): not found. The strip keeps out of `Data.MagBounds` in the seat's frame, and the MG3 shows its model's own belt when laid. Ask which belt: the one hanging from the box with the cover up, the one held, or the one lying on the gun; and which box: the one in the gun, one in the hand, or one on the ground.
 - Two scouts restarted (pickups, seats with cameras of their own): their findings go into Tasks 367.
 
