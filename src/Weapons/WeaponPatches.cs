@@ -320,7 +320,10 @@ namespace RavenfieldVR.Weapons
     {
         private static void Prefix(Weapon __instance)
         {
-            if (WeaponHooks.PlayerWeaponInVR(__instance))
+            // (A seat's gun too, now that a seat aims with the grip: its 2D scope came up as a frame fixed to the head, lined up with the head and
+            // not with the gun the hand aims.)
+            if (WeaponHooks.PlayerWeaponInVR(__instance)
+                || VRManager.Active && WeaponSystem.Instance != null && __instance.IsMountedWeapon() && __instance.UserIsPlayer())
             {
                 __instance.aimAmount = 0f;
                 if (__instance.showScopeObject && __instance.nonScopeRenderers != null)
