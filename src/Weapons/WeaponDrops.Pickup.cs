@@ -436,6 +436,14 @@ namespace RavenfieldVR.Weapons
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick
             // up the pistol while the main weapon is held"). Anything else is taken up as before, the gun going to its holster.
+            // (The slot of the gun really drawn: a map's trigger or a script draws one with EquipNewWeaponEntry, which never sets activeWeaponSlot,
+            // and from the stale one a pickup beside it threw away the gun in the hand; pickups scout, 2026-11-08. The game's own equip below reads
+            // it too.)
+            int heldSlot = _sys.Held != null && _sys.Held.Weapon != null ? System.Array.IndexOf(actor.weapons, _sys.Held.Weapon) : -1;
+            if (heldSlot >= 0 && heldSlot != actor.activeWeaponSlot)
+            {
+                actor.activeWeaponSlot = heldSlot;
+            }
             bool beside = hand != _sys.Rig.Dominant && _sys.Second == null && _sys.Held != null && _sys.Held.Weapon != null
                           && slot != actor.activeWeaponSlot;
             Hand gunHandBefore = VRInput.GunHand;
@@ -483,6 +491,9 @@ namespace RavenfieldVR.Weapons
             Log.Debug($"Picked up {drop.Entry.name} into slot {slot + 1}");
         }
 
+        private static bool Kit(Actor actor, int slot) =>
+            actor.hasAmmoBox && actor.ammoBoxSlot == slot || actor.hasMedipack && actor.medipackSlot == slot;
+
         private static int SlotFor(WeaponManager.WeaponEntry entry, Actor actor)
         {
             switch (entry.slot)
@@ -494,7 +505,8 @@ namespace RavenfieldVR.Weapons
                 default:
                     if (actor.weapons[2] == null) return 2;
                     if (actor.weapons[4] == null) return 4;
-                    return 2;
+                    // Both taken: not the ammo bag or medic kit, which the swap laid on the floor in the gun's place (pickups scout, 2026-11-08).
+                    return Kit(actor, 2) && !Kit(actor, 4) ? 4 : 2;
             }
         }
     }
