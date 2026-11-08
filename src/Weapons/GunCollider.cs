@@ -242,7 +242,10 @@ namespace RavenfieldVR.Weapons
                 if (SurfaceHits[i].distance < nearest && !GunCollider.IsStandIn(SurfaceHits[i].collider) && IsLevelFor(SurfaceHits[i].collider, own))
                 {
                     nearest = SurfaceHits[i].distance;
-                    up = SurfaceHits[i].normal.y > 0.6f;
+                    Collider c = SurfaceHits[i].collider;
+                    // Only ground that is a surface (terrain, an open mesh): under a solid's top (a table's box, a crate) the thing lies in the
+                    // open below it, and was lifted onto the table; inside a solid the push out of it does the work.
+                    up = SurfaceHits[i].normal.y > 0.6f && (c is TerrainCollider || c is MeshCollider mesh && !mesh.convex);
                 }
             }
             return up && nearest < length - 0.01f;
@@ -325,8 +328,10 @@ namespace RavenfieldVR.Weapons
             float nearest = -1f; // the surface nearest above it: the hit farthest down the ray
             for (int i = 0; i < n; i++)
             {
-                if (SurfaceHits[i].distance > nearest && SurfaceHits[i].normal.y > 0.6f && !GunCollider.IsStandIn(SurfaceHits[i].collider)
-                    && IsLevelFor(SurfaceHits[i].collider, own))
+                Collider c = SurfaceHits[i].collider;
+                // (Ground that is a surface only, as GroundBetween's: not onto a balcony or a table over it.)
+                if (SurfaceHits[i].distance > nearest && SurfaceHits[i].normal.y > 0.6f && (c is TerrainCollider || c is MeshCollider mesh && !mesh.convex)
+                    && !GunCollider.IsStandIn(c) && IsLevelFor(c, own))
                 {
                     nearest = SurfaceHits[i].distance;
                 }

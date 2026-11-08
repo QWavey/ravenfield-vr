@@ -6107,7 +6107,17 @@ namespace RavenfieldVR.Core
                 line += $"; a 4.5 m/s swing for a second: at most {worstGap:0.00} m behind, at most {worstJump * 100f:0} cm in a frame"
                         + (snapped ? " (JUMPED: the hand snapped to the controller)" : "") + (unleashed ? " (NOT HELD within 1.5 m of the controller)" : "");
                 stuck |= snapped || unleashed;
-                // A magazine let go from the slowed hand at 1 m/s: the world's pace, no real-time flight.
+                // A magazine let go from the slowed hand at 1 m/s: the world's pace, no real-time flight. The hand caught up with the controller
+                // first (3 s at most): after the swing it trailed up to a metre behind, the magazine was let go 10 cm before it, and the solid hand
+                // catching up ran into it and pushed it on (0.91 and 0.92 m/s across on 2026-11-08, 0.18 and 0.19 when it had caught up).
+                if (Rig.VRHand.Scripted[os].HasValue)
+                {
+                    Vector3 controller = Rig.VRHand.Scripted[os].Value.position;
+                    for (float until = Time.realtimeSinceStartup + 3f; Time.realtimeSinceStartup < until && Vector3.Distance(off.Raw.position, controller) > 0.03f;)
+                    {
+                        yield return null;
+                    }
+                }
                 if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag)
                 {
                     Vector3 start = off.Raw.position + flat * 0.1f;
@@ -6504,6 +6514,19 @@ namespace RavenfieldVR.Core
                 if (LoadoutUi.instance != null && LoadoutUi.IsOpen())
                 {
                     LoadoutUi.instance.OnDeployClick();
+                }
+                // Two clicks unanswered: spawned as the game's wave does it (GameModeBase.SpawnActorListDeferred: SpawnAt the selected point's
+                // spawn position). With the team's point selected, no wave took the player in 72 s (17:47, 2026-11-08).
+                SpawnPoint own = MinimapUi.instance != null ? MinimapUi.instance.selectedSpawnPoint : null;
+                if (attempt >= 2 && LocalPlayer.actor != null && LocalPlayer.actor.dead && own != null && own.owner == GameManager.PlayerTeam())
+                {
+                    if (LoadoutUi.instance != null && LoadoutUi.IsOpen())
+                    {
+                        LoadoutUi.Hide();
+                    }
+                    LocalPlayer.actor.SpawnAt(own.GetSpawnPosition(), Quaternion.identity);
+                    _deployNote += $"; spawned at {own.name} by the check (no spawn wave took the player)";
+                    Log.Info($"Autotest: the player spawned at {own.name} by the check: the game's spawn wave did not take him after {attempt} deploy clicks.");
                 }
                 float until = Time.realtimeSinceStartup + 12f;
                 while (LocalPlayer.actor != null && LocalPlayer.actor.dead && Time.realtimeSinceStartup < until)
