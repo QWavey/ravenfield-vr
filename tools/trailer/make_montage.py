@@ -19,11 +19,11 @@ def cut(kind, t):
     if kind == 'swap-full':
         return [{"take": t, "mark": "dropping", "in": 4}, {"take": t, "mark": "from the pouch"}, {"take": t, "mark": "inserting"}]
     if kind == 'swap':
-        return [{"take": t, "mark": "from the pouch", "in": 8}, {"take": t, "mark": "inserting"}]
+        return [{"take": t, "mark": "from the pouch", "in": 0}, {"take": t, "mark": "inserting"}]
     if kind == 'rack':
         return [{"take": t, "mark": "rack taking"}, {"take": t, "mark": "rack pulling back"}, {"take": t, "mark": "rack let go", "in": 0, "out": 10}]
     if kind == 'walkfire':
-        return [{"take": t, "in": 4, "out": 58}]
+        return [{"take": t, "in": 4, "out": 70}]
     if kind == 'shots':
         return [{"take": t, "shot": 0, "pre": 0, "post": 14}, {"take": t, "shot": 1, "pre": 0, "post": 14}]
     if kind == 'aim':
@@ -31,7 +31,7 @@ def cut(kind, t):
     if kind == 'aim-last':
         return [{"take": t, "shot": k, "pre": 0, "post": 13 if k < 2 else 30} for k in range(3)]
     if kind == 'turn':
-        return [{"take": t, "mark": "turn", "in": 24, "out": 64}]
+        return [{"take": t, "mark": "turn", "in": 20, "out": 72}]
     raise SystemExit(kind)
 
 

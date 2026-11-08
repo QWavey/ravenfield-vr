@@ -1,30 +1,29 @@
 {
  "fps": 60,
  "takes": {
-  "k1": "showcase/takes/montage-01-*-canyon-*",
-  "k2": "showcase/takes/montage-02-*-canyon-*",
-  "k3": "showcase/takes/montage-03-*-canyon-*",
-  "k4": "showcase/takes/montage-04-*-canyon-*",
-  "k5": "showcase/takes/montage-05-*-canyon-*",
-  "k6": "showcase/takes/montage-06-*-canyon-*",
-  "k7": "showcase/takes/montage-07-*-canyon-*",
-  "k8": "showcase/takes/montage-08-*-canyon-*",
   "d1": "showcase/takes/montage-01-*-dustbowl-*",
-  "d2": "showcase/takes/montage-02-*-dustbowl-*",
-  "d3": "showcase/takes/montage-03-*-dustbowl-*",
-  "d4": "showcase/takes/montage-04-*-dustbowl-*",
-  "d5": "showcase/takes/montage-05-*-dustbowl-*",
-  "d6": "showcase/takes/montage-06-*-dustbowl-*",
-  "d7": "showcase/takes/montage-07-*-dustbowl-*",
-  "d8": "showcase/takes/montage-08-*-dustbowl-*",
-  "t1": "showcase/takes/montage-01-*-temple-*",
-  "t2": "showcase/takes/montage-02-*-temple-*",
-  "t3": "showcase/takes/montage-03-*-temple-*",
   "t4": "showcase/takes/montage-04-*-temple-*",
+  "d2": "showcase/takes/montage-02-*-dustbowl-*",
+  "t3": "showcase/takes/montage-03-*-temple-*",
+  "k1": "showcase/takes/montage-01-*-canyon-*",
+  "d4": "showcase/takes/montage-04-*-dustbowl-*",
   "t5": "showcase/takes/montage-05-*-temple-*",
+  "k2": "showcase/takes/montage-02-*-canyon-*",
   "t6": "showcase/takes/montage-06-*-temple-*",
+  "k4": "showcase/takes/montage-04-*-canyon-*",
+  "d3": "showcase/takes/montage-03-*-dustbowl-*",
   "t7": "showcase/takes/montage-07-*-temple-*",
-  "t8": "showcase/takes/montage-08-*-temple-*"
+  "d8": "showcase/takes/montage-08-*-dustbowl-*",
+  "k6": "showcase/takes/montage-06-*-canyon-*",
+  "d5": "showcase/takes/montage-05-*-dustbowl-*",
+  "k7": "showcase/takes/montage-07-*-canyon-*",
+  "t2": "showcase/takes/montage-02-*-temple-*",
+  "k3": "showcase/takes/montage-03-*-canyon-*",
+  "d6": "showcase/takes/montage-06-*-dustbowl-*",
+  "t8": "showcase/takes/montage-08-*-temple-*",
+  "d7": "showcase/takes/montage-07-*-dustbowl-*",
+  "k8": "showcase/takes/montage-08-*-canyon-*",
+  "k5": "showcase/takes/montage-05-*-canyon-*"
  },
  "shots": [
   {
@@ -41,101 +40,98 @@
    "mark": "inserting"
   },
   {
-   "take": "k4",
-   "mark": "burst",
-   "in": 4,
-   "out": 64
-  },
-  {
-   "take": "t2",
-   "mark": "rack taking"
-  },
-  {
-   "take": "t2",
-   "mark": "rack pulling back"
-  },
-  {
-   "take": "t2",
-   "mark": "rack let go",
-   "in": 0,
-   "out": 10
-  },
-  {
-   "take": "d3",
-   "shot": 0,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "d3",
-   "shot": 1,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "k1",
-   "mark": "from the pouch",
-   "in": 8
-  },
-  {
-   "take": "k1",
-   "mark": "inserting"
-  },
-  {
    "take": "t4",
-   "mark": "burst",
    "in": 4,
-   "out": 64
+   "out": 70
   },
   {
-   "take": "d5",
-   "shot": 0,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "d5",
-   "shot": 1,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "k2",
+   "take": "d2",
    "mark": "rack taking"
   },
   {
-   "take": "k2",
+   "take": "d2",
    "mark": "rack pulling back"
   },
   {
-   "take": "k2",
+   "take": "d2",
    "mark": "rack let go",
    "in": 0,
    "out": 10
   },
   {
-   "take": "t6",
-   "mark": "from the pouch",
-   "in": 8
+   "take": "t3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
   },
   {
-   "take": "t6",
+   "take": "t3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "k1",
    "mark": "inserting"
   },
   {
    "take": "d4",
-   "mark": "burst",
    "in": 4,
-   "out": 64
+   "out": 70
   },
   {
-   "take": "k3",
+   "take": "t5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "t5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "k2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "k2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "t6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "t6",
+   "mark": "inserting"
+  },
+  {
+   "take": "k4",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "d3",
    "shot": 0,
    "pre": 0,
    "post": 14
   },
   {
-   "take": "k3",
+   "take": "d3",
    "shot": 1,
    "pre": 0,
    "post": 14
@@ -143,130 +139,103 @@
   {
    "take": "t7",
    "mark": "turn",
-   "in": 24,
-   "out": 66
+   "in": 20,
+   "out": 72
   },
   {
    "take": "d8",
-   "mark": "rack taking"
-  },
-  {
-   "take": "d8",
-   "mark": "rack pulling back"
-  },
-  {
-   "take": "d8",
-   "mark": "rack let go",
-   "in": 0,
-   "out": 10
+   "in": 4,
+   "out": 70
   },
   {
    "take": "k6",
    "mark": "from the pouch",
-   "in": 8
+   "in": 0
   },
   {
    "take": "k6",
    "mark": "inserting"
   },
   {
-   "take": "t3",
+   "take": "d5",
    "shot": 0,
    "pre": 0,
-   "post": 14
+   "post": 13
   },
   {
-   "take": "t3",
+   "take": "d5",
    "shot": 1,
    "pre": 0,
    "post": 14
-  },
-  {
-   "take": "d7",
-   "mark": "turn",
-   "in": 24,
-   "out": 66
-  },
-  {
-   "take": "k8",
-   "mark": "rack taking"
-  },
-  {
-   "take": "k8",
-   "mark": "rack pulling back"
-  },
-  {
-   "take": "k8",
-   "mark": "rack let go",
-   "in": 0,
-   "out": 10
-  },
-  {
-   "take": "t5",
-   "shot": 0,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "t5",
-   "shot": 1,
-   "pre": 0,
-   "post": 14
-  },
-  {
-   "take": "d6",
-   "mark": "from the pouch",
-   "in": 8
-  },
-  {
-   "take": "d6",
-   "mark": "inserting"
-  },
-  {
-   "take": "t8",
-   "mark": "rack taking"
-  },
-  {
-   "take": "t8",
-   "mark": "rack pulling back"
-  },
-  {
-   "take": "t8",
-   "mark": "rack let go",
-   "in": 0,
-   "out": 10
   },
   {
    "take": "k7",
    "mark": "turn",
-   "in": 24,
-   "out": 66
+   "in": 20,
+   "out": 72
   },
   {
-   "take": "d2",
+   "take": "t2",
    "mark": "rack taking"
   },
   {
-   "take": "d2",
+   "take": "t2",
    "mark": "rack pulling back"
   },
   {
-   "take": "d2",
+   "take": "t2",
    "mark": "rack let go",
    "in": 0,
    "out": 10
   },
   {
-   "take": "k5",
+   "take": "k3",
    "shot": 0,
    "pre": 0,
    "post": 14
   },
   {
-   "take": "k5",
+   "take": "k3",
    "shot": 1,
    "pre": 0,
    "post": 14
+  },
+  {
+   "take": "d6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "d6",
+   "mark": "inserting"
+  },
+  {
+   "take": "t8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "d7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "take": "k8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "k5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "k5",
+   "shot": 1,
+   "pre": 0,
+   "post": 13
   },
   {
    "take": "k5",

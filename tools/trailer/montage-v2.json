@@ -1,14 +1,14 @@
 {
   "fps": 60,
   "takes": {
-    "c1": "showcase/takes/montage-01-*-coastline-*", "c3": "showcase/takes/montage-03-*-coastline-*", "c4": "showcase/takes/montage-04-*-coastline-*",
-    "c5": "showcase/takes/montage-05-*-coastline-*", "c6": "showcase/takes/montage-06-*-coastline-*", "c7": "showcase/takes/montage-07-*-coastline-*",
-    "m2": "showcase/takes/montage-02-*-mountains-*", "m3": "showcase/takes/montage-03-*-mountains-*", "m4": "showcase/takes/montage-04-*-mountains-*",
-    "m5": "showcase/takes/montage-05-*-mountains-*", "m6": "showcase/takes/montage-06-*-mountains-*", "m7": "showcase/takes/montage-07-*-mountains-*",
-    "m8": "showcase/takes/montage-08-*-mountains-*",
-    "k1": "showcase/takes/montage-01-*-canyon-*", "k2": "showcase/takes/montage-02-*-canyon-*", "k3": "showcase/takes/montage-03-*-canyon-*",
-    "k4": "showcase/takes/montage-04-*-canyon-*", "k5": "showcase/takes/montage-05-*-canyon-*", "k6": "showcase/takes/montage-06-*-canyon-*",
-    "k7": "showcase/takes/montage-07-*-canyon-*", "k8": "showcase/takes/montage-08-*-canyon-*"
+    "c1": "showcase/takes/montage-01-*-island-a-*", "c3": "showcase/takes/montage-03-*-island-a-*", "c4": "showcase/takes/montage-04-*-island-a-*",
+    "c5": "showcase/takes/montage-05-*-island-a-*", "c6": "showcase/takes/montage-06-*-island-a-*", "c7": "showcase/takes/montage-07-*-island-a-*",
+    "m2": "showcase/takes/montage-02-*-island-b-*", "m3": "showcase/takes/montage-03-*-island-b-*", "m4": "showcase/takes/montage-04-*-island-b-*",
+    "m5": "showcase/takes/montage-05-*-island-b-*", "m6": "showcase/takes/montage-06-*-island-b-*", "m7": "showcase/takes/montage-07-*-island-b-*",
+    "m8": "showcase/takes/montage-08-*-island-b-*",
+    "k1": "showcase/takes/montage-01-*-island-c-*", "k2": "showcase/takes/montage-02-*-island-c-*", "k3": "showcase/takes/montage-03-*-island-c-*",
+    "k4": "showcase/takes/montage-04-*-island-c-*", "k5": "showcase/takes/montage-05-*-island-c-*", "k6": "showcase/takes/montage-06-*-island-c-*",
+    "k7": "showcase/takes/montage-07-*-island-c-*", "k8": "showcase/takes/montage-08-*-island-c-*"
   },
   "shots": [
     {"take": "c1", "mark": "dropping", "in": 4}, {"take": "c1", "mark": "from the pouch"}, {"take": "c1", "mark": "inserting"},

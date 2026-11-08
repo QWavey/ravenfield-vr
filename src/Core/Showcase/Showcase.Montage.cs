@@ -122,10 +122,12 @@ namespace RavenfieldVR.Core.Showcase
                 case Beat.Rack:
                 {
                     // Brought up in front, the free hand racks it, the eyes on it (first person: on the gun cam the hand was in the face).
-                    GunPose half = InFront(new Vector3(0.05f, -0.15f, 0.40f), -22f, -6f, 0.2f);
+                    // A pistol closer than a rifle, and the view narrowed onto the work (montage 7: the P220 small in the middle of the picture).
+                    bool pistol = held.Rig.Data.IsPistol;
+                    GunPose half = pistol ? InFront(new Vector3(0.04f, -0.12f, 0.31f), -18f, -6f, 0.2f) : InFront(new Vector3(0.05f, -0.15f, 0.40f), -22f, -6f, 0.2f);
                     Vector3 rear = held.Rig.Data.EyePoint;
                     rec.Mark = "ready";
-                    rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), LookAtHands * 0.8f);
+                    rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), LookAtHands * 0.9f, pistol ? 46f : 54f);
                     yield return Film(rec, 0.25f, u => life.Place(rec, GunPose.Lerp(HipToEye(0.3f, 0f), half, EaseOut(u)), null, off, true));
                     Input.VRInput.SimulatedGrab[side] = false;
                     yield return Film(rec, 0.06f, u => life.Place(rec, half, null, off, false));
