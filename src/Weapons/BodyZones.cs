@@ -168,7 +168,9 @@ namespace RavenfieldVR.Weapons
 
             switch (VRConfig.Pouch.Value)
             {
-                // Each a hand's width from the nearest holster spot, so the holstered weapon and the pouch never overlap.
+                // Each a hand's width from the nearest holster spot's middle. Their grab zones still meet at the rims (the free hand's hip pouch
+                // and the belt-front holster's middles are about 13 cm apart, inside a holster's 20 cm): the pouch takes a squeeze nearer to
+                // it, the holster one nearer to the holster (HolsterNearerThanPouch; holsters scout, 2026-11-08).
                 case PouchLocation.DominantHip: Pouch = Boneworks ? hipSide + TorsoRight * (0.17f * gunSide) : belt + TorsoRight * (0.1f * gunSide); break;
                 case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
                 case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
