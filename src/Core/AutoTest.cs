@@ -3675,6 +3675,42 @@ namespace RavenfieldVR.Core
         }
 
         /// <summary>
+        /// The player put on open ground when a vehicle stands within 3 m of where the checks in front take place: rings of 5 to 25 m round
+        /// him, the first ground with no vehicle within 4 m of its front and nothing in the way 3 m ahead. A note, or null when nothing was near.
+        /// </summary>
+        private static string MoveOffVehicles(Actor player, Rig.VRRig rig)
+        {
+            const int vehicles = 1 << 12;
+            Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
+            if (Physics.OverlapSphere(rig.Head.position + flat * 1f, 3f, vehicles, QueryTriggerInteraction.Ignore).Length == 0)
+            {
+                return null;
+            }
+            Vector3 from = player.transform.position;
+            for (int ring = 1; ring <= 5; ring++)
+            {
+                for (int k = 0; k < 12; k++)
+                {
+                    Vector3 at = from + Quaternion.Euler(0f, k * 30f, 0f) * Vector3.forward * (ring * 5f);
+                    if (!Physics.Raycast(at + Vector3.up * 4f, Vector3.down, out RaycastHit ground, 8f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore)
+                        || ground.rigidbody != null || ground.normal.y < 0.85f)
+                    {
+                        continue;
+                    }
+                    Vector3 eye = ground.point + Vector3.up * 1.5f;
+                    if (Physics.OverlapSphere(eye + flat * 1f, 4f, vehicles, QueryTriggerInteraction.Ignore).Length > 0
+                        || Physics.Raycast(eye, flat, 3f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
+                    {
+                        continue;
+                    }
+                    player.SetPositionAndRotation(ground.point, player.transform.rotation);
+                    return $"a vehicle was where the soldiers are brought: moved {Vector3.Distance(from, ground.point):0} m to open ground first";
+                }
+            }
+            return "a vehicle is where the soldiers are brought, and no open ground was found within 25 m";
+        }
+
+        /// <summary>
         /// Soldiers taken hold of, thrown, punched and more (user, 2026-10-24: "I cannot grab people with my hand and throw them
         /// around", "punch them with parts of my weapons or my hands if they are fists", then "screenshot the boxing and boxing
         /// while holding a gun", "make sure that i cannot grab people while I have a gun equipped", "human shield", "Execution
@@ -3695,6 +3731,14 @@ namespace RavenfieldVR.Core
             {
                 report($"soldier grab: skipped (off hand {(off != null ? off.Role.ToString() : "missing")})");
                 yield break;
+            }
+            // A vehicle where the soldiers are brought: open ground first. Beside island2023's tank every step after the first few failed with
+            // "the soldier could not be brought: 4.5 m from the spot", a shield, a neck, a strap and a drawn gun all NOT HELD (2026-11-08).
+            string movedNote = MoveOffVehicles(player, rig);
+            if (movedNote != null)
+            {
+                report("soldier grab: " + movedNote);
+                yield return new WaitForSecondsRealtime(0.6f);
             }
             var enemies = new List<Actor>();
             foreach (Actor a in ActorManager.instance.actors)
