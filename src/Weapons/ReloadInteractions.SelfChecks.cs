@@ -967,7 +967,7 @@ namespace RavenfieldVR.Weapons
         /// the magazine dropped free (the eject button) as the free hand leaves the handguard, the hand straight down to the pouch,
         /// a fresh magazine taken on the way, up under the well, in with a short slap, let go and away. One smooth curve through
         /// those points (Hermite, its speed carried through each, stopping only at the seat), not ReloadFilm's seven moves that each
-        /// stop dead. <paramref name="frame"/> on every frame; <paramref name="clock"/> times it; 1.3 s at <paramref name="speed"/> 1.
+        /// stop dead. <paramref name="frame"/> on every frame; <paramref name="clock"/> times it; 1.36 s at <paramref name="speed"/> 1.
         /// </summary>
         internal IEnumerator SwapFilm(System.Action<string> report, System.Action<string> frame, System.Func<float> clock = null, RigidPose? startRaw = null, float speed = 1f)
         {
@@ -996,10 +996,12 @@ namespace RavenfieldVR.Weapons
             Vector3 pouch = _sys.Zones.Pouch;
             Quaternion atPouch = Quaternion.Slerp(startPalm.rotation, hand.rotation, 0.5f);
             // The knots (palm poses at seconds of speed 1); the seat is a stop (no speed through it), the rest carry it.
-            var at = new[] { startPalm.position, pouch + Vector3.up * 0.03f, hand.position - insert * 0.17f, hand.position + insert * 0.006f, hand.position - insert * 0.02f + aside * 0.05f - Vector3.up * 0.08f };
-            var turn = new[] { startPalm.rotation, atPouch, hand.rotation, hand.rotation, hand.rotation };
-            var when = new[] { 0f, 0.38f, 0.78f, 0.95f, 1.3f };
-            var stop = new[] { true, false, false, true, true };
+            // Lined up 17 cm under the well, entering at 6 cm, home at 0.4 m/s (pushed at 1 m/s in one go, the XM8's was not taken: montage 2).
+            var at = new[] { startPalm.position, pouch + Vector3.up * 0.03f, hand.position - insert * 0.17f, hand.position - insert * 0.06f, hand.position + insert * 0.006f,
+                             hand.position - insert * 0.02f + aside * 0.05f - Vector3.up * 0.08f };
+            var turn = new[] { startPalm.rotation, atPouch, hand.rotation, hand.rotation, hand.rotation, hand.rotation };
+            var when = new[] { 0f, 0.38f, 0.72f, 0.86f, 1.02f, 1.36f };
+            var stop = new[] { true, false, false, false, true, true };
             Vector3 Tangent(int i) => stop[i] || i == 0 || i == at.Length - 1 ? Vector3.zero : (at[i + 1] - at[i - 1]) / (when[i + 1] - when[i - 1]);
             RigidPose PalmAt(float t)
             {
@@ -1034,7 +1036,7 @@ namespace RavenfieldVR.Weapons
                         VRInput.SimulatedGrab[side] = true;
                         TakeFromPouch(off);
                     }
-                    if (!let && t >= when[3] + 0.06f)
+                    if (!let && t >= when[4] + 0.06f)
                     {
                         let = true;
                         seatedNow = Ammo.MagInserted;
@@ -1042,7 +1044,7 @@ namespace RavenfieldVR.Weapons
                     }
                     VRHand.Scripted[side] = PalmAt(Mathf.Min(t, end)).Multiply(rawFromPalm);
                     yield return new WaitForEndOfFrame();
-                    frame(t < when[1] ? "dropping" : t < when[2] ? "from the pouch" : t < when[3] + 0.06f ? "inserting" : "let go");
+                    frame(t < when[1] ? "dropping" : t < when[2] ? "from the pouch" : t < when[4] + 0.06f ? "inserting" : "let go");
                     if (t >= end)
                     {
                         break;

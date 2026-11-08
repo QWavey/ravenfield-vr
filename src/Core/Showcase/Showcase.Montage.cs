@@ -103,7 +103,7 @@ namespace RavenfieldVR.Core.Showcase
                         off.Role = HandRole.Free;
                     }
                     Runtime.RigidPose? from = Rig.VRHand.Scripted[side];
-                    yield return Choreography(rec, 1.3, held.Reload.SwapFilm(lines.Add, note =>
+                    yield return Choreography(rec, 1.36, held.Reload.SwapFilm(lines.Add, note =>
                     {
                         rec.Mark = note;
                         if (note == "inserting")
