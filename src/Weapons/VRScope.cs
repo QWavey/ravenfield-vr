@@ -87,8 +87,21 @@ namespace RavenfieldVR.Weapons
                     break;
                 }
             }
-            Renderer[] renderers = o.GetComponentsInChildren<Renderer>(true);
-            return parts.Count == 0 && renderers.Length == 0 ? "no image in it" : string.Join("; ", parts.ToArray()) + (renderers.Length > 0 ? $"; {renderers.Length} renderer(s)" : "");
+            // (The vanilla sniper's and RFB's picture is no UI image but a mesh before the camera, its texture the scope as drawn: named too.)
+            foreach (Renderer r in o.GetComponentsInChildren<Renderer>(true))
+            {
+                Material m = r.sharedMaterial;
+                Texture tex = m != null ? m.mainTexture : null;
+                Vector3 size = r is MeshRenderer && r.GetComponent<MeshFilter>()?.sharedMesh is Mesh mesh ? Vector3.Scale(mesh.bounds.size, r.transform.lossyScale) : r.bounds.size;
+                parts.Add($"{r.GetType().Name} '{r.name}' material '{(m != null ? m.name : "none")}' shader '{(m != null && m.shader != null ? m.shader.name : "none")}' "
+                          + $"texture '{(tex != null ? tex.name : "none")}' {(tex != null ? $"{tex.width}x{tex.height}" : "")}{(tex is Texture2D t2r && t2r.isReadable ? " readable" : "")}, "
+                          + $"{size.x:0.###} x {size.y:0.###} x {size.z:0.###} m, {(r.transform.localPosition.magnitude):0.###} m from its holder");
+                if (parts.Count >= 8)
+                {
+                    break;
+                }
+            }
+            return parts.Count == 0 ? "no image in it" : string.Join("; ", parts.ToArray());
         }
 
         /// <summary>A reticle the model draws itself: a material named as one (the mods' "reticle_ui_stencil" on a scope's glass).</summary>
