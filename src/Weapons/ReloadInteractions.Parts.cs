@@ -29,8 +29,9 @@ namespace RavenfieldVR.Weapons
             {
                 _held.Sounds.Play(MechSound.SlideBack, SeatPose.position);
                 // The cases fired since it was last opened fall out (opened again, nothing more falls). A break-action shotgun's
-                // live shells come out with them, back into the reserve: they stayed in, and the gun could not be loaded one
-                // by one (user, 2026-10-22). A revolver's live rounds stay in its cylinder.
+                // live shells come out with them, as a live round racked out of a chamber does: back into the reserve with
+                // LoseRoundOnRack off, lost with it on (the default; AmmoState.TakeLiveShells). They stayed in, and the gun could
+                // not be loaded one by one (user, 2026-10-22). A revolver's live rounds stay in its cylinder.
                 int spent = Ammo.TakeSpentCases();
                 int live = Data.Hinge == HingeKind.BreakAction ? Ammo.TakeLiveShells() : 0;
                 if (spent > 0)

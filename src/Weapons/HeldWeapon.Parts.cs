@@ -533,8 +533,16 @@ namespace RavenfieldVR.Weapons
                     r.enabled = _magLoadedEnabled[i];
                 }
             }
-            Log.InfoOnce("magloaded:" + Rig.Data.Key, $"{Rig.Data.Key}: a magazine with rounds in a gun in its empty pose: drawn as it sits full ({_magLoaded.Length} piece(s)).");
+            if (!_magLoadedSaid)
+            {
+                // (Once a draw: built every frame for as long as the gun stays in its empty pose, the key and the line were garbage each frame
+                // before InfoOnce threw them away; per-frame scout, 2026-11-08.)
+                _magLoadedSaid = true;
+                Log.InfoOnce("magloaded:" + Rig.Data.Key, $"{Rig.Data.Key}: a magazine with rounds in a gun in its empty pose: drawn as it sits full ({_magLoaded.Length} piece(s)).");
+            }
         }
+
+        private bool _magLoadedSaid;
 
         /// <summary>The magazine's pieces (under its parts, not the parts themselves: those the seat and the reload place) as drawn now.</summary>
         private void TakeMagazineLoaded()
