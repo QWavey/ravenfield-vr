@@ -856,9 +856,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>
         /// Autotest film (-rfvr-flashfilm): the off hand pulls the seated magazine out of the well by hand, holds it, and
         /// pushes it back in, the way a player does: the hand a little turned and off the well's line, as a real hand is.
-        /// <paramref name="frame"/> is called on every frame (it films the close-up).
+        /// <paramref name="frame"/> is called on every frame (it films the close-up). <paramref name="clock"/>: the time its moves are
+        /// timed by (real time unless given: the showcase's frame-locked picture pass gives game time, which steps 1/60 s a frame);
+        /// <paramref name="startRaw"/>: where the hand's controller pose starts (the showcase's hand on the handguard), eased into the reach
+        /// instead of jumping to it.
         /// </summary>
-        internal IEnumerator ReloadFilm(System.Action<string> report, System.Action<string> frame)
+        internal IEnumerator ReloadFilm(System.Action<string> report, System.Action<string> frame, System.Func<float> clock = null, RigidPose? startRaw = null)
         {
             if (Data.Action == ActionType.SingleShot && !Ammo.UsesDetachableMag)
             {
@@ -909,13 +912,15 @@ namespace RavenfieldVR.Weapons
             }
             float outBy = railLength + 0.12f;
             System.Func<float, RigidPose> along = d => new RigidPose(hand.position - insert * d, hand.rotation);
-            IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note)
+            float Now() => clock != null ? clock() : Time.unscaledTime;
+            IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note, RigidPose? start = null)
             {
-                float t0 = Time.unscaledTime;
-                for (float k = 0f; k < 1f; k = (Time.unscaledTime - t0) / seconds)
+                float t0 = Now();
+                for (float k = 0f; k < 1f; k = (Now() - t0) / seconds)
                 {
                     float s = k * k * (3f - 2f * k);
-                    VRHand.Scripted[side] = pose(s).Multiply(rawFromPalm);
+                    RigidPose to = pose(s).Multiply(rawFromPalm);
+                    VRHand.Scripted[side] = start.HasValue ? RigidPose.Lerp(start.Value, to, s) : to;
                     yield return new WaitForEndOfFrame();
                     frame(note);
                     yield return null;
@@ -925,7 +930,7 @@ namespace RavenfieldVR.Weapons
             bool pulled = false, seatedAgain = false;
             try
             {
-                yield return Move(s => along(0.12f * (1f - s)), 0.45f, "reaching");
+                yield return Move(s => along(0.12f * (1f - s)), 0.45f, "reaching", startRaw);
                 VRInput.SimulatedGrab[side] = true;
                 if (off.Held == null && Ammo.MagInserted)
                 {

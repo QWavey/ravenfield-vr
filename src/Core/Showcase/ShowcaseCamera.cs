@@ -170,6 +170,25 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
+        /// First person looking at the hands: from the eyes, turned <paramref name="look"/> of the way (0-1) from where the head looks
+        /// to <paramref name="target"/> (a magazine well, the gun's middle), the horizon kept level. The headset's view would show the
+        /// same when the player looks down at their hands; the null headset's head stands still, so the camera turns instead.
+        /// </summary>
+        internal static Shot FirstPersonLook(Vector3 target, float look, float fov = 64f)
+        {
+            Transform h = Head;
+            if (h == null)
+            {
+                return Shot.None;
+            }
+            Vector3 to = target - h.position;
+            Quaternion at = to.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(to, Vector3.up) : h.rotation;
+            float k = Mathf.Clamp01(look);
+            k = k * k * (3f - 2f * k);
+            return new Shot { Valid = true, Name = "first person look", Position = h.position, Rotation = Quaternion.Slerp(h.rotation, at, k), Fov = fov };
+        }
+
+        /// <summary>
         /// First person as the gun comes up: from the head to the sight's own line by <paramref name="aim"/> (0 at the hip, 1 aimed),
         /// so the sights sit in the middle of the picture and the view narrows a little, as aiming does on a flat screen.
         /// </summary>

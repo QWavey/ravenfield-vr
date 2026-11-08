@@ -17,7 +17,7 @@ namespace RavenfieldVR.Core.Showcase
     /// the sound pass (audio.wav, sound.txt); tools/showcase_take.py --mux puts them together. -rfvr-showcase-scenes=a,b picks scenes
     /// (all by default). Test tooling only: nothing of it runs in play.
     /// </summary>
-    internal static class Showcase
+    internal static partial class Showcase
     {
         internal static readonly bool Requested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-showcase", StringComparison.OrdinalIgnoreCase));
 
@@ -30,6 +30,8 @@ namespace RavenfieldVR.Core.Showcase
         private static readonly (string name, Func<Action<string>, IEnumerator> setup, Func<ShowcaseRecorder, Action<string>, IEnumerator> perform)[] Scenes =
         {
             ("pilot", PilotSetup, PilotScene),
+            ("reload", RifleSetup("reload"), ReloadScene),
+            ("inspect", RifleSetup("inspect"), InspectScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
@@ -242,9 +244,91 @@ namespace RavenfieldVR.Core.Showcase
 
         /// <summary>
         /// The gun hand put so the gun's sight sits at <paramref name="aim"/> of the way from the hip to the eye, pointing where the head
-        /// looks (as the autotest's film holds it), with a little sway so it never stands frozen.
+        /// looks (as the autotest's film holds it), with a little sway so it never stands frozen. <paramref name="support"/>: the other
+        /// hand on the handguard.
         /// </summary>
-        private static void HoldGun(float aim, float sway = 1f)
+        private static void HoldGun(float aim, float sway = 1f, bool support = true)
+        {
+            if (VRRig.Instance != null)
+            {
+                GunPose g = HipToEye(aim, sway);
+                PlaceGun(g.At, g.Aim, support);
+            }
+        }
+
+        /// <summary>Where the gun's sight goes and how its sight frame is turned (forward along the sight, up the gun's top).</summary>
+        internal struct GunPose
+        {
+            public Vector3 At;
+            public Quaternion Aim;
+
+            internal GunPose(Vector3 at, Quaternion aim)
+            {
+                At = at;
+                Aim = aim;
+            }
+
+            internal static GunPose Lerp(GunPose a, GunPose b, float k) => new GunPose(Vector3.Lerp(a.At, b.At, k), Quaternion.Slerp(a.Aim, b.Aim, k));
+        }
+
+        /// <summary>The pose of <see cref="HoldGun"/>: from the hip (0) to the sights at the eye (1).</summary>
+        private static GunPose HipToEye(float aim, float sway = 1f)
+        {
+            Transform head = VRRig.Instance.Head;
+            float t = Time.time; // (game time: the same sway in the picture and the sound pass)
+            float k = Ease(aim);
+            // Level, as a gun is held: the whole frame turned (its up to the world's), not only its line; at the hip pointed down a little
+            // (low ready), on the sight level. (Turned by its line alone it kept the hand's cant: the gun cam's horizon rolled 45 degrees.)
+            Vector3 flat = Flat(head.forward);
+            float headPitch = -Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f)) * Mathf.Rad2Deg; // (+ looking down, as Euler's x)
+            float pitch = headPitch + Mathf.Lerp(16f, 0f, k) + Mathf.Sin(t * 1.3f) * 0.6f * sway;
+            float yaw = Mathf.Sin(t * 0.9f + 1f) * 0.8f * sway;
+            Vector3 aimDir = Quaternion.LookRotation(flat, Vector3.up) * Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+            Vector3 hip = head.position + head.right * 0.2f - head.up * 0.28f + head.forward * 0.3f;
+            Vector3 eye = head.position + head.right * 0.032f + head.forward * 0.07f;
+            return new GunPose(Vector3.Lerp(hip, eye, k), Quaternion.LookRotation(aimDir, Vector3.up));
+        }
+
+        /// <summary>
+        /// The gun held where the head looks at it, not along its line: the sight at <paramref name="local"/> (in the head's level
+        /// frame: x right, y up, z ahead), the muzzle turned <paramref name="yaw"/> degrees from straight ahead (minus: to the left,
+        /// across a right-handed player's body) and <paramref name="pitch"/> (minus: up), and the gun's top tipped
+        /// <paramref name="tiltAway"/> (0-1) away from the eyes, so its underside, its magazine well and the hands at it face the
+        /// head. For the scenes that show the hands (a reload, a look over the gun).
+        /// </summary>
+        private static void HoldGunAt(Vector3 local, float yaw, float pitch, float tiltAway, bool support)
+        {
+            if (VRRig.Instance != null)
+            {
+                GunPose g = InFront(local, yaw, pitch, tiltAway);
+                PlaceGun(g.At, g.Aim, support);
+            }
+        }
+
+        /// <summary>The pose of <see cref="HoldGunAt"/>.</summary>
+        private static GunPose InFront(Vector3 local, float yaw, float pitch, float tiltAway)
+        {
+            Transform head = VRRig.Instance.Head;
+            Quaternion level = Quaternion.LookRotation(Flat(head.forward), Vector3.up);
+            Vector3 target = head.position + level * local;
+            Vector3 aimDir = level * Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+            Vector3 away = Flat(target - head.position);
+            Vector3 up = Vector3.ProjectOnPlane(Vector3.up + away * (tiltAway * 1.5f), aimDir);
+            return new GunPose(target, Quaternion.LookRotation(aimDir, up.sqrMagnitude > 1e-6f ? up.normalized : Vector3.up));
+        }
+
+        private static Vector3 Flat(Vector3 v)
+        {
+            v = Vector3.ProjectOnPlane(v, Vector3.up);
+            return v.sqrMagnitude > 1e-6f ? v.normalized : Vector3.forward;
+        }
+
+        /// <summary>
+        /// The gun's sight put at <paramref name="target"/> with its sight frame turned to <paramref name="aimRot"/> (forward along the
+        /// sight, up the gun's top): the gun hand placed from its grip as first measured, the other hand on the handguard where it is to
+        /// be when <paramref name="support"/>.
+        /// </summary>
+        private static void PlaceGun(Vector3 target, Quaternion aimRot, bool support)
         {
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             VRRig rig = VRRig.Instance;
@@ -256,24 +340,10 @@ namespace RavenfieldVR.Core.Showcase
             SightLine sight = held.CurrentSight;
             Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
             Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
-            Transform head = rig.Head;
-            Runtime.RigidPose raw = dom.Raw;
-            float t = Time.unscaledTime;
-            float k = Ease(aim);
-            // Level, as a gun is held: the whole frame turned (its up to the world's), not only its line; at the hip pointed down a little
-            // (low ready), on the sight level. (Turned by its line alone it kept the hand's cant: the gun cam's horizon rolled 45 degrees.)
-            Vector3 flat = Vector3.ProjectOnPlane(head.forward, Vector3.up);
-            flat = flat.sqrMagnitude > 1e-6f ? flat.normalized : Vector3.forward;
-            float headPitch = -Mathf.Asin(Mathf.Clamp(head.forward.y, -1f, 1f)) * Mathf.Rad2Deg; // (+ looking down, as Euler's x)
-            float pitch = headPitch + Mathf.Lerp(16f, 0f, k) + Mathf.Sin(t * 1.3f) * 0.6f * sway;
-            float yaw = Mathf.Sin(t * 0.9f + 1f) * 0.8f * sway;
-            Vector3 aimDir = Quaternion.LookRotation(flat, Vector3.up) * Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
             Vector3 gunFwd = held.Rig.DirToWorld(dirGun).normalized, gunUp = held.Rig.DirToWorld(held.Rig.Data.Up).normalized;
-            Quaternion gunNow = Quaternion.LookRotation(gunFwd, gunUp), aimRot = Quaternion.LookRotation(aimDir, Vector3.up);
-            Vector3 hip = head.position + head.right * 0.2f - head.up * 0.28f + head.forward * 0.3f;
-            Vector3 eye = head.position + head.right * 0.032f + head.forward * 0.07f;
-            Vector3 target = Vector3.Lerp(hip, eye, k);
+            Quaternion gunNow = Quaternion.LookRotation(gunFwd, gunUp);
             Vector3 eyeNow = held.Rig.ToWorld(eyeGun);
+            Runtime.RigidPose raw = dom.Raw;
             // The hand on the gun's grip as it was when first held (in the gun's sight frame), measured once per gun, standing: measured
             // every frame, the hand's offset to the gun carried the gun's one-step lag behind the hand while walking, each frame put the hand
             // right for the last one's lag, and the gun overshot and came back by turns: the gun cam swung 66 px a frame (takes 8-10).
@@ -285,15 +355,40 @@ namespace RavenfieldVR.Core.Showcase
                 _gripRot = inv * raw.rotation;
             }
             Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(target + aimRot * _gripPos, aimRot * _gripRot);
+            _placedSight = new Runtime.RigidPose(target, aimRot);
+            _placedGun = held;
             // The support hand where the handguard is to be (the gun's own geometry, turned to the aim about its sight at the target), not
             // where it is: put on the gun's own handguard, the hand followed every kick and two-handed aim kept it, the gun swung between
             // shots and stood pointing up after the burst (take 6, 2026-11-08).
-            Support(held, rig, target + aimRot * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow)));
+            if (support)
+            {
+                Support(held, rig, target + aimRot * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow)));
+            }
         }
 
-        private static HeldWeapon _gripOf;
+        private static HeldWeapon _gripOf, _placedGun;
         private static Vector3 _gripPos;
         private static Quaternion _gripRot;
+        private static Runtime.RigidPose _placedSight;
+
+        /// <summary>A point of the held gun (its own space) where the scene put the gun this frame (not where physics has it yet).</summary>
+        private static Vector3 PlacedPoint(Vector3 gunPoint)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            if (held == null)
+            {
+                return Vector3.zero;
+            }
+            if (!ReferenceEquals(held, _placedGun))
+            {
+                return held.Rig.ToWorld(gunPoint);
+            }
+            SightLine sight = held.CurrentSight;
+            Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
+            Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
+            Quaternion gunNow = Quaternion.LookRotation(held.Rig.DirToWorld(dirGun).normalized, held.Rig.DirToWorld(held.Rig.Data.Up).normalized);
+            return _placedSight.position + _placedSight.rotation * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(gunPoint) - held.Rig.ToWorld(eyeGun)));
+        }
 
         /// <summary>
         /// A long gun's other hand on its handguard, its grip closed (as the autotest's support checks take it): two-handed, as it is
@@ -445,7 +540,7 @@ namespace RavenfieldVR.Core.Showcase
                     }
                     Vector3 p0 = ground.point;
                     if (Physics.CheckCapsule(p0 + Vector3.up * 0.4f, p0 + Vector3.up * 1.8f, 0.4f, LevelMask, QueryTriggerInteraction.Ignore)
-                        || NearestSpawn(p0) < 25f || !Room(p0, 4f))
+                        || NearestSpawn(p0) < 25f || !Room(p0, 2.5f))
                     {
                         continue;
                     }
@@ -459,7 +554,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             if (bestScore < 0f)
             {
-                return $"NO STAGE FOUND within {far:0} m clear of vehicles: filmed at the spawn";
+                return clear > 30f ? Stage(near, far, 30f) : $"NO STAGE FOUND within {far:0} m clear of vehicles: filmed at the spawn";
             }
             actor.SetPositionAndRotation(best, actor.transform.rotation);
             return $"staged {Vector3.Distance(home, best):0} m from the spawn (view {bestScore:0}), clear of {keepOff.Count} vehicle(s) and spawner(s) by {clear:0} m";
@@ -641,7 +736,7 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
-        /// The pilot (about 8 s, kept simple): walking with the rifle at the hip (the gun cam on the face), raising it (over the
+        /// The pilot (about 6.5 s, kept simple; walk 2.2 s, raise 0.55 s): walking with the rifle at the hip (the gun cam on the face), raising it (over the
         /// shoulder), three single shots through the sights and two from the helmet cam (the camera kicked each time), a burst on the
         /// helmet cam. (The orbit is gone: the user, "the orbit view is not good lets remove that".) For the recorder, the sound's sync
         /// and the cameras.
@@ -654,12 +749,12 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 walkFrom = LocalPlayer.actor.Position();
             Input.VRInput.SimulatedMove = new Vector2(0f, 1f);
             report("showcase pilot: start: " + Facing());
-            yield return Film(rec, 3f, u => HoldGun(0f));
+            yield return Film(rec, 2.2f, u => HoldGun(0f));
             Input.VRInput.SimulatedMove = Vector2.zero;
-            report($"showcase pilot: walked {Vector3.Distance(walkFrom, LocalPlayer.actor.Position()):0.0} m in 3 s; " + Facing());
+            report($"showcase pilot: walked {Vector3.Distance(walkFrom, LocalPlayer.actor.Position()):0.0} m in 2.2 s; " + Facing());
             rec.Mark = "raise";
             rec.Shot = () => ShowcaseCamera.OverShoulder();
-            yield return Film(rec, 1.2f, u => HoldGun(u, 0.6f));
+            yield return Film(rec, 0.55f, u => HoldGun(EaseOut(u), 0.6f));
             int shots = 0;
             for (int k = 0; k < 5; k++)
             {
@@ -674,7 +769,7 @@ namespace RavenfieldVR.Core.Showcase
                 rec.Mark = "shot"; // (the frame a shot leaves: the mux lines the sound up by these)
                 yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire()) { shots++; } });
                 rec.Mark = "shots";
-                yield return Film(rec, 0.3f, u => HoldGun(1f, 0.3f));
+                yield return Film(rec, 0.26f, u => HoldGun(1f, 0.3f));
             }
             report("showcase pilot: after the shots: " + Facing());
             rec.Mark = "burst";

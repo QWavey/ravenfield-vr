@@ -1,0 +1,14 @@
+{
+  "fps": 60,
+  "takes": {"pilot": "reports/shots/showcase/showcase-pilot"},
+  "shots": [
+    {"take": "pilot", "mark": "walk", "in": 50, "out": 150},
+    {"take": "pilot", "mark": "raise", "in": 20, "out": 72},
+    {"take": "pilot", "mark": "shot", "in": 0, "out": 56},
+    {"take": "pilot", "in": 309, "out": 346},
+    {"take": "pilot", "mark": "burst", "in": 0, "out": 96},
+    {"take": "pilot", "mark": "after", "in": 0, "out": 24},
+    {"card": "RAVENFIELD VR", "seconds": 1.6, "tail": 1.2}
+  ],
+  "grade": true
+}

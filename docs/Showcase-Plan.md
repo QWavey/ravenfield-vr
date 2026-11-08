@@ -1,6 +1,6 @@
-# Showcase plan: screenshots and a trailer (planned 2026-11-08, not started)
+# Showcase plan: screenshots and a trailer (planned 2026-11-08; started that night, Tasks 372)
 
-**Status:** plan only. Nothing here runs until the user says so (game runs are paused since 2026-11-08 18:04).
+**Status:** in progress (Tasks 372): the pilot filmed, the reload and inspect scenes written; game runs only when the user says the game is free.
 
 ## What the user asked for
 
@@ -25,6 +25,48 @@
 | Gallery and montage | `tools/showcase.py`, `tools/montage.py`, `tools/seqgif.py` | Index page, picture montage (OpenCV MP4), GIFs |
 | Audio | none | Nothing records sound; the game's music has its own mixer (`Options.musicAudioMixer`) |
 | On the PC | | OpenCV, Pillow, numpy; **no ffmpeg**; OBS Studio installed; Windows' **Bahnschrift** (DIN-style, condensed widths) |
+
+## How it works now (2026-11-08 night; supersedes the approach below where they differ)
+
+- **One clip per game run**, each checked and improved before the next, on different maps where possible (the user: "record
+  things singlely so clips single so every clip is smooth ... also diff maps if possible. check after every clip and improve
+  things dont jump to a new one"). `python -I tools/vrshots.py --showcase SCENE --fast --no-build --timeout 15 [--map MAP]`.
+- **Two passes per scene** from the same spot: the picture pass frame-locked at 60 fps (`Time.captureFramerate`, the clock kept
+  half a physics step off a step's boundary so every frame takes exactly one), then the sound pass in real time recording the live
+  listener (`ShowcaseSoundTap`). `AudioRenderer` stops this game's mixer and is not used. Both passes follow one schedule
+  (`ShowcaseRecorder.Planned`); the sound is lined up by the shots' onsets (within a frame, `showcase_take.py`).
+- **The body** is posed for the cinematic cameras before rendering (`ShowcaseBody`: turned and put under the headset, arms to the
+  gloves, its hands inside them); the player is not knocked over or hurt during the showcase (`Showcase.Steady`).
+- **The gun** is placed from its grip measured once per gun (`PlaceGun`): measured every frame it carried the gun's physics lag and
+  shook while walking. Poses: `HipToEye(aim)` (hip to sights), `InFront(local, yaw, pitch, tiltAway)` (in front of the chest,
+  tipped so the well and the hands at it face the eyes); blended with `GunPose.Lerp`.
+- **Cameras**: gun cam (on the muzzle looking back at the face), over the shoulder, helmet cam (the user's pick), first person through
+  the sights (`FirstPersonAim`), first person looking at the hands (`FirstPersonLook`), close-up on a point of the gun. No orbit (the
+  user: "the orbit view is not good lets remove that"). Third-person cameras stop short of walls and ground.
+- **Stage**: dry, flat ground 30-160 m from the spawn, 45 m (else 30 m) clear of vehicles and vehicle spawners, 25 m from soldiers'
+  spawns, 2.5 m of room; facing the best view (`View`: a 48-degree cone clear for 25 m, ground under the walk, the battle ahead).
+- **Tools**: `showcase_take.py DIR [--mux]` (frames, sound, sync, ping-pong jitter per camera), `showcase_sheet.py DIR` (contact
+  sheet), `trailer.py --marks DIR` (the take's marks as frame ranges), `trailer.py EDIT.json OUT.mp4` (the edit: shots by frame or
+  by mark, hard cuts, the sound cut with its picture and faded 4 ms at each cut, cards with a ring-out tail, the grade),
+  `showcase_clip.py DIR OUT.mp4` (one whole take plus a card).
+- **Pacing** (the user: "the transitioning between views is too slow"): in the scenes, moves are short and quick-then-settling
+  (`EaseOut`: the raise 0.55 s, a present 0.5 s); in the edit, a view is held 0.4-1.7 s, cuts land on a shot's frame.
+
+## Scenes (single clips; written = in code and compiled, filmed = a take checked)
+
+| Scene | What the camera sees | Hands in the picture | State |
+|---|---|---|---|
+| `pilot` (6.5 s) | walk at the hip (gun cam on the face), quick raise (over the shoulder), 3 shots through the sights, 2 and a burst on the helmet cam | the gloves on the gun (first person), the arms on it (third person) | filmed (takes 1-11, clip 02, tight cut 03); now 2.2 s walk, 0.55 s raise |
+| `reload` (5 s) | the rifle brought up in front of the chest, the eyes down on the well; the support hand leaves the handguard, pulls the magazine, holds it (close-up from the gun's side), pushes it home; back on the handguard, up to the sights, 2 shots | the whole time | written |
+| `inspect` (3 s) | the rifle held up and turned over from its right side to its left (first person, looking at it), then up to the sights on the helmet cam, a shot | the whole time | written |
+| `pistol` | drawn from the hip holster, slide racked by the free hand, two-handed aim, shots | yes | to write (the autotest's holster and rack steps) |
+| `grenade` | taken from the chest, the pin pulled by the other hand, thrown; the blast far off | yes | to write (the autotest's grenade checks) |
+| `slowmo` | time slowed, a magazine flies in at real speed | yes | to write (`GameManager.SetTimeScale`) |
+| `scope` | a scoped rifle, its own lens in first person | partly | to write |
+| `brawl` | a soldier grabbed and thrown, a punch | yes | later (needs soldiers brought: the autotest's `Bring`) |
+| mods | MG belt by hand, the M1's clip, the gore mod | yes | after the user picks the mods |
+
+Maps to rotate through (lowercase `-map` names): island2023 (pilot), then dustbowl, temple, coastline, mountains, canyon, eagle base.
 
 ## Approach
 
