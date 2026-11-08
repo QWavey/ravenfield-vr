@@ -44,11 +44,16 @@ namespace RavenfieldVR.Core.Showcase
         {
             string[] picked = Picked();
             Steady = true;
-            foreach ((string name, Func<Action<string>, IEnumerator> setup, Func<ShowcaseRecorder, Action<string>, IEnumerator> perform) in Scenes)
+            foreach ((string name, Func<Action<string>, IEnumerator> setup, Func<ShowcaseRecorder, Action<string>, IEnumerator> perform) in Scenes.Concat(MontageScenes()))
             {
-                if (picked.Length > 0 && !picked.Contains(name, StringComparer.OrdinalIgnoreCase))
+                // A scene by its name, or a group by its first word ("montage": every beat of the montage).
+                if (picked.Length > 0 && !picked.Any(p => name.Equals(p, StringComparison.OrdinalIgnoreCase) || name.StartsWith(p + "-", StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
+                }
+                if (picked.Length == 0 && name.StartsWith("montage-", StringComparison.Ordinal))
+                {
+                    continue; // (the montage only when asked: it changes the loadout gun by gun)
                 }
                 Exception failed = null;
                 yield return Guarded(setup(report), e => failed = e);

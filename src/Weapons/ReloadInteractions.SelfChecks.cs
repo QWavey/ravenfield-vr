@@ -962,6 +962,110 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Showcase film (-rfvr-showcase): the reload as a VR player does it, in one flowing move (the user, on the first reload clip:
+        /// "it kindoff stutters and isnt smooth ... and also doenst look so natural because vr players would have done it diffrent"):
+        /// the magazine dropped free (the eject button) as the free hand leaves the handguard, the hand straight down to the pouch,
+        /// a fresh magazine taken on the way, up under the well, in with a short slap, let go and away. One smooth curve through
+        /// those points (Hermite, its speed carried through each, stopping only at the seat), not ReloadFilm's seven moves that each
+        /// stop dead. <paramref name="frame"/> on every frame; <paramref name="clock"/> times it; 1.3 s at <paramref name="speed"/> 1.
+        /// </summary>
+        internal IEnumerator SwapFilm(System.Action<string> report, System.Action<string> frame, System.Func<float> clock = null, RigidPose? startRaw = null, float speed = 1f)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesDetachableMag || Ammo.BoxLocked || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
+            {
+                report("swap film: skipped (no detachable magazine by hand, or the hand is busy)");
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose palm0 = off.Palm, raw0 = off.Raw;
+            RigidPose rawFromPalm = palm0.Inverse().Multiply(raw0);
+            MagazineProp probe = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            probe.RailDepth = probe.RailLength;
+            RigidPose seated = probe.RailPose(SeatPose);
+            RigidPose holding = seated.Multiply(probe.HoldPose(off).Inverse().Multiply(palm0));
+            Vector3 insert = SeatPose.TransformDirection(probe.InsertDirLocal);
+            probe.Destroy();
+            Vector3 aside = Vector3.Cross(insert, Rig.AimWorld).normalized;
+            RigidPose hand = new RigidPose(holding.position + aside * 0.012f, Quaternion.AngleAxis(12f, insert) * holding.rotation);
+            for (int k = 0; k < 25 && _held.InsideDrawnGun(hand.position); k++)
+            {
+                hand = new RigidPose(hand.position - insert * 0.01f, hand.rotation);
+            }
+            RigidPose startPalm = startRaw.HasValue ? startRaw.Value.Multiply(rawFromPalm.Inverse()) : palm0;
+            Vector3 pouch = _sys.Zones.Pouch;
+            Quaternion atPouch = Quaternion.Slerp(startPalm.rotation, hand.rotation, 0.5f);
+            // The knots (palm poses at seconds of speed 1); the seat is a stop (no speed through it), the rest carry it.
+            var at = new[] { startPalm.position, pouch + Vector3.up * 0.03f, hand.position - insert * 0.17f, hand.position + insert * 0.006f, hand.position - insert * 0.02f + aside * 0.05f - Vector3.up * 0.08f };
+            var turn = new[] { startPalm.rotation, atPouch, hand.rotation, hand.rotation, hand.rotation };
+            var when = new[] { 0f, 0.38f, 0.78f, 0.95f, 1.3f };
+            var stop = new[] { true, false, false, true, true };
+            Vector3 Tangent(int i) => stop[i] || i == 0 || i == at.Length - 1 ? Vector3.zero : (at[i + 1] - at[i - 1]) / (when[i + 1] - when[i - 1]);
+            RigidPose PalmAt(float t)
+            {
+                int i = 0;
+                while (i < when.Length - 2 && t > when[i + 1])
+                {
+                    i++;
+                }
+                float dt = when[i + 1] - when[i];
+                float u = Mathf.Clamp01((t - when[i]) / dt), u2 = u * u, u3 = u2 * u;
+                Vector3 p = (2f * u3 - 3f * u2 + 1f) * at[i] + (u3 - 2f * u2 + u) * dt * Tangent(i) + (-2f * u3 + 3f * u2) * at[i + 1] + (u3 - u2) * dt * Tangent(i + 1);
+                return new RigidPose(p, Quaternion.Slerp(turn[i], turn[i + 1], u * u * (3f - 2f * u)));
+            }
+            float Now() => clock != null ? clock() : Time.unscaledTime;
+            float t0 = Now(), end = when[when.Length - 1];
+            bool ejected = false, took = false, seatedNow = false, let = false;
+            try
+            {
+                for (float t = 0f; ; t = (Now() - t0) * speed)
+                {
+                    if (!ejected)
+                    {
+                        ejected = true;
+                        if (Ammo.MagInserted)
+                        {
+                            EjectMagazine(); // (the eject button: the magazine drops out of the well)
+                        }
+                    }
+                    if (!took && t >= when[1])
+                    {
+                        took = true;
+                        VRInput.SimulatedGrab[side] = true;
+                        TakeFromPouch(off);
+                    }
+                    if (!let && t >= when[3] + 0.06f)
+                    {
+                        let = true;
+                        seatedNow = Ammo.MagInserted;
+                        VRInput.SimulatedGrab[side] = false;
+                    }
+                    VRHand.Scripted[side] = PalmAt(Mathf.Min(t, end)).Multiply(rawFromPalm);
+                    yield return new WaitForEndOfFrame();
+                    frame(t < when[1] ? "dropping" : t < when[2] ? "from the pouch" : t < when[3] + 0.06f ? "inserting" : "let go");
+                    if (t >= end)
+                    {
+                        break;
+                    }
+                    yield return null;
+                }
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            if (off.Held is MagazineProp left)
+            {
+                Ammo.ReturnSpare(left.Rounds); // (not seated: back into the pouch, as ReloadFilm does)
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            report($"swap film: {(ejected ? "the magazine dropped" : "NOTHING DROPPED")}, {(took ? "a fresh one from the pouch" : "NOTHING TAKEN from the pouch")}, "
+                   + $"{(seatedNow ? "seated" : "NOT SEATED")}");
+        }
+
+        /// <summary>
         /// Showcase film (-rfvr-showcase): the free hand racks the gun as a player does: reaches the rack part (slide, bolt, charging
         /// handle; from <paramref name="startRaw"/>, eased), takes it, pulls the whole stroke back and lets go at the back, so it goes
         /// home on its spring (a hand-driven bolt is pushed home by the hand), and the hand comes away. <paramref name="frame"/> is

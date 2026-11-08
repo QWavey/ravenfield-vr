@@ -1,0 +1,19 @@
+{
+  "fps": 60,
+  "takes": {"pistol": "showcase/takes/pistol-*"},
+  "shots": [
+    {"take": "pistol", "mark": "reach", "in": 4},
+    {"take": "pistol", "mark": "draw"},
+    {"take": "pistol", "mark": "up", "in": 6},
+    {"take": "pistol", "mark": "rack reaching", "in": 8},
+    {"take": "pistol", "mark": "rack taking"},
+    {"take": "pistol", "mark": "rack pulling back"},
+    {"take": "pistol", "mark": "rack let go", "in": 0, "out": 12},
+    {"take": "pistol", "mark": "aim", "in": 0, "out": 24},
+    {"take": "pistol", "shot": 0, "pre": 0, "post": 13},
+    {"take": "pistol", "shot": 1, "pre": 0, "post": 13},
+    {"take": "pistol", "shot": 2, "pre": 0, "post": 30},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}
