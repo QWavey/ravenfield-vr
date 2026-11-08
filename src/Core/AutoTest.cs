@@ -5893,7 +5893,11 @@ namespace RavenfieldVR.Core
             }
             Transform head = rig.Head;
             Vector3 fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
-            Vector3 start = head.position + fwd * 0.5f - Vector3.up * 0.2f;
+            // On the free hand's side, clear of the gun: 50 cm in front of the head is where the gun is held, and since loose magazines meet
+            // the gun (Tasks 351) the magazine was dropped onto it and stopped there ("0.11 m/s across ... HUNG IN THE AIR", 2026-11-08: slower
+            // than even the slowed world's pace).
+            Vector3 side = Vector3.Cross(Vector3.up, fwd).normalized * (rig.Off.IsLeft ? -1f : 1f);
+            Vector3 start = head.position + fwd * 0.5f + side * 0.45f - Vector3.up * 0.2f;
             if (Physics.Raycast(start, fwd, 1.2f, ~0, QueryTriggerInteraction.Ignore) || !Physics.Raycast(start, Vector3.down, out RaycastHit floor, 4f, ~0, QueryTriggerInteraction.Ignore)
                 || floor.distance < 0.8f)
             {
