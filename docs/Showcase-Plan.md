@@ -45,6 +45,8 @@
   user: "the orbit view is not good lets remove that"). Third-person cameras stop short of walls and ground.
 - **Stage**: dry, flat ground 30-160 m from the spawn, 45 m (else 30 m) clear of vehicles and vehicle spawners, 25 m from soldiers'
   spawns, 2.5 m of room; facing the best view (`View`: a 48-degree cone clear for 25 m, ground under the walk, the battle ahead).
+- **Stills**: 3840x2160 PNGs at each scene's beats (the recorder's `Still`), gathered by `showcase_stills.py` into `showcase/stills/` with a sheet.
+- **Takes kept**: every showcase run's takes in `showcase/takes/<scene>-<map>-<date>-<time>`, checked there; edits name takes by pattern (the newest).
 - **Tools**: `showcase_take.py DIR [--mux]` (frames, sound, sync, ping-pong jitter per camera), `showcase_sheet.py DIR` (contact
   sheet), `trailer.py --marks DIR` (the take's marks as frame ranges), `trailer.py EDIT.json OUT.mp4` (the edit: shots by frame or
   by mark, hard cuts, the sound cut with its picture and faded 4 ms at each cut, cards with a ring-out tail, the grade),
@@ -57,11 +59,11 @@
 | Scene | What the camera sees | Hands in the picture | State |
 |---|---|---|---|
 | `pilot` (6.5 s) | walk at the hip (gun cam on the face), quick raise (over the shoulder), 3 shots through the sights, 2 and a burst on the helmet cam | the gloves on the gun (first person), the arms on it (third person) | filmed (takes 1-11, clip 02, tight cut 03); now 2.2 s walk, 0.55 s raise |
-| `reload` (5 s) | the rifle brought up in front of the chest, the eyes down on the well; the support hand leaves the handguard, pulls the magazine, holds it (close-up from the gun's side), pushes it home; back on the handguard, up to the sights, 2 shots | the whole time | written |
+| `reload` (6 s) | the rifle brought up in front of the chest, the eyes down on the well; the support hand leaves the handguard, pulls the magazine, holds it (close-up from the gun's side), pushes it home; the charging handle racked by hand; back on the handguard, up to the sights (the view rising from the look), 2 shots | the whole time | written |
 | `inspect` (3 s) | the rifle held up and turned over from its right side to its left (first person, looking at it), then up to the sights on the helmet cam, a shot | the whole time | written |
-| `pistol` | drawn from the hip holster, slide racked by the free hand, two-handed aim, shots | yes | to write (the autotest's holster and rack steps) |
-| `grenade` | taken from the chest, the pin pulled by the other hand, thrown; the blast far off | yes | to write (the autotest's grenade checks) |
-| `slowmo` | time slowed, a magazine flies in at real speed | yes | to write (`GameManager.SetTimeScale`) |
+| `pistol` (4.5 s) | drawn from the hip holster (a hip camera), brought to the chest, the slide racked by the free hand, cupped two-handed up to the sights, 3 shots (the last on the helmet cam) | yes | written |
+| `grenade` (5 s + fuse) | the free hand takes a grenade beside the rifle (the mod's second weapon), pin, wind-up beside the head (helmet cam on that side), a live throw, followed out to the blast | yes | written |
+| `slowmo` (7 s) | a burst on the helmet cam slowing to a fifth (the game's own slow motion, its sound sinking too) beside the receiver, the cases drifting; the magazine changed at full speed in the slowed world; time back, a shot | yes | written |
 | `scope` | a scoped rifle, its own lens in first person | partly | to write |
 | `brawl` | a soldier grabbed and thrown, a punch | yes | later (needs soldiers brought: the autotest's `Bring`) |
 | mods | MG belt by hand, the M1's clip, the gore mod | yes | after the user picks the mods |
