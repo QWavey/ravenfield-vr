@@ -193,9 +193,29 @@ namespace RavenfieldVR.Weapons
             // back and forth plays" on a pull could not be traced to a clip; 2026-11-08).
             Log.Guard("sound list", () =>
             {
-                if (rig?.Data == null || rig.Data.Cues.Count == 0)
+                if (rig?.Data == null)
                 {
                     return;
+                }
+                string Describe(SoundCue c)
+                {
+                    if (c.Kind == CueKind.ClipSlice && c.Clip != null)
+                    {
+                        return $"'{c.Clip.name}' {c.Start:0.00}+{c.Length:0.00} s";
+                    }
+                    if (c.Clips != null && c.Clips.Length > 0)
+                    {
+                        var names = new List<string>();
+                        foreach (AudioClip x in c.Clips)
+                        {
+                            if (x != null)
+                            {
+                                names.Add($"'{x.name}' {x.length:0.00} s");
+                            }
+                        }
+                        return string.Join("/", names.ToArray());
+                    }
+                    return c.ToString();
                 }
                 var bound = new List<string>();
                 foreach (KeyValuePair<MechSound, List<SoundCue>> kv in rig.Data.Cues)
@@ -203,30 +223,22 @@ namespace RavenfieldVR.Weapons
                     var clips = new List<string>();
                     foreach (SoundCue c in kv.Value)
                     {
-                        if (c.Kind == CueKind.ClipSlice && c.Clip != null)
-                        {
-                            clips.Add($"'{c.Clip.name}' {c.Start:0.00}+{c.Length:0.00} s");
-                        }
-                        else if (c.Clips != null && c.Clips.Length > 0)
-                        {
-                            var names = new List<string>();
-                            foreach (AudioClip x in c.Clips)
-                            {
-                                if (x != null)
-                                {
-                                    names.Add($"'{x.name}' {x.length:0.00} s");
-                                }
-                            }
-                            clips.Add(string.Join("/", names.ToArray()));
-                        }
-                        else
-                        {
-                            clips.Add(c.ToString());
-                        }
+                        clips.Add(Describe(c));
                     }
                     bound.Add($"{kv.Key} {string.Join(" + ", clips.ToArray())}");
                 }
-                Log.InfoOnce("soundlist:" + rig.Data.Key, $"{rig.Data.Key}: its own sounds: {string.Join("; ", bound.ToArray())}.");
+                // And what a vanilla gun lends it for the hand's main actions it has no sound of its own for (most guns' slide).
+                var lent = new List<string>();
+                foreach (MechSound k in new[] { MechSound.SlideBack, MechSound.SlideForward, MechSound.MagOut, MechSound.MagIn })
+                {
+                    SoundCue donor = rig.Data.Cues.ContainsKey(k) ? null : SoundDonors.Find(rig.Data, k);
+                    if (donor != null)
+                    {
+                        lent.Add($"{k} {Describe(donor)}");
+                    }
+                }
+                Log.InfoOnce("soundlist:" + rig.Data.Key, $"{rig.Data.Key}: its own sounds: {(bound.Count > 0 ? string.Join("; ", bound.ToArray()) : "none")}"
+                                                           + (lent.Count > 0 ? $"; lent: {string.Join("; ", lent.ToArray())}" : "") + ".");
             });
         }
 
