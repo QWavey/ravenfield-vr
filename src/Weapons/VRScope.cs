@@ -564,7 +564,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Shows or hides the lens (a magnifier's lens only while its sight mode is selected).</summary>
         public void SetShown(bool shown)
         {
-            if (_shown == shown)
+            if (_shown == shown || _root == null) // (destroyed: nothing to show; a destroyed lens drawn threw every frame)
             {
                 return;
             }
@@ -578,7 +578,7 @@ namespace RavenfieldVR.Weapons
 
         public void BeforeRender(bool aiming)
         {
-            if (!_shown)
+            if (!_shown || _root == null)
             {
                 return;
             }
