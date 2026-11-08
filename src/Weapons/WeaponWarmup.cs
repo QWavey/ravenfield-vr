@@ -116,7 +116,8 @@ namespace RavenfieldVR.Weapons
             {
                 () => data = WeaponAnalyzer.Get(weapon, entry),
                 () => cut = PrefitShape(weapon, data, entry),
-                () => BoltPiece.PrewarmSnapped(cut) // (null: nothing to cut)
+                () => BoltPiece.PrewarmSnapped(cut), // (null: nothing to cut)
+                () => VRScope.WarmPicture(weapon, data) // (a scoped gun's 2D picture read once on the GPU, here and not on its first scoped draw)
             };
             if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
             {
