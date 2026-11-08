@@ -730,6 +730,15 @@ namespace RavenfieldVR.Weapons
             report($"pin pulled: {(LastLiveCount > 0 ? "live grenade thrown" : "NO GRENADE THROWN")}");
             // In slow motion (0.2) the same throw: with SlowMotionHands Normal it flies at the throw's speed in real time until it lands (it went
             // at a fifth of it and dropped near the feet; 2026-11-08).
+            // (One to throw: after the dud and the live one the pouch can be out, and the check ended without a word; 2026-11-08.)
+            if (weapon.ammo == 0 && !weapon.HasSpareAmmo())
+            {
+                weapon.ammo = 1;
+            }
+            else if (weapon.ammo == 0)
+            {
+                weapon.InstantlyReload();
+            }
             until = Time.realtimeSinceStartup + 3f;
             while (!weapon.CanFire() && Time.realtimeSinceStartup < until)
             {
@@ -737,6 +746,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!weapon.CanFire() || VRConfig.SlowedHands || Time.timeScale < 0.999f)
             {
+                report($"pin pulled, slow motion: skipped ({(VRConfig.SlowedHands ? "slowed hands" : Time.timeScale < 0.999f ? "already slowed" : "the game does not let one be thrown")})");
                 yield break;
             }
             float scaleBefore = Time.timeScale;
