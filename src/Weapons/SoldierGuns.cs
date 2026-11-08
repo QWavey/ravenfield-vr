@@ -121,7 +121,7 @@ namespace RavenfieldVR.Weapons
                 // it does not take it; round-3 skeptic, 2026-10-28.)
                 if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
                     && hand.BodyRelativeVelocity.sqrMagnitude <= SwingSpeed * SwingSpeed
-                    && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(soldier, palm))
+                    && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(palm))
                 {
                     bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(i, hand, soldier, gun) : Wrest(i, hand, soldier, gun);
                     if (done)
@@ -212,15 +212,22 @@ namespace RavenfieldVR.Weapons
 
         private static readonly Collider[] Near = new Collider[32];
 
-        /// <summary>How far a point is from the nearest of a soldier's own colliders (his body, arms, hands), or infinity past the reach.</summary>
-        private static float BodyDistance(Actor soldier, Vector3 point)
+        /// <summary>
+        /// How far a point is from the nearest of any soldier's own colliders (his body, arms, hands; not the player's), or infinity past the
+        /// reach: a gun is taken only where it is nearer than any of
+        /// them. Measured against the gun's own owner only, a palm on one soldier's neck took another's gun 6 cm away (soldier grab scout,
+        /// 2026-11-08: the neck hold from behind with his friend's rifle beside it).
+        /// </summary>
+        private static float BodyDistance(Vector3 point)
         {
             float best = float.PositiveInfinity;
+            Actor player = Util.GameContext.PlayerActor;
             int n = Physics.OverlapSphereNonAlloc(point, Reach + 0.05f, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
             for (int k = 0; k < n; k++)
             {
                 Collider c = Near[k];
-                if (c != null && BodyGrab.HurtableOf(c) == soldier)
+                Hurtable whose = c != null ? BodyGrab.HurtableOf(c) : null;
+                if (whose != null && !ReferenceEquals(whose, player))
                 {
                     best = Mathf.Min(best, (c.ClosestPoint(point) - point).magnitude);
                 }
