@@ -1,0 +1,33 @@
+{
+  "fps": 60,
+  "takes": {
+    "pilot": "showcase/takes/pilot-*",
+    "reload": "showcase/takes/reload-*",
+    "pistol": "showcase/takes/pistol-*",
+    "inspect": "showcase/takes/inspect-*",
+    "grenade": "showcase/takes/grenade-*"
+  },
+  "shots": [
+    {"take": "reload", "mark": "pushing in"},
+    {"take": "reload", "mark": "seated"},
+    {"take": "reload", "mark": "rack pulling back"},
+    {"take": "reload", "mark": "rack let go", "in": 0, "out": 10},
+    {"card": "RAVENFIELD VR", "seconds": 1.3, "tail": 0.8},
+    {"take": "pilot", "mark": "walk", "in": 40, "out": 120},
+    {"take": "pilot", "mark": "raise"},
+    {"take": "pilot", "shot": 0, "pre": 0, "post": 30},
+    {"take": "pistol", "mark": "reach"},
+    {"take": "pistol", "mark": "draw"},
+    {"take": "pistol", "mark": "rack pulling back"},
+    {"take": "pistol", "mark": "rack let go", "in": 0, "out": 12},
+    {"take": "pistol", "shot": 0, "pre": 0, "post": 24},
+    {"take": "inspect", "mark": "turn", "in": 20, "out": 80},
+    {"take": "grenade", "mark": "pin"},
+    {"take": "grenade", "mark": "wind up"},
+    {"take": "grenade", "mark": "throw"},
+    {"take": "grenade", "mark": "blast", "in": 0, "out": 70},
+    {"take": "pilot", "mark": "burst", "in": 0, "out": 80},
+    {"card": "RAVENFIELD VR", "sub": "a vr mod for ravenfield", "seconds": 2.0, "tail": 1.2}
+  ],
+  "grade": true
+}

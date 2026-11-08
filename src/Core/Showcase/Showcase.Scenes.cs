@@ -74,7 +74,7 @@ namespace RavenfieldVR.Core.Showcase
             VRHand off = rig.Off;
             int side = (int)off.Side;
             Input.VRInput.SimulatedGrab[side] = false;
-            rec.Mark = "let go";
+            rec.Mark = "release"; // (not "let go": the reload's own last move is called that)
             yield return Film(rec, 0.12f, u => HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false));
             if (off.Role != HandRole.Free)
             {
