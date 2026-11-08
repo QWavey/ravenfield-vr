@@ -311,6 +311,167 @@ namespace RavenfieldVR.Core.Showcase
                    + $"{(blown ? "went off in the picture" : "DID NOT GO OFF IN THE PICTURE")}");
         }
 
+        /// <summary>
+        /// A pistol for the pistol scene: by name first, else the first secondary that is a pistol (6-21 rounds, not automatic, no
+        /// pair), put in its slot. Its name and slot, or null.
+        /// </summary>
+        private static (string name, int slot)? GiveSidearm(params string[] prefer)
+        {
+            Actor actor = LocalPlayer.actor;
+            if (actor == null || WeaponManager.instance == null)
+            {
+                return null;
+            }
+            WeaponManager.WeaponEntry pick = null;
+            foreach (string name in prefer)
+            {
+                pick = WeaponManager.instance.allWeapons.Find(e => e != null && e.prefab != null && string.Equals(e.name, name, StringComparison.OrdinalIgnoreCase));
+                if (pick != null)
+                {
+                    break;
+                }
+            }
+            if (pick == null)
+            {
+                pick = WeaponManager.instance.allWeapons.Find(e =>
+                {
+                    Weapon w = e != null && e.prefab != null ? e.prefab.GetComponent<Weapon>() : null;
+                    return w != null && !(w is MeleeWeapon) && !(w is ThrowableWeapon) && e.slot == WeaponManager.WeaponSlot.Secondary && w.configuration != null
+                           && !w.configuration.auto && w.configuration.ammo >= 6 && w.configuration.ammo <= 21
+                           && e.name.IndexOf("akimbo", StringComparison.OrdinalIgnoreCase) < 0;
+                });
+            }
+            if (pick == null)
+            {
+                return null;
+            }
+            int slot = Mathf.Clamp((int)pick.slot, 0, actor.weapons.Length - 1);
+            actor.EquipNewWeaponEntry(pick, slot, true);
+            return (pick.name, slot);
+        }
+
+        private static int _sidearmSlot = -1;
+
+        /// <summary>The pistol scene's setup: the stage, the best view, a pistol in its slot and nothing in the hands.</summary>
+        private static IEnumerator PistolSetup(Action<string> report)
+        {
+            report("showcase pistol: " + Stage());
+            yield return new WaitForSecondsRealtime(1.2f);
+            report($"showcase pistol: turned {FaceOpen():0} degrees to the best view");
+            GiveRifle("PATRIOT", "RK-44");
+            (string name, int slot)? pistol = GiveSidearm("SL-DEFENDER", "76 EAGLE");
+            if (pistol == null)
+            {
+                throw new InvalidOperationException("no pistol among the game's weapons");
+            }
+            _sidearmSlot = pistol.Value.slot;
+            report($"showcase pistol: {pistol.Value.name} in slot {pistol.Value.slot}");
+            yield return Draw(_sidearmSlot); // (drawn once so its grip and rack point are measured before the take)
+            LocalPlayer.actor.HolsterActiveWeapon();
+            yield return new WaitForSecondsRealtime(0.8f);
+        }
+
+        /// <summary>
+        /// The pistol (about 4.5 s): the hand goes down to the hip and draws (a camera at the hip), the pistol comes up to the chest and
+        /// the free hand racks its slide (first person, looking at it), both hands close on it and it comes up to the sights, three
+        /// quick shots (through the sights, then the helmet cam).
+        /// </summary>
+        private static IEnumerator PistolScene(ShowcaseRecorder rec, Action<string> report)
+        {
+            Actor actor = LocalPlayer.actor;
+            VRRig rig = VRRig.Instance;
+            WeaponSystem sys = WeaponSystem.Instance;
+            if (actor == null || rig == null || sys == null || _sidearmSlot < 0)
+            {
+                report("showcase pistol: NO PISTOL");
+                yield break;
+            }
+            VRHand dom = rig.Dominant;
+            int side = (int)dom.Side;
+            float sign = dom.IsLeft ? -1f : 1f;
+            Transform head = rig.Head;
+            Quaternion level = Quaternion.LookRotation(Flat(head.forward), Vector3.up);
+            Vector3 holster = head.position + level * new Vector3(0.21f * sign, -0.78f, -0.02f);
+            Quaternion down = level * Quaternion.Euler(70f, 0f, 0f); // (the hand pointing down at the holster)
+            Runtime.RigidPose startRaw = Rig.VRHand.Scripted[side] ?? dom.Raw;
+            Vector3 camAt = holster + level * new Vector3(0.28f * sign, 0.22f, 0.62f);
+            rec.Start();
+
+            // Down to the holster (0.3 s), seen from beside the hip.
+            rec.Mark = "reach";
+            rec.Shot = () => ShowcaseCamera.Fixed(camAt, holster + Vector3.up * 0.15f, 52f, "hip cam");
+            yield return Film(rec, 0.3f, u => Rig.VRHand.Scripted[side] = new Runtime.RigidPose(Vector3.Lerp(startRaw.position, holster, EaseOut(u)),
+                Quaternion.Slerp(startRaw.rotation, down, EaseOut(u))));
+            // Drawn: the grip closed on the holster (the game's own draw of that slot), held until the pistol is in the hand.
+            rec.Mark = "draw";
+            Input.VRInput.SimulatedGrab[side] = true;
+            actor.SwitchWeapon(_sidearmSlot);
+            yield return Film(rec, 0.2f, u => Rig.VRHand.Scripted[side] = new Runtime.RigidPose(holster + Vector3.up * 0.06f * u, down));
+            HeldWeapon held = sys.Held;
+            if (held == null || !held.Rig.Data.IsPistol)
+            {
+                report($"showcase pistol: THE PISTOL IS NOT IN THE HAND ({(held != null ? held.Weapon.name : "nothing held")})");
+                yield break;
+            }
+            Vector3 slide = Vector3.Lerp(held.Rig.Data.EyePoint, held.Rig.Data.MuzzlePoint, 0.4f);
+
+            // Up to the chest, the eyes on it (0.35 s); the free hand racks the slide (0.93 s).
+            GunPose chest = InFront(new Vector3(0.06f * sign, -0.22f, 0.32f), -18f * sign, -8f, 0.25f);
+            Runtime.RigidPose drawnAt = Rig.VRHand.Scripted[side].Value;
+            rec.Mark = "up";
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(slide), 0.75f);
+            yield return Film(rec, 0.35f, u =>
+            {
+                PlaceGun(chest.At, chest.Aim, false);
+                Rig.VRHand.Scripted[side] = Runtime.RigidPose.Lerp(drawnAt, Rig.VRHand.Scripted[side].Value, EaseOut(u));
+            });
+            var lines = new System.Collections.Generic.List<string>();
+            int offSide = (int)rig.Off.Side;
+            Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[offSide] ?? rig.Off.Raw;
+            rec.Planned += 0.93;
+            yield return held.Reload.RackFilm(lines.Add, note =>
+            {
+                lastOff = Rig.VRHand.Scripted[offSide] ?? lastOff;
+                rec.Mark = "rack " + note;
+                KeepAlive();
+                PlaceGun(chest.At, chest.Aim, false);
+                rec.TakeFrame();
+            }, () => Time.time, lastOff);
+            report("showcase pistol: " + string.Join("; ", lines.ToArray()));
+
+            // Both hands on it and up to the sights (0.4 s): the free hand cups the grip.
+            PistolCup = true;
+            float aim = 0f;
+            rec.Mark = "aim";
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim);
+            Runtime.RigidPose? cupFrom = lastOff;
+            yield return Film(rec, 0.4f, u =>
+            {
+                aim = EaseOut(u);
+                GunPose g = GunPose.Lerp(chest, HipToEye(1f, 0.3f), aim);
+                PlaceGun(g.At, g.Aim, true);
+                if (cupFrom.HasValue && Rig.VRHand.Scripted[offSide].HasValue)
+                {
+                    Rig.VRHand.Scripted[offSide] = Runtime.RigidPose.Lerp(cupFrom.Value, Rig.VRHand.Scripted[offSide].Value, Ease(u));
+                }
+            });
+            int shots = 0;
+            for (int k = 0; k < 3; k++)
+            {
+                if (k == 2)
+                {
+                    rec.Shot = () => ShowcaseCamera.HelmetCam();
+                }
+                rec.Mark = "shot";
+                yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire(0.26f)) { shots++; } });
+                rec.Mark = "shots";
+                yield return Film(rec, 0.2f, u => HoldGun(1f, 0.3f));
+            }
+            yield return Film(rec, 0.35f, u => HoldGun(1f, 0.3f));
+            PistolCup = false;
+            report($"showcase pistol: drawn, racked, {shots} shot(s)");
+        }
+
         /// <summary>Fast in, slow out: a hand bringing something somewhere (a raise is quick, then settles).</summary>
         private static float EaseOut(float u)
         {

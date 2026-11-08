@@ -33,6 +33,7 @@ namespace RavenfieldVR.Core.Showcase
             ("reload", RifleSetup("reload"), ReloadScene),
             ("inspect", RifleSetup("inspect"), InspectScene),
             ("grenade", RifleSetup("grenade"), GrenadeScene),
+            ("pistol", PistolSetup, PistolScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
@@ -372,6 +373,9 @@ namespace RavenfieldVR.Core.Showcase
             }
         }
 
+        /// <summary>The pistol scene's two-handed hold: the free hand cups the pistol's grip.</summary>
+        private static bool PistolCup;
+
         private static HeldWeapon _gripOf, _placedGun;
         private static Vector3 _gripPos;
         private static Quaternion _gripRot;
@@ -403,9 +407,10 @@ namespace RavenfieldVR.Core.Showcase
         private static void Support(HeldWeapon held, VRRig rig, Vector3 at)
         {
             VRHand off = rig.Off;
-            if (!held.Rig.Data.HasSupportPoint || held.Rig.Data.IsPistol || off == null)
+            bool pistol = held.Rig.Data.IsPistol;
+            if (off == null || (pistol ? !PistolCup : !held.Rig.Data.HasSupportPoint))
             {
-                return;
+                return; // (a pistol's cup only when the scene asks: its point is estimated where the gun has no left-hand bone)
             }
             int side = (int)off.Side;
             Vector3 palmToRaw = off.Raw.position - off.Palm.position;
