@@ -118,13 +118,15 @@ namespace RavenfieldVR.Weapons
         internal static bool Pick(MechSound kind, WeaponRigData d, out GameSlice slice)
         {
             bool picked = PickGuarded(kind, d, out slice);
-            if (picked && kind == MechSound.SlideBack && slice.Clip != null && slice.Start <= 0.001f && slice.Length >= slice.Clip.length - 0.01f)
+            if (picked && kind == MechSound.SlideBack && slice.Clip != null)
             {
-                // A whole clip for the pull that holds the rack's two strokes: its first only (WeaponSoundPlayer.Stroke for the gun hand).
-                float split = RackSplit.Of(slice.Clip);
-                if (split > 0f)
+                // A clip or a slice for the pull that holds the rack's two strokes: its first only (WeaponSoundPlayer.Stroke and PlaySlice for
+                // the gun hand; the free hand's sounds come here).
+                bool whole = slice.Start <= 0.001f && slice.Length >= slice.Clip.length - 0.01f;
+                float split = whole ? RackSplit.Of(slice.Clip) : RackSplit.OfSlice(slice.Clip, slice.Start, slice.Length);
+                if (split > slice.Start + 0.03f && split < slice.Start + slice.Length - 0.03f)
                 {
-                    slice.Length = split;
+                    slice.Length = split - slice.Start;
                 }
             }
             return picked;
