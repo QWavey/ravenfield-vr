@@ -178,6 +178,125 @@ namespace RavenfieldVR.Core.Showcase
             report($"showcase inspect: turned over, {(fired ? "one shot" : "THE SHOT DID NOT FIRE")}");
         }
 
+        /// <summary>
+        /// A grenade from the free hand beside the rifle (about 5 s plus the fuse): the free hand takes a grenade from the loadout
+        /// (the mod's second weapon, as in play), brings it up in front (first person, looking at it), pulls the pin with its trigger,
+        /// winds up beside the head and throws (the helmet cam on the throwing side), then the eyes follow it out to the blast.
+        /// </summary>
+        private static IEnumerator GrenadeScene(ShowcaseRecorder rec, Action<string> report)
+        {
+            WeaponSystem sys = WeaponSystem.Instance;
+            Actor actor = LocalPlayer.actor;
+            VRRig rig = VRRig.Instance;
+            HeldWeapon held = sys != null ? sys.Held : null;
+            Weapon grenade = null;
+            if (held != null && actor != null && actor.weapons != null)
+            {
+                foreach (Weapon w in actor.weapons)
+                {
+                    if (w is ThrowableWeapon && w.ammo != 0 && SecondWeapon.CanPair(held.Weapon, w))
+                    {
+                        grenade = w;
+                        break;
+                    }
+                }
+            }
+            if (grenade == null || rig == null || sys.Second != null)
+            {
+                report("showcase grenade: NO GRENADE to take beside the rifle");
+                yield break;
+            }
+            VRHand off = rig.Off;
+            int side = (int)off.Side;
+            float sign = off.IsLeft ? 1f : -1f; // (the free hand's side: left for a right-handed player)
+            Transform head = rig.Head;
+            Quaternion level = Quaternion.LookRotation(Flat(head.forward), Vector3.up);
+            Quaternion grip = level * Quaternion.Euler(-25f, 12f * -sign, 0f);
+            Vector3 At(float x, float y, float z) => head.position + level * new Vector3(x * -sign, y, z);
+            Vector3 chest = At(-0.10f, -0.32f, 0.30f), show = At(-0.05f, -0.20f, 0.30f), back = At(-0.30f, 0.08f, -0.10f), release = At(-0.16f, 0.06f, 0.48f), follow = At(-0.02f, -0.28f, 0.45f);
+            Runtime.RigidPose startRaw = Rig.VRHand.Scripted[side] ?? off.Raw;
+            void OffAt(Vector3 p, Quaternion r) => Rig.VRHand.Scripted[side] = new Runtime.RigidPose(p, r);
+
+            rec.Start();
+            // The free hand lets go of the handguard and brings a grenade up (0.6 s: the grenade's own draw).
+            Input.VRInput.SimulatedGrab[side] = false;
+            rec.Mark = "draw";
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(off.Palm.position, 0.7f);
+            bool begun = false;
+            yield return Film(rec, 0.6f, u =>
+            {
+                HoldGun(0.12f, 0.3f, false);
+                if (!begun && off.Role == HandRole.Free)
+                {
+                    begun = true;
+                    Input.VRInput.SimulatedGrab[side] = true;
+                    sys.BeginSecond(grenade, off);
+                }
+                OffAt(Vector3.Lerp(Vector3.Lerp(startRaw.position, chest, EaseOut(Mathf.Min(1f, u * 2f))), show, Ease(Mathf.Max(0f, u * 2f - 1f))),
+                      Quaternion.Slerp(startRaw.rotation, grip, EaseOut(u)));
+            });
+            SecondWeapon second = sys.Second;
+            if (second == null)
+            {
+                report($"showcase grenade: THE FREE HAND DID NOT TAKE THE GRENADE (its role {off.Role})");
+                yield break;
+            }
+
+            // The pin, pulled with that hand's trigger (0.3 s).
+            rec.Mark = "pin";
+            SecondWeapon.TestTrigger = true;
+            yield return Film(rec, 0.3f, u => { HoldGun(0.12f, 0.3f, false); OffAt(show, grip); });
+            bool armed = second.Armed;
+
+            // Wound up beside the head (0.35 s), thrown (0.15 s: let go at its end, up and away at 14 m/s), followed through.
+            rec.Mark = "wind up";
+            rec.Shot = () => ShowcaseCamera.HelmetCam(0.34f, 0.17f * -sign, 0.1f);
+            yield return Film(rec, 0.35f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(show, back, EaseOut(u)), grip * Quaternion.Euler(-40f * EaseOut(u), 0f, 0f)); });
+            rec.Mark = "throw";
+            yield return Film(rec, 0.15f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(back, release, u * u), grip * Quaternion.Euler(Mathf.Lerp(-40f, 30f, u), 0f, 0f)); });
+            Vector3 throwV = (Flat(head.forward) + Vector3.up * 0.45f).normalized * 14f;
+            second.TestThrow(throwV);
+            SecondWeapon.TestTrigger = false;
+            int live = second.LastLiveCount;
+            GrenadeProjectile flying = null;
+            float nearest = float.MaxValue;
+            foreach (GrenadeProjectile g in UnityEngine.Object.FindObjectsOfType<GrenadeProjectile>())
+            {
+                float d = Vector3.Distance(g.transform.position, off.Palm.position);
+                if (d < nearest)
+                {
+                    nearest = d;
+                    flying = g;
+                }
+            }
+            float fuse = flying != null && flying.configuration != null ? Mathf.Clamp(flying.configuration.lifetime, 1f, 5f) : 3.5f;
+
+            // Followed out to the blast: the eyes after it, the hand coming down; held 0.9 s past the fuse.
+            rec.Mark = "flight";
+            Vector3 last = release + throwV.normalized * 3f;
+            bool blown = false;
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(last, 0.55f, 60f);
+            yield return Film(rec, 0.25f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(release, follow, EaseOut(u)), grip); last = flying != null ? flying.transform.position : last; });
+            Input.VRInput.SimulatedGrab[side] = false;
+            yield return Film(rec, fuse - 0.25f + 0.9f, u =>
+            {
+                HoldGun(0.12f, 0.3f, false);
+                OffAt(follow, grip); // (left where the throw ended: put back on the handguard at once, the glove jumped there in the picture)
+                if (flying != null && flying.gameObject.activeInHierarchy)
+                {
+                    last = flying.transform.position;
+                }
+                else if (!blown)
+                {
+                    blown = true;
+                    rec.Mark = "blast";
+                    ShowcaseCamera.Shake.Add(0.45f, 0.4f);
+                }
+            });
+            report($"showcase grenade ({grenade.name}): {(armed ? "pin pulled" : "PIN NOT PULLED")}, {(live > 0 ? $"thrown live, fuse {fuse:0.0} s" : "NOTHING THROWN")}, "
+                   + $"{(blown ? "went off in the picture" : "DID NOT GO OFF IN THE PICTURE")}");
+        }
+
         /// <summary>Fast in, slow out: a hand bringing something somewhere (a raise is quick, then settles).</summary>
         private static float EaseOut(float u)
         {

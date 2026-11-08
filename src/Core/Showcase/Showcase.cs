@@ -32,6 +32,7 @@ namespace RavenfieldVR.Core.Showcase
             ("pilot", PilotSetup, PilotScene),
             ("reload", RifleSetup("reload"), ReloadScene),
             ("inspect", RifleSetup("inspect"), InspectScene),
+            ("grenade", RifleSetup("grenade"), GrenadeScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
