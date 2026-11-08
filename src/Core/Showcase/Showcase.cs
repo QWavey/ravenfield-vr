@@ -53,7 +53,7 @@ namespace RavenfieldVR.Core.Showcase
                 yield return Guarded(setup(report), e => failed = e);
                 if (failed != null)
                 {
-                    report($"showcase {name}: THE SETUP THREW {failed.GetType().Name}: {failed.Message}");
+                    report($"showcase {name}: THE SETUP DID NOT FINISH (it threw {failed.GetType().Name}: {failed.Message})");
                     continue;
                 }
                 Spot spot = Spot.Take();
@@ -81,7 +81,7 @@ namespace RavenfieldVR.Core.Showcase
                     ShowcaseCamera.Shake.Reset();
                     yield return rec.Finish();
                     report($"showcase {name} {pass} pass: {rec.Frame} frames over {rec.Elapsed:0.0} s in {rec.Dir}"
-                           + (failed != null ? $" (THE SCENE THREW {failed.GetType().Name}: {failed.Message})" : ""));
+                           + (failed != null ? $" (THE SCENE DID NOT FINISH: it threw {failed.GetType().Name}: {failed.Message})" : ""));
                     failed = null;
                 }
             }
@@ -764,7 +764,7 @@ namespace RavenfieldVR.Core.Showcase
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase pilot: turned {FaceOpen():0} degrees to the widest view");
             string rifle = GiveRifle("PATRIOT", "RK-44");
-            report($"showcase pilot: rifle {rifle ?? "NONE FOUND (the loadout's own)"}");
+            report($"showcase pilot: rifle {rifle ?? "NO RIFLE FOUND (the loadout's own)"}");
             yield return new WaitForSecondsRealtime(0.8f);
             int slot = GunSlot(0);
             if (slot < 0)

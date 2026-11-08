@@ -25,7 +25,7 @@ namespace RavenfieldVR.Core.Showcase
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase {scene}: turned {FaceOpen():0} degrees to the best view");
             string rifle = GiveRifle("PATRIOT", "RK-44");
-            report($"showcase {scene}: rifle {rifle ?? "NONE FOUND (the loadout's own)"}");
+            report($"showcase {scene}: rifle {rifle ?? "NO RIFLE FOUND (the loadout's own)"}");
             yield return new WaitForSecondsRealtime(0.8f);
             int slot = GunSlot(0);
             if (slot < 0)
@@ -391,7 +391,7 @@ namespace RavenfieldVR.Core.Showcase
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase pistol: turned {FaceOpen():0} degrees to the best view");
             GiveRifle("PATRIOT", "RK-44");
-            (string name, int slot)? pistol = GiveSidearm("SL-DEFENDER", "76 EAGLE");
+            (string name, int slot)? pistol = GiveSidearm("sl-defender", "76 eagle");
             if (pistol == null)
             {
                 throw new InvalidOperationException("no pistol among the game's weapons");
@@ -633,14 +633,14 @@ namespace RavenfieldVR.Core.Showcase
             report($"showcase slowmo: slowed to {slow:0.0}, the magazine changed at full speed, {(fired ? "a last shot" : "THE LAST SHOT DID NOT FIRE")}");
         }
 
-        /// <summary>The scope scene's setup: the stage, the best view (toward the battle), the game's bolt-action RECON LRR drawn.</summary>
+        /// <summary>The scope scene's setup: the stage, the best view (toward the battle), the game's bolt-action Recon LRR drawn.</summary>
         private static IEnumerator ScopeSetup(Action<string> report)
         {
             report("showcase scope: " + Stage());
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase scope: turned {FaceOpen():0} degrees to the best view");
-            string rifle = GiveRifle("RECON LRR");
-            report($"showcase scope: rifle {rifle ?? "NONE FOUND (the loadout's own)"}");
+            string rifle = GiveRifle("recon lrr");
+            report($"showcase scope: rifle {rifle ?? "NO RIFLE FOUND (the loadout's own)"}");
             yield return new WaitForSecondsRealtime(0.8f);
             int slot = GunSlot(0);
             if (slot < 0)

@@ -322,7 +322,7 @@ namespace RavenfieldVR.Core.Showcase
             UnityEngine.Object.Destroy(_rt);
             UnityEngine.Object.Destroy(_cam.gameObject);
             Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), {_stills} still(s), in {_dir}; "
-                     + (_uneven == 0 ? "one physics step every frame." : $"{_uneven} FRAME(S) WITHOUT EXACTLY ONE PHYSICS STEP (the gun jumps on them)."));
+                     + (_uneven == 0 ? "one physics step every frame." : $"{_uneven} frame(s) DID NOT GET exactly one physics step (the gun jumps on them)."));
         }
 
         private int Backlog
