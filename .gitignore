@@ -26,3 +26,6 @@ tools/sandbox/poses/history/
 
 # Agent worktrees (workflow runs)
 .claude/worktrees/
+
+# Showcase clips (media, kept out of git)
+showcase/*.mp4

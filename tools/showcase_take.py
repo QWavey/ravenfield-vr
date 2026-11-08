@@ -1,22 +1,25 @@
-"""showcase_take: checks a showcase take (docs/Showcase-Plan.md) and makes a quick preview.
+"""showcase_take: checks a showcase take (docs/Showcase-Plan.md), lines its sound up with its picture and makes the clip.
 
-  python tools/showcase_take.py reports/shots/showcase/showcase-pilot [--preview]
+  python tools/showcase_take.py reports/shots/showcase/showcase-pilot [--preview] [--mux]
 
-A take folder holds f00000.jpg ... (one picture a frame at the take's rate), audio.wav (the game's own sound in lock-step, 32-bit
-float), shots.txt (frame, game time, the scene's mark, the camera) and take.txt (rate, frames, size, sound format).
+A take is two passes of the same scene into one folder:
+  picture pass: f00000.jpg ... (one picture a frame at the take's rate), shots.txt (frame, take time, mark, camera), take.txt
+  sound pass:   audio.wav (the game's own mix in real time, 32-bit float), sound.txt (frame, take time, mark)
 
 Checks and prints:
   - frames on disk against the frames filmed (a missing one: the writers lost it)
-  - the sound's length against the picture's (frames / fps), in milliseconds
-  - for every frame marked "shot": where the sound's onset is (the first 1/240 s block that jumps over the level before it),
-    in frames from the marked one (0-1 is in sync; a shot's sound starts the frame it is fired or the next)
-  - the first frame's orientation (the sky should be at the top: the top rows brighter or bluer than the bottom on an outdoor take)
+  - the sound's length against the picture's, and its peak
+  - the sync: for every "shot" mark, where its sound starts in audio.wav (the first 1/240 s block that jumps over the level before
+    it, near the sound pass's own mark), against where the picture pass fired it. The sound is shifted by the median of those, and
+    the spread around it says how well the two passes kept together (under a frame is in sync)
+  - the first frame's orientation (the sky should be at the top on an outdoor take)
 --preview: preview.mp4 next to the take, the picture only, 1280x720 (OpenCV).
---mux: take.mp4 next to the take, picture and the game's sound (H.264 CRF 18 + AAC 192k, ffmpeg).
+--mux: take.mp4 next to the take, picture and the shifted sound, its peak brought to -1 dB (H.264 CRF 18 + AAC 192k, ffmpeg).
 """
 import glob
 import os
 import shutil
+import statistics
 import struct
 import subprocess
 import sys
@@ -34,20 +37,27 @@ def ffmpeg():
     return hits[0] if hits else None
 
 
-def read_take(d):
-    take = {}
-    for line in open(os.path.join(d, 'take.txt'), encoding='utf-8'):
+def read_kv(path):
+    out = {}
+    for line in open(path, encoding='utf-8'):
         k, _, v = line.strip().partition('\t')
         if k:
-            take[k] = v
+            out[k] = v
+    return out
+
+
+def read_marks(path):
+    """(frame, time, mark, camera or '') per line of shots.txt / sound.txt."""
     marks = []
-    for i, line in enumerate(open(os.path.join(d, 'shots.txt'), encoding='utf-8')):
+    if not os.path.exists(path):
+        return marks
+    for i, line in enumerate(open(path, encoding='utf-8')):
         if i == 0:
             continue
         parts = line.rstrip('\n').split('\t')
-        if len(parts) >= 4:
-            marks.append((int(parts[0]), float(parts[1]), parts[2], parts[3]))
-    return take, marks
+        if len(parts) >= 3:
+            marks.append((int(parts[0]), float(parts[1]), parts[2], parts[3] if len(parts) > 3 else ''))
+    return marks
 
 
 def read_wav(path):
@@ -62,26 +72,44 @@ def read_wav(path):
         if cid == b'fmt ':
             fmt = struct.unpack('<HHIIHH', body[:16])
         elif cid == b'data':
-            samples = np.frombuffer(body, dtype='<f4')
+            samples = np.frombuffer(body[:len(body) - len(body) % 4], dtype='<f4')
         pos += 8 + size + (size & 1)
     if fmt is None or samples is None:
         raise SystemExit(f'{path}: no fmt or data chunk')
     channels, rate = fmt[1], fmt[2]
+    samples = samples[:len(samples) - len(samples) % channels]
     return samples.reshape(-1, channels), rate
 
 
-def onsets(audio, rate, block=None):
-    """Mono level per 1/240 s block and the blocks where it jumps (over 4x the level of the 4 blocks before, and over 0.02)."""
-    block = block or max(1, rate // 240)
+def onsets(audio, rate):
+    """Times (s) where the level jumps: a 1/240 s block over 4x the mean of the 4 before it and over 0.02."""
+    block = max(1, rate // 240)
     mono = np.abs(audio).mean(axis=1)
     n = len(mono) // block
     level = mono[:n * block].reshape(n, block).max(axis=1)
-    jumps = []
+    out = []
     for i in range(4, n):
-        before = level[i - 4:i].mean()
-        if level[i] > 0.02 and level[i] > 4 * max(before, 1e-4):
-            jumps.append(i)
-    return jumps, block
+        if level[i] > 0.02 and level[i] > 4 * max(level[i - 4:i].mean(), 1e-4):
+            out.append(i * block / rate)
+    return out
+
+
+def sync(pic_marks, snd_marks, jumps):
+    """The sound's shift (s, audio time minus picture time) by the shots, and each shot's error around it (ms)."""
+    pic_shots = [t for _, t, m, _ in pic_marks if m == 'shot']
+    snd_shots = [t for _, t, m, _ in snd_marks if m == 'shot']
+    pairs = []
+    for k, (tp, ts) in enumerate(zip(pic_shots, snd_shots)):
+        # The shot's sound: the first jump from a frame before the sound pass's mark to 150 ms after it (the mark is logged at the
+        # frame's end; the first audio block after the call carries it, plus the output's own latency).
+        near = [j for j in jumps if ts - 0.03 <= j <= ts + 0.15]
+        if near:
+            pairs.append((k, tp, near[0]))
+    if not pairs:
+        return None, [], len(pic_shots), len(snd_shots)
+    shift = statistics.median(o - tp for _, tp, o in pairs)
+    errors = [(k, 1000 * (o - tp - shift)) for k, tp, o in pairs]
+    return shift, errors, len(pic_shots), len(snd_shots)
 
 
 def main():
@@ -89,47 +117,50 @@ def main():
         print(__doc__)
         return 1
     d = sys.argv[1]
-    take, marks = read_take(d)
+    take = read_kv(os.path.join(d, 'take.txt'))
+    pic = read_marks(os.path.join(d, 'shots.txt'))
+    snd = read_marks(os.path.join(d, 'sound.txt'))
     fps = int(take.get('fps', '60'))
     frames = int(take.get('frames', '0'))
     jpgs = sorted(f for f in os.listdir(d) if f.startswith('f') and f.endswith('.jpg'))
     print(f'{d}: {frames} frames filmed at {fps} fps ({frames / fps:.2f} s), {len(jpgs)} pictures on disk'
           + ('' if len(jpgs) == frames else f'  ** {frames - len(jpgs)} MISSING **'))
     wav = os.path.join(d, 'audio.wav')
-    if os.path.exists(wav):
+    shift = None
+    gain = 1.0
+    if not os.path.exists(wav):
+        print('sound: NO audio.wav (no sound pass)')
+    else:
         audio, rate = read_wav(wav)
         if len(audio) == 0:
-            print("sound: audio.wav HAS NO SAMPLES (the game's sound was not recorded)")
-            audio = None
-    if os.path.exists(wav) and audio is not None:
-        secs = len(audio) / rate
-        print(f'sound: {secs:.3f} s at {rate} Hz, {audio.shape[1]} channel(s); against the picture {1000 * (secs - frames / fps):+.0f} ms; '
-              f'peak {np.abs(audio).max():.3f}')
-        jumps, block = onsets(audio, rate)
-        frame_of_block = lambda b: b * block / rate * fps
-        for f, _, mark, cam in marks:
-            if mark != 'shot':
-                continue
-            near = [frame_of_block(b) - f for b in jumps if -6 <= frame_of_block(b) - f <= 12]
-            print(f'  shot at frame {f} ({cam}): ' + (f'sound starts {min(near, key=abs):+.1f} frames from it' if near else 'NO SOUND ONSET within 12 frames'))
-    else:
-        print('sound: NO audio.wav')
+            print("sound: audio.wav HAS NO SAMPLES (the sound pass recorded nothing)")
+        else:
+            secs = len(audio) / rate
+            peak = float(np.abs(audio).max())
+            gain = min(1.0, 0.89 / peak) if peak > 0 else 1.0  # (the game's mix goes over full scale: the peak brought to -1 dB)
+            snd_end = snd[-1][1] if snd else 0.0
+            print(f'sound: {secs:.3f} s at {rate} Hz, {audio.shape[1]} channel(s), peak {np.abs(audio).max():.3f}; the sound pass ran '
+                  f'{snd_end:.2f} s over {len(snd)} frames ({len(snd) / max(snd_end, 1e-3):.0f} fps); the picture is {frames / fps:.2f} s')
+            jumps = onsets(audio, rate)
+            shift, errors, np_, ns = sync(pic, snd, jumps)
+            if shift is None:
+                print(f'sync: NO SHOT FOUND in the sound ({np_} shot marks in the picture, {ns} in the sound pass, {len(jumps)} onsets)')
+            else:
+                worst = max(abs(e) for _, e in errors)
+                print(f'sync: sound shifted {1000 * shift:+.0f} ms by {len(errors)} of {np_} shots; each shot around it: '
+                      + ', '.join(f'{e:+.0f}' for _, e in errors) + f' ms (worst {worst:.0f} ms'
+                      + (', IN SYNC' if worst <= 1000 / fps else ', OUT BY MORE THAN A FRAME') + ')')
     if jpgs:
         im = np.asarray(Image.open(os.path.join(d, jpgs[0])).convert('RGB')).astype(float)
         top, bottom = im[: im.shape[0] // 5], im[-im.shape[0] // 5:]
         print(f'first frame {im.shape[1]}x{im.shape[0]}: top rows brightness {top.mean():.0f} (blue {top[..., 2].mean():.0f}), '
               f'bottom rows {bottom.mean():.0f} (blue {bottom[..., 2].mean():.0f})')
     if '--preview' in sys.argv and jpgs:
-        try:
-            import cv2
-        except ImportError:
-            print('preview: OpenCV missing')
-            return 0
+        import cv2
         out = os.path.join(d, 'preview.mp4')
         vw = cv2.VideoWriter(out, cv2.VideoWriter_fourcc(*'mp4v'), fps, (1280, 720))
         for f in jpgs:
-            img = cv2.imread(os.path.join(d, f))
-            vw.write(cv2.resize(img, (1280, 720), interpolation=cv2.INTER_AREA))
+            vw.write(cv2.resize(cv2.imread(os.path.join(d, f)), (1280, 720), interpolation=cv2.INTER_AREA))
         vw.release()
         print(f'preview: {out}')
     if '--mux' in sys.argv and jpgs:
@@ -140,8 +171,11 @@ def main():
         out = os.path.join(d, 'take.mp4')
         cmd = [exe, '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', os.path.join(d, 'f%05d.jpg')]
         if os.path.exists(wav):
-            cmd += ['-i', wav, '-c:a', 'aac', '-b:a', '192k']
-        cmd += ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-shortest', out]
+            s = shift or 0.0
+            # Shifted onto the picture: a later sound cut at its start, an earlier one delayed; then cut or padded to the picture.
+            filt = f'atrim=start={s:.4f},asetpts=PTS-STARTPTS' if s >= 0 else f'adelay={int(-s * 1000)}:all=1'
+            cmd += ['-i', wav, '-filter:a', filt + f',volume={gain:.4f},apad,atrim=0:{frames / fps:.4f}', '-c:a', 'aac', '-b:a', '192k']
+        cmd += ['-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-t', f'{frames / fps:.4f}', out]
         r = subprocess.run(cmd, capture_output=True, text=True)
         print(f'mux: {out}' if r.returncode == 0 else f'mux FAILED: {r.stderr[-500:]}')
     return 0

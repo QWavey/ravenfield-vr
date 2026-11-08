@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Unity.Collections;
@@ -12,11 +13,17 @@ using UnityEngine.Rendering;
 namespace RavenfieldVR.Core.Showcase
 {
     /// <summary>
-    /// The showcase's recorder (docs/Showcase-Plan.md): the game stepped frame by frame at a fixed rate (Time.captureFramerate), each
-    /// frame drawn by the showcase camera into a picture of its own (1920x1080) and read back on the GPU, written as a JPEG by worker
-    /// threads; the game's own sound rendered in the same lock-step (AudioRenderer, as Unity's recorder does it) into a WAV. So the
-    /// clip runs smooth at its rate however slowly the PC draws it, and picture and sound stay together to the sample. The game's
-    /// music is muted for the take (the user: "without music only ingame sounds"). Only with -rfvr-showcase.
+    /// The showcase's recorder (docs/Showcase-Plan.md), one of two passes of the same scene:
+    /// <list type="bullet">
+    /// <item>the picture pass: the game stepped frame by frame at a fixed rate (Time.captureFramerate), each frame drawn by the showcase
+    /// camera into a picture of its own (1920x1080) and read back on the GPU, written as a JPEG by worker threads: smooth at its rate
+    /// however slowly the PC draws it;</item>
+    /// <item>the sound pass: the same scene played again in real time, what the listener hears (the game's whole mix, the music muted)
+    /// written to audio.wav, each frame's mark timed from its start. Unity's own offline sound recording (AudioRenderer) stops this
+    /// game's mixer altogether (its listener had no audio block during a take, and 93 in 2 s before one; 2026-11-08), so picture and
+    /// sound are taken apart and put together by their marks (tools/showcase_take.py --mux), as a film's sound is.</item>
+    /// </list>
+    /// Both follow the scene's one schedule (<see cref="Planned"/>), so a moment is at the same second of either. Only with -rfvr-showcase.
     /// </summary>
     internal sealed class ShowcaseRecorder
     {
@@ -24,41 +31,58 @@ namespace RavenfieldVR.Core.Showcase
 
         private readonly string _dir;
         private readonly int _w, _h;
-        private readonly Camera _cam;
-        private readonly RenderTexture _rt;
         private readonly StringBuilder _log = new StringBuilder();
         private int _frame, _pending;
         private bool _recording;
+        private float _startTime;
 
-        // The writers: a JPEG of 1920x1080 is 15-30 ms of a core; three keep up with the read-backs.
-        private readonly Thread[] _writers = new Thread[3];
+        /// <summary>The sound pass: no pictures, the listener recorded in real time.</summary>
+        internal readonly bool Sound;
+
+        // The picture pass's camera and writers: a JPEG of 1920x1080 is 15-30 ms of a core; three keep up with the read-backs.
+        private readonly Camera _cam;
+        private readonly RenderTexture _rt;
+        private readonly Thread[] _writers;
         private readonly Queue<(string path, byte[] rgba)> _queue = new Queue<(string, byte[])>();
         private readonly Stack<byte[]> _spare = new Stack<byte[]>();
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private volatile bool _stop;
         private int _writing;
 
-        // The sound: float samples of the game's mix, written as they come (a 32-bit float WAV, its sizes set at the end).
-        private FileStream _wav;
-        private BinaryWriter _wavOut;
-        private long _samples;
-        private int _channels, _rate;
+        // The sound pass: the listener's blocks, written by a thread of its own.
+        private ShowcaseSoundTap _tap;
         private float _music = float.NaN, _sting = float.NaN;
 
-        /// <summary>Where the camera is and what it sees this frame: set by the scene each frame (<see cref="ShowcaseCamera"/>).</summary>
+        /// <summary>Where the camera is and what it sees this frame: set by the scene (<see cref="ShowcaseCamera"/>).</summary>
         internal Func<ShowcaseCamera.Shot> Shot;
 
-        /// <summary>The scene's and shot's name for the frame log (shots.txt), so the edit finds each moment by name.</summary>
+        /// <summary>The scene's and shot's name for the frame log, so the edit finds each moment by name.</summary>
         internal string Mark = "";
+
+        /// <summary>
+        /// The scene's schedule: seconds of the take its filmed steps have planned so far. Each step ends at its planned second, not a
+        /// frame after the last one's, so the real-time sound pass does not drift from the picture's whole frames.
+        /// </summary>
+        internal double Planned;
 
         internal int Frame => _frame;
         internal string Dir => _dir;
 
-        internal ShowcaseRecorder(string dir, int width = 1920, int height = 1080)
+        /// <summary>Seconds of the take so far: the frames filmed at the fixed rate (picture), game time from its start (sound).</summary>
+        internal float Elapsed => Sound ? Time.time - _startTime : _frame / (float)Fps;
+
+        internal ShowcaseRecorder(string dir, bool sound, int width = 1920, int height = 1080)
         {
             _dir = dir;
+            Sound = sound;
             _w = width;
             _h = height;
+            if (sound)
+            {
+                Directory.CreateDirectory(dir);
+                _log.AppendLine("frame\ttime\tmark");
+                return;
+            }
             if (Directory.Exists(dir))
             {
                 Directory.Delete(dir, true);
@@ -70,6 +94,7 @@ namespace RavenfieldVR.Core.Showcase
             _cam.enabled = false;
             _rt = new RenderTexture(_w, _h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 8, name = "RavenfieldVR Showcase" };
             _rt.Create();
+            _writers = new Thread[3];
             for (int i = 0; i < _writers.Length; i++)
             {
                 _writers[i] = new Thread(WriterLoop) { IsBackground = true, Name = "RavenfieldVR showcase writer " + i, Priority = System.Threading.ThreadPriority.BelowNormal };
@@ -78,32 +103,38 @@ namespace RavenfieldVR.Core.Showcase
             _log.AppendLine("frame\ttime\tmark\tcamera");
         }
 
-        /// <summary>Starts the take: the fixed frame rate, the sound into audio.wav, the music muted.</summary>
+        /// <summary>Starts the take: the picture pass at the fixed frame rate; the sound pass in real time into audio.wav. The music muted.</summary>
         internal void Start()
         {
-            Time.captureFramerate = Fps;
             MuteMusic(true);
-            _channels = AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2;
-            _rate = AudioSettings.outputSampleRate;
-            _wav = new FileStream(Path.Combine(_dir, "audio.wav"), FileMode.Create, FileAccess.Write);
-            _wavOut = new BinaryWriter(_wav);
-            WriteWavHeader(0);
-            bool started = AudioRenderer.Start();
+            AudioListener.pause = false;
+            AudioListener.volume = 1f;
+            _startTime = Time.time;
+            Planned = 0;
+            if (Sound)
+            {
+                Time.captureFramerate = 0;
+                AudioListener listener = UnityEngine.Object.FindObjectsOfType<AudioListener>().FirstOrDefault(l => l != null && l.isActiveAndEnabled);
+                if (listener == null)
+                {
+                    Log.Warn("Showcase: no live audio listener: the sound pass records nothing.");
+                }
+                else
+                {
+                    _tap = listener.gameObject.AddComponent<ShowcaseSoundTap>();
+                    _tap.Begin(Path.Combine(_dir, "audio.wav"), AudioSettings.outputSampleRate);
+                }
+            }
+            else
+            {
+                Time.captureFramerate = Fps;
+            }
             _recording = true;
-            // The sound taken in a component's Update, as Unity's own example does (taken at the end of the frame it came back empty: 0
-            // samples for a whole take, 2026-11-08); said once with what the audio system is.
-            _tap = _cam.gameObject.AddComponent<ShowcaseAudioTap>();
-            _tap.Rec = this;
-            Log.Info($"Showcase: sound recording {(started ? "started" : "NOT STARTED")} ({_rate} Hz, {_channels} channel(s), speaker mode "
-                     + $"{AudioSettings.speakerMode}, capture at {Time.captureFramerate} fps, DSP buffer {AudioSettings.GetConfiguration().dspBufferSize}).");
         }
 
-        private ShowcaseAudioTap _tap;
-        private int _soundCalls;
-
         /// <summary>
-        /// One frame of the take, after the frame's own drawing (the scene calls it from a WaitForEndOfFrame): the camera drawn into the
-        /// picture, its read-back started, and the frame's sound taken. Waits (real time, the game held) while the writers are far behind.
+        /// One frame of the take, after the frame's drawing (the scene calls it from a WaitForEndOfFrame): the picture pass draws and
+        /// reads back the camera's picture (waiting, the game held, while the writers are far behind); both log the frame's mark and time.
         /// </summary>
         internal void TakeFrame()
         {
@@ -111,114 +142,79 @@ namespace RavenfieldVR.Core.Showcase
             {
                 return;
             }
-            // The writers behind: the game waits (its time is the capture's, not the clock's, so nothing is lost but wall time).
-            for (int guard = 0; Backlog > 24 && guard < 4000; guard++)
+            string camName = "-";
+            float at = Elapsed;
+            if (!Sound)
             {
-                Thread.Sleep(5);
-            }
-            ShowcaseCamera.Shot shot = Shot != null ? Shot() : ShowcaseCamera.Shot.None;
-            if (shot.Valid)
-            {
-                ShowcaseCamera.Render(_cam, shot, _rt);
-                int n = _frame;
-                string path = Path.Combine(_dir, "f" + n.ToString("00000") + ".jpg");
-                _pending++;
-                AsyncGPUReadback.Request(_rt, 0, TextureFormat.RGBA32, req =>
+                for (int guard = 0; Backlog > 24 && guard < 4000; guard++)
                 {
-                    _pending--;
-                    if (req.hasError)
-                    {
-                        Log.WarnOnce("showcase-readback", "Showcase: a frame's read-back failed.");
-                        return;
-                    }
-                    NativeArray<byte> data = req.GetData<byte>();
-                    byte[] rgba = null;
-                    lock (_queue)
-                    {
-                        while (_spare.Count > 0 && rgba == null)
-                        {
-                            byte[] b = _spare.Pop();
-                            rgba = b.Length == data.Length ? b : null;
-                        }
-                    }
-                    rgba = rgba ?? new byte[data.Length];
-                    NativeArray<byte>.Copy(data, rgba, rgba.Length);
-                    lock (_queue)
-                    {
-                        _queue.Enqueue((path, rgba));
-                    }
-                    _wake.Set();
-                });
+                    Thread.Sleep(5); // (its time is the capture's, not the clock's: nothing is lost but wall time)
+                }
+                ShowcaseCamera.Shot shot = Shot != null ? Shot() : ShowcaseCamera.Shot.None;
+                if (shot.Valid)
+                {
+                    camName = shot.Name;
+                    ShowcaseCamera.Render(_cam, shot, _rt);
+                    string path = Path.Combine(_dir, "f" + _frame.ToString("00000") + ".jpg");
+                    _pending++;
+                    AsyncGPUReadback.Request(_rt, 0, TextureFormat.RGBA32, req => Readback(req, path));
+                }
             }
-            _log.Append(_frame).Append('\t').Append(Time.time.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(Mark).Append('\t')
-                .AppendLine(shot.Valid ? shot.Name : "-");
+            _log.Append(_frame).Append('\t').Append(at.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(Mark);
+            if (!Sound)
+            {
+                _log.Append('\t').Append(camName);
+            }
+            _log.AppendLine();
             _frame++;
         }
 
-        /// <summary>The frame's share of the game's sound (from <see cref="ShowcaseAudioTap"/>'s Update), appended to the WAV.</summary>
-        internal void TakeSound()
+        private void Readback(AsyncGPUReadbackRequest req, string path)
         {
-            if (!_recording || _wavOut == null)
+            _pending--;
+            if (req.hasError)
             {
+                Log.WarnOnce("showcase-readback", "Showcase: a frame's read-back failed.");
                 return;
             }
-            // The count is what came since the last Render: 0 until the first one, so a frame's worth is rendered when it says 0 (it
-            // said 0 for a whole take while Render was only called on more; 2026-11-08).
-            int counted = AudioRenderer.GetSampleCountForCaptureFrame();
-            int n = counted > 0 ? counted : Mathf.RoundToInt(_rate / (float)Fps);
-            var buffer = new NativeArray<float>(n * _channels, Allocator.Temp);
-            try
+            NativeArray<byte> data = req.GetData<byte>();
+            byte[] rgba = null;
+            lock (_queue)
             {
-                bool ok = AudioRenderer.Render(buffer);
-                if (_soundCalls++ < 5)
+                while (_spare.Count > 0 && rgba == null)
                 {
-                    float peak = 0f;
-                    for (int i = 0; i < buffer.Length; i++)
-                    {
-                        peak = Mathf.Max(peak, Mathf.Abs(buffer[i]));
-                    }
-                    Log.Info($"Showcase: sound frame {_soundCalls}: {counted} counted, {n} taken, render {(ok ? "ok" : "FAILED")}, peak {peak:0.000}.");
-                }
-                if (ok)
-                {
-                    for (int i = 0; i < buffer.Length; i++)
-                    {
-                        _wavOut.Write(buffer[i]);
-                    }
-                    _samples += n;
+                    byte[] b = _spare.Pop();
+                    rgba = b.Length == data.Length ? b : null;
                 }
             }
-            finally
+            rgba = rgba ?? new byte[data.Length];
+            NativeArray<byte>.Copy(data, rgba, rgba.Length);
+            lock (_queue)
             {
-                buffer.Dispose();
+                _queue.Enqueue((path, rgba));
             }
+            _wake.Set();
         }
 
-        /// <summary>Ends the take: the frame rate and the music back, the sound file closed, every frame written (waited for), the frame log.</summary>
+        /// <summary>Ends the take: the frame rate and the music back, the sound file closed, every frame written (waited for), the logs.</summary>
         internal System.Collections.IEnumerator Finish()
         {
             _recording = false;
-            if (_tap != null)
-            {
-                UnityEngine.Object.Destroy(_tap);
-            }
-            try
-            {
-                AudioRenderer.Stop();
-            }
-            catch (Exception e)
-            {
-                Log.WarnOnce("showcase-audio-stop", "Showcase: the sound recording did not stop cleanly: " + e.Message);
-            }
             Time.captureFramerate = 0;
             MuteMusic(false);
-            if (_wavOut != null)
+            if (Sound)
             {
-                _wavOut.Flush();
-                _wav.Position = 0;
-                WriteWavHeader(_samples);
-                _wavOut.Close();
-                _wavOut = null;
+                long samples = 0;
+                int rate = AudioSettings.outputSampleRate;
+                if (_tap != null)
+                {
+                    samples = _tap.End();
+                    UnityEngine.Object.Destroy(_tap);
+                }
+                File.WriteAllText(Path.Combine(_dir, "sound.txt"), _log.ToString());
+                Log.Info($"Showcase sound pass written: {_frame} frames over {Elapsed:0.0} s, {samples / (float)Mathf.Max(1, rate):0.0} s of sound"
+                         + $" (peak {(_tap != null ? _tap.Peak : 0f):0.000}), in {_dir}.");
+                yield break;
             }
             for (float until = Time.realtimeSinceStartup + 120f; (_pending > 0 || Backlog > 0) && Time.realtimeSinceStartup < until;)
             {
@@ -234,12 +230,11 @@ namespace RavenfieldVR.Core.Showcase
                 }
             }
             File.WriteAllText(Path.Combine(_dir, "shots.txt"), _log.ToString());
-            File.WriteAllText(Path.Combine(_dir, "take.txt"),
-                $"fps\t{Fps}\nframes\t{_frame}\nwidth\t{_w}\nheight\t{_h}\naudio_rate\t{_rate}\naudio_channels\t{_channels}\naudio_samples\t{_samples}\n");
+            File.WriteAllText(Path.Combine(_dir, "take.txt"), $"fps\t{Fps}\nframes\t{_frame}\nwidth\t{_w}\nheight\t{_h}\n");
             _rt.Release();
             UnityEngine.Object.Destroy(_rt);
             UnityEngine.Object.Destroy(_cam.gameObject);
-            Log.Info($"Showcase take written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), sound {_samples / (float)Mathf.Max(1, _rate):0.0} s, in {_dir}.");
+            Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), in {_dir}.");
         }
 
         private int Backlog
@@ -300,25 +295,6 @@ namespace RavenfieldVR.Core.Showcase
             }
         }
 
-        private void WriteWavHeader(long samples)
-        {
-            int bytesPerSample = 4;
-            long data = samples * _channels * bytesPerSample;
-            _wavOut.Write(Encoding.ASCII.GetBytes("RIFF"));
-            _wavOut.Write((int)Mathf.Min(int.MaxValue, 36 + data));
-            _wavOut.Write(Encoding.ASCII.GetBytes("WAVE"));
-            _wavOut.Write(Encoding.ASCII.GetBytes("fmt "));
-            _wavOut.Write(16);
-            _wavOut.Write((short)3); // IEEE float
-            _wavOut.Write((short)_channels);
-            _wavOut.Write(_rate);
-            _wavOut.Write(_rate * _channels * bytesPerSample);
-            _wavOut.Write((short)(_channels * bytesPerSample));
-            _wavOut.Write((short)(bytesPerSample * 8));
-            _wavOut.Write(Encoding.ASCII.GetBytes("data"));
-            _wavOut.Write((int)Mathf.Min(int.MaxValue, data));
-        }
-
         /// <summary>The game's music and its stings silent for the take (their own mixers), then as they were.</summary>
         private void MuteMusic(bool mute)
         {
@@ -361,11 +337,124 @@ namespace RavenfieldVR.Core.Showcase
         }
     }
 
-    /// <summary>Takes the recorder's sound each frame in Update (<see cref="ShowcaseRecorder.TakeSound"/>).</summary>
-    internal sealed class ShowcaseAudioTap : MonoBehaviour
+    /// <summary>
+    /// On the live listener: each block of the final mix (the audio thread's OnAudioFilterRead) copied into a queue and written to a
+    /// 32-bit float WAV by a thread of its own. Passes the sound through unchanged.
+    /// </summary>
+    internal sealed class ShowcaseSoundTap : MonoBehaviour
     {
-        internal ShowcaseRecorder Rec;
+        private readonly Queue<float[]> _blocks = new Queue<float[]>();
+        private readonly AutoResetEvent _wake = new AutoResetEvent(false);
+        private Thread _writer;
+        private volatile bool _on, _stop;
+        private volatile int _channels = 2;
+        private FileStream _file;
+        private BinaryWriter _out;
+        private int _rate;
+        private long _samples;
+        private float _peak;
 
-        private void Update() => Rec?.TakeSound();
+        internal float Peak => _peak;
+
+        internal void Begin(string path, int rate)
+        {
+            _rate = rate;
+            _file = new FileStream(path, FileMode.Create, FileAccess.Write);
+            _out = new BinaryWriter(_file);
+            WriteHeader(2, 0); // (rewritten at the end with the real channel count and length)
+            _writer = new Thread(WriterLoop) { IsBackground = true, Name = "RavenfieldVR showcase sound" };
+            _writer.Start();
+            _on = true;
+        }
+
+        private void OnAudioFilterRead(float[] data, int channels)
+        {
+            if (!_on)
+            {
+                return;
+            }
+            _channels = channels;
+            var copy = new float[data.Length];
+            Array.Copy(data, copy, data.Length);
+            lock (_blocks)
+            {
+                _blocks.Enqueue(copy);
+            }
+            _wake.Set();
+        }
+
+        /// <summary>Stops recording and closes the file: the samples (per channel) written.</summary>
+        internal long End()
+        {
+            if (_out == null)
+            {
+                return _samples;
+            }
+            _on = false;
+            _stop = true;
+            _wake.Set();
+            _writer?.Join(10000);
+            _out.Flush();
+            _file.Position = 0;
+            WriteHeader(Mathf.Max(1, _channels), _samples);
+            _out.Close();
+            _out = null;
+            return _samples;
+        }
+
+        private void WriterLoop()
+        {
+            while (true)
+            {
+                float[] block = null;
+                lock (_blocks)
+                {
+                    if (_blocks.Count > 0)
+                    {
+                        block = _blocks.Dequeue();
+                    }
+                }
+                if (block == null)
+                {
+                    if (_stop)
+                    {
+                        return;
+                    }
+                    _wake.WaitOne(50);
+                    continue;
+                }
+                foreach (float f in block)
+                {
+                    _out.Write(f);
+                    float a = f < 0f ? -f : f;
+                    if (a > _peak)
+                    {
+                        _peak = a;
+                    }
+                }
+                _samples += block.Length / Mathf.Max(1, _channels);
+            }
+        }
+
+        private void WriteHeader(int channels, long samples)
+        {
+            const int bytesPerSample = 4;
+            long data = samples * channels * bytesPerSample;
+            _out.Write(Encoding.ASCII.GetBytes("RIFF"));
+            _out.Write((int)Math.Min(int.MaxValue, 36 + data));
+            _out.Write(Encoding.ASCII.GetBytes("WAVE"));
+            _out.Write(Encoding.ASCII.GetBytes("fmt "));
+            _out.Write(16);
+            _out.Write((short)3); // IEEE float
+            _out.Write((short)channels);
+            _out.Write(_rate);
+            _out.Write(_rate * channels * bytesPerSample);
+            _out.Write((short)(channels * bytesPerSample));
+            _out.Write((short)(bytesPerSample * 8));
+            _out.Write(Encoding.ASCII.GetBytes("data"));
+            _out.Write((int)Math.Min(int.MaxValue, data));
+        }
+
+        private void OnDestroy() => End();
     }
 }

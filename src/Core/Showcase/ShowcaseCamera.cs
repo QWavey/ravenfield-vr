@@ -9,7 +9,7 @@ namespace RavenfieldVR.Core.Showcase
     /// <summary>
     /// The showcase's cameras (docs/Showcase-Plan.md): where the recorder's camera stands each frame and what it shows. First person is
     /// the headset's own view (mono, with the effects on the lens); the cinematic ones (a camera on the gun looking back at the face,
-    /// over the shoulder, an orbit, a fixed spot, a close-up on a part) show the player's body, which the eyes never draw. A shake that
+    /// over the shoulder, on the helmet, a fixed spot, a close-up on a part) show the player's body, which the eyes never draw. A shake that
     /// rises on each shot and blast and dies away (trauma squared, as trailers' camera work does it) rides on every one.
     /// </summary>
     internal static class ShowcaseCamera
@@ -26,6 +26,8 @@ namespace RavenfieldVR.Core.Showcase
             public bool ShowBody;
             /// <summary>The effects on the lens drawn (mud, water, the low-health edge): first person only.</summary>
             public bool Lens;
+            /// <summary>What a third-person camera films (the head, the gun): the camera is kept on its side of walls and ground.</summary>
+            public Vector3? Subject;
 
             internal static Shot None => default;
         }
@@ -54,7 +56,7 @@ namespace RavenfieldVR.Core.Showcase
             cam.aspect = rt.width / (float)rt.height;
             cam.nearClipPlane = 0.02f;
             cam.targetTexture = rt;
-            (Vector3 p, Quaternion r) = Shake.Apply(shot.Position, shot.Rotation);
+            (Vector3 p, Quaternion r) = Shake.Apply(KeepOut(shot.Position, shot.Subject), shot.Rotation);
             cam.transform.SetPositionAndRotation(p, r);
             List<Shown> shown = shot.ShowBody ? ShowBody() : null;
             try
@@ -78,15 +80,14 @@ namespace RavenfieldVR.Core.Showcase
             public Renderer Renderer;
             public bool Off;
             public ShadowCastingMode Mode;
-            public Transform Bone;
-            public Vector3 Scale;
         }
 
         private static readonly List<Shown> ShownNow = new List<Shown>();
 
         /// <summary>
-        /// The player's body drawn for this render (the game draws it shadows-only in first person, the mod forces it off), its arms folded
-        /// away: the hands and arms on screen are the VR ones, with the gun, and the body's own arms held its third-person pose beside them.
+        /// The player's body drawn for this render (the game draws it shadows-only in first person, the mod forces it off), posed to the
+        /// headset and the gloves by <see cref="ShowcaseBody"/> before the frame's drawing. (Its arms scaled away here, at the frame's end, never
+        /// showed: the body is skinned for the frame by then.)
         /// </summary>
         private static List<Shown> ShowBody()
         {
@@ -118,18 +119,6 @@ namespace RavenfieldVR.Core.Showcase
                     Show(r);
                 }
             }
-            if (a.ragdoll != null)
-            {
-                foreach (HumanBodyBones b in new[] { HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm })
-                {
-                    Transform t = a.ragdoll.HumanBoneTransformAnimated(b);
-                    if (t != null)
-                    {
-                        ShownNow.Add(new Shown { Bone = t, Scale = t.localScale });
-                        t.localScale = Vector3.one * 0.001f;
-                    }
-                }
-            }
             return ShownNow;
         }
 
@@ -142,10 +131,6 @@ namespace RavenfieldVR.Core.Showcase
                     s.Renderer.forceRenderingOff = s.Off;
                     s.Renderer.shadowCastingMode = s.Mode;
                 }
-                if (s.Bone != null)
-                {
-                    s.Bone.localScale = s.Scale;
-                }
             }
             shown.Clear();
         }
@@ -154,18 +139,41 @@ namespace RavenfieldVR.Core.Showcase
 
         private static Transform Head => VRRig.Instance != null ? VRRig.Instance.Head : null;
 
-        /// <summary>The headset's own view, mono, 16:9, with the lens effects.</summary>
-        internal static Shot FirstPerson(float fov = 62f)
+        /// <summary>
+        /// A third-person camera kept on its subject's side of the level: a sphere swept from the subject to the camera stops short of
+        /// whatever is between (take 5's orbit, since removed, filmed from inside a helicopter and under the ground, 2026-11-08).
+        /// </summary>
+        private static Vector3 KeepOut(Vector3 at, Vector3? subject)
+        {
+            if (subject == null)
+            {
+                return at;
+            }
+            Vector3 from = subject.Value, to = at - from;
+            float dist = to.magnitude;
+            int level = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2);
+            if (dist > 0.05f && Physics.SphereCast(from, 0.12f, to / dist, out RaycastHit hit, dist, level, QueryTriggerInteraction.Ignore))
+            {
+                return from + to / dist * Mathf.Max(0.15f, hit.distance - 0.05f);
+            }
+            return at;
+        }
+
+        /// <summary>
+        /// The headset's own view, mono, 16:9. <paramref name="lens"/>: the effects on the lens drawn (mud, water drops); they share the UI
+        /// layer with the game's labels over capture points ("LANDING" floated over the flag), so only for shots that show them.
+        /// </summary>
+        internal static Shot FirstPerson(float fov = 62f, bool lens = false)
         {
             Transform h = Head;
-            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = true };
+            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = lens };
         }
 
         /// <summary>
         /// First person as the gun comes up: from the head to the sight's own line by <paramref name="aim"/> (0 at the hip, 1 aimed),
         /// so the sights sit in the middle of the picture and the view narrows a little, as aiming does on a flat screen.
         /// </summary>
-        internal static Shot FirstPersonAim(float aim, float fov = 62f, float aimedFov = 50f)
+        internal static Shot FirstPersonAim(float aim, float fov = 62f, float aimedFov = 50f, bool lens = false)
         {
             Transform h = Head;
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
@@ -175,19 +183,19 @@ namespace RavenfieldVR.Core.Showcase
             }
             if (held == null || aim <= 0.001f)
             {
-                return FirstPerson(fov);
+                return FirstPerson(fov, lens);
             }
             SightLine sight = held.CurrentSight;
             Vector3 eyeGun = sight != null ? sight.EyePoint : held.Rig.Data.EyePoint;
             Vector3 dirGun = sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection;
             Vector3 dir = held.Rig.DirToWorld(dirGun).normalized;
-            Vector3 eye = held.Rig.ToWorld(eyeGun) - dir * 0.02f;
+            Vector3 eye = held.Rig.ToWorld(eyeGun) - dir * 0.05f;
             float k = Mathf.Clamp01(aim);
             k = k * k * (3f - 2f * k);
             return new Shot
             {
                 Valid = true, Name = "first person", Position = Vector3.Lerp(h.position, eye, k),
-                Rotation = Quaternion.Slerp(h.rotation, Quaternion.LookRotation(dir, h.up), k), Fov = Mathf.Lerp(fov, aimedFov, k), Lens = true
+                Rotation = Quaternion.Slerp(h.rotation, Quaternion.LookRotation(dir, h.up), k), Fov = Mathf.Lerp(fov, aimedFov, k), Lens = lens
             };
         }
 
@@ -212,7 +220,9 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 muzzle = rig.ToWorld(rig.Data.MuzzlePoint);
             Vector3 at = muzzle - fwd * back + sideW * side + upW * up;
             Vector3 face = h.position - Vector3.up * 0.05f;
-            return new Shot { Valid = true, Name = "gun cam", Position = at, Rotation = Quaternion.LookRotation(face - at, upW), Fov = fov, ShowBody = true };
+            // The horizon mostly level (a fifth of the gun's roll: alive, not seasick).
+            Vector3 camUp = Vector3.Slerp(Vector3.up, upW, 0.2f);
+            return new Shot { Valid = true, Name = "gun cam", Position = at, Rotation = Quaternion.LookRotation(face - at, camUp), Fov = fov, ShowBody = true, Subject = face };
         }
 
         /// <summary>Behind and beside the head, looking where the head looks, far ahead.</summary>
@@ -227,15 +237,24 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 right = Vector3.Cross(Vector3.up, flat);
             Vector3 at = h.position - flat * back + right * side + Vector3.up * up;
             Vector3 target = h.position + h.forward * 25f;
-            return new Shot { Valid = true, Name = "over the shoulder", Position = at, Rotation = Quaternion.LookRotation(target - at, Vector3.up), Fov = fov, ShowBody = true };
+            return new Shot { Valid = true, Name = "over the shoulder", Position = at, Rotation = Quaternion.LookRotation(target - at, Vector3.up), Fov = fov, ShowBody = true, Subject = h.position };
         }
 
-        /// <summary>Round a point at a height, <paramref name="degrees"/> along the circle (the scene moves it each frame).</summary>
-        internal static Shot Orbit(Vector3 centre, float radius, float height, float degrees, float lookUp = 0f, float fov = 50f)
+        /// <summary>
+        /// A camera on the helmet: just behind it, a little right and above, rigid with the head and looking where it looks (converging 25
+        /// m ahead), the helmet big in the lower left and the gun ahead of it. Found by chance: an over-the-shoulder view pushed in by a
+        /// rock behind the player (take 7, frame 251), and the user wanted it kept ("we can take that as a additional helmet camera").
+        /// </summary>
+        internal static Shot HelmetCam(float back = 0.32f, float side = 0.15f, float up = 0.08f, float fov = 50f)
         {
-            Vector3 at = centre + Quaternion.Euler(0f, degrees, 0f) * Vector3.forward * radius + Vector3.up * height;
-            Vector3 target = centre + Vector3.up * lookUp;
-            return new Shot { Valid = true, Name = "orbit", Position = at, Rotation = Quaternion.LookRotation(target - at, Vector3.up), Fov = fov, ShowBody = true };
+            Transform h = Head;
+            if (h == null)
+            {
+                return Shot.None;
+            }
+            Vector3 at = h.position + h.rotation * new Vector3(side, up, -back);
+            Vector3 target = h.position + h.forward * 25f;
+            return new Shot { Valid = true, Name = "helmet cam", Position = at, Rotation = Quaternion.LookRotation(target - at, h.up), Fov = fov, ShowBody = true, Subject = h.position };
         }
 
         /// <summary>A camera standing still, looking at a point.</summary>
@@ -287,7 +306,7 @@ namespace RavenfieldVR.Core.Showcase
                 if (_frame != Time.frameCount)
                 {
                     _frame = Time.frameCount;
-                    float dt = Mathf.Max(Time.unscaledDeltaTime, 1f / 120f);
+                    float dt = Mathf.Max(Time.deltaTime, 1f / 120f); // (game time: steps of 1/60 s in the picture pass)
                     _trauma = Mathf.Max(0f, _trauma - 1.8f * dt);
                     _kick = Mathf.Max(0f, _kick - 12f * dt);
                 }
@@ -296,7 +315,7 @@ namespace RavenfieldVR.Core.Showcase
                 {
                     return (p, r);
                 }
-                float t = Time.unscaledTime * 22f;
+                float t = Time.time * 22f;
                 float pitch = (Mathf.PerlinNoise(t, 0.1f) * 2f - 1f) * 6f * s;
                 float yaw = (Mathf.PerlinNoise(0.3f, t) * 2f - 1f) * 6f * s;
                 float roll = (Mathf.PerlinNoise(t, 7.7f) * 2f - 1f) * 4f * s;
