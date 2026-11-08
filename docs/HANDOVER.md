@@ -6,10 +6,18 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 - Branch `tasks-98-113`. Nothing is pushed: the user has problems with GitHub, so no push until they say so.
 - Last setup: **1.16.13** (`dist/RavenfieldVR-Setup-1.16.13.exe`), built 2026-11-08 at the user's word ("build the setup please"); 1.16.12 and Tasks 368 (the start from Steam with SteamVR closed: the mod starts SteamVR and keeps trying, the launcher waits 2 minutes). `dist/notes-next.md` is empty after it. A new setup only when the user asks, with a new patch version.
-- Installed in the game: the 1.16.13 build, the suite passing on it. Not fixed in it (do not tell the user it is): the slow-motion magazine let go beside the gun still hangs; its log line says what ends the flight. Not seen through Oculus Link yet: Tasks 368's start.
-- Current run: Tasks 367, `/work-until-limit 60` (2026-11-08). Ceiling pinned in `.claude/wul-config`; meter: `bash .claude/wul-read.sh`. The user played 1.16.11 before it: their log is `reports/shots/user-1107/game-log.txt`.
+- Installed in the game: the newest build of Tasks 369/370 (vrshots installs the build it runs), the suite passing on it (449). Not in a setup yet: Tasks 369 (the M1's operating rod stays back with the bolt, `HandleCycles`; a slide's pull plays only the pull of a whole-rack clip, `RackSplit`) and Tasks 370's test hygiene. Next setup: 1.16.14, only when asked.
+- Current run: Tasks 370, `/work-until-limit 75` (2026-11-08, second day). Ceiling pinned in `.claude/wul-config`; meter: `bash .claude/wul-read.sh`. The user's own session of 11-07 13:42 is in `BepInEx/LogOutput.player.log` (kept by vrshots): Tasks 368's Steam start worked (VR in 4.0 s).
 - Game tests are allowed again since 2026-11-08 (the user: "from now on you can test the game anytime and test in it , if i dont want it or pause that you dont do it i will tell you.. But while tests run work on other things."). Run them in the background (`python tools/vrshots.py --no-build --weapon "=NAME"`, `--autotest`) and keep working; check `tasklist` for ravenfield.exe first; start Steam with `explorer.exe "C:\Program Files (x86)\Steam\steam.exe"`, never from the shell (memory: steam-msix-container). Stop when the user says so. None of 1.16.10 or later has been seen in the user's headset.
 - The MG belt: the user asked to look for it in the game ("maybe you see the issue too somehow on mgs"). The MG reload self-check now measures the hanging and held belt against the box as drawn (`BeltAgainstDrawnBox`, gun level and rolled 25/-25/50 deg) and takes `belt-1-hanging*`/`belt-2-held` pictures. First run: MG3 and PKM.
+
+## Open from Tasks 370 (2026-11-08, second day)
+
+- The M1 passes its en-bloc check in the game (refused with the bolt shut, in through the open action, bolt home by itself, 8 shots, clip out, bolt locked open). Its slide is bound to 'Garand Reload Full' (0.78 s, one stroke): the new "its own sounds" line (first draw) says for which action; a whole-reload sound on a slide is what Tasks 364 cut for clips over 1 s.
+- The soldier steps after "gun bash" fail in today's runs (shield, neck, strap, a drawn gun letting go): the player stood by a building's wall (pictures grab-12, grab-16), and the neck step's free hand held a gun ("hand Weapon"), maybe the player's own revolver passed from the gun hand left forward after the bash. The checks now move to open ground first (walls and vehicles); a scout reads which grab wins when a soldier's gun or the player's own is near.
+- P220 T S: the drawn slide goes home when a magazine goes into the locked gun (state still locked); the check now names the part.
+- Slowed hands: a magazine let go at 1 m/s went 0.92 m/s in real time (0.18 the day before): the line now says its launch speed (1 = the world's pace from the drop; a later rise = the catching-up hand pushing it).
+- Mag kick, slow push: the fresh magazine does not seat (it did on 10-27): the line now says where it was left.
 
 ## Open from Tasks 367 (the user's reports of 2026-11-08)
 
