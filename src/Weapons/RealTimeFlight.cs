@@ -87,10 +87,32 @@ namespace RavenfieldVR.Weapons
         }
     }
 
+    /// <summary>
+    /// Runs for every grenade in the match every frame: anything thrown here (a game update renaming a field its refs read: thrown from the
+    /// static initializer on every use) gives the game its own step for good, said once, instead of breaking every grenade's Update.
+    /// </summary>
     [HarmonyPatch(typeof(GrenadeProjectile), "Update")]
     internal static class RealTimeGrenadePatch
     {
-        private static bool Prefix(GrenadeProjectile __instance) => RealTimeGrenades.Count == 0 || RealTimeGrenades.Step(__instance);
+        private static bool _broken;
+
+        private static bool Prefix(GrenadeProjectile __instance)
+        {
+            if (_broken)
+            {
+                return true;
+            }
+            try
+            {
+                return RealTimeGrenades.Count == 0 || RealTimeGrenades.Step(__instance);
+            }
+            catch (System.Exception e)
+            {
+                _broken = true;
+                Core.Log.ExceptionOnce("RealTimeGrenades.Step", e); // (grenades go at the world's pace from here, as without the mod)
+                return true;
+            }
+        }
     }
 
     /// <summary>
@@ -188,10 +210,29 @@ namespace RavenfieldVR.Weapons
         }
     }
 
+    /// <summary>Runs for every bullet in the match every frame: guarded as <see cref="RealTimeGrenadePatch"/>.</summary>
     [HarmonyPatch(typeof(Projectile), "UpdatePosition")]
     internal static class RealTimeProjectilePatch
     {
-        private static bool Prefix(Projectile __instance) => RealTimeProjectiles.Count == 0 || RealTimeProjectiles.Step(__instance);
+        private static bool _broken;
+
+        private static bool Prefix(Projectile __instance)
+        {
+            if (_broken)
+            {
+                return true;
+            }
+            try
+            {
+                return RealTimeProjectiles.Count == 0 || RealTimeProjectiles.Step(__instance);
+            }
+            catch (System.Exception e)
+            {
+                _broken = true;
+                Core.Log.ExceptionOnce("RealTimeProjectiles.Step", e); // (bullets go at the world's pace from here, as without the mod)
+                return true;
+            }
+        }
     }
 
     /// <summary>

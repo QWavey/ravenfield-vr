@@ -10,6 +10,13 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DECOMPILED = os.path.join(ROOT, '.ref', 'decompiled')
 PATCH = re.compile(r'HarmonyPatch\(\s*typeof\(\s*([A-Za-z0-9_.]+)\s*\)\s*,\s*"([A-Za-z0-9_]+)"')
+# Members read by name through reflection (a field ref, a method looked up): the same, and worse when wrong. A FieldRefAccess is built in a
+# static initializer, so a renamed field throws TypeInitializationException from every use of its class (the real-time grenades' and
+# bullets' prefixes run for every grenade and bullet every frame; 2026-11-08).
+REFLECTED = [
+    re.compile(r'FieldRefAccess<\s*([A-Za-z0-9_.]+)\s*,[^>]*>\(\s*"([A-Za-z0-9_]+)"'),
+    re.compile(r'AccessTools\.(?:Method|Field|Property|PropertyGetter|PropertySetter|DeclaredMethod|DeclaredField)\(\s*typeof\(\s*([A-Za-z0-9_.]+)\s*\)\s*,\s*"([A-Za-z0-9_]+)"'),
+]
 
 
 def game_file(type_name):
@@ -42,6 +49,21 @@ def main():
             else:
                 print(f'FAIL  {where}: no method {method} in {os.path.relpath(source, ROOT)}')
                 failed += 1
+        for pat in REFLECTED:
+            for m in pat.finditer(text):
+                type_name, member = m.group(1), m.group(2)
+                where = f'{os.path.relpath(path, ROOT)}: {type_name}.{member} (by reflection)'
+                source = game_file(type_name)
+                if source is None:
+                    skipped += 1
+                    continue
+                body = open(source, encoding='utf-8', errors='replace').read()
+                # declared there: a field, a property or a method of that name
+                if re.search(r'[\w>\]]\s+' + re.escape(member) + r'\s*(;|=|\(|\{)', body):
+                    passed += 1
+                else:
+                    print(f'FAIL  {where}: no member {member} in {os.path.relpath(source, ROOT)}')
+                    failed += 1
     print(f'{passed} passed, {failed} failed ({skipped} engine types not checked)')
     return 1 if failed else 0
 
