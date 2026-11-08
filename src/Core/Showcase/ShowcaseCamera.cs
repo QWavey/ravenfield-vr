@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HarmonyLib;
 using RavenfieldVR.Rig;
 using RavenfieldVR.Weapons;
 using UnityEngine;
@@ -57,6 +58,7 @@ namespace RavenfieldVR.Core.Showcase
                 rig.Suppressor.Ignore(cam); // (the suppressor empties the game's cameras' masks: not this one)
             }
             cam.CopyFrom(source); // (its transform and its target too: both set below)
+            MirrorPostProcess(cam, rig, shot.FromEyes); // (the goggles' green is the wearer's view: from the eyes only)
             cam.stereoTargetEye = StereoTargetEyeMask.None;
             Camera ui = UI.UISystem.Instance != null ? UI.UISystem.Instance.UiCamera : null;
             cam.cullingMask = shot.Lens ? source.cullingMask | (ui != null ? ui.cullingMask : 1 << UiLayer) : source.cullingMask & ~(1 << UiLayer);
@@ -82,6 +84,45 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 cam.targetTexture = null;
             }
+        }
+
+        private static UnityEngine.Rendering.PostProcessing.PostProcessLayer _pp;
+
+        /// <summary>
+        /// The eyes' post-processing on the showcase camera too, as the eyes have it this frame (the goggles' green, the game's grade with
+        /// PostProcessing on): a camera copied from the eyes takes their settings, not their components, and filmed no night vision.
+        /// </summary>
+        private static void MirrorPostProcess(Camera cam, VRRig rig, bool fromEyes)
+        {
+            UnityEngine.Rendering.PostProcessing.PostProcessLayer eye = rig != null ? rig.EyePostProcess : null;
+            bool on = fromEyes && eye != null && eye.enabled;
+            if (on && _pp == null)
+            {
+                object resources = PostProcessingManager.instance != null && PostProcessingManager.instance.ppResources != null
+                    ? PostProcessingManager.instance.ppResources : VRRig.PostProcessResources(eye);
+                if (resources == null)
+                {
+                    return;
+                }
+                GameObject go = cam.gameObject;
+                go.SetActive(false);
+                _pp = go.AddComponent<UnityEngine.Rendering.PostProcessing.PostProcessLayer>();
+                AccessTools.Field(typeof(UnityEngine.Rendering.PostProcessing.PostProcessLayer), "m_Resources")?.SetValue(_pp, resources);
+                go.SetActive(true);
+            }
+            if (_pp == null)
+            {
+                return;
+            }
+            if (on)
+            {
+                _pp.volumeLayer = eye.volumeLayer;
+                _pp.volumeTrigger = cam.transform;
+                _pp.antialiasingMode = eye.antialiasingMode;
+                _pp.stopNaNPropagation = true;
+                cam.allowHDR = true;
+            }
+            _pp.enabled = on;
         }
 
         // ---- the player's body for the cinematic cameras --------------------------------------------------------------------

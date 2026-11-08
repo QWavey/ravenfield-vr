@@ -90,6 +90,12 @@ namespace RavenfieldVR.Rig
         private PostProcessLayer _postProcess;
         private static readonly FieldInfo PpResources = AccessTools.Field(typeof(PostProcessLayer), "m_Resources");
 
+        /// <summary>Showcase only: the eyes' post-processing (the grade, the goggles' green), to be mirrored by its camera; null when none.</summary>
+        internal PostProcessLayer EyePostProcess => _postProcess;
+
+        /// <summary>Showcase only: the post-processing resources a new layer needs (the eyes' own way of getting them).</summary>
+        internal static object PostProcessResources(PostProcessLayer from) => from != null && PpResources != null ? PpResources.GetValue(from) : null;
+
         public float TurnInputThisFrame { get; private set; }
 
         public VRRig()

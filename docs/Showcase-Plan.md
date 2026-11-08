@@ -26,6 +26,31 @@
 | Audio | none | Nothing records sound; the game's music has its own mixer (`Options.musicAudioMixer`) |
 | On the PC | | OpenCV, Pillow, numpy; **no ffmpeg**; OBS Studio installed; Windows' **Bahnschrift** (DIN-style, condensed widths) |
 
+## The recipe: how the epic clips are made (keep this; the user, 2026-11-08: "keep the knowledge how we made the clips that epic")
+
+The user's favourite so far: `showcase/clips/07-montage-3-maps-23-beats-KEEP.mp4` (edit `tools/trailer/montage-3maps-keep.json`, frozen to its
+23 takes in `showcase/takes/`). What made it work, in the order it was learned:
+
+1. **One short take per beat, many guns, many maps.** `vrshots --showcase montage --fast --mods IDS --guns "A,B,..." --map MAP`: one game run
+   gives 8 beats (one per gun), each its own take with its own sound. Three runs on three looks (Dustbowl desert, Temple snow, Canyon red
+   rock). Modded guns by name; their mods by workshop id (`BepInEx/cache/RavenfieldVR-weapon-mods.tsv` lists weapon -> mod).
+2. **Beats that rotate**: a natural magazine swap (first person), a rack (first person, zoomed), three shots on the helmet cam, walking fire on
+   the gun cam (the face behind the gun), aimed shots through the sights, a turn of the gun in both hands; never the gun cam for hand work
+   (the hand ends up in the face).
+3. **Natural hands**: `SwapFilm` (the magazine dropped, the hand to the pouch, a fresh one, under the well, in with a slap: one smooth curve),
+   `RackFilm` (a hard pull and let go), `ShowcaseGunLife` (the gun hand meets the other, flicks, takes the slap, pushes against the pull,
+   breathes). The mod's gloves (not the weapons' arms) with the body's own arms drawn from the eyes, the forearm stretched when out of reach.
+4. **Tight edit**: each beat cut to 0.3-1.1 s, hard cuts, beats alternating map and kind (`tools/trailer/make_montage.py`), a cut into a
+   shot on its shot frame, a 1.6 s card with the last sound ringing out. 16-20 s for ~23 beats.
+5. **Sound that sticks to the picture**: two passes per take (picture frame-locked, sound in real time); each mechanical sound and each round
+   logged in both passes; each cut's sound placed by its nearest anchors (`showcase_take.anchors`). Peak to -1 dB. Game sounds only.
+6. **Steady and clean**: the clock half a physics step off its boundary, the grip measured once (no walk shake), the player not knocked over or
+   hurt, staged away from vehicles with room for the cameras, the camera kept out of walls, the holstered copies hidden for the helmet cam.
+7. **Check every take before the next**: `showcase_take.py` (frames, sync, events, ping-pong jitter), a contact sheet, a look at the frames.
+
+Clips are kept and named in `showcase/clips/NN-scene-map-what.mp4`; `python -I tools/showcase_all.py` joins all of them into
+`showcase/showcase-all.mp4` (the user: "at the end always produce a full combined clip so i can see everything you did").
+
 ## How it works now (2026-11-08 night; supersedes the approach below where they differ)
 
 - **One clip per game run**, each checked and improved before the next, on different maps where possible (the user: "record

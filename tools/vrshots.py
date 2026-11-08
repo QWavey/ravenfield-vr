@@ -576,6 +576,7 @@ def main():
     ap.add_argument('--showcase', action='append', nargs='?', const='', metavar='SCENES',
                     help="the showcase takes (docs/Showcase-Plan.md): staged scenes filmed at 60 fps with the game's own sound; "
                          'SCENES picks some (comma separated), all by default')
+    ap.add_argument('--night', action='store_true', help="with --showcase: the map's night version (eagle base, temple, glacier)")
     ap.add_argument('--guns', metavar='A,B,C', help="with --showcase montage: the montage's guns by name, one beat each (load their mods with --mods)")
     ap.add_argument('--one-mag', action='store_true', help='with --film: aimed, full auto until one magazine is empty, nothing else')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
@@ -655,7 +656,7 @@ def main():
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
         elif mode == 'showcase':
             scenes = ','.join(s for s in (a.showcase or []) if s)
-            args, timeout = base + ['-rfvr-showcase'] + ([f'-rfvr-showcase-scenes={scenes}'] if scenes else [])                 + ([f'-rfvr-showcase-guns={a.guns}'] if a.guns else []), a.timeout or 30
+            args, timeout = base + ['-rfvr-showcase'] + ([f'-rfvr-showcase-scenes={scenes}'] if scenes else [])                 + ([f'-rfvr-showcase-guns={a.guns}'] if a.guns else []) + (['-rfvr-showcase-night'] if a.night else []), a.timeout or 30
         elif mode == 'grabcheck':
             args, timeout = base + ['-rfvr-grabcheck'] + (['-rfvr-walkcheck'] if a.walkcheck else []), a.timeout or 8
         else:

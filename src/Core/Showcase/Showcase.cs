@@ -37,6 +37,7 @@ namespace RavenfieldVR.Core.Showcase
             ("slowmo", RifleSetup("slowmo"), SlowmoScene),
             ("scope", ScopeSetup, ScopeScene),
             ("hands", HandsSetup, HandsScene),
+            ("fight", FightSetup, FightScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
@@ -862,6 +863,24 @@ namespace RavenfieldVR.Core.Showcase
 
 namespace RavenfieldVR.Core.Showcase
 {
+    /// <summary>
+    /// -rfvr-showcase-night: the map's night version (Eagle Base Night, Temple Night, Glacier Night), for the night-vision scenes. The
+    /// game's -map starts a built-in map by day only; the loading screen loads "NAME night" when its entry asks for the night version.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(GameManager), nameof(GameManager.StartLevel))]
+    internal static class ShowcaseNightPatch
+    {
+        internal static readonly bool Night = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-showcase-night", StringComparison.OrdinalIgnoreCase));
+
+        private static void Prefix(MapEntryData entry)
+        {
+            if (Night && entry != null && !entry.isCustomMap)
+            {
+                entry.nightVersion = true;
+            }
+        }
+    }
+
     /// <summary>The player kept on their feet and unhurt while <see cref="Showcase.Steady"/> (showcase takes only).</summary>
     [HarmonyLib.HarmonyPatch]
     internal static class ShowcaseSteadyPatches
