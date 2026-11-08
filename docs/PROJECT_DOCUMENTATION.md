@@ -1273,3 +1273,11 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `dist/RavenfieldVR-Setup-1.16.13.exe`): Tasks 368. Started with -vr and SteamVR closed, `VRManager.Start` starts SteamVR (vrstartup),
    waits for its compositor and tries `OpenVRRuntime.Start` every 3 s for up to 2 minutes (`SteamVRWait`) before it plays flat;
    `HeadsetWaitForm` waits 2 minutes for an answer once it started SteamVR itself.
+36. **1.16.14** (2026-11-08, built and installed, not published; notes in `dist/notes-1.16.14.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.14.exe`): Tasks 369 and 370. `WeaponRigData.HandleCycles` (the M1's operating rod locks back with the bolt),
+   `RackSplit` (a pull plays the first stroke of a clip or slice holding both), `WeaponAnalyzer.WholeReloadName`, `SoldierGuns.BodyDistance`,
+   `VRScope.OwnPictureMaterial` (a gun's own reticle texture from its 2D scope picture on the lens, vetted once on the GPU, warmed in
+   `WeaponWarmup.Prepare`), `PropPhysics.GroundBetween` and `UpOnto` (surface ground only), `BackToward` passing the held gun's stand-in,
+   `WeaponSystem.LetGoForNewLife` (also from a prefix on the player's `Actor.SpawnAt`: a takeover has no dead frame), a soldier's gun not taken
+   within 0.6 s of a hand's blow. Not verified in the game: the runs were stopped at the user's word; the last one froze at the let-go check
+   (Tasks 370).
