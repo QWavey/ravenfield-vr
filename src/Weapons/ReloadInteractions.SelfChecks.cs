@@ -2155,7 +2155,10 @@ namespace RavenfieldVR.Weapons
                     if (kick)
                     {
                         Core.AutoTest.Metric($"mag kick ({how.Name}): knocked out (0/1)", knocked ? 1 : 0);
-                        report($"mag kick, {how.Name}: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED")}, {sum}");
+                        // (Not seated: where the fresh one was left, for finding why: the slow push's NOT SEATED from 2026-11-08 had no word on it.)
+                        string why = seated || fresh.Go == null ? "" : $" [it {(fresh.OnRail ? $"on the rail {fresh.RailDepth * 100f:0.0} of {fresh.RailLength * 100f:0.0} cm" : "off the rail")}, "
+                                     + $"{(ReferenceEquals(off.Held, fresh) ? "in the hand" : "not in the hand")}, the gun {(AcceptsNow(fresh) ? "would take it" : "would not take it")}, magazine in {Ammo.MagInserted}]";
+                        report($"mag kick, {how.Name}: old magazine {(knocked ? $"knocked out ({oldRounds} rounds)" : "NOT KNOCKED OUT")}, fresh one {(seated ? $"seated ({freshRounds} rounds)" : "NOT SEATED" + why)}, {sum}");
                     }
                     else
                     {
