@@ -423,7 +423,7 @@ namespace RavenfieldVR.Core.Showcase
             float sign = dom.IsLeft ? -1f : 1f;
             Transform head = rig.Head;
             Quaternion level = Quaternion.LookRotation(Flat(head.forward), Vector3.up);
-            Vector3 holster = head.position + level * new Vector3(0.21f * sign, -0.78f, -0.02f);
+            Vector3 holster = head.position + level * new Vector3(0.21f * sign, -0.72f, -0.02f);
             Quaternion down = level * Quaternion.Euler(70f, 0f, 0f); // (the hand pointing down at the holster)
             Runtime.RigidPose startRaw = Rig.VRHand.Scripted[side] ?? dom.Raw;
             Vector3 camAt = holster + level * new Vector3(0.28f * sign, 0.22f, 0.62f);
@@ -446,6 +446,14 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Still("pistol-draw-hip-cam");
                 }
             });
+            // The game's own draw takes the weapon's unholster time: the hand rises on out of the holster until the pistol is in it
+            // (at most 1 s; the autotest's Draw waits up to 6 s for the same).
+            Weapon pistolWeapon = actor.weapons[_sidearmSlot];
+            for (int f = 0; f < 60 && (sys.Held == null || sys.Held.Weapon != pistolWeapon); f++)
+            {
+                float rise = 0.06f + 0.002f * f;
+                yield return Moment(rec, () => Rig.VRHand.Scripted[side] = new Runtime.RigidPose(holster + Vector3.up * rise, down));
+            }
             HeldWeapon held = sys.Held;
             if (held == null || !held.Rig.Data.IsPistol)
             {
