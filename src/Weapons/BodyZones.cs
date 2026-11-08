@@ -173,7 +173,9 @@ namespace RavenfieldVR.Weapons
                 // it, the holster one nearer to the holster (HolsterNearerThanPouch; holsters scout, 2026-11-08).
                 case PouchLocation.DominantHip: Pouch = Boneworks ? hipSide + TorsoRight * (0.17f * gunSide) : belt + TorsoRight * (0.1f * gunSide); break;
                 case PouchLocation.Chest: Pouch = Chest - Vector3.up * 0.13f; break;
-                case PouchLocation.OffHandChest: Pouch = OffChest - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
+                // (The free hand's side of the chest, as the hip pouch below: from OffChest, the configured side, the pouch stayed on the gun arm's
+                // side once the gun was passed to the other hand, the free hand reaching across it; hands scout, 2026-11-08.)
+                case PouchLocation.OffHandChest: Pouch = Chest - TorsoRight * (0.13f * gunSide) - Vector3.up * 0.1f + TorsoForward * 0.03f; break;
                 default: Pouch = Boneworks ? hipSide - TorsoRight * (0.17f * gunSide) : belt - TorsoRight * (0.1f * gunSide); break; // free hand's side
             }
         }
