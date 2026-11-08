@@ -44,6 +44,10 @@ namespace RavenfieldVR.Core.Showcase
         {
             string[] picked = Picked();
             Steady = true;
+            // The mod's own gloves for the showcase (a run-time override, as the reload mode's: the saved setting stays): with the
+            // weapons' own first-person arms, stretched to the shoulders by the IK, the sleeves broke into spikes in the air.
+            HandsMode? handsBefore = VRConfig.TestHands;
+            VRConfig.TestHands = HandsMode.VRHands;
             foreach ((string name, Func<Action<string>, IEnumerator> setup, Func<ShowcaseRecorder, Action<string>, IEnumerator> perform) in Scenes.Concat(MontageScenes()))
             {
                 // A scene by its name, or a group by its first word ("montage": every beat of the montage).
@@ -92,6 +96,7 @@ namespace RavenfieldVR.Core.Showcase
                 }
             }
             Steady = false;
+            VRConfig.TestHands = handsBefore;
         }
 
         /// <summary>

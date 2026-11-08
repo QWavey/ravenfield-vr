@@ -37,6 +37,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             _on = false;
             Application.onBeforeRender -= Pose;
+            Fold(null, false);
             foreach ((Transform bone, Vector3 scale) in Scaled)
             {
                 if (bone != null)
@@ -78,6 +79,10 @@ namespace RavenfieldVR.Core.Showcase
                 return;
             }
             Transform eyes = rig.Head;
+            // From the eyes this frame (the scene's camera, asked before the drawing): the head and its helmet folded into the neck, the
+            // camera sits where they are. Unfolded again for the other cameras (its scale is not the animator's to put back).
+            ShowcaseCamera.Shot next = ShowcaseRecorder.Current != null && ShowcaseRecorder.Current.Shot != null ? ShowcaseRecorder.Current.Shot() : ShowcaseCamera.Shot.None;
+            Fold(head, next.Valid && next.FromEyes);
             Vector3 lookFlat = Vector3.ProjectOnPlane(eyes.forward, Vector3.up);
             if (lookFlat.sqrMagnitude < 1e-4f)
             {
@@ -151,6 +156,24 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 elbow = s + dir * (cosA * a) + bend * (sinA * a);
             upper.rotation = Quaternion.FromToRotation(lower.position - s, elbow - s) * upper.rotation;
             lower.rotation = Quaternion.FromToRotation(end.position - lower.position, target - lower.position) * lower.rotation;
+        }
+
+        private static Transform _folded;
+        private static Vector3 _foldedScale;
+
+        private static void Fold(Transform head, bool fold)
+        {
+            if (fold && _folded == null)
+            {
+                _folded = head;
+                _foldedScale = head.localScale;
+                head.localScale = Vector3.one * 0.001f;
+            }
+            else if (!fold && _folded != null)
+            {
+                _folded.localScale = _foldedScale;
+                _folded = null;
+            }
         }
 
         /// <summary>The body's own hand made tiny (inside the glove), its scale kept to be put back.</summary>

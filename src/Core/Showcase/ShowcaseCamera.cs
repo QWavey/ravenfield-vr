@@ -30,6 +30,12 @@ namespace RavenfieldVR.Core.Showcase
             public Vector3? Subject;
             /// <summary>The holstered weapons' copies hidden for this render (the helmet cam: a slung rifle right in front of it).</summary>
             public bool HideHolstered;
+            /// <summary>
+            /// From the eyes: the body drawn too, its head and helmet folded away before the frame's drawing (<see cref="ShowcaseBody"/>),
+            /// so the arms come from the shoulders to the gloves. The weapons' own first-person arms, stretched there by the IK, broke
+            /// into spiky fragments in the air (the user: "the hands/arms ... they are not in the view").
+            /// </summary>
+            public bool FromEyes;
 
             internal static Shot None => default;
         }
@@ -60,7 +66,7 @@ namespace RavenfieldVR.Core.Showcase
             cam.targetTexture = rt;
             (Vector3 p, Quaternion r) = Shake.Apply(KeepOut(shot.Position, shot.Subject), shot.Rotation);
             cam.transform.SetPositionAndRotation(p, r);
-            List<Shown> shown = shot.ShowBody ? ShowBody() : null;
+            List<Shown> shown = shot.ShowBody ? ShowBody(!shot.FromEyes) : null;
             Weapons.HolsterDisplay holsters = shot.HideHolstered && Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Holsters : null;
             holsters?.HideForRender(true);
             try
@@ -94,7 +100,7 @@ namespace RavenfieldVR.Core.Showcase
         /// headset and the gloves by <see cref="ShowcaseBody"/> before the frame's drawing. (Its arms scaled away here, at the frame's end, never
         /// showed: the body is skinned for the frame by then.)
         /// </summary>
-        private static List<Shown> ShowBody()
+        private static List<Shown> ShowBody(bool accessories = true)
         {
             ShownNow.Clear();
             FpsActorController player = LocalPlayer.controller;
@@ -117,7 +123,7 @@ namespace RavenfieldVR.Core.Showcase
             {
                 Show(r);
             }
-            if (a.accessoryRenderer != null)
+            if (accessories && a.accessoryRenderer != null)
             {
                 foreach (Renderer r in a.accessoryRenderer)
                 {
@@ -171,7 +177,7 @@ namespace RavenfieldVR.Core.Showcase
         internal static Shot FirstPerson(float fov = 62f, bool lens = false)
         {
             Transform h = Head;
-            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = lens };
+            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = lens, ShowBody = true, FromEyes = true };
         }
 
         /// <summary>
@@ -190,7 +196,8 @@ namespace RavenfieldVR.Core.Showcase
             {
                 // (One name for the whole blend: switched half way, the edit's mark runs split there and a cut took 5 frames of it.)
                 Valid = true, Name = a.Name + " into " + b.Name, Position = Vector3.Lerp(a.Position, b.Position, k), Rotation = Quaternion.Slerp(a.Rotation, b.Rotation, k),
-                Fov = Mathf.Lerp(a.Fov, b.Fov, k), ShowBody = k < 0.5f ? a.ShowBody : b.ShowBody, Lens = k < 0.5f ? a.Lens : b.Lens, Subject = k < 0.5f ? a.Subject : b.Subject
+                Fov = Mathf.Lerp(a.Fov, b.Fov, k), ShowBody = k < 0.5f ? a.ShowBody : b.ShowBody, Lens = k < 0.5f ? a.Lens : b.Lens, Subject = k < 0.5f ? a.Subject : b.Subject,
+                FromEyes = k < 0.5f ? a.FromEyes : b.FromEyes, HideHolstered = k < 0.5f ? a.HideHolstered : b.HideHolstered
             };
         }
 
@@ -210,7 +217,7 @@ namespace RavenfieldVR.Core.Showcase
             Quaternion at = to.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(to, Vector3.up) : h.rotation;
             float k = Mathf.Clamp01(look);
             k = k * k * (3f - 2f * k);
-            return new Shot { Valid = true, Name = "first person look", Position = h.position, Rotation = Quaternion.Slerp(h.rotation, at, k), Fov = fov };
+            return new Shot { Valid = true, Name = "first person look", Position = h.position, Rotation = Quaternion.Slerp(h.rotation, at, k), Fov = fov, ShowBody = true, FromEyes = true };
         }
 
         /// <summary>
@@ -238,7 +245,7 @@ namespace RavenfieldVR.Core.Showcase
             k = k * k * (3f - 2f * k);
             return new Shot
             {
-                Valid = true, Name = "first person", Position = Vector3.Lerp(h.position, eye, k),
+                Valid = true, Name = "first person", ShowBody = true, FromEyes = true, Position = Vector3.Lerp(h.position, eye, k),
                 Rotation = Quaternion.Slerp(h.rotation, Quaternion.LookRotation(dir, h.up), k), Fov = Mathf.Lerp(fov, aimedFov, k), Lens = lens
             };
         }
