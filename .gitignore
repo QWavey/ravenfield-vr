@@ -30,3 +30,4 @@ tools/sandbox/poses/history/
 # Showcase clips (media, kept out of git)
 showcase/*.mp4
 showcase/takes/
+showcase/stills/

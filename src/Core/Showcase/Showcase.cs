@@ -760,12 +760,12 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 walkFrom = LocalPlayer.actor.Position();
             Input.VRInput.SimulatedMove = new Vector2(0f, 1f);
             report("showcase pilot: start: " + Facing());
-            yield return Film(rec, 2.2f, u => HoldGun(0f));
+            yield return Film(rec, 2.2f, u => { HoldGun(0f); if (u >= 0.55f) { rec.Still("walk-gun-cam"); } });
             Input.VRInput.SimulatedMove = Vector2.zero;
             report($"showcase pilot: walked {Vector3.Distance(walkFrom, LocalPlayer.actor.Position()):0.0} m in 2.2 s; " + Facing());
             rec.Mark = "raise";
             rec.Shot = () => ShowcaseCamera.OverShoulder();
-            yield return Film(rec, 0.55f, u => HoldGun(EaseOut(u), 0.6f));
+            yield return Film(rec, 0.55f, u => { HoldGun(EaseOut(u), 0.6f); if (u >= 0.9f) { rec.Still("raised-over-the-shoulder"); } });
             int shots = 0;
             for (int k = 0; k < 5; k++)
             {
@@ -778,14 +778,14 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Shot = () => ShowcaseCamera.HelmetCam();
                 }
                 rec.Mark = "shot"; // (the frame a shot leaves: the mux lines the sound up by these)
-                yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire()) { shots++; } });
+                yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire()) { shots++; } rec.Still(k < 3 ? "shot-first-person" : "shot-helmet-cam"); });
                 rec.Mark = "shots";
                 yield return Film(rec, 0.26f, u => HoldGun(1f, 0.3f));
             }
             report("showcase pilot: after the shots: " + Facing());
             rec.Mark = "burst";
             int ammo = int.MaxValue;
-            yield return Film(rec, 1.6f, u => { HoldGun(1f, 0.3f); HoldTrigger(ref ammo); });
+            yield return Film(rec, 1.6f, u => { HoldGun(1f, 0.3f); HoldTrigger(ref ammo); if (u >= 0.4f) { rec.Still("burst-helmet-cam"); } });
             ReleaseTrigger();
             rec.Mark = "after";
             yield return Film(rec, 0.8f, u => HoldGun(1f, 0.3f));

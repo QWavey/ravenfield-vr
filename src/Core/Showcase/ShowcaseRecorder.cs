@@ -43,7 +43,10 @@ namespace RavenfieldVR.Core.Showcase
         private readonly Camera _cam;
         private readonly RenderTexture _rt;
         private readonly Thread[] _writers;
-        private readonly Queue<(string path, byte[] rgba)> _queue = new Queue<(string, byte[])>();
+        private readonly Queue<(string path, byte[] rgba, int w, int h, bool png)> _queue = new Queue<(string, byte[], int, int, bool)>();
+        private readonly List<string> _stillsWanted = new List<string>();
+        private readonly HashSet<string> _stillNames = new HashSet<string>();
+        private int _stills;
         private readonly Stack<byte[]> _spare = new Stack<byte[]>();
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private volatile bool _stop;
@@ -180,8 +183,13 @@ namespace RavenfieldVR.Core.Showcase
                     ShowcaseCamera.Render(_cam, shot, _rt);
                     string path = Path.Combine(_dir, "f" + _frame.ToString("00000") + ".jpg");
                     _pending++;
-                    AsyncGPUReadback.Request(_rt, 0, TextureFormat.RGBA32, req => Readback(req, path));
+                    AsyncGPUReadback.Request(_rt, 0, TextureFormat.RGBA32, req => Readback(req, path, _w, _h, false));
+                    foreach (string still in _stillsWanted)
+                    {
+                        TakeStill(shot, still);
+                    }
                 }
+                _stillsWanted.Clear();
             }
             _log.Append(_frame).Append('\t').Append(at.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(Mark);
             if (!Sound)
@@ -211,7 +219,41 @@ namespace RavenfieldVR.Core.Showcase
                    + " phase " + phase.ToString("0.000", inv);
         }
 
-        private void Readback(AsyncGPUReadbackRequest req, string path)
+        /// <summary>
+        /// A still of this frame as well (the user's "lots of in-game captures"): 3840x2160 PNG from the same camera, drawn at the
+        /// frame's end with the frame's own picture (the body posed, the shot's flash in). The picture pass only.
+        /// </summary>
+        internal void Still(string name)
+        {
+            if (!Sound && _recording && _stillNames.Add(name))
+            {
+                _stillsWanted.Add(name); // (each name once: a scene asks in a step that runs for many frames)
+            }
+        }
+
+        private void TakeStill(ShowcaseCamera.Shot shot, string name)
+        {
+            const int w = 3840, h = 2160;
+            RenderTexture rt = RenderTexture.GetTemporary(new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 24) { msaaSamples = 8, sRGB = true });
+            try
+            {
+                ShowcaseCamera.Render(_cam, shot, rt);
+            }
+            catch
+            {
+                RenderTexture.ReleaseTemporary(rt);
+                throw;
+            }
+            string path = Path.Combine(_dir, $"still-{++_stills:00}-{name}.png");
+            _pending++;
+            AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, req =>
+            {
+                RenderTexture.ReleaseTemporary(rt);
+                Readback(req, path, w, h, true);
+            });
+        }
+
+        private void Readback(AsyncGPUReadbackRequest req, string path, int w, int h, bool png)
         {
             _pending--;
             if (req.hasError)
@@ -233,7 +275,7 @@ namespace RavenfieldVR.Core.Showcase
             NativeArray<byte>.Copy(data, rgba, rgba.Length);
             lock (_queue)
             {
-                _queue.Enqueue((path, rgba));
+                _queue.Enqueue((path, rgba, w, h, png));
             }
             _wake.Set();
         }
@@ -276,7 +318,7 @@ namespace RavenfieldVR.Core.Showcase
             _rt.Release();
             UnityEngine.Object.Destroy(_rt);
             UnityEngine.Object.Destroy(_cam.gameObject);
-            Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), in {_dir}; "
+            Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), {_stills} still(s), in {_dir}; "
                      + (_uneven == 0 ? "one physics step every frame." : $"{_uneven} FRAME(S) WITHOUT EXACTLY ONE PHYSICS STEP (the gun jumps on them)."));
         }
 
@@ -295,7 +337,7 @@ namespace RavenfieldVR.Core.Showcase
         {
             while (true)
             {
-                (string path, byte[] rgba) item;
+                (string path, byte[] rgba, int w, int h, bool png) item;
                 bool have;
                 lock (_queue)
                 {
@@ -317,8 +359,10 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 try
                 {
-                    byte[] jpg = ImageConversion.EncodeArrayToJPG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)_w, (uint)_h, 0, 95);
-                    File.WriteAllBytes(item.path, jpg);
+                    byte[] encoded = item.png
+                        ? ImageConversion.EncodeArrayToPNG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h, 0)
+                        : ImageConversion.EncodeArrayToJPG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h, 0, 95);
+                    File.WriteAllBytes(item.path, encoded);
                 }
                 catch (Exception ex)
                 {
@@ -329,9 +373,9 @@ namespace RavenfieldVR.Core.Showcase
                     lock (_queue)
                     {
                         _writing--;
-                        if (_spare.Count < 32)
+                        if (_spare.Count < 32 && !item.png)
                         {
-                            _spare.Push(item.rgba);
+                            _spare.Push(item.rgba); // (a still's 33 MB buffer is not kept: the frames' are a quarter of it)
                         }
                     }
                 }

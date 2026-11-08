@@ -64,6 +64,10 @@ namespace RavenfieldVR.Core.Showcase
                 look = Ease(u) * 0.9f;
                 GunPose g = GunPose.Lerp(HipToEye(0f, 0f), Presented(), EaseOut(u));
                 PlaceGun(g.At, g.Aim, true);
+                if (u >= 0.95f)
+                {
+                    rec.Still("reload-presented");
+                }
             });
 
             // The support hand lets go of the handguard (the grip opened: the reload code takes it as free).
@@ -87,6 +91,10 @@ namespace RavenfieldVR.Core.Showcase
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff; // (it clears the hand's pose when it ends: the regrip eases from this)
                 rec.Mark = note;
+                if (note == "held" || note == "pushing in")
+                {
+                    rec.Still(note == "held" ? "reload-magazine-out" : "reload-magazine-in-first-person");
+                }
                 bool closeUp = note == "pulling out" || note == "held";
                 rec.Shot = closeUp
                     ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.CloseUp(well, new Vector3(-0.42f, -0.06f, 0.02f), 46f))
@@ -105,6 +113,10 @@ namespace RavenfieldVR.Core.Showcase
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "rack " + note;
                 rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), 0.8f);
+                if (note == "let go")
+                {
+                    rec.Still("reload-racked");
+                }
                 KeepAlive();
                 HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
                 rec.TakeFrame();
@@ -174,6 +186,10 @@ namespace RavenfieldVR.Core.Showcase
                 tilt = 0.2f + 0.45f * Mathf.Sin(e * Mathf.PI);
                 GunPose g = Turned();
                 PlaceGun(g.At, g.Aim, true);
+                if (u >= 0.5f)
+                {
+                    rec.Still("inspect-turned");
+                }
             });
             float aim = 0f;
             rec.Mark = "raise";
@@ -259,13 +275,21 @@ namespace RavenfieldVR.Core.Showcase
             // The pin, pulled with that hand's trigger (0.3 s).
             rec.Mark = "pin";
             SecondWeapon.TestTrigger = true;
-            yield return Film(rec, 0.3f, u => { HoldGun(0.12f, 0.3f, false); OffAt(show, grip); });
+            yield return Film(rec, 0.3f, u => { HoldGun(0.12f, 0.3f, false); OffAt(show, grip); if (u >= 0.5f) { rec.Still("grenade-pin"); } });
             bool armed = second.Armed;
 
             // Wound up beside the head (0.35 s), thrown (0.15 s: let go at its end, up and away at 14 m/s), followed through.
             rec.Mark = "wind up";
             rec.Shot = () => ShowcaseCamera.HelmetCam(0.34f, 0.17f * -sign, 0.1f);
-            yield return Film(rec, 0.35f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(show, back, EaseOut(u)), grip * Quaternion.Euler(-40f * EaseOut(u), 0f, 0f)); });
+            yield return Film(rec, 0.35f, u =>
+            {
+                HoldGun(0.12f, 0.3f, false);
+                OffAt(Vector3.Lerp(show, back, EaseOut(u)), grip * Quaternion.Euler(-40f * EaseOut(u), 0f, 0f));
+                if (u >= 0.9f)
+                {
+                    rec.Still("grenade-wind-up");
+                }
+            });
             rec.Mark = "throw";
             yield return Film(rec, 0.15f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(back, release, u * u), grip * Quaternion.Euler(Mathf.Lerp(-40f, 30f, u), 0f, 0f)); });
             Vector3 throwV = (Flat(head.forward) + Vector3.up * 0.45f).normalized * 14f;
@@ -289,6 +313,7 @@ namespace RavenfieldVR.Core.Showcase
             rec.Mark = "flight";
             Vector3 last = release + throwV.normalized * 3f;
             bool blown = false;
+            float blastAt = 2f;
             rec.Shot = () => ShowcaseCamera.FirstPersonLook(last, 0.55f, 60f);
             yield return Film(rec, 0.25f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(release, follow, EaseOut(u)), grip); last = flying != null ? flying.transform.position : last; });
             Input.VRInput.SimulatedGrab[side] = false;
@@ -305,6 +330,11 @@ namespace RavenfieldVR.Core.Showcase
                     blown = true;
                     rec.Mark = "blast";
                     ShowcaseCamera.Shake.Add(0.45f, 0.4f);
+                    blastAt = u;
+                }
+                if (blown && u >= blastAt + 0.06f)
+                {
+                    rec.Still("grenade-blast");
                 }
             });
             report($"showcase grenade ({grenade.name}): {(armed ? "pin pulled" : "PIN NOT PULLED")}, {(live > 0 ? $"thrown live, fuse {fuse:0.0} s" : "NOTHING THROWN")}, "
@@ -406,7 +436,14 @@ namespace RavenfieldVR.Core.Showcase
             rec.Mark = "draw";
             Input.VRInput.SimulatedGrab[side] = true;
             actor.SwitchWeapon(_sidearmSlot);
-            yield return Film(rec, 0.2f, u => Rig.VRHand.Scripted[side] = new Runtime.RigidPose(holster + Vector3.up * 0.06f * u, down));
+            yield return Film(rec, 0.2f, u =>
+            {
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(holster + Vector3.up * 0.06f * u, down);
+                if (u >= 0.6f)
+                {
+                    rec.Still("pistol-draw-hip-cam");
+                }
+            });
             HeldWeapon held = sys.Held;
             if (held == null || !held.Rig.Data.IsPistol)
             {
@@ -433,6 +470,10 @@ namespace RavenfieldVR.Core.Showcase
             {
                 lastOff = Rig.VRHand.Scripted[offSide] ?? lastOff;
                 rec.Mark = "rack " + note;
+                if (note == "let go")
+                {
+                    rec.Still("pistol-racked");
+                }
                 KeepAlive();
                 PlaceGun(chest.At, chest.Aim, false);
                 rec.TakeFrame();
@@ -463,7 +504,7 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Shot = () => ShowcaseCamera.HelmetCam();
                 }
                 rec.Mark = "shot";
-                yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire(0.26f)) { shots++; } });
+                yield return Moment(rec, () => { HoldGun(1f, 0.3f); if (Fire(0.26f)) { shots++; } rec.Still(k < 2 ? "pistol-shot" : "pistol-shot-helmet-cam"); });
                 rec.Mark = "shots";
                 yield return Film(rec, 0.2f, u => HoldGun(1f, 0.3f));
             }
