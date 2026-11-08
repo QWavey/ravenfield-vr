@@ -269,17 +269,31 @@ namespace RavenfieldVR.Core.Showcase
             float yaw = Mathf.Sin(t * 0.9f + 1f) * 0.8f * sway;
             Vector3 aimDir = Quaternion.LookRotation(flat, Vector3.up) * Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
             Vector3 gunFwd = held.Rig.DirToWorld(dirGun).normalized, gunUp = held.Rig.DirToWorld(held.Rig.Data.Up).normalized;
-            Quaternion fix = Quaternion.LookRotation(aimDir, Vector3.up) * Quaternion.Inverse(Quaternion.LookRotation(gunFwd, gunUp));
+            Quaternion gunNow = Quaternion.LookRotation(gunFwd, gunUp), aimRot = Quaternion.LookRotation(aimDir, Vector3.up);
             Vector3 hip = head.position + head.right * 0.2f - head.up * 0.28f + head.forward * 0.3f;
             Vector3 eye = head.position + head.right * 0.032f + head.forward * 0.07f;
             Vector3 target = Vector3.Lerp(hip, eye, k);
             Vector3 eyeNow = held.Rig.ToWorld(eyeGun);
-            Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(target + fix * (raw.position - eyeNow), fix * raw.rotation);
-            // The support hand where the handguard is to be (the gun turned by fix about its sight, the sight at the target), not where it is:
-            // put on the gun's own handguard, the hand followed every kick and two-handed aim kept it, the gun swung between shots and
-            // stood pointing up after the burst (take 6, 2026-11-08).
-            Support(held, rig, target + fix * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow));
+            // The hand on the gun's grip as it was when first held (in the gun's sight frame), measured once per gun, standing: measured
+            // every frame, the hand's offset to the gun carried the gun's one-step lag behind the hand while walking, each frame put the hand
+            // right for the last one's lag, and the gun overshot and came back by turns: the gun cam swung 66 px a frame (takes 8-10).
+            if (!ReferenceEquals(_gripOf, held))
+            {
+                _gripOf = held;
+                Quaternion inv = Quaternion.Inverse(gunNow);
+                _gripPos = inv * (raw.position - eyeNow);
+                _gripRot = inv * raw.rotation;
+            }
+            Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(target + aimRot * _gripPos, aimRot * _gripRot);
+            // The support hand where the handguard is to be (the gun's own geometry, turned to the aim about its sight at the target), not
+            // where it is: put on the gun's own handguard, the hand followed every kick and two-handed aim kept it, the gun swung between
+            // shots and stood pointing up after the burst (take 6, 2026-11-08).
+            Support(held, rig, target + aimRot * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow)));
         }
+
+        private static HeldWeapon _gripOf;
+        private static Vector3 _gripPos;
+        private static Quaternion _gripRot;
 
         /// <summary>
         /// A long gun's other hand on its handguard, its grip closed (as the autotest's support checks take it): two-handed, as it is

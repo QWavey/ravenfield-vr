@@ -112,6 +112,36 @@ def sync(pic_marks, snd_marks, jumps):
     return shift, errors, len(pic_shots), len(snd_shots)
 
 
+def jitter(d, jpgs, marks):
+    """The picture's shake from frame to frame: the whole picture's shift between neighbours (phase correlation at 480x270), and the
+    frames where it flips direction every frame by more than 8 px (a ping-pong: take 8's gun cam jumped 66 px a frame by turns while
+    walking, the physics stepping 0 and 2 times a frame). A smooth pan or a shot's kick does not flip every frame."""
+    try:
+        import cv2
+    except ImportError:
+        return 'jitter: OpenCV missing'
+    cams = {f: cam for f, _, _, cam in marks}
+    prev, shifts = None, []
+    for name in jpgs:
+        im = cv2.imread(os.path.join(d, name), cv2.IMREAD_GRAYSCALE)
+        im = cv2.resize(im, (480, 270)).astype(np.float32)
+        if prev is not None:
+            (x, y), _ = cv2.phaseCorrelate(prev, im)
+            shifts.append((x * 4, y * 4))
+        prev = im
+    bad = {}
+    for i in range(1, len(shifts) - 1):
+        for axis in (0, 1):
+            a, b, c = shifts[i - 1][axis], shifts[i][axis], shifts[i + 1][axis]
+            if min(abs(a), abs(b), abs(c)) > 8 and a * b < 0 and b * c < 0:
+                cam = cams.get(i + 1, '?')
+                bad[cam] = bad.get(cam, 0) + 1
+                break
+    if not bad:
+        return f'jitter: none (no frame-to-frame ping-pong over 8 px in {len(shifts)} steps)'
+    return 'jitter: PING-PONG FRAMES ' + ', '.join(f'{n} in {cam}' for cam, n in sorted(bad.items(), key=lambda kv: -kv[1]))
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -150,6 +180,8 @@ def main():
                 print(f'sync: sound shifted {1000 * shift:+.0f} ms by {len(errors)} of {np_} shots; each shot around it: '
                       + ', '.join(f'{e:+.0f}' for _, e in errors) + f' ms (worst {worst:.0f} ms'
                       + (', IN SYNC' if worst <= 1000 / fps else ', OUT BY MORE THAN A FRAME') + ')')
+    if jpgs:
+        print(jitter(d, jpgs, pic))
     if jpgs:
         im = np.asarray(Image.open(os.path.join(d, jpgs[0])).convert('RGB')).astype(float)
         top, bottom = im[: im.shape[0] // 5], im[-im.shape[0] // 5:]

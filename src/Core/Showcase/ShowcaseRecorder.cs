@@ -127,10 +127,23 @@ namespace RavenfieldVR.Core.Showcase
             }
             else
             {
-                Time.captureFramerate = Fps;
+                // One physics step a frame, every frame. The game steps physics at 60 Hz, the take's rate: with the clock on a step's
+                // boundary the frames took 0 and 2 steps by turns, and the gun (a physics body) fell behind and caught up every other
+                // frame while walking: the gun cam and the arms on it jumped 66 px a frame (take 8, the user: "theres shaking in the cam
+                // when the player walks"). Near a boundary the clock is moved half a step by one frame at twice the rate.
+                float phase = Time.fixedDeltaTime > 0f ? (Time.time - Time.fixedTime) / Time.fixedDeltaTime : 0.5f;
+                _halfStep = phase < 0.25f || phase > 0.75f;
+                _startFrame = Time.frameCount;
+                Time.captureFramerate = _halfStep ? Fps * 2 : Fps;
+                Log.Info($"Showcase: the physics phase at the take's start {phase:0.00} of a step{(_halfStep ? ": moved half a step" : "")}.");
+                _lastFixed = -1f;
             }
             _recording = true;
         }
+
+        private bool _halfStep;
+        private int _startFrame, _uneven;
+        private float _lastFixed;
 
         /// <summary>
         /// One frame of the take, after the frame's drawing (the scene calls it from a WaitForEndOfFrame): the picture pass draws and
@@ -146,6 +159,16 @@ namespace RavenfieldVR.Core.Showcase
             float at = Elapsed;
             if (!Sound)
             {
+                if (_halfStep && Time.frameCount > _startFrame)
+                {
+                    _halfStep = false;
+                    Time.captureFramerate = Fps; // (the half step taken: the take's own rate from the next frame)
+                }
+                else if (_lastFixed >= 0f && Time.fixedDeltaTime > 0f && Mathf.RoundToInt((Time.fixedTime - _lastFixed) / Time.fixedDeltaTime) != 1)
+                {
+                    _uneven++; // (a frame with no physics step or more than one: the gun jumps)
+                }
+                _lastFixed = Time.fixedTime;
                 for (int guard = 0; Backlog > 24 && guard < 4000; guard++)
                 {
                     Thread.Sleep(5); // (its time is the capture's, not the clock's: nothing is lost but wall time)
@@ -163,10 +186,29 @@ namespace RavenfieldVR.Core.Showcase
             _log.Append(_frame).Append('\t').Append(at.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(Mark);
             if (!Sound)
             {
-                _log.Append('\t').Append(camName);
+                _log.Append('\t').Append(camName).Append('\t').Append(Probe());
             }
             _log.AppendLine();
             _frame++;
+        }
+
+        /// <summary>
+        /// Where things are this frame, for the frame log (the gun cam shook while walking, takes 8-9: the player's whole unit stepped
+        /// against the world by turns): the head, the rig's root, the actor, the gun (world, cm), the clock's place in its physics step.
+        /// </summary>
+        private static string Probe()
+        {
+            var inv = CultureInfo.InvariantCulture;
+            string V(Vector3 v) => (v.x * 100f).ToString("0.0", inv) + "," + (v.y * 100f).ToString("0.0", inv) + "," + (v.z * 100f).ToString("0.0", inv);
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Actor a = LocalPlayer.actor;
+            Weapons.HeldWeapon held = Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Held : null;
+            float phase = Time.fixedDeltaTime > 0f ? (float)((Time.timeAsDouble - Time.fixedTimeAsDouble) / Time.fixedDeltaTime) : 0f;
+            return "head " + (rig != null && rig.Head != null ? V(rig.Head.position) : "-")
+                   + " root " + (rig != null ? V(rig.Root.position) : "-")
+                   + " actor " + (a != null ? V(a.transform.position) : "-")
+                   + " gun " + (held != null && held.Rig.GunBody != null ? V(held.Rig.GunBody.position) : "-")
+                   + " phase " + phase.ToString("0.000", inv);
         }
 
         private void Readback(AsyncGPUReadbackRequest req, string path)
@@ -234,7 +276,8 @@ namespace RavenfieldVR.Core.Showcase
             _rt.Release();
             UnityEngine.Object.Destroy(_rt);
             UnityEngine.Object.Destroy(_cam.gameObject);
-            Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), in {_dir}.");
+            Log.Info($"Showcase picture pass written: {_frame} frames at {Fps} fps ({_frame / (float)Fps:0.0} s), in {_dir}; "
+                     + (_uneven == 0 ? "one physics step every frame." : $"{_uneven} FRAME(S) WITHOUT EXACTLY ONE PHYSICS STEP (the gun jumps on them)."));
         }
 
         private int Backlog
