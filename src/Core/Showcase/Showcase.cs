@@ -36,6 +36,7 @@ namespace RavenfieldVR.Core.Showcase
             ("pistol", PistolSetup, PistolScene),
             ("slowmo", RifleSetup("slowmo"), SlowmoScene),
             ("scope", ScopeSetup, ScopeScene),
+            ("hands", HandsSetup, HandsScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>

@@ -744,6 +744,80 @@ namespace RavenfieldVR.Core.Showcase
             report($"showcase scope: {(first ? "a shot" : "THE FIRST SHOT DID NOT FIRE")}, the bolt worked, {(second ? "a second shot" : "THE SECOND SHOT DID NOT FIRE")}");
         }
 
+        /// <summary>The hands scene's setup: the stage, the best view, nothing in the hands.</summary>
+        private static IEnumerator HandsSetup(Action<string> report)
+        {
+            report("showcase hands: " + Stage());
+            yield return new WaitForSecondsRealtime(1.2f);
+            report($"showcase hands: turned {FaceOpen():0} degrees to the best view");
+            if (LocalPlayer.actor != null && LocalPlayer.actor.HasUnholsteredWeapon())
+            {
+                LocalPlayer.actor.HolsterActiveWeapon();
+            }
+            yield return new WaitForSecondsRealtime(0.8f);
+        }
+
+        /// <summary>
+        /// The player's own hands (about 3.5 s), the VR opener: both gloves come up in front of the face, palms to the eyes, close into
+        /// fists and open, turn over to their backs; then the helmet cam on the same (the body's arms up, looking at its hands). The
+        /// hands stay 35 cm out, clear of the goggles' and the chest pouch's grabs.
+        /// </summary>
+        private static IEnumerator HandsScene(ShowcaseRecorder rec, Action<string> report)
+        {
+            VRRig rig = VRRig.Instance;
+            if (rig == null)
+            {
+                yield break;
+            }
+            Transform head = rig.Head;
+            Quaternion level = Quaternion.LookRotation(Flat(head.forward), Vector3.up);
+            Vector3 fwd = level * Vector3.forward, right = level * Vector3.right;
+            VRHand[] hands = rig.Hands;
+            var rawFromPalm = new Runtime.RigidPose[2];
+            var start = new Runtime.RigidPose[2];
+            for (int i = 0; i < 2; i++)
+            {
+                rawFromPalm[i] = hands[i].Palm.Inverse().Multiply(hands[i].Raw);
+                start[i] = Rig.VRHand.Scripted[i] ?? hands[i].Raw;
+            }
+            // The palm frame (fingers +Z, thumb side +Y, the palm toward -X on the right hand, mirrored on the left): fingers up, palm to the
+            // eyes, thumb outward; turned by `turn` degrees about the fingers (180: the back of the hand to the eyes).
+            Runtime.RigidPose Palm(int i, float lift, float turn, float spread)
+            {
+                bool left = hands[i].IsLeft;
+                Vector3 side = left ? -right : right;
+                Vector3 at = head.position + fwd * 0.36f + side * (0.1f + spread) + Vector3.up * (-0.1f + lift);
+                Quaternion faceIn = Quaternion.LookRotation(Vector3.up, side);
+                Quaternion r = Quaternion.AngleAxis(turn * (left ? 1f : -1f), Vector3.up) * faceIn;
+                return new Runtime.RigidPose(at, r).Multiply(rawFromPalm[i]);
+            }
+            void Pose(float lift, float turn, float spread, float k)
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    Runtime.RigidPose to = Palm(i, lift, turn, spread);
+                    Rig.VRHand.Scripted[i] = k < 1f ? Runtime.RigidPose.Lerp(start[i], to, k) : to;
+                }
+            }
+            rec.Start();
+            Vector3 between = head.position + fwd * 0.36f - Vector3.up * 0.06f;
+            rec.Mark = "raise";
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(between, 0.35f);
+            yield return Film(rec, 0.6f, u => Pose(-0.08f * (1f - u), 0f, 0.02f, EaseOut(u)));
+            rec.Mark = "fists";
+            Input.VRInput.SimulatedGrab[0] = Input.VRInput.SimulatedGrab[1] = true;
+            yield return Film(rec, 0.45f, u => { Pose(0f, 0f, 0.02f, 1f); if (u >= 0.6f) { rec.Still("hands-fists"); } });
+            rec.Mark = "open";
+            Input.VRInput.SimulatedGrab[0] = Input.VRInput.SimulatedGrab[1] = false;
+            yield return Film(rec, 0.35f, u => Pose(0f, 0f, 0.02f, 1f));
+            rec.Mark = "turn";
+            yield return Film(rec, 0.8f, u => { Pose(0.02f * u, 165f * Ease(u), 0.02f + 0.04f * u, 1f); if (u >= 0.5f) { rec.Still("hands-turning"); } });
+            rec.Mark = "helmet";
+            rec.Shot = () => ShowcaseCamera.HelmetCam(0.4f, 0.16f, 0.1f);
+            yield return Film(rec, 0.7f, u => { Pose(0.02f, 165f - 25f * u, 0.06f, 1f); if (u >= 0.5f) { rec.Still("hands-helmet-cam"); } });
+            report("showcase hands: raised, closed, opened and turned over");
+        }
+
         /// <summary>Fast in, slow out: a hand bringing something somewhere (a raise is quick, then settles).</summary>
         private static float EaseOut(float u)
         {
