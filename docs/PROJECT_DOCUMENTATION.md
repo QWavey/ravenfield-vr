@@ -1126,6 +1126,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    is the cause (`GraphicsPresets.RenderScaleHelps`: its time at 70% of the refresh interval or more, given back under 45%),
    and weighs the window just measured. The user's Medium had the GPU at 3.3 of 11.1 ms with frames at half rate: the step
    only blurred the view. The wrist says "CPU-bound" in that case, and `tools/frame_report.py` has a matching 'bound' column.
+   Since Tasks 371 (2026-11-08) the step also needs the GPU heavy for `_scaleNeeds` windows in a row (2, doubled after each
+   give-back up to 16, back to 2 after five quiet minutes): one heavy window took it and the next gave it back, ten times in the
+   user's Ultra session, each a new pair of eye textures. `ApplyTerrains` writes a terrain setting only when it differs.
 12. **Bug hunt round 8**: the menu's camera getter after "Quit to menu" (a caught exception every frame), the muzzle flash
    size under Unity's scaling modes, the gun stand-in's ignore lists (a held soldier's limbs freed with his trunk) and its
    45 cm jump, a let-go body's bone pairs retried until they part, a launcher's shown rocket kept per launcher, the
