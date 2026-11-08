@@ -138,6 +138,10 @@ namespace RavenfieldVR.Core.Showcase
                 {
                     yield return Draw(_slot);
                 }
+                else if (actor.HasUnholsteredWeapon())
+                {
+                    actor.HolsterActiveWeapon(); // (a take that starts with empty hands, the pistol's: drawn in the picture pass)
+                }
                 yield return new WaitForSecondsRealtime(0.6f);
                 report($"showcase: back to the take's spot ({off:0.0} m off), facing and {_weapon ?? "the gun"} as before, for the sound pass");
             }

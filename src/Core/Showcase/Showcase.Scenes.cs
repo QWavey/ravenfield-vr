@@ -126,7 +126,7 @@ namespace RavenfieldVR.Core.Showcase
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).
             Runtime.RigidPose? from = lastOff;
             rec.Mark = "regrip";
-            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.9f * (1f - look));
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.8f);
             yield return Film(rec, 0.3f, u =>
             {
                 HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, true);
@@ -137,13 +137,14 @@ namespace RavenfieldVR.Core.Showcase
             });
             float aim = 0f;
             rec.Mark = "raise";
-            rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim);
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.8f), ShowcaseCamera.FirstPersonAim(aim), aim);
             yield return Film(rec, 0.4f, u =>
             {
                 aim = EaseOut(u);
                 GunPose g = GunPose.Lerp(Presented(), HipToEye(1f, 0.3f), aim);
                 PlaceGun(g.At, g.Aim, true);
             });
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(1f);
             int shots = 0;
             for (int k = 0; k < 2; k++)
             {
@@ -321,7 +322,8 @@ namespace RavenfieldVR.Core.Showcase
             {
                 HoldGun(0.12f, 0.3f, false);
                 OffAt(follow, grip); // (left where the throw ended: put back on the handguard at once, the glove jumped there in the picture)
-                if (flying != null && flying.gameObject.activeInHierarchy)
+                // (Exploded, the projectile turns its own component off and stays active: its renderers off, its smoke playing.)
+                if (flying != null && flying.enabled && flying.gameObject.activeInHierarchy)
                 {
                     last = flying.transform.position;
                 }
@@ -484,7 +486,7 @@ namespace RavenfieldVR.Core.Showcase
             PistolCup = true;
             float aim = 0f;
             rec.Mark = "aim";
-            rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim);
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(slide), 0.75f), ShowcaseCamera.FirstPersonAim(aim), aim);
             Runtime.RigidPose? cupFrom = lastOff;
             yield return Film(rec, 0.4f, u =>
             {
@@ -496,6 +498,7 @@ namespace RavenfieldVR.Core.Showcase
                     Rig.VRHand.Scripted[offSide] = Runtime.RigidPose.Lerp(cupFrom.Value, Rig.VRHand.Scripted[offSide].Value, Ease(u));
                 }
             });
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(1f);
             int shots = 0;
             for (int k = 0; k < 3; k++)
             {

@@ -170,6 +170,25 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
+        /// One camera turning into another over <paramref name="k"/> (0: <paramref name="a"/>, 1: <paramref name="b"/>): position,
+        /// turn and view eased together, so a shot that starts looking at the hands rises with the gun into its sights in one move
+        /// (switched at once it jumped within the shot).
+        /// </summary>
+        internal static Shot Blend(Shot a, Shot b, float k)
+        {
+            if (!a.Valid || !b.Valid)
+            {
+                return a.Valid ? a : b;
+            }
+            k = Mathf.Clamp01(k);
+            return new Shot
+            {
+                Valid = true, Name = k < 0.5f ? a.Name : b.Name, Position = Vector3.Lerp(a.Position, b.Position, k), Rotation = Quaternion.Slerp(a.Rotation, b.Rotation, k),
+                Fov = Mathf.Lerp(a.Fov, b.Fov, k), ShowBody = k < 0.5f ? a.ShowBody : b.ShowBody, Lens = k < 0.5f ? a.Lens : b.Lens, Subject = k < 0.5f ? a.Subject : b.Subject
+            };
+        }
+
+        /// <summary>
         /// First person looking at the hands: from the eyes, turned <paramref name="look"/> of the way (0-1) from where the head looks
         /// to <paramref name="target"/> (a magazine well, the gun's middle), the horizon kept level. The headset's view would show the
         /// same when the player looks down at their hands; the null headset's head stands still, so the camera turns instead.
