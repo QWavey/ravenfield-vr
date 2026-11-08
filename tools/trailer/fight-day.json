@@ -1,0 +1,14 @@
+{
+  "fps": 60,
+  "takes": {"f": "showcase/takes/fight-canyon-*"},
+  "shots": [
+    {"take": "f", "mark": "contact", "in": 10},
+    {"take": "f", "mark": "raise"},
+    {"take": "f", "mark": "engage", "nth": 0},
+    {"take": "f", "mark": "gun cam"},
+    {"take": "f", "mark": "engage", "nth": 1},
+    {"take": "f", "mark": "after"},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}
