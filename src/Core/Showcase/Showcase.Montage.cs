@@ -121,7 +121,9 @@ namespace RavenfieldVR.Core.Showcase
                     // Held half up, the free hand racks it; the camera on the gun looking back at the face (the user's "gun to head view").
                     GunPose half = HipToEye(0.45f, 0f);
                     rec.Mark = "ready";
-                    rec.Shot = () => ShowcaseCamera.GunCam();
+                    // In front of the muzzle, a little up and aside: behind it a pistol's rack happened behind the camera (only the face
+                    // showed), and in an AS VAL's long suppressor the camera sat inside the gun (montage 1).
+                    rec.Shot = () => ShowcaseCamera.GunCam(-0.22f, 0.07f, 0.11f, 58f);
                     yield return Film(rec, 0.25f, u => PlaceGun(half.At, half.Aim, true));
                     Input.VRInput.SimulatedGrab[side] = false;
                     yield return Film(rec, 0.06f, u => PlaceGun(half.At, half.Aim, false));

@@ -1,0 +1,31 @@
+{
+  "fps": 60,
+  "takes": {
+    "m1": "showcase/takes/montage-01-*",
+    "m2": "showcase/takes/montage-02-*",
+    "m3": "showcase/takes/montage-03-*",
+    "m4": "showcase/takes/montage-04-*",
+    "m5": "showcase/takes/montage-05-*",
+    "m6": "showcase/takes/montage-06-*",
+    "m7": "showcase/takes/montage-07-*",
+    "m8": "showcase/takes/montage-08-*"
+  },
+  "shots": [
+    {"take": "m1", "mark": "dropping", "in": 4},
+    {"take": "m1", "mark": "from the pouch"},
+    {"take": "m1", "mark": "inserting"},
+    {"take": "m4", "mark": "burst", "in": 6, "out": 54},
+    {"take": "m6", "mark": "from the pouch", "in": 12},
+    {"take": "m6", "mark": "inserting"},
+    {"take": "m3", "shot": 0, "pre": 0, "post": 14},
+    {"take": "m3", "shot": 1, "pre": 0, "post": 14},
+    {"take": "m8", "mark": "rack taking"},
+    {"take": "m8", "mark": "rack pulling back"},
+    {"take": "m7", "mark": "turn", "in": 30, "out": 66},
+    {"take": "m5", "shot": 0, "pre": 0, "post": 13},
+    {"take": "m5", "shot": 1, "pre": 0, "post": 13},
+    {"take": "m5", "shot": 2, "pre": 0, "post": 24},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}
