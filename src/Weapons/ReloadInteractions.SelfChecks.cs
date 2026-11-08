@@ -2965,7 +2965,9 @@ namespace RavenfieldVR.Weapons
             // A fresh magazine in.
             Ammo.InsertMagazine(Ammo.Capacity);
             yield return new WaitForSecondsRealtime(0.6f);
-            float ranForward = Moved(lockedBack, _held.DrawnLayout());
+            var afterInsert = _held.DrawnLayout();
+            float ranForward = Moved(lockedBack, afterInsert);
+            string ranWhat = Away(lockedBack, afterInsert); // (which part: the P220 T S's 60 mm was not named, and may be no slide at all; 2026-11-08)
             bool stillLocked = Ammo.SlideLocked;
             // Released (the slide release, as the A button does).
             ReleaseSlide();
@@ -3022,7 +3024,7 @@ namespace RavenfieldVR.Weapons
             }
             float tol = Mathf.Max(0.003f, lockTravel * 0.25f);
             string verdict = lockTravel < 0.003f ? "THE DRAWN SLIDE DOES NOT SHOW THE LOCK (nothing moved when locked)"
-                : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm)"
+                : ranForward > tol ? $"THE SLIDE RAN FORWARD ON ITS OWN when the magazine went in ({ranForward * 1000f:0} mm: {ranWhat})"
                 : leftBack > tol ? $"THE SLIDE STAYED BACK after the release ({leftBack * 1000f:0} mm from home: {releasedAway}; at home {homeState}, released {releasedState})"
                 : "stayed back with the fresh magazine, home when released";
             report($"empty reload: locked back {lockTravel * 1000f:0} mm, {(stillLocked ? "still locked" : "NOT LOCKED")} with a fresh magazine, {verdict}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
