@@ -1,6 +1,6 @@
 {
   "fps": 60,
-  "takes": {"pilot": "reports/shots/showcase/showcase-pilot"},
+  "takes": {"pilot": "showcase/takes/pilot-island2023-20261108-2204"},
   "shots": [
     {"take": "pilot", "mark": "walk", "in": 50, "out": 150},
     {"take": "pilot", "mark": "raise", "in": 20, "out": 72},

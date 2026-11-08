@@ -11,9 +11,12 @@ An edit list (JSON):
     "shots": [
       {"take": "pilot", "in": 75, "out": 150},   frames [in, out) of the take, its sound with it
       {"take": "pilot", "mark": "burst", "in": 0, "out": 60},   frames counted from the first frame of a mark's run
-      {"card": "RAVENFIELD VR", "seconds": 1.6, "tail": 1.2}    black with the title; "tail": the last shot's sound rings on
+      {"take": "pilot", "shot": 2, "pre": 8, "post": 30},       around the take's 3rd shot (its "shot" marks, from 0): the cut on it
+      {"card": "RAVENFIELD VR", "sub": "full mod support", "seconds": 1.6, "tail": 1.2}
+                                                 black with the title (and a small line under it); "tail": the last shot's sound rings on
     ],
-    "grade": true                                a little contrast, a touch less saturation, a soft vignette
+    "grade": true,                               a little contrast, a touch less saturation, a soft vignette
+    "letterbox": 2.39                            black bars to this picture shape (optional)
   }
 
 Cuts are hard (the user: "the transitioning between views is too slow"); each cut's sound is faded over 4 ms so it does not click.
@@ -139,7 +142,7 @@ def build(edit, out, keep=False):
         if 'card' in shot:
             secs = float(shot.get('seconds', 1.6))
             png = os.path.join(tmp, f'card{i}.png')
-            showcase_clip.card(png, shot['card'])
+            showcase_clip.card(png, shot['card'], sub=shot.get('sub'))
             jpg = os.path.join(tmp, f'card{i}.jpg')
             Image.open(png).convert('RGB').save(jpg, quality=95)
             count = int(round(secs * fps))
@@ -159,8 +162,22 @@ def build(edit, out, keep=False):
             last = None
             continue
         t = takes[shot['take']]
-        offset = t.mark_start(shot['mark']) if 'mark' in shot else 0
-        first, end = offset + int(shot['in']), offset + int(shot['out'])
+        if 'shot' in shot:
+            fired = [f for f, _, mark, _ in t.marks if mark == 'shot']
+            k = int(shot['shot'])
+            if not 0 <= k < len(fired):
+                raise SystemExit(f'shot {i}: the take has {len(fired)} shot(s), not a shot {k}')
+            first, end = fired[k] - int(shot.get('pre', 6)), fired[k] + int(shot.get('post', 24))
+            # Inside the shot's own camera: frames of the camera before it made a tenth of a second's flash of another view.
+            cams = {f: cam for f, _, _, cam in t.marks}
+            cam = cams.get(fired[k])
+            while first < fired[k] and cams.get(first) != cam:
+                first += 1
+            while end > fired[k] + 1 and cams.get(end - 1) != cam:
+                end -= 1
+        else:
+            offset = t.mark_start(shot['mark']) if 'mark' in shot else 0
+            first, end = offset + int(shot['in']), offset + int(shot['out'])
         if not 0 <= first < end <= t.frames:
             raise SystemExit(f'shot {i}: frames {first}-{end} outside the take ({t.frames} frames)')
         for f in range(first, end):
@@ -179,8 +196,11 @@ def build(edit, out, keep=False):
     exe = take.ffmpeg()
     if not exe:
         raise SystemExit('no ffmpeg')
-    vf = ('eq=contrast=1.10:saturation=0.92:gamma=0.97,vignette=angle=PI/6,' if edit.get('grade', True) else '') \
-        + 'scale=in_range=full:out_range=limited,format=yuv420p,setsar=1'
+    vf = ('eq=contrast=1.10:saturation=0.92:gamma=0.97,vignette=angle=PI/6,' if edit.get('grade', True) else '')
+    if edit.get('letterbox'):
+        bar = int(round((1080 - 1920 / float(edit['letterbox'])) / 2))
+        vf += f'drawbox=x=0:y=0:w=iw:h={bar}:color=black:t=fill,drawbox=x=0:y=ih-{bar}:w=iw:h={bar}:color=black:t=fill,'
+    vf += 'scale=in_range=full:out_range=limited,format=yuv420p,setsar=1'
     cmd = [exe, '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', os.path.join(frames_dir, 'f%05d.jpg'), '-i', wav,
            '-vf', vf, '-c:v', 'libx264', '-crf', '16', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-r', str(fps),
            '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out]

@@ -430,6 +430,33 @@ def collect(game, mode, since):
     return dest
 
 
+def keep_takes(dest, map_name):
+    """Each showcase take of the run kept in showcase/takes/<scene>-<map>-<date>-<time> (out of git; the next run clears
+    reports/shots, and a trailer cuts takes of many runs). Hard links where the disk allows (no second copy of the frames).
+    The take is checked there (tools/showcase_take.py) and its check kept beside it as check.txt."""
+    kept = []
+    for take in sorted(glob.glob(os.path.join(dest, 'showcase-*'))):
+        if not os.path.isfile(os.path.join(take, 'take.txt')):
+            continue
+        scene = os.path.basename(take)[len('showcase-'):]
+        to = os.path.join(REPO, 'showcase', 'takes', f'{scene}-{map_name}-{time.strftime("%Y%m%d-%H%M")}')
+        os.makedirs(to, exist_ok=True)
+        for f in os.listdir(take):
+            src, dst = os.path.join(take, f), os.path.join(to, f)
+            if os.path.isfile(src) and not os.path.exists(dst):
+                try:
+                    os.link(src, dst)
+                except OSError:
+                    shutil.copy2(src, dst)
+        check = subprocess.run([sys.executable, '-I', os.path.join(REPO, 'tools', 'showcase_take.py'), to], capture_output=True, text=True)
+        open(os.path.join(to, 'check.txt'), 'w', encoding='utf-8').write(check.stdout + check.stderr)
+        kept.append(to)
+        log(f'take kept: {os.path.relpath(to, REPO)}')
+        for line in check.stdout.splitlines():
+            print('    ' + line)
+    return kept
+
+
 def summary(dest):
     report = os.path.join(dest, 'autotest.txt')
     if not os.path.exists(report):
@@ -654,6 +681,8 @@ def main():
                 print(f'    {e["id"]:4d}  {e["name"]:40s} {e["sheet"]}')
         if mode == 'film':
             subprocess.run([sys.executable, '-I', os.path.join(REPO, 'tools', 'flashfilm.py'), dest])
+        if mode == 'showcase':
+            keep_takes(dest, a.map)
         summary(dest)
     if failed:
         sys.exit(1)

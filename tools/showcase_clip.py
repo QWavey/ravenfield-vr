@@ -19,22 +19,38 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import showcase_take as take  # noqa: E402
 
 
-def card(path, title, w=1920, h=1080):
-    im = Image.new('RGB', (w, h), (0, 0, 0))
-    d = ImageDraw.Draw(im)
-    font = ImageFont.truetype('bahnschrift.ttf', 118)
+def tracked(d, xy, text, font, track, fill, anchor='lm'):
+    """Text with its letters spaced out by hand (track: px between letters), centred on xy's x."""
+    widths = [d.textlength(c, font=font) for c in text]
+    total = sum(widths) + track * (len(text) - 1)
+    x = xy[0] - total / 2
+    for c, cw in zip(text, widths):
+        d.text((x, xy[1]), c, font=font, fill=fill, anchor=anchor)
+        x += cw + track
+    return total
+
+
+def face(size, variation):
+    font = ImageFont.truetype('bahnschrift.ttf', size)
     try:
-        font.set_variation_by_name('Bold Condensed')
+        font.set_variation_by_name(variation)
     except (OSError, ValueError):
         pass
-    # Tracked out by hand: each letter placed with 0.14 em between.
-    track = int(118 * 0.14)
-    widths = [d.textlength(c, font=font) for c in title]
-    total = sum(widths) + track * (len(title) - 1)
-    x = (w - total) / 2
-    for c, cw in zip(title, widths):
-        d.text((x, h / 2), c, font=font, fill=(236, 236, 232), anchor='lm')
-        x += cw + track
+    return font
+
+
+def card(path, title, w=1920, h=1080, sub=None):
+    """A title card: black, the title in Bahnschrift Bold Condensed tracked wide; an optional line under it in SemiCondensed,
+    small and wider tracked, in a warm grey (no gradients, no glow: the plan's type rules)."""
+    im = Image.new('RGB', (w, h), (0, 0, 0))
+    d = ImageDraw.Draw(im)
+    size = int(118 * h / 1080)
+    big = face(size, 'Bold Condensed')
+    y = h / 2 if not sub else h / 2 - size * 0.18
+    tracked(d, (w / 2, y), title, big, int(size * 0.14), (236, 236, 232))
+    if sub:
+        small = face(int(size * 0.27), 'SemiBold SemiCondensed')
+        tracked(d, (w / 2, y + size * 0.78), sub.upper(), small, int(size * 0.27 * 0.32), (176, 170, 160))
     im.save(path)
 
 
