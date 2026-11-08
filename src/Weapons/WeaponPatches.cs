@@ -417,7 +417,11 @@ namespace RavenfieldVR.Weapons
         }
     }
 
-    /// <summary>Swimming follows the head (including pitch, so you can dive) instead of the third-person camera.</summary>
+    /// <summary>
+    /// Swimming follows the head (its pitch too) instead of the third-person camera. The game reads SwimInput only for a body in the water as a
+    /// ragdoll (knocked over or ragdolled, `Actor` pushing its hip and head): a standing swimmer walks on the controller with its feet held at
+    /// the water's depth, so this steers a ragdoll's swim; it does not make a standing body dive (water scout, 2026-11-08).
+    /// </summary>
     [HarmonyPatch(typeof(FpsActorController), nameof(FpsActorController.SwimInput))]
     internal static class SwimInputPatch
     {

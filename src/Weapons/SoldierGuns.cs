@@ -370,7 +370,10 @@ namespace RavenfieldVR.Weapons
                     other = s;
                 }
             }
-            if (slot < 0 || other < 0 || !soldier.CanUnholsterWeapon() || _sys.Drops == null)
+            // (Nor when the player can draw nothing himself, in deep water: the copy was made and his gun taken, then the hand refused it, and
+            // the gun lay in the water while the hand buzzed as taken; water scout, 2026-11-08.)
+            Actor player = GameContext.PlayerActor;
+            if (slot < 0 || other < 0 || !soldier.CanUnholsterWeapon() || _sys.Drops == null || player == null || !player.CanUnholsterWeapon())
             {
                 return KnockAndHold(i, hand, soldier, gun);
             }

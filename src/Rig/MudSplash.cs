@@ -166,8 +166,10 @@ namespace RavenfieldVR.Rig
             // off by default).
             Actor me = Util.GameContext.PlayerActor;
             // The eyes under, a moment at least: the game's immersedInWater is the chest, and wading out left drops on a view that never went
-            // under; the surface's own waves dip over a head held at it.
-            bool under = me != null && !me.dead && VRConfig.WaterDrops.Value && _head != null && WaterLevel.IsInWater(_head.position);
+            // under; the surface's own waves dip over a head held at it. (Not in a seat made for it: a submarine's crew sits dry, as the
+            // underwater veil and the game's own immersion read it; its crew got drops on the view each time it surfaced.)
+            bool under = me != null && !me.dead && !(me.IsSeated() && me.seat.allowUnderwater) && VRConfig.WaterDrops.Value && _head != null
+                         && WaterLevel.IsInWater(_head.position);
             float underFor = under ? _underFor + Time.unscaledDeltaTime : 0f;
             if (!under && _underFor >= 0.2f && !dead) // dying under water is no surfacing
             {

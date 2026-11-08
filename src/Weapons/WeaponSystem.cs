@@ -1142,7 +1142,14 @@ namespace RavenfieldVR.Weapons
             // What the game will not draw takes no hand: a toggled item (night-vision goggles) only toggles, and in deep water nothing
             // is drawn. Taken into the hand first, the gun hand moved over and the drawn rifle followed it (review, 2026-10-20).
             Weapon wanted = actor.weapons[slot];
-            if (wanted != null && wanted.IsToggleable() || !actor.CanUnholsterWeapon())
+            if (!actor.CanUnholsterWeapon())
+            {
+                // (The game draws and toggles nothing in deep water, goggles included: felt as nothing there, not as switched; water scout,
+                // 2026-11-08.)
+                hand.Haptic(0.05f, 40f, 0.3f);
+                return;
+            }
+            if (wanted != null && wanted.IsToggleable())
             {
                 actor.SwitchWeapon(slot);
                 hand.Haptic(0.03f, 80f, 0.4f);
