@@ -238,7 +238,8 @@ namespace RavenfieldVR.Weapons
             // back and forth plays" on a pull could not be traced to a clip; 2026-11-08).
             Log.Guard("sound list", () =>
             {
-                if (rig?.Data == null)
+                // (Once a gun: built on every draw before, its lists and four donor searches, for a line logged once.)
+                if (rig?.Data == null || Log.Logged("soundlist:" + rig.Data.Key))
                 {
                     return;
                 }
