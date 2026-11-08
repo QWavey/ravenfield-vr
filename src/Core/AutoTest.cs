@@ -421,6 +421,15 @@ namespace RavenfieldVR.Core
                     Application.Quit();
                     yield break;
                 }
+                if (VRManager.Active && Showcase.Showcase.Requested)
+                {
+                    // The showcase's takes (docs/Showcase-Plan.md): staged scenes filmed frame by frame with the game's own sound.
+                    _context = "showcase";
+                    yield return Showcase.Showcase.Run(Results.Add);
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (VRManager.Active && PerfBenchRequested)
                 {
                     yield return PerfBench();
@@ -3684,7 +3693,7 @@ namespace RavenfieldVR.Core
         /// The player put on open ground when a vehicle stands within 3 m of where the checks in front take place: rings of 5 to 25 m round
         /// him, the first ground with no vehicle within 4 m of its front and nothing in the way 3 m ahead. A note, or null when nothing was near.
         /// </summary>
-        private static string MoveOffVehicles(Actor player, Rig.VRRig rig)
+        internal static string MoveOffVehicles(Actor player, Rig.VRRig rig)
         {
             const int vehicles = 1 << 12;
             int level = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2) & ~vehicles;

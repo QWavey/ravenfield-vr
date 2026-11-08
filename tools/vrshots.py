@@ -417,7 +417,7 @@ def collect(game, mode, since):
     os.makedirs(dest, exist_ok=True)
     for f in glob.glob(os.path.join(src, '*.png')):
         shutil.copy2(f, dest)
-    for f in glob.glob(os.path.join(src, 'film-*')) + glob.glob(os.path.join(src, 'reload-*')):  # the films (--film): a folder of frames per gun
+    for f in glob.glob(os.path.join(src, 'film-*')) + glob.glob(os.path.join(src, 'reload-*')) + glob.glob(os.path.join(src, 'showcase-*')):  # films and showcase takes: a folder of frames each
         if os.path.isdir(f):
             shutil.copytree(f, os.path.join(dest, os.path.basename(f)))
     for name, to in (('RavenfieldVR-autotest.txt', 'autotest.txt'), ('RavenfieldVR-hand-closeups.png', 'hand-closeups.png'),
@@ -546,6 +546,9 @@ def main():
     ap.add_argument('--film', action='append', nargs='?', const='', metavar='NAME|ID',
                     help='film both eyes while guns shoot (repeatable; alone: four sample guns)')
     ap.add_argument('--flashcheck', action='store_true', help='every weapon fired: lens flashes counted against shots (no pictures)')
+    ap.add_argument('--showcase', action='append', nargs='?', const='', metavar='SCENES',
+                    help="the showcase takes (docs/Showcase-Plan.md): staged scenes filmed at 60 fps with the game's own sound; "
+                         'SCENES picks some (comma separated), all by default')
     ap.add_argument('--one-mag', action='store_true', help='with --film: aimed, full auto until one magazine is empty, nothing else')
     ap.add_argument('--dumprig', action='append', default=[], metavar='NAME', help='write the rig of matching weapons (repeatable)')
     ap.add_argument('--out', metavar='NAME', help='collect into reports/shots/NAME instead of the mode folder (a run that must not move the last one away)')
@@ -571,7 +574,8 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck)) if on]
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck),
+                             ('showcase', a.showcase is not None)) if on]
     if not modes:
         ap.print_help()
         return
@@ -618,6 +622,9 @@ def main():
             args, timeout = base + ['-rfvr-perfbench'], a.timeout or 20
         elif mode == 'autotest':
             args, timeout = base + ['-rfvr-quick', '-rfvr-perf'], a.timeout or 40
+        elif mode == 'showcase':
+            scenes = ','.join(s for s in (a.showcase or []) if s)
+            args, timeout = base + ['-rfvr-showcase'] + ([f'-rfvr-showcase-scenes={scenes}'] if scenes else []), a.timeout or 30
         elif mode == 'grabcheck':
             args, timeout = base + ['-rfvr-grabcheck'] + (['-rfvr-walkcheck'] if a.walkcheck else []), a.timeout or 8
         else:
