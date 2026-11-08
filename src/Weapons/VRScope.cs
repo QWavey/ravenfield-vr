@@ -235,6 +235,12 @@ namespace RavenfieldVR.Weapons
                     why = $"'{p.Texture.name}' is no reticle";
                     continue;
                 }
+                if (p.Texture is RenderTexture)
+                {
+                    // (A mod's own scope camera shown in its 2D picture: read back, it is whatever that camera last drew, not a reticle.)
+                    why = $"'{p.Texture.name}' is a camera's picture";
+                    continue;
+                }
                 if (!ClearInTheMiddle(p, out why))
                 {
                     continue;

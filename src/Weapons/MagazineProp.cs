@@ -536,13 +536,13 @@ namespace RavenfieldVR.Weapons
             _body.mass = kind == PropKind.Rocket ? 2f : machineGun && kind == PropKind.Magazine ? 1.5f : 0.4f;
             _body.interpolation = RigidbodyInterpolation.Interpolate;
             RestingBodies.Add(_body); // (no interpolation while it lies still)
-            _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            // (Made kinematic below: the swept kind, ContinuousDynamic, is set when it is let go, PropPhysics.MakeDynamic.)
             // A knocked-out magazine is given 6 to 9 rad/s end over end; Unity's default cap of 7 cut the faster half of that
             // (prop physics hunt, 2026-10-21).
             _body.maxAngularVelocity = 12f;
             // Pushed out of what it ends up in (a gun swung into it, a hand) gently, not at PhysX's 10 m/s.
             _body.maxDepenetrationVelocity = 2f;
-            _body.isKinematic = true;
+            PropPhysics.MakeKinematic(_body);
             SetCollidersEnabled(false);
             Alive.Add(this);
         }
@@ -859,7 +859,7 @@ namespace RavenfieldVR.Weapons
             SetCollidersEnabled(true);
             OutOfTheLevel();
             RealTimeFlight.Stop(_body); // (caught in flight and let go before a physics step: its old slow-motion scale went with it)
-            _body.isKinematic = false;
+            PropPhysics.MakeDynamic(_body);
             _body.velocity = velocity;
             _body.angularVelocity = angularVelocity;
             // In slow motion it flies as in real time until it touches something (it hung by the hand: RealTimeFlight).

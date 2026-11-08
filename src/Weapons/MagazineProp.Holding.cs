@@ -45,7 +45,7 @@ namespace RavenfieldVR.Weapons
             _drawnFor = null;
             hand.Role = HandRole.Magazine;
             hand.Held = this;
-            _body.isKinematic = true;
+            PropPhysics.MakeKinematic(_body);
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
@@ -126,7 +126,7 @@ namespace RavenfieldVR.Weapons
             _fresh = false;
             HeldBy = hand;
             _touchingGun = false; // (as Attach)
-            _body.isKinematic = true;
+            PropPhysics.MakeKinematic(_body);
             SetCollidersEnabled(false);
             _dropTime = -1f;
             OnRail = false;
@@ -333,7 +333,7 @@ namespace RavenfieldVR.Weapons
             ReleaseHand(hand, this);
             HeldBy = null;
             LostByHand = false;
-            _body.isKinematic = true;
+            PropPhysics.MakeKinematic(_body);
             OnRail = true;
         }
 

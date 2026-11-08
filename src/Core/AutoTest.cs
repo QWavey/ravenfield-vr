@@ -2222,7 +2222,7 @@ namespace RavenfieldVR.Core
                             }
                             if (lying.Go.GetComponent<Rigidbody>() is Rigidbody lyingBody)
                             {
-                                lyingBody.isKinematic = true; // it waits at the hand
+                                PropPhysics.MakeKinematic(lyingBody); // it waits at the hand
                             }
                             yield return new WaitForSecondsRealtime(0.25f);
                             Input.VRInput.SimulatedGrab[side] = true;

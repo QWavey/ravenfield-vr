@@ -2819,6 +2819,12 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 371. Work-until-limit 75 / weekly 81, 2026-11-08 evening: performance and bugs, the game not started (user: "Focus on performance improvements and bug improvements but dont start the game at all")
+
+- [x] Unity's Player.log of the 17:49 run: "Kinematic body only supports Speculative Continuous collision detection" 21 times in one gun's run. `MagazineProp` set ContinuousDynamic and then made its body kinematic, at creation, on both grabs and when seated on the rail: a native warning (and a log write) each time. `PropPhysics.MakeKinematic` puts the detection to the speculative kind first; `MakeDynamic` gives ContinuousDynamic back on the let-go. The autotest's pistol laid at the hand the same. The gun's stand-in and the hand bodies are never kinematic (checked).
+- [x] The lens's own reticle (Tasks 370): a mod's 2D picture showing its own scope camera (a RawImage of a render texture) is not taken as a reticle (read back, it is whatever that camera last drew).
+- Read and left (no profiler without the game): "hands: shape chosen (known)" 3.4 ms a draw is `GunCollider.UseShape` making the hull's MeshColliders and ignoring the player's colliders (already walked once for all pieces); "slide seen: one view a frame" runs once per weapon type (16 of 70). The 17:52 freeze: no blocking wait on the main thread in the mod (the lens-effect workers are polled, never waited on), no loop without a yield on the let-go check's path.
+
 ### 370. Work-until-limit 75 of 2026-11-08 (game tests allowed; nothing pushed)
 
 - [x] The user's own session of 2026-11-07 13:42 (1.16.13, `LogOutput.player.log`, launcher log): started from Steam with SteamVR closed, the launcher saw NoSteamVR, started it, had Ready 4 s later, and the game was in VR 4.0 s after its start. Tasks 368 holds. The session's only warning: an mg3 sound bank asked for its clip 2 of 2. Its M1 lines: a 6-round clip taken out with the release, "a clip refused, the bolt shut on a round", the rod pulled and the bolt caught back (the rod drawn home alone, Tasks 369), then the reload mode set to Assisted (the user working round it).

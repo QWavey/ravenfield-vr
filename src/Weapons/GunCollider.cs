@@ -347,6 +347,39 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        /// <summary>
+        /// A body made kinematic (held, seated) with its collision detection put to the speculative kind first: PhysX gives a kinematic body
+        /// no other, and a magazine set to ContinuousDynamic and then made kinematic had Unity log "Kinematic body only supports Speculative
+        /// Continuous collision detection" on every magazine made, taken and seated (21 lines in one gun's run, each a native warning with
+        /// its file write; Player.log, 2026-11-08). <see cref="MakeDynamic"/> gives the moving kind back.
+        /// </summary>
+        internal static void MakeKinematic(Rigidbody body)
+        {
+            if (body == null)
+            {
+                return;
+            }
+            if (body.collisionDetectionMode != CollisionDetectionMode.ContinuousSpeculative && body.collisionDetectionMode != CollisionDetectionMode.Discrete)
+            {
+                body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            }
+            body.isKinematic = true;
+        }
+
+        /// <summary>A body let go to move on its own, with the swept collision detection a thrown thing needs (it passed through thin walls without).</summary>
+        internal static void MakeDynamic(Rigidbody body, CollisionDetectionMode mode = CollisionDetectionMode.ContinuousDynamic)
+        {
+            if (body == null)
+            {
+                return;
+            }
+            body.isKinematic = false;
+            if (body.collisionDetectionMode != mode)
+            {
+                body.collisionDetectionMode = mode;
+            }
+        }
+
         /// <summary>The world bounds of <paramref name="pieces"/> (an empty box at the origin when there are none).</summary>
         internal static Bounds BoundsOf(IList<Collider> pieces)
         {
