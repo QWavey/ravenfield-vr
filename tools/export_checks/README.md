@@ -34,3 +34,9 @@ only on the graphics card, so the analysis takes a magazine's upright box for it
 18 degrees off; the runtime fit covers it); the bolt-carrier rule picks the known bolt on 6 of 6 guns where it picks
 anything; the three "Bot Friendly" ARS guns' bore and estimated grip ran 5-7 cm beside the gun (their hand held air 7-12 cm
 off the grip; fixed in WeaponAnalyzer.PullMuzzleOntoBarrel).
+
+## Source checks (no export needed)
+
+- `stacked_docs.py --brief`: a doc comment pushed onto the wrong member by an insertion.
+- `unused_private.py`: private members nothing uses.
+- `enum_switches.py [--all]`: switches and tables over the mod's enums that name at least half of an enum's values but not all, with no `default` (a value added without its row fell through: `MechSound.HandGrab` had no cut table). Known and meant: the Game preset has no profile (`GraphicsPresets.Profiles`), the intro's `Done` phase has nothing to do.
