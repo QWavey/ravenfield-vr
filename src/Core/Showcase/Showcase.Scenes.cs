@@ -633,6 +633,117 @@ namespace RavenfieldVR.Core.Showcase
             report($"showcase slowmo: slowed to {slow:0.0}, the magazine changed at full speed, {(fired ? "a last shot" : "THE LAST SHOT DID NOT FIRE")}");
         }
 
+        /// <summary>The scope scene's setup: the stage, the best view (toward the battle), the game's bolt-action RECON LRR drawn.</summary>
+        private static IEnumerator ScopeSetup(Action<string> report)
+        {
+            report("showcase scope: " + Stage());
+            yield return new WaitForSecondsRealtime(1.2f);
+            report($"showcase scope: turned {FaceOpen():0} degrees to the best view");
+            string rifle = GiveRifle("RECON LRR");
+            report($"showcase scope: rifle {rifle ?? "NONE FOUND (the loadout's own)"}");
+            yield return new WaitForSecondsRealtime(0.8f);
+            int slot = GunSlot(0);
+            if (slot < 0)
+            {
+                throw new InvalidOperationException("no gun in the loadout");
+            }
+            yield return Draw(slot);
+        }
+
+        /// <summary>
+        /// Through the scope (about 4.5 s): the bolt-action rifle up to the eye, the view going into its own lens (the mod's magnified
+        /// picture), a shot; lowered a little, the free hand works the bolt back and home (first person, looking at it); into the
+        /// scope again, a second shot.
+        /// </summary>
+        private static IEnumerator ScopeScene(ShowcaseRecorder rec, Action<string> report)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            VRRig rig = VRRig.Instance;
+            if (held == null || rig == null)
+            {
+                report("showcase scope: NO GUN HELD");
+                yield break;
+            }
+            Vector3 bolt = held.Rig.Data.EyePoint;
+            rec.Start();
+            float aim = 0f;
+            rec.Mark = "aim";
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim, 62f, 46f);
+            yield return Film(rec, 0.55f, u =>
+            {
+                aim = EaseOut(u);
+                HoldGun(aim, 0.25f);
+            });
+            rec.Mark = "steady";
+            yield return Film(rec, 0.35f, u => { HoldGun(1f, 0.15f); if (u >= 0.5f) { rec.Still("scope-view"); } });
+            rec.Mark = "shot";
+            bool first = false;
+            yield return Moment(rec, () => { HoldGun(1f, 0.15f); first = Fire(0.45f); });
+            rec.Mark = "recoil";
+            yield return Film(rec, 0.4f, u => HoldGun(1f, 0.15f));
+
+            // Lowered from the eye, the bolt worked by the free hand (back and home), the eyes on it.
+            GunPose low = InFront(new Vector3(0.05f, -0.16f, 0.4f), -10f, -4f, 0.15f);
+            float down = 0f;
+            rec.Mark = "lower";
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonAim(1f, 62f, 46f), ShowcaseCamera.FirstPersonLook(PlacedPoint(bolt), 0.7f), down);
+            yield return Film(rec, 0.3f, u =>
+            {
+                down = EaseOut(u);
+                GunPose g = GunPose.Lerp(HipToEye(1f, 0.15f), low, down);
+                PlaceGun(g.At, g.Aim, true);
+            });
+            VRHand off = rig.Off;
+            int side = (int)off.Side;
+            Input.VRInput.SimulatedGrab[side] = false;
+            rec.Mark = "release";
+            yield return Film(rec, 0.08f, u => PlaceGun(low.At, low.Aim, false));
+            if (off.Role != HandRole.Free)
+            {
+                held.SetTwoHanded(false);
+                off.Role = HandRole.Free;
+            }
+            var lines = new System.Collections.Generic.List<string>();
+            Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[side];
+            rec.Planned += 1.11; // (0.35 + 0.08 + 0.2 + 0.18 home + 0.3 s)
+            yield return held.Reload.RackFilm(lines.Add, note =>
+            {
+                lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
+                rec.Mark = "bolt " + note;
+                if (note == "pulling back")
+                {
+                    rec.Still("scope-bolt-back");
+                }
+                KeepAlive();
+                PlaceGun(low.At, low.Aim, false);
+                rec.TakeFrame();
+            }, () => rec.Elapsed, lastOff);
+            report("showcase scope: " + string.Join("; ", lines.ToArray()));
+
+            // Into the scope again (0.45 s, the hand back on the stock's front), a second shot.
+            Runtime.RigidPose? from = lastOff;
+            float up = 0f;
+            rec.Mark = "aim";
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(bolt), 0.7f), ShowcaseCamera.FirstPersonAim(1f, 62f, 46f), up);
+            yield return Film(rec, 0.45f, u =>
+            {
+                up = EaseOut(u);
+                GunPose g = GunPose.Lerp(low, HipToEye(1f, 0.15f), up);
+                PlaceGun(g.At, g.Aim, true);
+                if (from.HasValue && Rig.VRHand.Scripted[side].HasValue)
+                {
+                    Rig.VRHand.Scripted[side] = Runtime.RigidPose.Lerp(from.Value, Rig.VRHand.Scripted[side].Value, Ease(u));
+                }
+            });
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(1f, 62f, 46f);
+            rec.Mark = "shot";
+            bool second = false;
+            yield return Moment(rec, () => { HoldGun(1f, 0.15f); second = Fire(0.45f); });
+            rec.Mark = "after";
+            yield return Film(rec, 0.5f, u => HoldGun(1f, 0.15f));
+            report($"showcase scope: {(first ? "a shot" : "THE FIRST SHOT DID NOT FIRE")}, the bolt worked, {(second ? "a second shot" : "THE SECOND SHOT DID NOT FIRE")}");
+        }
+
         /// <summary>Fast in, slow out: a hand bringing something somewhere (a raise is quick, then settles).</summary>
         private static float EaseOut(float u)
         {
