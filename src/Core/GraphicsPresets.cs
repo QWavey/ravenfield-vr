@@ -456,6 +456,14 @@ namespace RavenfieldVR.Core
             Apply();
         }
 
+        private static void SetIfChanged(float now, float want, System.Action<float> set)
+        {
+            if (!Mathf.Approximately(now, want))
+            {
+                set(want);
+            }
+        }
+
         private static void ApplyTerrains(Profile p)
         {
             foreach (Terrain t in Terrain.activeTerrains)
@@ -473,10 +481,12 @@ namespace RavenfieldVR.Core
                     };
                     Originals[t] = o;
                 }
-                t.detailObjectDensity = o.DetailDensity * p.DetailDensity;
-                t.detailObjectDistance = Mathf.Min(o.DetailDistance, p.DetailDistance);
-                t.treeDistance = Mathf.Min(o.TreeDistance, p.TreeDistance);
-                t.heightmapPixelError = Mathf.Max(o.PixelError, p.MinPixelError);
+                // Only what differs, as the quality settings above: the grass density's setter rebuilds the detail patches, and this runs
+                // on every step of the frame rate hold (the render-scale steps leave the terrain as it is) and at every level start.
+                SetIfChanged(t.detailObjectDensity, o.DetailDensity * p.DetailDensity, v => t.detailObjectDensity = v);
+                SetIfChanged(t.detailObjectDistance, Mathf.Min(o.DetailDistance, p.DetailDistance), v => t.detailObjectDistance = v);
+                SetIfChanged(t.treeDistance, Mathf.Min(o.TreeDistance, p.TreeDistance), v => t.treeDistance = v);
+                SetIfChanged(t.heightmapPixelError, Mathf.Max(o.PixelError, p.MinPixelError), v => t.heightmapPixelError = v);
                 bool instanced = o.Instanced || p.TerrainInstanced && !OlderMap();
                 if (t.drawInstanced != instanced)
                 {
