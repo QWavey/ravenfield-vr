@@ -36,10 +36,10 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
-        /// The reload, in first person with the hands in the picture (about 5 s): the rifle brought up in front of the chest and tipped
+        /// The reload, in first person with the hands in the picture (about 6 s): the rifle brought up in front of the chest and tipped
         /// toward the eyes, the eyes on the magazine well; the support hand lets go of the handguard and comes down to the magazine,
         /// pulls it out, holds it, pushes it home (the autotest's own reload by hand, <c>ReloadInteractions.ReloadFilm</c>, timed by game
-        /// time here); a close-up from the gun's side while the magazine is out; the hand back on the handguard, the rifle up to the
+        /// time here); a close-up from the gun's side while the magazine is out; the charging handle racked by hand (RackFilm); the hand back on the handguard, the rifle up to the
         /// sights, two shots.
         /// </summary>
         private static IEnumerator ReloadScene(ShowcaseRecorder rec, Action<string> report)
@@ -96,6 +96,19 @@ namespace RavenfieldVR.Core.Showcase
                 rec.TakeFrame();
             }, () => Time.time, start);
             // (Each of its seven moves runs a frame or so past its time, in both passes alike: the next step's planned end absorbs it.)
+
+            // The rack (0.93 s): the free hand on the charging handle, pulled back hard and let go; the eyes on the gun's rear.
+            rec.Planned += 0.93; // (its moves: 0.35 + 0.08 + 0.2 + 0.3 s)
+            Vector3 rear = held.Rig.Data.EyePoint;
+            yield return held.Reload.RackFilm(lines.Add, note =>
+            {
+                lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
+                rec.Mark = "rack " + note;
+                rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), 0.8f);
+                KeepAlive();
+                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
+                rec.TakeFrame();
+            }, () => Time.time, lastOff);
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
 
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).

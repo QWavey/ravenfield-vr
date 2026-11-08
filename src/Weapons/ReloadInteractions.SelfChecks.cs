@@ -962,6 +962,73 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Showcase film (-rfvr-showcase): the free hand racks the gun as a player does: reaches the rack part (slide, bolt, charging
+        /// handle; from <paramref name="startRaw"/>, eased), takes it, pulls the whole stroke back and lets go at the back, so it goes
+        /// home on its spring (a hand-driven bolt is pushed home by the hand), and the hand comes away. <paramref name="frame"/> is
+        /// called on every frame; <paramref name="clock"/> times the moves (real time unless given). 0.35 + 0.08 + 0.2 + 0.3 s.
+        /// </summary>
+        internal IEnumerator RackFilm(System.Action<string> report, System.Action<string> frame, System.Func<float> clock = null, RigidPose? startRaw = null)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || !Ammo.UsesChamber)
+            {
+                report("rack film: skipped (no rack by hand)");
+                yield break;
+            }
+            string busy = OffHandBusy(off);
+            if (busy != null)
+            {
+                report($"rack film: skipped ({busy})");
+                yield break;
+            }
+            int side = (int)off.Side;
+            System.Func<Vector3, RigidPose> at = RackHandPose(off);
+            Vector3 restGun = Rig.ToGun(RackPointWorld), strokeGun = StrokeDir * StrokeLength;
+            Vector3 Point(float back) => Rig.ToWorld(restGun + strokeGun * back);
+            Vector3 away = Rig.DirToWorld(Data.Up).normalized * 0.06f - Rig.AimWorld * 0.04f;
+            float Now() => clock != null ? clock() : Time.unscaledTime;
+            IEnumerator Move(System.Func<float, RigidPose> pose, float seconds, string note, RigidPose? start = null)
+            {
+                float t0 = Now();
+                for (float k = 0f; k < 1f; k = (Now() - t0) / seconds)
+                {
+                    float s = k * k * (3f - 2f * k);
+                    RigidPose to = pose(s);
+                    VRHand.Scripted[side] = start.HasValue ? RigidPose.Lerp(start.Value, to, s) : to;
+                    yield return new WaitForEndOfFrame();
+                    frame(note);
+                    yield return null;
+                }
+                VRHand.Scripted[side] = pose(1f);
+            }
+            bool took = false, chamberedAfter = false;
+            try
+            {
+                yield return Move(s => at(Point(0f) - away * (1f - s)), 0.35f, "reaching", startRaw);
+                VRInput.SimulatedGrab[side] = true;
+                BeginRack(off);
+                took = off.Role == HandRole.Slide;
+                yield return Move(s => at(Point(0f)), 0.08f, "taking");
+                // Pulled back fast (a rack is a snap, not a slide), let go at the back.
+                yield return Move(s => at(Point(s)), 0.2f, "pulling back");
+                if (HandDriven)
+                {
+                    yield return Move(s => at(Point(1f - s)), 0.18f, "pushing home");
+                }
+                VRInput.SimulatedGrab[side] = false;
+                yield return Move(s => at(Point(HandDriven ? 0f : 1f) + away * s), 0.3f, "let go");
+                chamberedAfter = Ammo.Chambered;
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            report($"rack film: {(took ? "the hand took the rack part" : "THE HAND DID NOT TAKE THE RACK PART")}, pulled {StrokeLength * 100f:0.0} cm and let go, "
+                   + $"{(chamberedAfter ? "a round chambered" : "NO ROUND CHAMBERED")}");
+        }
+
+        /// <summary>
         /// Autotest: runs this weapon's whole manual reload through the real code paths without hand tracking —
         /// open / eject, take from the pouch, seat, pull a seated magazine by hand and seat it again, feed cover,
         /// rack — and reports what happened.
