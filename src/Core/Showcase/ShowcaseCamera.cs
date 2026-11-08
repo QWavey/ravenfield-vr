@@ -28,6 +28,8 @@ namespace RavenfieldVR.Core.Showcase
             public bool Lens;
             /// <summary>What a third-person camera films (the head, the gun): the camera is kept on its side of walls and ground.</summary>
             public Vector3? Subject;
+            /// <summary>The holstered weapons' copies hidden for this render (the helmet cam: a slung rifle right in front of it).</summary>
+            public bool HideHolstered;
 
             internal static Shot None => default;
         }
@@ -59,12 +61,15 @@ namespace RavenfieldVR.Core.Showcase
             (Vector3 p, Quaternion r) = Shake.Apply(KeepOut(shot.Position, shot.Subject), shot.Rotation);
             cam.transform.SetPositionAndRotation(p, r);
             List<Shown> shown = shot.ShowBody ? ShowBody() : null;
+            Weapons.HolsterDisplay holsters = shot.HideHolstered && Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Holsters : null;
+            holsters?.HideForRender(true);
             try
             {
                 cam.Render();
             }
             finally
             {
+                holsters?.HideForRender(false);
                 if (shown != null)
                 {
                     HideAgain(shown);
@@ -293,7 +298,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             Vector3 at = h.position + h.rotation * new Vector3(side, up, -back);
             Vector3 target = h.position + h.forward * 25f;
-            return new Shot { Valid = true, Name = "helmet cam", Position = at, Rotation = Quaternion.LookRotation(target - at, h.up), Fov = fov, ShowBody = true, Subject = h.position };
+            return new Shot { Valid = true, Name = "helmet cam", Position = at, Rotation = Quaternion.LookRotation(target - at, h.up), Fov = fov, ShowBody = true, Subject = h.position, HideHolstered = true };
         }
 
         /// <summary>A camera standing still, looking at a point.</summary>

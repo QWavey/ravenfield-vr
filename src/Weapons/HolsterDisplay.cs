@@ -32,6 +32,8 @@ namespace RavenfieldVR.Weapons
             public bool NearEyes;
             /// <summary>Built with its magazine hidden: the gun was put away with the magazine out.</summary>
             public bool MagOut;
+            /// <summary>Showcase: it was active when hidden for a render (<see cref="HideForRender"/>).</summary>
+            public bool HiddenForRender;
         }
 
         private readonly WeaponSystem _sys;
@@ -296,6 +298,30 @@ namespace RavenfieldVR.Weapons
             for (int i = 0; i < _shown.Length; i++)
             {
                 Clear(i);
+            }
+        }
+
+        /// <summary>
+        /// Showcase only: every shown copy hidden (or shown again) for one camera's render: the helmet cam, behind the shoulder, had
+        /// the rifle slung there across half its picture (pistol takes 2-3). The objects active again after, as they were.
+        /// </summary>
+        internal void HideForRender(bool hide)
+        {
+            foreach (Shown sh in _shown)
+            {
+                if (sh != null && sh.Go != null)
+                {
+                    if (hide)
+                    {
+                        sh.HiddenForRender = sh.Go.activeSelf;
+                        sh.Go.SetActive(false);
+                    }
+                    else if (sh.HiddenForRender)
+                    {
+                        sh.HiddenForRender = false;
+                        sh.Go.SetActive(true);
+                    }
+                }
             }
         }
     }

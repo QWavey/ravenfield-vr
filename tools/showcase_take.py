@@ -82,15 +82,20 @@ def read_wav(path):
 
 
 def onsets(audio, rate):
-    """Times (s) where the level jumps: a 1/240 s block over 4x the mean of the 4 before it and over 0.02."""
+    """Times (s) where the level jumps: a 1/240 s block over 2.5x the median of the quarter second before it (the battle's own
+    din: against the 4 blocks before, a pistol at the spawn's loud fight found no shot at all), over 1.6x the block just before,
+    and over 0.03; one onset per 60 ms."""
     block = max(1, rate // 240)
     mono = np.abs(audio).mean(axis=1)
     n = len(mono) // block
     level = mono[:n * block].reshape(n, block).max(axis=1)
     out = []
     for i in range(4, n):
-        if level[i] > 0.02 and level[i] > 4 * max(level[i - 4:i].mean(), 1e-4):
-            out.append(i * block / rate)
+        base = float(np.median(level[max(0, i - 60):i]))
+        if level[i] > 0.03 and level[i] > 2.5 * max(base, 1e-4) and level[i] > 1.6 * max(level[i - 1], 1e-4):
+            t = i * block / rate
+            if not out or t - out[-1] > 0.06:
+                out.append(t)
     return out
 
 

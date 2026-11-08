@@ -31,6 +31,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: the pouch as shown (where its magazine stands).</summary>
         internal PouchDisplay Pouch => _pouch;
         private readonly HolsterDisplay _holsters;
+
+        /// <summary>Showcase only: the holstered weapons' copies (hidden for one camera's render).</summary>
+        internal HolsterDisplay Holsters => _holsters;
         private readonly MagReadout _readout;
         private readonly Dictionary<Weapon, AmmoState> _ammo = new Dictionary<Weapon, AmmoState>();
         private readonly Dictionary<Weapon, WeaponRig> _rigs = new Dictionary<Weapon, WeaponRig>();

@@ -639,7 +639,8 @@ namespace RavenfieldVR.Core.Showcase
                 Vector3 dir = Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward;
                 foreach (float h in new[] { 1.1f, 1.7f })
                 {
-                    if (Physics.SphereCast(feet + Vector3.up * h, 0.3f, dir, out _, metres, LevelMask, QueryTriggerInteraction.Ignore))
+                    // (A steep surface only: a slope's ground under the chest-high sphere found no spot at all, pistol take 3.)
+                    if (Physics.SphereCast(feet + Vector3.up * h, 0.3f, dir, out RaycastHit hit, metres, LevelMask, QueryTriggerInteraction.Ignore) && hit.normal.y < 0.6f)
                     {
                         return false;
                     }
