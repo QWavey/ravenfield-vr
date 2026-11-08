@@ -83,6 +83,37 @@ namespace RavenfieldVR.Weapons
         }
     }
 
+    /// <summary>
+    /// A seat entered with a personal weapon drawn under <see cref="DrivingWeapons"/> (a switch to another seat of the vehicle): put away
+    /// first, and Armed cleared, as the game puts a drawn weapon away for a seat that allows none. Armed made the new seat answer that it allows
+    /// personal weapons, so the game kept the pistol out and drew the seat's own weapon over it (a car driver's horn, a gunner's gun): the
+    /// pistol stayed shown, Armed stayed set in a car's driver seat, and every seated button went to the horn, seat switching too (vehicle
+    /// scout, 2026-11-08). In the new seat a weapon is drawn again from its holster as before.
+    /// </summary>
+    [HarmonyPatch(typeof(Actor), nameof(Actor.EnterSeat))]
+    internal static class EnterSeatPutAwayPatch
+    {
+        private static void Prefix(Actor __instance)
+        {
+            if (!DrivingWeapons.Armed || !Core.VRManager.Active || __instance == null || !ReferenceEquals(__instance, GameContext.PlayerActor))
+            {
+                return;
+            }
+            try
+            {
+                if (__instance.activeWeapon != null && !__instance.activeWeapon.IsMountedWeapon())
+                {
+                    __instance.HolsterActiveWeapon();
+                }
+            }
+            catch (System.Exception e)
+            {
+                Log.ExceptionOnce("Actor.EnterSeat (VR, put away)", e); // the seat is entered all the same
+            }
+            DrivingWeapons.Reset();
+        }
+    }
+
     [HarmonyPatch(typeof(Seat), nameof(Seat.CanUsePersonalWeapons))]
     internal static class SeatPersonalWeaponsPatch
     {
