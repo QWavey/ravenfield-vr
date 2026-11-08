@@ -69,6 +69,7 @@ namespace RavenfieldVR.Core.Showcase
                     ShowcaseBody.End();
                     LetGoHands();
                     ReleaseTrigger();
+                    SecondWeapon.TestTrigger = false;
                     Input.VRInput.SimulatedMove = Vector2.zero;
                     ShowcaseCamera.Shake.Reset();
                     yield return rec.Finish();
@@ -119,6 +120,10 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 float off = Vector3.Distance(actor.Position(), _position);
                 actor.SetPositionAndRotation(_position, _rotation);
+                for (int k = 0; k < 4; k++)
+                {
+                    actor.ResupplyAmmo(); // (what the picture pass spent, a grenade above all, there again for the sound pass)
+                }
                 if (VRRig.Instance != null)
                 {
                     VRRig.Instance.AddYaw(Mathf.DeltaAngle(VRRig.Instance.Yaw, _yaw));

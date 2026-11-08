@@ -82,9 +82,10 @@ namespace RavenfieldVR.Core.Showcase
             // The reload by hand: reach, grab, out, held, in, seated, let go (3.25 s of game time).
             var lines = new System.Collections.Generic.List<string>();
             rec.Planned += 3.25; // (its moves' times: 0.45 + 0.15 + 0.8 + 0.4 + 0.8 + 0.3 + 0.35 s)
-            Runtime.RigidPose? start = Rig.VRHand.Scripted[side];
+            Runtime.RigidPose? start = Rig.VRHand.Scripted[side], lastOff = start;
             yield return held.Reload.ReloadFilm(lines.Add, note =>
             {
+                lastOff = Rig.VRHand.Scripted[side] ?? lastOff; // (it clears the hand's pose when it ends: the regrip eases from this)
                 rec.Mark = note;
                 bool closeUp = note == "pulling out" || note == "held";
                 rec.Shot = closeUp
@@ -98,7 +99,7 @@ namespace RavenfieldVR.Core.Showcase
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
 
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).
-            Runtime.RigidPose? from = Rig.VRHand.Scripted[side];
+            Runtime.RigidPose? from = lastOff;
             rec.Mark = "regrip";
             rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.9f * (1f - look));
             yield return Film(rec, 0.3f, u =>
