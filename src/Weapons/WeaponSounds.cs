@@ -158,6 +158,51 @@ namespace RavenfieldVR.Weapons
             var data = new float[clip.samples * Mathf.Max(1, clip.channels)];
             return clip.GetData(data, 0) ? Split(data, clip.channels, clip.frequency) : -1f;
         }
+
+        private static readonly Dictionary<long, float> KnownSlices = new Dictionary<long, float>();
+
+        /// <summary>
+        /// The same within a slice of a longer clip (a reload cut at its actions, a vanilla gun's lent to most guns for their slide): where the
+        /// slice's two strokes turn, in the clip's own seconds, or -1. A pull's slice running on into the slide going home played both on the
+        /// pull (the user's report on most guns, pistols too, 2026-11-08).
+        /// </summary>
+        internal static float OfSlice(AudioClip clip, float start, float length)
+        {
+            if (clip == null || length < 0.12f || length > 1.2f)
+            {
+                return -1f;
+            }
+            long key = ((long)clip.GetInstanceID() << 24) ^ Mathf.RoundToInt(start * 1000f);
+            if (KnownSlices.TryGetValue(key, out float at))
+            {
+                return at;
+            }
+            at = -1f;
+            try
+            {
+                if (Readable(clip))
+                {
+                    int ch = Mathf.Max(1, clip.channels);
+                    int from = Mathf.Clamp(Mathf.RoundToInt(start * clip.frequency), 0, Mathf.Max(0, clip.samples - 1));
+                    int frames = Mathf.Clamp(Mathf.RoundToInt(length * clip.frequency), 1, clip.samples - from);
+                    var data = new float[frames * ch];
+                    if (clip.GetData(data, from))
+                    {
+                        float rel = Split(data, ch, clip.frequency);
+                        at = rel > 0f ? start + rel : -1f;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("racksplit-sx:" + clip.name, $"Sound '{clip.name}' could not be read for its strokes: {e.Message}");
+            }
+            KnownSlices[key] = at;
+            Log.InfoOnce($"racksplit-s:{clip.name}@{start:0.00}", at > 0f
+                ? $"Sound '{clip.name}' {start:0.00}+{length:0.00} s holds both strokes of a rack: back to {at:0.00} s, home after."
+                : $"Sound '{clip.name}' {start:0.00}+{length:0.00} s: {(Readable(clip) ? "one stroke" : $"its samples cannot be read ({clip.loadType})")}.");
+            return at;
+        }
     }
 
     /// <summary>
@@ -260,6 +305,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The last rack sound the slide's pull played its first stroke of: home plays its second.</summary>
         private AudioClip _rackClip;
+        /// <summary>The same for a rack within a slice of a longer clip: the clip and where its second stroke runs (seconds).</summary>
+        private AudioClip _rackSliceClip;
+        private float _rackSliceFrom, _rackSliceTo;
 
         /// <summary>
         /// A rack's one stroke of a clip holding both: the pull its first, home its second (home only from the clip the pull played: a gun's
@@ -325,6 +373,11 @@ namespace RavenfieldVR.Weapons
                 else if (kind == MechSound.SlideForward && _rackClip != null && Stroke(_rackClip, volume))
                 {
                     return; // (no home sound of its own: the second stroke of the rack its pull played)
+                }
+                if (kind == MechSound.SlideForward && !_rig.Data.Cues.ContainsKey(MechSound.SlideForward) && _rackSliceClip != null
+                    && PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = _rackSliceClip, Start = _rackSliceFrom, Length = _rackSliceTo - _rackSliceFrom }, volume))
+                {
+                    return; // (the second stroke of the pull's sliced rack: a vanilla gun's lent slice holds both)
                 }
                 // No sound of its own for this action: the same action of a vanilla weapon of its class.
                 SoundCue donor = SoundDonors.Find(_rig.Data, kind);
@@ -498,6 +551,18 @@ namespace RavenfieldVR.Weapons
             if (cue.Clip == null || cue.Length <= 0f)
             {
                 return false;
+            }
+            if (_kind == MechSound.SlideBack)
+            {
+                // A pull's slice that runs on into the slide going home: its first stroke only (RackSplit.OfSlice).
+                float split = RackSplit.OfSlice(cue.Clip, cue.Start, cue.Length);
+                if (split > cue.Start + 0.03f && split < cue.Start + cue.Length - 0.03f)
+                {
+                    _rackSliceClip = cue.Clip;
+                    _rackSliceFrom = split;
+                    _rackSliceTo = cue.Start + cue.Length;
+                    cue = new SoundCue { Kind = CueKind.ClipSlice, Clip = cue.Clip, Start = cue.Start, Length = split - cue.Start, Volume = cue.Volume };
+                }
             }
             AudioSource template = _rig.Weapon.reloadAudio;
             double now = AudioSettings.dspTime;
