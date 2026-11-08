@@ -189,6 +189,45 @@ namespace RavenfieldVR.Weapons
         {
             _rig = rig;
             _voices = voices;
+            // Which of its own clips sounds for which hand action, once per gun at its first draw (a user's log said nothing of it: "the slide
+            // back and forth plays" on a pull could not be traced to a clip; 2026-11-08).
+            Log.Guard("sound list", () =>
+            {
+                if (rig?.Data == null || rig.Data.Cues.Count == 0)
+                {
+                    return;
+                }
+                var bound = new List<string>();
+                foreach (KeyValuePair<MechSound, List<SoundCue>> kv in rig.Data.Cues)
+                {
+                    var clips = new List<string>();
+                    foreach (SoundCue c in kv.Value)
+                    {
+                        if (c.Kind == CueKind.ClipSlice && c.Clip != null)
+                        {
+                            clips.Add($"'{c.Clip.name}' {c.Start:0.00}+{c.Length:0.00} s");
+                        }
+                        else if (c.Clips != null && c.Clips.Length > 0)
+                        {
+                            var names = new List<string>();
+                            foreach (AudioClip x in c.Clips)
+                            {
+                                if (x != null)
+                                {
+                                    names.Add($"'{x.name}' {x.length:0.00} s");
+                                }
+                            }
+                            clips.Add(string.Join("/", names.ToArray()));
+                        }
+                        else
+                        {
+                            clips.Add(c.ToString());
+                        }
+                    }
+                    bound.Add($"{kv.Key} {string.Join(" + ", clips.ToArray())}");
+                }
+                Log.InfoOnce("soundlist:" + rig.Data.Key, $"{rig.Data.Key}: its own sounds: {string.Join("; ", bound.ToArray())}.");
+            });
         }
 
         public void Play(MechSound kind, Vector3 position, float volume = 1f)
