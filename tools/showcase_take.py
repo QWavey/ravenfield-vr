@@ -132,9 +132,12 @@ def anchors(d, audio=None, rate=None):
                 lat.append(near[0] - ts)
     latency = statistics.median(lat) if lat else DEFAULT_LATENCY
     pe, se = read_events(os.path.join(d, 'events.txt')), read_events(os.path.join(d, 'sound-events.txt'))
-    for kind in sorted({k for _, k in pe}):
-        for tp, ts in zip([t for t, k in pe if k == kind], [t for t, k in se if k == kind]):
-            if abs(ts - tp) < 0.4:  # (paired by order: one the other pass did not make would pair the rest wrong; far apart, left out)
+    for tp, kind in pe:
+        # The nearest of its kind in the other pass (by order, a burst's one round more or fewer paired every later one a round off).
+        same = [ts for ts, k in se if k == kind]
+        if same:
+            ts = min(same, key=lambda x: abs(x - tp))
+            if abs(ts - tp) < (0.15 if kind == 'Shot' else 0.4):
                 out.append((tp, ts + latency))
     out.sort()
     return out, latency

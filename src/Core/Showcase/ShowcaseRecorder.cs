@@ -120,6 +120,7 @@ namespace RavenfieldVR.Core.Showcase
             _events.Clear();
             _events.AppendLine("time\tsound");
             Weapons.SoundVoices.Showcased = SoundEvent;
+            Current = this;
             if (Sound)
             {
                 Time.captureFramerate = 0;
@@ -153,13 +154,22 @@ namespace RavenfieldVR.Core.Showcase
         private readonly StringBuilder _events = new StringBuilder();
 
         /// <summary>A mechanical sound starting (a magazine out or in, a slide, the pouch): its time on the take's clock, for the sync.</summary>
-        private void SoundEvent(Weapons.MechSound sound)
+        private void SoundEvent(Weapons.MechSound sound) => LogEvent(sound.ToString());
+
+        /// <summary>
+        /// Something heard at this moment, by name (a mechanical sound; "Shot": a round left, also with the trigger held, which marks no
+        /// frame of its own), logged in both passes and paired between them by name and order (tools/showcase_take.py anchors).
+        /// </summary>
+        internal void LogEvent(string what)
         {
             if (_recording)
             {
-                _events.Append(Elapsed.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(sound).AppendLine();
+                _events.Append(Elapsed.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(what).AppendLine();
             }
         }
+
+        /// <summary>The take being filmed (for the helpers that have no recorder to hand: a held trigger's rounds).</summary>
+        internal static ShowcaseRecorder Current;
 
         private bool _halfStep;
         private int _startFrame, _uneven;
@@ -304,6 +314,10 @@ namespace RavenfieldVR.Core.Showcase
             if (Weapons.SoundVoices.Showcased == SoundEvent)
             {
                 Weapons.SoundVoices.Showcased = null;
+            }
+            if (Current == this)
+            {
+                Current = null;
             }
             File.WriteAllText(Path.Combine(_dir, Sound ? "sound-events.txt" : "events.txt"), _events.ToString());
             Time.captureFramerate = 0;

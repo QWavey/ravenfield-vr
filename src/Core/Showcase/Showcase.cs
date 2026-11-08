@@ -497,6 +497,7 @@ namespace RavenfieldVR.Core.Showcase
             if (fired)
             {
                 ShowcaseCamera.Shake.Add(trauma, 1f);
+                ShowcaseRecorder.Current?.LogEvent("Shot");
             }
             return fired;
         }
@@ -514,6 +515,7 @@ namespace RavenfieldVR.Core.Showcase
             if (active.ammo < lastAmmo)
             {
                 ShowcaseCamera.Shake.Add(trauma, 0.8f);
+                ShowcaseRecorder.Current?.LogEvent("Shot"); // (a held trigger's rounds mark no frame: the sound pass is lined up by these)
             }
             lastAmmo = active.ammo;
         }

@@ -87,10 +87,11 @@ namespace RavenfieldVR.Core.Showcase
 
             // The support hand lets go of the handguard (the grip opened: the reload code takes it as free).
             VRHand off = rig.Off;
+            var life = new ShowcaseGunLife(); // (the gun hand alive while the other works: the user, "too stiff")
             int side = (int)off.Side;
             Input.VRInput.SimulatedGrab[side] = false;
             rec.Mark = "release"; // (not "let go": the reload's own last move is called that)
-            yield return Film(rec, 0.12f, u => PlacePresented(false));
+            yield return Film(rec, 0.12f, u => life.Place(rec, Presented(), null, off, false));
             if (off.Role != HandRole.Free)
             {
                 report($"showcase reload: the support hand still {off.Role} after letting go (made free)");
@@ -116,7 +117,7 @@ namespace RavenfieldVR.Core.Showcase
                     ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.CloseUp(underWell, new Vector3(-0.55f, 0.02f, 0.06f), 50f))
                     : () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), LookAtHands);
                 KeepAlive();
-                PlacePresented(false);
+                life.Place(rec, Presented(), note, off, false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, start));
             // (Each of its seven moves runs a frame or so past its time, in both passes alike: the next step's planned end absorbs it.)
@@ -134,7 +135,7 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Still("reload-racked");
                 }
                 KeepAlive();
-                PlacePresented(false);
+                life.Place(rec, Presented(), "rack " + note, off, false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, lastOff));
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
@@ -598,10 +599,11 @@ namespace RavenfieldVR.Core.Showcase
                 PlaceGun(g.At, g.Aim, true);
             });
             VRHand off = rig.Off;
+            var life = new ShowcaseGunLife(); // (the gun hand alive while the other works: the user, "too stiff")
             int side = (int)off.Side;
             Input.VRInput.SimulatedGrab[side] = false;
             rec.Mark = "release";
-            yield return Film(rec, 0.1f, u => PlacePresented(false));
+            yield return Film(rec, 0.1f, u => life.Place(rec, Presented(), null, off, false));
             if (off.Role != HandRole.Free)
             {
                 held.SetTwoHanded(false);
@@ -618,7 +620,7 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Still("slowmo-magazine-out");
                 }
                 KeepAlive();
-                PlacePresented(false);
+                life.Place(rec, Presented(), note == "pulling out" ? null : note, off, false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, lastOff));
             report("showcase slowmo: " + string.Join("; ", lines.ToArray()));
