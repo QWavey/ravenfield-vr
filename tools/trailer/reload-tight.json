@@ -1,0 +1,21 @@
+{
+  "fps": 60,
+  "takes": {"reload": "showcase/takes/reload-*"},
+  "shots": [
+    {"take": "reload", "mark": "present", "in": 6},
+    {"take": "reload", "mark": "reaching", "in": 10},
+    {"take": "reload", "mark": "grab"},
+    {"take": "reload", "mark": "pulling out", "in": 8, "out": 44},
+    {"take": "reload", "mark": "held", "in": 0, "out": 14},
+    {"take": "reload", "mark": "pushing in", "in": 10},
+    {"take": "reload", "mark": "seated"},
+    {"take": "reload", "mark": "rack taking"},
+    {"take": "reload", "mark": "rack pulling back"},
+    {"take": "reload", "mark": "rack let go", "in": 0, "out": 12},
+    {"take": "reload", "mark": "raise", "in": 0, "out": 24},
+    {"take": "reload", "shot": 0, "pre": 0, "post": 18},
+    {"take": "reload", "shot": 1, "pre": 0, "post": 24},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}

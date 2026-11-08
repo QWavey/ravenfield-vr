@@ -183,7 +183,8 @@ namespace RavenfieldVR.Core.Showcase
             k = Mathf.Clamp01(k);
             return new Shot
             {
-                Valid = true, Name = k < 0.5f ? a.Name : b.Name, Position = Vector3.Lerp(a.Position, b.Position, k), Rotation = Quaternion.Slerp(a.Rotation, b.Rotation, k),
+                // (One name for the whole blend: switched half way, the edit's mark runs split there and a cut took 5 frames of it.)
+                Valid = true, Name = a.Name + " into " + b.Name, Position = Vector3.Lerp(a.Position, b.Position, k), Rotation = Quaternion.Slerp(a.Rotation, b.Rotation, k),
                 Fov = Mathf.Lerp(a.Fov, b.Fov, k), ShowBody = k < 0.5f ? a.ShowBody : b.ShowBody, Lens = k < 0.5f ? a.Lens : b.Lens, Subject = k < 0.5f ? a.Subject : b.Subject
             };
         }
