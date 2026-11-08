@@ -215,6 +215,24 @@ namespace RavenfieldVR.Core.Showcase
             rec.TakeFrame();
         }
 
+        /// <summary>
+        /// Frames filmed until <paramref name="done"/> (at most <paramref name="maxSeconds"/> of the take), for what takes the game's own
+        /// time (a weapon's draw): the schedule then set to the pass's own clock, so the picture pass (a frame a 60th) and the real-time
+        /// sound pass (twice the frames) both carry on from the same second. (Counted as one-frame steps, the sound pass ran 0.4 s ahead.)
+        /// </summary>
+        private static IEnumerator Until(ShowcaseRecorder rec, Func<bool> done, float maxSeconds, Action each)
+        {
+            float start = rec.Elapsed;
+            while (!done() && rec.Elapsed - start < maxSeconds)
+            {
+                KeepAlive();
+                each?.Invoke();
+                yield return new WaitForEndOfFrame();
+                rec.TakeFrame();
+            }
+            rec.Planned = Math.Max(rec.Planned, rec.Elapsed);
+        }
+
         /// <summary>The player kept at full health through a take (the battle's strays would end it).</summary>
         private static void KeepAlive()
         {
