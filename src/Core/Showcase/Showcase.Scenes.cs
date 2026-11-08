@@ -13,8 +13,22 @@ namespace RavenfieldVR.Core.Showcase
     /// </summary>
     internal static partial class Showcase
     {
-        /// <summary>The gun held up in front of the chest, its top tipped away so the magazine well and the hands at it face the eyes.</summary>
-        private static GunPose Presented() => InFront(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f);
+        /// <summary>
+        /// The gun held up in front of the chest, across the body, its top tipped away so the magazine well and the hands at it face
+        /// the eyes. Higher and flatter than first tried (reload take 1: held low and steep under a steep look, the picture was mostly
+        /// ground).
+        /// </summary>
+        private static GunPose Presented() => InFront(new Vector3(0.04f, -0.17f, 0.40f), -34f, -4f, 0.45f);
+
+        /// <summary>The gun put in its presented pose (<see cref="Presented"/>), the support hand on it or not.</summary>
+        private static void PlacePresented(bool support)
+        {
+            GunPose g = Presented();
+            PlaceGun(g.At, g.Aim, support);
+        }
+
+        /// <summary>How far the eyes turn from straight ahead to the gun held presented (0-1): enough to keep the horizon in the picture.</summary>
+        private const float LookAtHands = 0.6f;
 
         /// <summary>A rifle scene's setup: a stage clear of vehicles, the best view, the game's PATRIOT drawn.</summary>
         private static Func<Action<string>, IEnumerator> RifleSetup(string scene) => report => RifleSetupSteps(scene, report);
@@ -53,6 +67,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             Vector3 well = held.Rig.Data.MagSeat.position;
             Vector3 middle = Vector3.Lerp(well, held.Rig.Data.EyePoint, 0.35f);
+            Vector3 underWell = well - held.Rig.Data.Up.normalized * 0.10f;
             rec.Start();
 
             // Up in front of the chest, the eyes going down to the well (0.5 s).
@@ -61,7 +76,7 @@ namespace RavenfieldVR.Core.Showcase
             rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), look);
             yield return Film(rec, 0.5f, u =>
             {
-                look = Ease(u) * 0.9f;
+                look = Ease(u) * LookAtHands;
                 GunPose g = GunPose.Lerp(HipToEye(0f, 0f), Presented(), EaseOut(u));
                 PlaceGun(g.At, g.Aim, true);
                 if (u >= 0.95f)
@@ -75,7 +90,7 @@ namespace RavenfieldVR.Core.Showcase
             int side = (int)off.Side;
             Input.VRInput.SimulatedGrab[side] = false;
             rec.Mark = "release"; // (not "let go": the reload's own last move is called that)
-            yield return Film(rec, 0.12f, u => HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false));
+            yield return Film(rec, 0.12f, u => PlacePresented(false));
             if (off.Role != HandRole.Free)
             {
                 report($"showcase reload: the support hand still {off.Role} after letting go (made free)");
@@ -95,12 +110,14 @@ namespace RavenfieldVR.Core.Showcase
                 {
                     rec.Still(note == "held" ? "reload-magazine-out" : "reload-magazine-in-first-person");
                 }
+                // The close-up aimed 10 cm under the well and further off (take 1: aimed at the empty well, the magazine and the hand
+                // holding it were at the picture's bottom edge).
                 bool closeUp = note == "pulling out" || note == "held";
                 rec.Shot = closeUp
-                    ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.CloseUp(well, new Vector3(-0.42f, -0.06f, 0.02f), 46f))
-                    : () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), 0.9f);
+                    ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.CloseUp(underWell, new Vector3(-0.55f, 0.02f, 0.06f), 50f))
+                    : () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), LookAtHands);
                 KeepAlive();
-                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
+                PlacePresented(false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, start);
             // (Each of its seven moves runs a frame or so past its time, in both passes alike: the next step's planned end absorbs it.)
@@ -112,13 +129,14 @@ namespace RavenfieldVR.Core.Showcase
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "rack " + note;
-                rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), 0.8f);
+                // From the gun's right, above and ahead of the handle: from the eyes the free arm's sleeve crossed the lens (take 1).
+                rec.Shot = () => ShowcaseCamera.CloseUp(rear, new Vector3(0.34f, 0.17f, 0.24f), 48f);
                 if (note == "let go")
                 {
                     rec.Still("reload-racked");
                 }
                 KeepAlive();
-                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
+                PlacePresented(false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, lastOff);
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
@@ -126,10 +144,10 @@ namespace RavenfieldVR.Core.Showcase
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).
             Runtime.RigidPose? from = lastOff;
             rec.Mark = "regrip";
-            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.8f);
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), LookAtHands);
             yield return Film(rec, 0.3f, u =>
             {
-                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, true);
+                PlacePresented(true);
                 if (from.HasValue && Rig.VRHand.Scripted[side].HasValue)
                 {
                     Rig.VRHand.Scripted[side] = Runtime.RigidPose.Lerp(from.Value, Rig.VRHand.Scripted[side].Value, Ease(u));
@@ -137,7 +155,7 @@ namespace RavenfieldVR.Core.Showcase
             });
             float aim = 0f;
             rec.Mark = "raise";
-            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), 0.8f), ShowcaseCamera.FirstPersonAim(aim), aim);
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(middle), LookAtHands), ShowcaseCamera.FirstPersonAim(aim), aim);
             yield return Film(rec, 0.4f, u =>
             {
                 aim = EaseOut(u);
@@ -574,7 +592,7 @@ namespace RavenfieldVR.Core.Showcase
 
             // In the slowed world, the hands at full speed: presented, the magazine out and in (first person, on the video's clock).
             rec.Mark = "present";
-            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), 0.85f);
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), LookAtHands);
             yield return Film(rec, 0.3f, u =>
             {
                 GunPose g = GunPose.Lerp(HipToEye(1f, 0f), Presented(), EaseOut(u));
@@ -584,7 +602,7 @@ namespace RavenfieldVR.Core.Showcase
             int side = (int)off.Side;
             Input.VRInput.SimulatedGrab[side] = false;
             rec.Mark = "release";
-            yield return Film(rec, 0.1f, u => HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false));
+            yield return Film(rec, 0.1f, u => PlacePresented(false));
             if (off.Role != HandRole.Free)
             {
                 held.SetTwoHanded(false);
@@ -602,7 +620,7 @@ namespace RavenfieldVR.Core.Showcase
                     rec.Still("slowmo-magazine-out");
                 }
                 KeepAlive();
-                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
+                PlacePresented(false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, lastOff);
             report("showcase slowmo: " + string.Join("; ", lines.ToArray()));
@@ -611,7 +629,7 @@ namespace RavenfieldVR.Core.Showcase
             Runtime.RigidPose? from = lastOff;
             float aim = 0f;
             rec.Mark = "back";
-            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(well), 0.85f), ShowcaseCamera.FirstPersonAim(aim), aim);
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(well), LookAtHands), ShowcaseCamera.FirstPersonAim(aim), aim);
             yield return Film(rec, 0.45f, u =>
             {
                 GameManager.SetTimeScale(Mathf.Lerp(slow, 1f, Ease(Mathf.Min(1f, u * 1.5f))));

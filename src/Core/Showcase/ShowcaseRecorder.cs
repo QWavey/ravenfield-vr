@@ -362,6 +362,13 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 try
                 {
+                    if (item.png)
+                    {
+                        for (int i = 3; i < item.rgba.Length; i += 4)
+                        {
+                            item.rgba[i] = 255; // (opaque: particles left the camera's alpha under 255 here and there, faded spots in a viewer)
+                        }
+                    }
                     byte[] encoded = item.png
                         ? ImageConversion.EncodeArrayToPNG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h, 0)
                         : ImageConversion.EncodeArrayToJPG(item.rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)item.w, (uint)item.h, 0, 95);
