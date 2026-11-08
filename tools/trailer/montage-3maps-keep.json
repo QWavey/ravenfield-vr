@@ -1,0 +1,254 @@
+{
+ "fps": 60,
+ "takes": {
+  "d1": "showcase/takes/montage-01-hk416-swap-dustbowl-20261108-2259",
+  "t4": "showcase/takes/montage-04-ppsh_41__drum-walkfireguncam-temple-20261108-2256",
+  "d2": "showcase/takes/montage-02-p220-rack-dustbowl-20261108-2259",
+  "t3": "showcase/takes/montage-03-f2000-shotshelmet-temple-20261108-2256",
+  "k1": "showcase/takes/montage-01-xm8-swap-canyon-20261108-2301",
+  "d4": "showcase/takes/montage-04-qbz192-walkfireguncam-dustbowl-20261108-2259",
+  "t5": "showcase/takes/montage-05-glock_43x-aimshots-temple-20261108-2256",
+  "k2": "showcase/takes/montage-02-ars_mp9-rack-canyon-20261108-2301",
+  "t6": "showcase/takes/montage-06-m4a1-swap-temple-20261108-2256",
+  "k4": "showcase/takes/montage-04-mg3-walkfireguncam-canyon-20261108-2301",
+  "d3": "showcase/takes/montage-03-ak12squad-shotshelmet-dustbowl-20261108-2259",
+  "t7": "showcase/takes/montage-07-pkm-turn-temple-20261108-2256",
+  "d8": "showcase/takes/montage-08-asval-walkfireguncam-dustbowl-20261108-2259",
+  "k6": "showcase/takes/montage-06-asval-swap-canyon-20261108-2301",
+  "d5": "showcase/takes/montage-05-mwii_g17-aimshots-dustbowl-20261108-2259",
+  "k7": "showcase/takes/montage-07-qbz192_b-turn-canyon-20261108-2301",
+  "t2": "showcase/takes/montage-02-ars_glock_19-rack-temple-20261108-2256",
+  "k3": "showcase/takes/montage-03-hk416_a-shotshelmet-canyon-20261108-2301",
+  "d6": "showcase/takes/montage-06-vector-swap-dustbowl-20261108-2259",
+  "t8": "showcase/takes/montage-08-rk_44-walkfireguncam-temple-20261108-2256",
+  "d7": "showcase/takes/montage-07-brn180_l-turn-dustbowl-20261108-2259",
+  "k8": "showcase/takes/montage-08-ak12h_squad-walkfireguncam-canyon-20261108-2302",
+  "k5": "showcase/takes/montage-05-p220_t_s-aimshots-canyon-20261108-2301"
+ },
+ "shots": [
+  {
+   "take": "d1",
+   "mark": "dropping",
+   "in": 4
+  },
+  {
+   "take": "d1",
+   "mark": "from the pouch"
+  },
+  {
+   "take": "d1",
+   "mark": "inserting"
+  },
+  {
+   "take": "t4",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "d2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "d2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "d2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "t3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "t3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "k1",
+   "mark": "inserting"
+  },
+  {
+   "take": "d4",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "t5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "t5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "k2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "k2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "t6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "t6",
+   "mark": "inserting"
+  },
+  {
+   "take": "k4",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "d3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "d3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "t7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "take": "d8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "k6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "k6",
+   "mark": "inserting"
+  },
+  {
+   "take": "d5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "d5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "take": "t2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "t2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "t2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "k3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "k3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "d6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "d6",
+   "mark": "inserting"
+  },
+  {
+   "take": "t8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "d7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "take": "k8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "k5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "k5",
+   "shot": 1,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "k5",
+   "shot": 2,
+   "pre": 0,
+   "post": 30
+  },
+  {
+   "card": "RAVENFIELD VR",
+   "seconds": 1.6,
+   "tail": 1.2
+  }
+ ],
+ "grade": true,
+ "_note": "Frozen to the takes of 2026-11-08 night (the user: \"keep that clip ... and the clips that made that clip\"): showcase/clips/07-montage-3-maps-23-beats-KEEP.mp4"
+}

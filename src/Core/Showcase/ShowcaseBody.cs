@@ -38,6 +38,14 @@ namespace RavenfieldVR.Core.Showcase
             _on = false;
             Application.onBeforeRender -= Pose;
             Fold(null, false);
+            foreach (KeyValuePair<Transform, Vector3> kv in Stretched)
+            {
+                if (kv.Key != null)
+                {
+                    kv.Key.localScale = kv.Value;
+                }
+            }
+            Stretched.Clear();
             foreach ((Transform bone, Vector3 scale) in Scaled)
             {
                 if (bone != null)
@@ -140,6 +148,15 @@ namespace RavenfieldVR.Core.Showcase
         /// </summary>
         private static void TwoBone(Transform upper, Transform lower, Transform end, Vector3 target, Vector3 pole)
         {
+            // The forearm at its own length again first (its stretch below is this frame's only; the animator does not set scales).
+            if (Stretched.TryGetValue(lower, out Vector3 own))
+            {
+                lower.localScale = own;
+            }
+            else
+            {
+                Stretched[lower] = lower.localScale;
+            }
             Vector3 s = upper.position;
             float a = Vector3.Distance(s, lower.position), b = Vector3.Distance(lower.position, end.position);
             if (a < 1e-4f || b < 1e-4f)
@@ -156,7 +173,33 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 elbow = s + dir * (cosA * a) + bend * (sinA * a);
             upper.rotation = Quaternion.FromToRotation(lower.position - s, elbow - s) * upper.rotation;
             lower.rotation = Quaternion.FromToRotation(end.position - lower.position, target - lower.position) * lower.rotation;
+            // Out of reach (a pistol held up at the eyes: the soldier's arms are shorter than a player's reach), the forearm stretched
+            // along its own length to the glove, at most 60%: from the eyes the arms ended in blocks at the bottom of the picture,
+            // the gloves alone in the air (the user: "the hands/arms ... they are not in the view").
+            float reach = toT.magnitude;
+            if (reach > a + b)
+            {
+                Vector3 along = lower.InverseTransformDirection(end.position - lower.position);
+                Vector3 abs = new Vector3(Mathf.Abs(along.x), Mathf.Abs(along.y), Mathf.Abs(along.z));
+                float k = Mathf.Min((reach - a) / b, 1.6f);
+                Vector3 sc = lower.localScale;
+                if (abs.x >= abs.y && abs.x >= abs.z)
+                {
+                    sc.x *= k;
+                }
+                else if (abs.y >= abs.z)
+                {
+                    sc.y *= k;
+                }
+                else
+                {
+                    sc.z *= k;
+                }
+                lower.localScale = sc;
+            }
         }
+
+        private static readonly Dictionary<Transform, Vector3> Stretched = new Dictionary<Transform, Vector3>();
 
         private static Transform _folded;
         private static Vector3 _foldedScale;
