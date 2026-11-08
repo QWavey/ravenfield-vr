@@ -980,7 +980,10 @@ namespace RavenfieldVR.Weapons
             Transform head = WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null ? WeaponSystem.Instance.Rig.Head : null;
             if (head != null && (deep || PropPhysics.NothingUnder(b.center, _colliders) || PropPhysics.GroundBetween(head.position, b.center, _colliders)))
             {
-                PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? 1f : 0.8f); // (at most a metre: an arm's length)
+                if (!PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? 1f : 0.8f) && !deep) // (at most a metre: an arm's length)
+                {
+                    PropPhysics.UpOnto(Go.transform, _colliders, b, 1f); // (the way from the eyes blocked near them: straight up onto the ground)
+                }
             }
         }
 

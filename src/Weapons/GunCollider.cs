@@ -308,6 +308,40 @@ namespace RavenfieldVR.Weapons
         /// <summary>Why the last <see cref="BackToward"/> left a thing where it was (null when it moved it): for the buried checks' report.</summary>
         internal static string LastBackMiss;
 
+        /// <summary>
+        /// The fallback for a thing under the ground when the way back toward the eyes is blocked near the eyes: lifted straight up onto the level
+        /// surface just above it (its bounds' bottom on it), when one is within <paramref name="maxUp"/> above its middle. Beside a bank of terrain
+        /// the line from the eyes met the terrain 2 m before a magazine let go 40 cm under it, and it fell 11 m (autotest, 2026-11-08). True when
+        /// it was moved.
+        /// </summary>
+        internal static bool UpOnto(Transform root, IList<Collider> own, Bounds b, float maxUp)
+        {
+            if (root == null)
+            {
+                return false;
+            }
+            Vector3 from = b.center + Vector3.up * maxUp;
+            int n = Physics.RaycastNonAlloc(from, Vector3.down, SurfaceHits, maxUp, ~BodyMask, QueryTriggerInteraction.Ignore);
+            float nearest = -1f; // the surface nearest above it: the hit farthest down the ray
+            for (int i = 0; i < n; i++)
+            {
+                if (SurfaceHits[i].distance > nearest && SurfaceHits[i].normal.y > 0.6f && !GunCollider.IsStandIn(SurfaceHits[i].collider)
+                    && IsLevelFor(SurfaceHits[i].collider, own))
+                {
+                    nearest = SurfaceHits[i].distance;
+                }
+            }
+            if (nearest < 0f)
+            {
+                LastBackMiss += $"; no surface within {maxUp:0.0} m above it";
+                return false;
+            }
+            root.position += Vector3.up * (maxUp - nearest + b.extents.y + 0.01f);
+            Physics.SyncTransforms();
+            LastBackMiss = null;
+            return true;
+        }
+
         /// <summary>The world bounds of <paramref name="pieces"/> (an empty box at the origin when there are none).</summary>
         internal static Bounds BoundsOf(IList<Collider> pieces)
         {

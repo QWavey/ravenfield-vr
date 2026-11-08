@@ -3737,6 +3737,22 @@ namespace RavenfieldVR.Core
         {
             Rig.VRRig rig = Rig.VRRig.Instance;
             Actor player = LocalPlayer.actor;
+            // The gun back in the dominant hand first: a check before left it in the other (the hand passes, the second weapon's swapped
+            // draws), and the boxing step's holster put the gun hand back to the dominant one (no weapon out: WeaponSystem resets it), so
+            // the gun came back into the hand this check calls free: "free hand after the gun bash: NOT FREE, it holds nothing (Weapon)",
+            // the bash swung an empty hand and every later step found "the free hand is Weapon" (2026-11-08).
+            if (Input.VRInput.GunHandSwapped && player != null && player.activeWeapon != null && player.weapons != null)
+            {
+                int slot = Array.IndexOf(player.weapons, player.activeWeapon);
+                player.HolsterActiveWeapon();
+                yield return new WaitForSecondsRealtime(0.5f);
+                if (slot >= 0)
+                {
+                    player.SwitchWeapon(slot);
+                    yield return new WaitForSecondsRealtime(1.2f);
+                }
+                report($"soldier grab: the gun was in the other hand: put away and drawn again into the dominant hand ({(Input.VRInput.GunHandSwapped ? "NOT IN THE DOMINANT HAND" : "done")})");
+            }
             Rig.VRHand off = rig != null ? rig.Off : null;
             Rig.VRHand dom = rig != null ? rig.Dominant : null;
             WeaponSystem sys = WeaponSystem.Instance;

@@ -116,10 +116,11 @@ namespace RavenfieldVR.Weapons
         private static Shader _additiveShader;
 
         /// <summary>
-        /// The lens's reticle from the gun's own flat 2D scope picture, where that picture is a reticle drawn on a clear middle (the RECON
-        /// LRR's is the game's DMR chevrons, dmr_sight: black lines on a transparent texture). The lens drew the mod's duplex on every gun;
-        /// the flat game shows each its own. Not a picture with no texture (the SL-DEFENDER's dark mesh), a vignette, or one that covers
-        /// the middle of the view (read once on the GPU: a picture of a whole scope would cover the lens's view): those keep the duplex.
+        /// The lens's reticle from the gun's own flat 2D scope picture, where that picture is a reticle drawn on a clear middle (a texture
+        /// such as the game's acog_sight or dmr_sight: lines on a transparent texture; mods' pictures). The lens drew the mod's duplex on every
+        /// gun; the flat game shows each its own. Not a picture with no texture (the vanilla SL-DEFENDER's and RECON LRR's are dark meshes,
+        /// 'Dark Scope'), a vignette, or one that covers the middle of the view (read once on the GPU: a picture of a whole scope would cover
+        /// the lens's view): those keep the duplex.
         /// </summary>
         private static Material OwnPictureMaterial(WeaponRig rig)
         {

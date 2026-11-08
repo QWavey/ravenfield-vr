@@ -26,6 +26,18 @@ namespace RavenfieldVR.Weapons
     [HarmonyPatch(typeof(Actor), nameof(Actor.SpawnAt))]
     internal static class ActorSpawnEmptyHandedPatch
     {
+        /// <summary>
+        /// The player spawned while alive (no dead frame for the weapon system to see: a takeover of a soldier kills him silently and spawns
+        /// him in one call): what a death lets go of goes now (<see cref="WeaponSystem.LetGoForNewLife"/>).
+        /// </summary>
+        private static void Prefix(Actor __instance)
+        {
+            if (VRManager.Active && __instance != null && !__instance.aiControlled && ReferenceEquals(__instance, LocalPlayer.actor) && WeaponSystem.Instance != null)
+            {
+                Log.Guard("Actor.SpawnAt (VR, a new life)", () => WeaponSystem.Instance.LetGoForNewLife(true));
+            }
+        }
+
         private static void Postfix(Actor __instance)
         {
             if (!VRManager.Active || __instance == null || __instance.aiControlled || !VRConfig.SpawnEmptyHanded.Value

@@ -738,7 +738,11 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Physics.SyncTransforms(); // the pieces were added this frame: their bounds are read from the transforms
-            PropPhysics.BackToward(root, pieces, open.Value, PropPhysics.BoundsOf(pieces), 0.8f);
+            Bounds b = PropPhysics.BoundsOf(pieces);
+            if (!PropPhysics.BackToward(root, pieces, open.Value, b, 0.8f))
+            {
+                PropPhysics.UpOnto(root, pieces, b, 1f); // (the way from the eyes blocked near them: straight up onto the ground)
+            }
         }
 
         // keep: never culled (your own weapon, swapped for one picked up), set before the cull this ends with: with MaxDroppedWeapons
