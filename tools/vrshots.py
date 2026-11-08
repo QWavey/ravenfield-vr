@@ -620,7 +620,10 @@ def main():
     for mode in modes:
         shots = os.path.join(a.game, 'BepInEx', 'RavenfieldVR-shots')
         shutil.rmtree(shots, ignore_errors=True)  # the run starts with an empty folder (copied to reports/shots after)
-        base = ['-vr', '-map', a.map, '-nointro', '-rfvr-autotest']
+        # '-map NAME' as ONE argument: the game splits each argument on its spaces (GameManager.Start); given as two it read an
+        # empty map name and fell back to its old island, whatever --map said (every run until 2026-11-08 night; Player.log:
+        # "Unrecognized Argument canyon", "Could not load normal version of scene, falling back to island").
+        base = ['-vr', f'-map {a.map}', '-nointro', '-rfvr-autotest']
         filters = [x.replace(',', ' ') for x in (a.weapon if mode in ('weapons', 'weapon') else (a.film or []) if mode == 'film' else [])]
         mods = None
         if a.mods:

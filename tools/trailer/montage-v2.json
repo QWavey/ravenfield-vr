@@ -1,0 +1,38 @@
+{
+  "fps": 60,
+  "takes": {
+    "c1": "showcase/takes/montage-01-*-coastline-*", "c3": "showcase/takes/montage-03-*-coastline-*", "c4": "showcase/takes/montage-04-*-coastline-*",
+    "c5": "showcase/takes/montage-05-*-coastline-*", "c6": "showcase/takes/montage-06-*-coastline-*", "c7": "showcase/takes/montage-07-*-coastline-*",
+    "m2": "showcase/takes/montage-02-*-mountains-*", "m3": "showcase/takes/montage-03-*-mountains-*", "m4": "showcase/takes/montage-04-*-mountains-*",
+    "m5": "showcase/takes/montage-05-*-mountains-*", "m6": "showcase/takes/montage-06-*-mountains-*", "m7": "showcase/takes/montage-07-*-mountains-*",
+    "m8": "showcase/takes/montage-08-*-mountains-*",
+    "k1": "showcase/takes/montage-01-*-canyon-*", "k2": "showcase/takes/montage-02-*-canyon-*", "k3": "showcase/takes/montage-03-*-canyon-*",
+    "k4": "showcase/takes/montage-04-*-canyon-*", "k5": "showcase/takes/montage-05-*-canyon-*", "k6": "showcase/takes/montage-06-*-canyon-*",
+    "k7": "showcase/takes/montage-07-*-canyon-*", "k8": "showcase/takes/montage-08-*-canyon-*"
+  },
+  "shots": [
+    {"take": "c1", "mark": "dropping", "in": 4}, {"take": "c1", "mark": "from the pouch"}, {"take": "c1", "mark": "inserting"},
+    {"take": "m4", "mark": "burst", "in": 4, "out": 50},
+    {"take": "m2", "mark": "rack reaching", "in": 10}, {"take": "m2", "mark": "rack taking"}, {"take": "m2", "mark": "rack pulling back"}, {"take": "m2", "mark": "rack let go", "in": 0, "out": 8},
+    {"take": "c3", "shot": 0, "pre": 0, "post": 14}, {"take": "c3", "shot": 1, "pre": 0, "post": 14},
+    {"take": "k1", "mark": "from the pouch", "in": 10}, {"take": "k1", "mark": "inserting"},
+    {"take": "c4", "mark": "burst", "in": 6, "out": 54},
+    {"take": "m5", "shot": 0, "pre": 0, "post": 13}, {"take": "m5", "shot": 1, "pre": 0, "post": 14},
+    {"take": "k4", "mark": "burst", "in": 4, "out": 52},
+    {"take": "m6", "mark": "from the pouch", "in": 10}, {"take": "m6", "mark": "inserting"},
+    {"take": "k2", "mark": "rack taking"}, {"take": "k2", "mark": "rack pulling back"}, {"take": "k2", "mark": "rack let go", "in": 0, "out": 10},
+    {"take": "c7", "mark": "turn", "in": 30, "out": 62},
+    {"take": "m3", "shot": 0, "pre": 0, "post": 14}, {"take": "m3", "shot": 1, "pre": 0, "post": 14},
+    {"take": "k3", "shot": 0, "pre": 0, "post": 14}, {"take": "k3", "shot": 1, "pre": 0, "post": 14},
+    {"take": "m8", "mark": "rack taking"}, {"take": "m8", "mark": "rack pulling back"}, {"take": "m8", "mark": "rack let go", "in": 0, "out": 10},
+    {"take": "c6", "mark": "from the pouch", "in": 12}, {"take": "c6", "mark": "inserting"},
+    {"take": "k5", "shot": 0, "pre": 0, "post": 13}, {"take": "k5", "shot": 1, "pre": 0, "post": 13}, {"take": "k5", "shot": 2, "pre": 0, "post": 16},
+    {"take": "m7", "mark": "turn", "in": 30, "out": 62},
+    {"take": "k8", "mark": "rack taking"}, {"take": "k8", "mark": "rack pulling back"}, {"take": "k8", "mark": "rack let go", "in": 0, "out": 10},
+    {"take": "k6", "mark": "from the pouch", "in": 12}, {"take": "k6", "mark": "inserting"},
+    {"take": "k7", "mark": "turn", "in": 30, "out": 62},
+    {"take": "c5", "shot": 0, "pre": 0, "post": 13}, {"take": "c5", "shot": 1, "pre": 0, "post": 13}, {"take": "c5", "shot": 2, "pre": 0, "post": 30},
+    {"card": "RAVENFIELD VR", "seconds": 1.6, "tail": 1.2}
+  ],
+  "grade": true
+}
