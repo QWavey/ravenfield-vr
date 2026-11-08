@@ -186,10 +186,14 @@ namespace RavenfieldVR.Weapons
                 {
                     _scopeMode = weapon.GetSightModeIndex();
                     _scope = LensFor(system.Rig, rig, _scopeMode);
-                    // (Which guns get it, for a report of a lens over a real scope: the flat game showed its 2D scope picture on these.)
-                    Log.InfoOnce("mainlens:" + rig.Data.Key, $"{rig.Data.Key}: the mod's lens drawn for its scope (the flat game's 2D scope picture), "
-                                                             + $"{(rig.Data.HasScopeModel ? "on the scope model's ocular" : "at eye relief, no scope found in the model")}; "
-                                                             + $"its 2D picture: {VRScope.DescribeOverlay(weapon)}.");
+                    // (Which guns get it, for a report of a lens over a real scope: the flat game showed its 2D scope picture on these. Built only
+                    // the first time: the picture's description walks its images and renderers, on every scoped draw before; lens scout, 2026-11-08.)
+                    if (!Log.Logged("mainlens:" + rig.Data.Key))
+                    {
+                        Log.InfoOnce("mainlens:" + rig.Data.Key, $"{rig.Data.Key}: the mod's lens drawn for its scope (the flat game's 2D scope picture), "
+                                                                 + $"{(rig.Data.HasScopeModel ? "on the scope model's ocular" : "at eye relief, no scope found in the model")}; "
+                                                                 + $"its 2D picture: {VRScope.DescribeOverlay(weapon)}.");
+                    }
                 }
                 else if (VRConfig.VRScopes.Value && rig.Data.Sights != null && weapon.renderTextureCamera == null)
                 {
@@ -2064,10 +2068,12 @@ namespace RavenfieldVR.Weapons
             if (_scope != null)
             {
                 int scopeMode = Weapon.GetSightModeIndex();
-                if (scopeMode != _scopeMode && HasOwnLine(Rig, scopeMode))
+                // Another magnified mode: its lens on its own line. And back from one to a mode without a line of its own: built for the
+                // line it left, the lens kept that mode's magnification (lens scout, 2026-11-08).
+                if (scopeMode != _scopeMode && (HasOwnLine(Rig, scopeMode) || HasOwnLine(Rig, _scopeMode)))
                 {
-                    // Another magnified mode: its lens on its own line.
                     _scope.Destroy();
+                    _scope = null; // (a rebuild that throws leaves no destroyed lens to draw: it threw every frame, the rest of this pass skipped)
                     _scopeMode = scopeMode;
                     _scope = LensFor(_system.Rig, Rig, scopeMode);
                 }
@@ -2115,7 +2121,14 @@ namespace RavenfieldVR.Weapons
                 // every gun with a scope tube and a narrower mode, which is only the flat game's zoom on a gun that never had a 2D scope; user,
                 // 2026-11-08: "some guns still get a vanilla scope over tehir real one".)
                 _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null ? 1 : 0;
-                if (_modeOptic == 0)
+                // (Nor over a sight that draws its own reticle, as the main lens: a mode's lens put the duplex over it, the vanilla-looking
+                // picture over the real one the main lens stopped drawing in Tasks 367; lens scout, 2026-11-08.)
+                if (_modeOptic == 1 && VRScope.HasOwnReticle(Weapon, Rig))
+                {
+                    _modeOptic = 0;
+                    Log.InfoOnce("modelens-own:" + Rig.Data.Key, $"{Rig.Data.Key}: its sight draws its own reticle: no lens of the mod's for its narrower sight mode.");
+                }
+                else if (_modeOptic == 0)
                 {
                     Log.InfoOnce("modelens-none:" + Rig.Data.Key, $"{Rig.Data.Key}: its narrower sight mode has no optic in the model (no part moves with the mode, no magnifier): no lens of the mod's is drawn for it.");
                 }

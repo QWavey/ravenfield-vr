@@ -5,3 +5,4 @@
 - A submarine's crew no longer gets water drops on the view when it surfaces.
 - In deep water, grabbing a soldier's gun knocks it aside instead of throwing it into the water, and a goggles grab at a holster tells you nothing happened (the game toggles nothing there).
 - With the magazine pouch on the chest, it moves to the free hand's side when you pass the gun to your other hand (it stayed on the gun arm's side).
+- A sight with its own reticle (a red dot or scope that draws it) no longer gets the mod's plain crosshair lens in a magnified sight mode, and switching back from a magnified mode no longer keeps its magnification.
