@@ -240,6 +240,22 @@ namespace RavenfieldVR.Core.Showcase
             rec.Planned = Math.Max(rec.Planned, rec.Elapsed);
         }
 
+        /// <summary>
+        /// A choreography of the reload code (<c>ReloadFilm</c>, <c>RackFilm</c>) on the scene's schedule: its planned time added before
+        /// it runs, given back when it skips (no frame filmed: pistol take 2's skipped rack stretched the next step by its 0.93 s).
+        /// </summary>
+        private static IEnumerator Choreography(ShowcaseRecorder rec, double seconds, IEnumerator film)
+        {
+            int before = rec.Frame;
+            double planned = rec.Planned;
+            rec.Planned += seconds;
+            yield return film;
+            if (rec.Frame == before)
+            {
+                rec.Planned = planned;
+            }
+        }
+
         /// <summary>The player kept at full health through a take (the battle's strays would end it).</summary>
         private static void KeepAlive()
         {
@@ -608,15 +624,20 @@ namespace RavenfieldVR.Core.Showcase
             return spawns != null && spawns.Any(s => s != null) ? spawns.Where(s => s != null).Min(s => Vector3.Distance(s.transform.position, p)) : 999f;
         }
 
-        /// <summary>Room round a spot for the cameras: nothing within <paramref name="metres"/> at head height every 45 degrees.</summary>
+        /// <summary>Room round a spot for the cameras: nothing within <paramref name="metres"/> at chest and head height every 45 degrees.</summary>
         private static bool Room(Vector3 feet, float metres)
         {
-            Vector3 head = feet + Vector3.up * 1.6f;
+            // Spheres, not rays, at chest and head height: rays every 45 degrees slipped past a post that then filled half the helmet
+            // cam (pistol take 2).
             for (int k = 0; k < 8; k++)
             {
-                if (Physics.Raycast(head, Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward, metres, LevelMask, QueryTriggerInteraction.Ignore))
+                Vector3 dir = Quaternion.Euler(0f, k * 45f, 0f) * Vector3.forward;
+                foreach (float h in new[] { 1.1f, 1.7f })
                 {
-                    return false;
+                    if (Physics.SphereCast(feet + Vector3.up * h, 0.3f, dir, out _, metres, LevelMask, QueryTriggerInteraction.Ignore))
+                    {
+                        return false;
+                    }
                 }
             }
             return true;

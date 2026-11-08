@@ -100,9 +100,8 @@ namespace RavenfieldVR.Core.Showcase
 
             // The reload by hand: reach, grab, out, held, in, seated, let go (3.25 s of game time).
             var lines = new System.Collections.Generic.List<string>();
-            rec.Planned += 3.25; // (its moves' times: 0.45 + 0.15 + 0.8 + 0.4 + 0.8 + 0.3 + 0.35 s)
             Runtime.RigidPose? start = Rig.VRHand.Scripted[side], lastOff = start;
-            yield return held.Reload.ReloadFilm(lines.Add, note =>
+            yield return Choreography(rec, 3.25, held.Reload.ReloadFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff; // (it clears the hand's pose when it ends: the regrip eases from this)
                 rec.Mark = note;
@@ -119,13 +118,12 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlacePresented(false);
                 rec.TakeFrame();
-            }, () => rec.Elapsed, start);
+            }, () => rec.Elapsed, start));
             // (Each of its seven moves runs a frame or so past its time, in both passes alike: the next step's planned end absorbs it.)
 
             // The rack (0.93 s): the free hand on the charging handle, pulled back hard and let go; the eyes on the gun's rear.
-            rec.Planned += 0.93; // (its moves: 0.35 + 0.08 + 0.2 + 0.3 s)
             Vector3 rear = held.Rig.Data.EyePoint;
-            yield return held.Reload.RackFilm(lines.Add, note =>
+            yield return Choreography(rec, 0.93, held.Reload.RackFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "rack " + note;
@@ -138,7 +136,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlacePresented(false);
                 rec.TakeFrame();
-            }, () => rec.Elapsed, lastOff);
+            }, () => rec.Elapsed, lastOff));
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
 
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).
@@ -405,7 +403,9 @@ namespace RavenfieldVR.Core.Showcase
                 yield return new WaitForSecondsRealtime(0.4f);
                 yield return Draw(slot); // (drawn once: the mod reads it, its grip and rack point measured before the take)
                 HeldWeapon drawn = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
-                if (drawn != null && drawn.Weapon == actor.weapons[slot] && drawn.Rig.Data.IsPistol)
+                // A pistol with a slide to rack: a chamber and a magazine (take 2 drew the .357 CONDOR, a revolver: nothing to rack).
+                if (drawn != null && drawn.Weapon == actor.weapons[slot] && drawn.Rig.Data.IsPistol && drawn.ActiveAmmo != null
+                    && drawn.ActiveAmmo.UsesChamber && drawn.ActiveAmmo.UsesDetachableMag)
                 {
                     _sidearmSlot = slot;
                     report($"showcase pistol: {e.name} in slot {slot}{(tried.Length > 0 ? $" (not pistols: {tried})" : "")}");
@@ -494,8 +494,7 @@ namespace RavenfieldVR.Core.Showcase
             var lines = new System.Collections.Generic.List<string>();
             int offSide = (int)rig.Off.Side;
             Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[offSide] ?? rig.Off.Raw;
-            rec.Planned += 0.93;
-            yield return held.Reload.RackFilm(lines.Add, note =>
+            yield return Choreography(rec, 0.93, held.Reload.RackFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[offSide] ?? lastOff;
                 rec.Mark = "rack " + note;
@@ -506,7 +505,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlaceGun(chest.At, chest.Aim, false);
                 rec.TakeFrame();
-            }, () => rec.Elapsed, lastOff);
+            }, () => rec.Elapsed, lastOff));
             report("showcase pistol: " + string.Join("; ", lines.ToArray()));
 
             // Both hands on it and up to the sights (0.4 s): the free hand cups the grip.
@@ -610,8 +609,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             var lines = new System.Collections.Generic.List<string>();
             Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[side];
-            rec.Planned += 3.25;
-            yield return held.Reload.ReloadFilm(lines.Add, note =>
+            yield return Choreography(rec, 3.25, held.Reload.ReloadFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "slow " + note;
@@ -622,7 +620,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlacePresented(false);
                 rec.TakeFrame();
-            }, () => rec.Elapsed, lastOff);
+            }, () => rec.Elapsed, lastOff));
             report("showcase slowmo: " + string.Join("; ", lines.ToArray()));
 
             // Time back over 0.3 s as the hand goes back and the rifle comes up; a shot at full speed.
@@ -723,8 +721,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             var lines = new System.Collections.Generic.List<string>();
             Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[side];
-            rec.Planned += 1.11; // (0.35 + 0.08 + 0.2 + 0.18 home + 0.3 s)
-            yield return held.Reload.RackFilm(lines.Add, note =>
+            yield return Choreography(rec, 1.11, held.Reload.RackFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "bolt " + note;
@@ -735,7 +732,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlaceGun(low.At, low.Aim, false);
                 rec.TakeFrame();
-            }, () => rec.Elapsed, lastOff);
+            }, () => rec.Elapsed, lastOff));
             report("showcase scope: " + string.Join("; ", lines.ToArray()));
 
             // Into the scope again (0.45 s, the hand back on the stock's front), a second shot.
