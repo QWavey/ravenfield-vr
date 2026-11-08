@@ -117,6 +117,9 @@ namespace RavenfieldVR.Core.Showcase
             AudioListener.volume = 1f;
             _startTime = Time.unscaledTime;
             Planned = 0;
+            _events.Clear();
+            _events.AppendLine("time\tsound");
+            Weapons.SoundVoices.Showcased = SoundEvent;
             if (Sound)
             {
                 Time.captureFramerate = 0;
@@ -145,6 +148,17 @@ namespace RavenfieldVR.Core.Showcase
                 _lastFixed = -1f;
             }
             _recording = true;
+        }
+
+        private readonly StringBuilder _events = new StringBuilder();
+
+        /// <summary>A mechanical sound starting (a magazine out or in, a slide, the pouch): its time on the take's clock, for the sync.</summary>
+        private void SoundEvent(Weapons.MechSound sound)
+        {
+            if (_recording)
+            {
+                _events.Append(Elapsed.ToString("0.0000", CultureInfo.InvariantCulture)).Append('\t').Append(sound).AppendLine();
+            }
         }
 
         private bool _halfStep;
@@ -287,6 +301,11 @@ namespace RavenfieldVR.Core.Showcase
         internal System.Collections.IEnumerator Finish()
         {
             _recording = false;
+            if (Weapons.SoundVoices.Showcased == SoundEvent)
+            {
+                Weapons.SoundVoices.Showcased = null;
+            }
+            File.WriteAllText(Path.Combine(_dir, Sound ? "sound-events.txt" : "events.txt"), _events.ToString());
             Time.captureFramerate = 0;
             MuteMusic(false);
             if (Sound)

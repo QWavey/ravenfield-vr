@@ -69,12 +69,14 @@ class Take:
         wav = os.path.join(path, 'audio.wav')
         self.audio, self.rate = (None, 48000)
         self.shift = 0.0
+        self.points, self.latency = [], take.DEFAULT_LATENCY
         if os.path.exists(wav):
             audio, rate = take.read_wav(wav)
             if len(audio):
                 snd = take.read_marks(os.path.join(path, 'sound.txt'))
                 shift, _, _, _ = take.sync(self.marks, snd, take.onsets(audio, rate))
                 self.shift = shift or 0.0
+                self.points, self.latency = take.anchors(path, audio, rate)
                 peak = float(np.abs(audio).max())
                 self.audio = audio * (min(1.0, 0.89 / peak) if peak > 0 else 1.0)
                 self.rate = rate
@@ -99,7 +101,8 @@ class Take:
         a = self.audio
         if self.rate != rate:
             raise SystemExit(f'{self.path}: sound at {self.rate} Hz, the edit at {rate} Hz')
-        start = int(round((first / self.fps + self.shift) * rate))
+        # The cut's own anchor (its shots' onsets, its reload sounds paired between the passes), not one shift for the whole take.
+        start = int(round(take.wav_time(self.points, first / self.fps, self.latency) * rate)) if self.points else int(round((first / self.fps + self.shift) * rate))
         lo, hi = max(0, start), min(len(a), start + n)
         if hi > lo:
             src = a[lo:hi]

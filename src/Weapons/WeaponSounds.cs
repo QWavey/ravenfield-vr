@@ -291,12 +291,19 @@ namespace RavenfieldVR.Weapons
         public void Play(MechSound kind, Vector3 position, float volume = 1f)
         {
             _kind = kind;
+            // (The showcase's sound event, said once here: a gun's own cue does not go through the voices' Play.)
+            if (SoundVoices.Showcased != null && kind != MechSound.Casing && kind != MechSound.CasingSoft)
+            {
+                SoundVoices.Showcased(kind);
+            }
+            SoundVoices.InGunPlay++;
             try
             {
                 PlayKind(kind, position, volume);
             }
             finally
             {
+                SoundVoices.InGunPlay--;
                 _kind = null;
             }
         }

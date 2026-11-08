@@ -99,6 +99,60 @@ def onsets(audio, rate):
     return out
 
 
+def read_events(path):
+    """(time, sound) per line of events.txt / sound-events.txt: each mechanical sound as it started (the recorder's log)."""
+    out = []
+    if os.path.exists(path):
+        for i, line in enumerate(open(path, encoding='utf-8')):
+            parts = line.rstrip('\n').split('\t')
+            if i and len(parts) == 2:
+                out.append((float(parts[0]), parts[1]))
+    return out
+
+
+DEFAULT_LATENCY = 0.025  # (the listener's blocks reach the WAV this long after the sound starts: measured by shots, 8-25 ms)
+
+
+def anchors(d, audio=None, rate=None):
+    """Points that tie the picture to the WAV: (picture second, WAV second). From the shots (the picture's shot frame, its sound's
+    onset) and from the mechanical sounds both passes logged (a magazine out or in, a slide), paired by kind and order: the sound
+    pass's time plus the output's latency (measured by the shots, else 25 ms). A reload has no shot: its sound was lined up by
+    nothing and slid off its picture (the user: "the sounds are not synced correctly with the reloads"). Also the latency."""
+    pic = read_marks(os.path.join(d, 'shots.txt'))
+    snd = read_marks(os.path.join(d, 'sound.txt'))
+    out, lat = [], []
+    if audio is not None and len(audio):
+        jumps = onsets(audio, rate)
+        pic_shots = [t for _, t, m, _ in pic if m == 'shot']
+        snd_shots = [t for _, t, m, _ in snd if m == 'shot']
+        for tp, ts in zip(pic_shots, snd_shots):
+            near = [j for j in jumps if ts - 0.03 <= j <= ts + 0.15]
+            if near:
+                out.append((tp, near[0]))
+                lat.append(near[0] - ts)
+    latency = statistics.median(lat) if lat else DEFAULT_LATENCY
+    pe, se = read_events(os.path.join(d, 'events.txt')), read_events(os.path.join(d, 'sound-events.txt'))
+    for kind in sorted({k for _, k in pe}):
+        for tp, ts in zip([t for t, k in pe if k == kind], [t for t, k in se if k == kind]):
+            if abs(ts - tp) < 0.4:  # (paired by order: one the other pass did not make would pair the rest wrong; far apart, left out)
+                out.append((tp, ts + latency))
+    out.sort()
+    return out, latency
+
+
+def wav_time(points, t, latency=DEFAULT_LATENCY):
+    """The WAV second under picture second t: its offset from the anchors around it (between two, in proportion; else the nearest)."""
+    if not points:
+        return t + latency
+    if t <= points[0][0]:
+        return t + points[0][1] - points[0][0]
+    for (a, wa), (b, wb) in zip(points, points[1:]):
+        if a <= t <= b:
+            k = (t - a) / (b - a) if b > a else 0.0
+            return t + (wa - a) + k * ((wb - b) - (wa - a))
+    return t + points[-1][1] - points[-1][0]
+
+
 def sync(pic_marks, snd_marks, jumps):
     """The sound's shift (s, audio time minus picture time) by the shots, and each shot's error around it (ms)."""
     pic_shots = [t for _, t, m, _ in pic_marks if m == 'shot']
@@ -178,6 +232,13 @@ def main():
                   f'{snd_end:.2f} s over {len(snd)} frames ({len(snd) / max(snd_end, 1e-3):.0f} fps); the picture is {frames / fps:.2f} s')
             jumps = onsets(audio, rate)
             shift, errors, np_, ns = sync(pic, snd, jumps)
+            pts, lat = anchors(d, audio, rate)
+            pe = read_events(os.path.join(d, 'events.txt'))
+            if pe:
+                ev = [(tp, wt) for tp, wt in pts if not any(abs(tp - t) < 1e-6 for _, t, m, _ in pic if m == 'shot')]
+                offs = [1000 * (wt - tp) for tp, wt in ev]
+                print(f'events: {len(pe)} mechanical sound(s) in the picture pass, {len(ev)} paired with the sound pass; their offsets '
+                      + (', '.join(f'{o:+.0f}' for o in offs) if offs else '-') + f' ms (latency {1000 * lat:.0f} ms)')
             if shift is None:
                 print(f'sync: NO SHOT FOUND in the sound ({np_} shot marks in the picture, {ns} in the sound pass, {len(jumps)} onsets)')
             else:

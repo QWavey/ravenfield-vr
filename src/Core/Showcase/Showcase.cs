@@ -385,6 +385,9 @@ namespace RavenfieldVR.Core.Showcase
         /// sight, up the gun's top): the gun hand placed from its grip as first measured, the other hand on the handguard where it is to
         /// be when <paramref name="support"/>.
         /// </summary>
+        /// <summary>For <see cref="ShowcaseGunLife"/>: <see cref="PlaceGun"/> from outside the director.</summary>
+        internal static void PlaceGunAt(Vector3 target, Quaternion aimRot, bool support) => PlaceGun(target, aimRot, support);
+
         private static void PlaceGun(Vector3 target, Quaternion aimRot, bool support)
         {
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;

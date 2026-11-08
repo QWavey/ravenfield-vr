@@ -14,6 +14,12 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     public sealed class SoundVoices : IDisposable
     {
+        /// <summary>Showcase only: each mechanical sound as it starts (casings aside); null in play.</summary>
+        internal static System.Action<MechSound> Showcased;
+
+        /// <summary>Showcase only: inside a gun's own Play (WeaponSounds), which has said its event already.</summary>
+        internal static int InGunPlay;
+
         private readonly AudioSource[] _pool = new AudioSource[8];
         /// <summary>Each voice's fade for a slice of a game clip (PlayGameClip): in and out, so its cut ends do not click.</summary>
         private readonly SliceFader[] _faders = new SliceFader[8];
@@ -110,6 +116,10 @@ namespace RavenfieldVR.Weapons
             {
                 _queued.Add(Time.unscaledTime + delay, sound, position, volume, weapon);
                 return;
+            }
+            if (Showcased != null && InGunPlay == 0 && sound != MechSound.Casing && sound != MechSound.CasingSoft)
+            {
+                Showcased(sound); // (the showcase lines its sound pass up with its picture by these: a reload has no shot to go by)
             }
             if ((sound == MechSound.Casing || sound == MechSound.CasingSoft) && BusyVoices() >= _pool.Length - 2)
             {

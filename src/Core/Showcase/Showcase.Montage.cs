@@ -18,9 +18,11 @@ namespace RavenfieldVR.Core.Showcase
     /// </summary>
     internal static partial class Showcase
     {
-        private enum Beat { Swap, RackGunCam, ShotsHelmet, BurstGunCam, AimShots, Turn }
+        private enum Beat { Swap, Rack, ShotsHelmet, WalkFireGunCam, AimShots, Turn }
 
-        private static readonly Beat[] BeatOrder = { Beat.Swap, Beat.RackGunCam, Beat.ShotsHelmet, Beat.BurstGunCam, Beat.AimShots, Beat.Swap, Beat.Turn, Beat.RackGunCam };
+        // The gun cam for shooting only, walking as it fires; the hands' work in first person (the user: "from the gun to head cam when
+        // reloading or smth else like racking the hand is in the face which is bad"; "sometimes shoot while walking (when gun to head cam)").
+        private static readonly Beat[] BeatOrder = { Beat.Swap, Beat.Rack, Beat.ShotsHelmet, Beat.WalkFireGunCam, Beat.AimShots, Beat.Swap, Beat.Turn, Beat.WalkFireGunCam };
 
         private static string[] MontageGuns()
         {
@@ -86,6 +88,7 @@ namespace RavenfieldVR.Core.Showcase
             int side = (int)off.Side;
             Vector3 well = held.Rig.Data.MagSeat.position;
             var lines = new List<string>();
+            var life = new ShowcaseGunLife();
             rec.Start();
             switch (beat)
             {
@@ -94,9 +97,9 @@ namespace RavenfieldVR.Core.Showcase
                     // Presented and the magazine changed in one flowing move (SwapFilm), the eyes on the hands.
                     rec.Mark = "present";
                     rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), LookAtHands * 0.9f);
-                    yield return Film(rec, 0.3f, u => { GunPose g = GunPose.Lerp(HipToEye(0.3f, 0f), Presented(), EaseOut(u)); PlaceGun(g.At, g.Aim, true); });
+                    yield return Film(rec, 0.3f, u => life.Place(rec, GunPose.Lerp(HipToEye(0.3f, 0f), Presented(), EaseOut(u)), null, off, true));
                     Input.VRInput.SimulatedGrab[side] = false;
-                    yield return Film(rec, 0.06f, u => PlacePresented(false));
+                    yield return Film(rec, 0.06f, u => life.Place(rec, Presented(), null, off, false));
                     if (off.Role != HandRole.Free)
                     {
                         held.SetTwoHanded(false);
@@ -111,22 +114,21 @@ namespace RavenfieldVR.Core.Showcase
                             rec.Still($"montage-{beat.ToString().ToLowerInvariant()}");
                         }
                         KeepAlive();
-                        PlacePresented(false);
+                        life.Place(rec, Presented(), note, off, false);
                         rec.TakeFrame();
                     }, () => rec.Elapsed, from));
                     break;
                 }
-                case Beat.RackGunCam:
+                case Beat.Rack:
                 {
-                    // Held half up, the free hand racks it; the camera on the gun looking back at the face (the user's "gun to head view").
-                    GunPose half = HipToEye(0.45f, 0f);
+                    // Brought up in front, the free hand racks it, the eyes on it (first person: on the gun cam the hand was in the face).
+                    GunPose half = InFront(new Vector3(0.05f, -0.15f, 0.40f), -22f, -6f, 0.2f);
+                    Vector3 rear = held.Rig.Data.EyePoint;
                     rec.Mark = "ready";
-                    // In front of the muzzle, a little up and aside: behind it a pistol's rack happened behind the camera (only the face
-                    // showed), and in an AS VAL's long suppressor the camera sat inside the gun (montage 1).
-                    rec.Shot = () => ShowcaseCamera.GunCam(-0.22f, 0.07f, 0.11f, 58f);
-                    yield return Film(rec, 0.25f, u => PlaceGun(half.At, half.Aim, true));
+                    rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(rear), LookAtHands * 0.8f);
+                    yield return Film(rec, 0.25f, u => life.Place(rec, GunPose.Lerp(HipToEye(0.3f, 0f), half, EaseOut(u)), null, off, true));
                     Input.VRInput.SimulatedGrab[side] = false;
-                    yield return Film(rec, 0.06f, u => PlaceGun(half.At, half.Aim, false));
+                    yield return Film(rec, 0.06f, u => life.Place(rec, half, null, off, false));
                     if (off.Role != HandRole.Free)
                     {
                         held.SetTwoHanded(false);
@@ -139,10 +141,10 @@ namespace RavenfieldVR.Core.Showcase
                         rec.Mark = "rack " + note;
                         if (note == "pulling back")
                         {
-                            rec.Still("montage-rack-gun-cam");
+                            rec.Still("montage-rack");
                         }
                         KeepAlive();
-                        PlaceGun(half.At, half.Aim, false);
+                        life.Place(rec, half, "rack " + note, off, false);
                         rec.TakeFrame();
                     }, () => rec.Elapsed, from));
                     break;
@@ -170,16 +172,17 @@ namespace RavenfieldVR.Core.Showcase
                     lines.Add($"{shots} shot(s)");
                     break;
                 }
-                case Beat.BurstGunCam:
+                case Beat.WalkFireGunCam:
                 {
-                    // A burst with the camera on the gun: the face behind it, every round shaking the picture.
+                    // Walking forward and firing with the camera on the gun: the face behind it, every round shaking the picture.
                     rec.Mark = "burst";
                     rec.Shot = () => ShowcaseCamera.GunCam(0.06f, 0.07f, 0.08f, 66f);
+                    Input.VRInput.SimulatedMove = new Vector2(0f, 0.8f);
                     int ammo = int.MaxValue, before = held.ActiveAmmo != null ? held.ActiveAmmo.MagRounds : 0;
                     bool auto = held.Weapon != null && held.Weapon.GetActiveSubWeapon() != null && held.Weapon.GetActiveSubWeapon().configuration.auto;
                     if (auto)
                     {
-                        yield return Film(rec, 1.1f, u => { HoldGun(1f, 0.25f); HoldTrigger(ref ammo, 0.18f); if (u >= 0.5f) { rec.Still("montage-burst-gun-cam"); } });
+                        yield return Film(rec, 1.1f, u => { HoldGun(1f, 0.25f); HoldTrigger(ref ammo, 0.18f); if (u >= 0.5f) { rec.Still("montage-walk-fire-gun-cam"); } });
                         ReleaseTrigger();
                     }
                     else
@@ -194,7 +197,8 @@ namespace RavenfieldVR.Core.Showcase
                     }
                     rec.Mark = "after";
                     yield return Film(rec, 0.3f, u => HoldGun(1f, 0.25f));
-                    lines.Add($"burst: {before - (held.ActiveAmmo != null ? held.ActiveAmmo.MagRounds : 0)} round(s)");
+                    Input.VRInput.SimulatedMove = Vector2.zero;
+                    lines.Add($"walking, {before - (held.ActiveAmmo != null ? held.ActiveAmmo.MagRounds : 0)} round(s)");
                     break;
                 }
                 case Beat.Turn:
