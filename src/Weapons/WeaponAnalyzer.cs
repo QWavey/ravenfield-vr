@@ -749,6 +749,12 @@ namespace RavenfieldVR.Weapons
                 });
                 Guarded(d, "magazine hold", () => d.MagHold = MagHoldOf(d, root, handL, index, sampler));
                 Guarded(d, "sounds", () => BuildSoundMap(d, sampler, w));
+                if (Core.AutoTest.TestRun && w.configuration != null && w.configuration.scopeAimObject != null)
+                {
+                    // Every gun with a flat 2D scope picture, in a test run: what the pictures hold, to put each gun's own reticle on the mod's
+                    // lens (it draws a plain duplex of its own; user, 2026-11-08: "some guns still get a vanilla scope over their real one").
+                    Guarded(d, "scope picture", () => Log.Info($"{key}: 2D scope picture (aim fov {w.configuration.aimFov:0}): {VRScope.DescribeOverlay(w)}."));
+                }
                 if (WeaponSelfTest.WantsRigDump(key))
                 {
                     Guarded(d, "rig dump", () => rigDump = DumpRig(d, all, index, root, gunBody, muzzle, armRelated, gunBones, sampler, gunIdle));

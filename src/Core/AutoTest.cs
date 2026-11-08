@@ -27,6 +27,9 @@ namespace RavenfieldVR.Core
 
         private static readonly bool RequestedOnCommandLine = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-autotest", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>A test run (started with -rfvr-autotest): logging only such a run wants (the analyser's scope pictures of every gun).</summary>
+        internal static bool TestRun => RequestedOnCommandLine;
+
         /// <summary>Started with -rfvr-autotest (read once: it is checked every frame).</summary>
         public static bool Requested => RequestedOnCommandLine;
 
