@@ -115,6 +115,14 @@ namespace RavenfieldVR.Core
         private static int _missedWindows, _roomyWindows, _upWait = 10;
         private static float _lastStepDown = -100f, _lastStepUp = -100f;
 
+        // The last step (the render scale) only after the GPU was heavy for _scaleNeeds windows in a row, as the late windows are counted;
+        // each time it had to be given back (the GPU light again: the CPU the cause), the next needs twice as many. One heavy window (a
+        // blast, a load) took it, the next gave it back: the user's Ultra session of 2026-11-07 went 5 -> 6 -> 5 ten times in ten
+        // minutes, each change a new pair of eye textures (a hitch), with the GPU at 4.6 of 11.1 ms.
+        private static int _gpuHeavyWindows, _scaleNeeds = 2;
+        private static float _lastScaleBack = -1000f;
+        private static bool _gpuEverTimed;
+
         /// <summary>
         /// The preset held down <see cref="HoldLevel"/> steps, the costliest for the CPU in multi-pass first (each is paid once per eye;
         /// the user's Medium ran at half rate with the GPU at 7 ms, Tasks 348): the shadow distance shortened and the level's tiny distant
@@ -158,6 +166,9 @@ namespace RavenfieldVR.Core
             HoldLevel = 0;
             _upWait = 10;
             _missedWindows = _roomyWindows = 0;
+            _gpuHeavyWindows = 0;
+            _scaleNeeds = 2;
+            _gpuEverTimed = false;
         }
 
         /// <summary>
@@ -193,22 +204,35 @@ namespace RavenfieldVR.Core
                     Apply();
                 }
                 _missedWindows = _roomyWindows = 0;
+                _gpuHeavyWindows = 0;
+                _scaleNeeds = 2;
                 return;
             }
             float now = Time.unscaledTime;
             _missedWindows = percentOnTime < 85 ? _missedWindows + 1 : 0;
             _roomyWindows = percentOnTime >= 98 ? _roomyWindows + 1 : 0;
+            // (A window with no GPU time counts as heavy only where the GPU was never timed: then the scale may help, as before.)
+            _gpuEverTimed |= gpuMs >= 0f;
+            bool heavy = gpuMs >= 0f ? RenderScaleHelps(gpuMs, budgetMs, false) : !_gpuEverTimed;
+            _gpuHeavyWindows = heavy ? _gpuHeavyWindows + 1 : 0;
+            if (_scaleNeeds > 2 && now - _lastScaleBack > 300f)
+            {
+                _scaleNeeds = 2; // five minutes with the scale left alone: as at the start
+            }
             if (HoldLevel == HoldSteps && !RenderScaleHelps(gpuMs, budgetMs, true))
             {
                 HoldLevel--;
                 _lastStepUp = now;
+                _lastScaleBack = now;
+                _scaleNeeds = Mathf.Min(16, _scaleNeeds * 2);
+                _gpuHeavyWindows = 0;
                 ApplyRenderScaleIfHeld();
                 _missedWindows = _roomyWindows = 0;
                 Log.Info($"Frame rate: the GPU at {gpuMs:0.0} ms of {budgetMs:0.0} ms, the frames late for the CPU: the render scale back (step {HoldLevel} of {HoldSteps}).");
                 Apply();
                 return;
             }
-            int deepest = HoldLevel == HoldSteps - 1 && !RenderScaleHelps(gpuMs, budgetMs, false) ? HoldSteps - 1 : HoldSteps;
+            int deepest = HoldLevel == HoldSteps - 1 && _gpuHeavyWindows < _scaleNeeds ? HoldSteps - 1 : HoldSteps;
             if (_missedWindows >= 2 && HoldLevel < deepest)
             {
                 if (now - _lastStepUp < 15f)
