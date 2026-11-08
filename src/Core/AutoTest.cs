@@ -425,7 +425,15 @@ namespace RavenfieldVR.Core
                 {
                     // The showcase's takes (docs/Showcase-Plan.md): staged scenes filmed frame by frame with the game's own sound.
                     _context = "showcase";
-                    yield return Showcase.Showcase.Run(Results.Add);
+                    // (Its failures counted as the run's problems too: "THE PISTOL IS NOT IN THE HAND" came with "0 problem(s)".)
+                    yield return Showcase.Showcase.Run(line =>
+                    {
+                        Results.Add(line);
+                        if (Failure.IsMatch(line))
+                        {
+                            Problem(line.Trim());
+                        }
+                    });
                     Write();
                     Application.Quit();
                     yield break;

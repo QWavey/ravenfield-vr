@@ -362,42 +362,28 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
-        /// A pistol for the pistol scene: by name first, else the first secondary that is a pistol (6-21 rounds, not automatic, no
-        /// pair), put in its slot. Its name and slot, or null.
+        /// The pistols the pistol scene can try, best first: secondaries that fire one round a pull (not automatic), 6-21 rounds, no
+        /// pair. (By name it took the "SL-DEFENDER", a primary, and the scene drew the loadout's sniper: pistol take 1.) Whether each
+        /// is a pistol is the mod's own reading of it once drawn (<c>IsPistol</c>).
         /// </summary>
-        private static (string name, int slot)? GiveSidearm(params string[] prefer)
+        private static System.Collections.Generic.List<WeaponManager.WeaponEntry> SidearmCandidates()
         {
-            Actor actor = LocalPlayer.actor;
-            if (actor == null || WeaponManager.instance == null)
+            var list = new System.Collections.Generic.List<WeaponManager.WeaponEntry>();
+            if (WeaponManager.instance == null)
             {
-                return null;
+                return list;
             }
-            WeaponManager.WeaponEntry pick = null;
-            foreach (string name in prefer)
+            foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
             {
-                pick = WeaponManager.instance.allWeapons.Find(e => e != null && e.prefab != null && string.Equals(e.name, name, StringComparison.OrdinalIgnoreCase));
-                if (pick != null)
+                Weapon w = e != null && e.prefab != null ? e.prefab.GetComponent<Weapon>() : null;
+                if (w != null && !(w is MeleeWeapon) && !(w is ThrowableWeapon) && e.slot == WeaponManager.WeaponSlot.Secondary && w.configuration != null
+                    && !w.configuration.auto && w.configuration.ammo >= 6 && w.configuration.ammo <= 21
+                    && e.name.IndexOf("akimbo", StringComparison.OrdinalIgnoreCase) < 0)
                 {
-                    break;
+                    list.Add(e);
                 }
             }
-            if (pick == null)
-            {
-                pick = WeaponManager.instance.allWeapons.Find(e =>
-                {
-                    Weapon w = e != null && e.prefab != null ? e.prefab.GetComponent<Weapon>() : null;
-                    return w != null && !(w is MeleeWeapon) && !(w is ThrowableWeapon) && e.slot == WeaponManager.WeaponSlot.Secondary && w.configuration != null
-                           && !w.configuration.auto && w.configuration.ammo >= 6 && w.configuration.ammo <= 21
-                           && e.name.IndexOf("akimbo", StringComparison.OrdinalIgnoreCase) < 0;
-                });
-            }
-            if (pick == null)
-            {
-                return null;
-            }
-            int slot = Mathf.Clamp((int)pick.slot, 0, actor.weapons.Length - 1);
-            actor.EquipNewWeaponEntry(pick, slot, true);
-            return (pick.name, slot);
+            return list;
         }
 
         private static int _sidearmSlot = -1;
@@ -409,14 +395,28 @@ namespace RavenfieldVR.Core.Showcase
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase pistol: turned {FaceOpen():0} degrees to the best view");
             GiveRifle("PATRIOT", "RK-44");
-            (string name, int slot)? pistol = GiveSidearm("sl-defender", "76 eagle");
-            if (pistol == null)
+            Actor actor = LocalPlayer.actor;
+            string tried = "";
+            _sidearmSlot = -1;
+            foreach (WeaponManager.WeaponEntry e in SidearmCandidates())
             {
-                throw new InvalidOperationException("no pistol among the game's weapons");
+                int slot = Mathf.Clamp((int)e.slot, 0, actor.weapons.Length - 1);
+                actor.EquipNewWeaponEntry(e, slot, true);
+                yield return new WaitForSecondsRealtime(0.4f);
+                yield return Draw(slot); // (drawn once: the mod reads it, its grip and rack point measured before the take)
+                HeldWeapon drawn = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                if (drawn != null && drawn.Weapon == actor.weapons[slot] && drawn.Rig.Data.IsPistol)
+                {
+                    _sidearmSlot = slot;
+                    report($"showcase pistol: {e.name} in slot {slot}{(tried.Length > 0 ? $" (not pistols: {tried})" : "")}");
+                    break;
+                }
+                tried += (tried.Length > 0 ? ", " : "") + e.name;
             }
-            _sidearmSlot = pistol.Value.slot;
-            report($"showcase pistol: {pistol.Value.name} in slot {pistol.Value.slot}");
-            yield return Draw(_sidearmSlot); // (drawn once so its grip and rack point are measured before the take)
+            if (_sidearmSlot < 0)
+            {
+                throw new InvalidOperationException($"no pistol among the game's secondaries (tried: {tried})");
+            }
             LocalPlayer.actor.HolsterActiveWeapon();
             yield return new WaitForSecondsRealtime(0.8f);
         }
