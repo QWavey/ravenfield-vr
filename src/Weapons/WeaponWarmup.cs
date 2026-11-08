@@ -182,6 +182,7 @@ namespace RavenfieldVR.Weapons
             }
             WeaponRigData data = WeaponAnalyzer.Get(weapon, entry);
             BoltPiece.PrewarmSnapped(PrefitShape(weapon, data, entry));
+            VRScope.WarmPicture(weapon, data);
             if (VRConfig.EnemyWeaponDrops.Value || VRConfig.ShowHolsters.Value)
             {
                 WeaponDrops.Prepare(entry); // the model a fallen soldier drops (and the holstered copy)

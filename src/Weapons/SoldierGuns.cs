@@ -119,7 +119,10 @@ namespace RavenfieldVR.Weapons
                 // presses only, so one the gun took is not taken again.)
                 // (And only a hand arriving slower than a swing: a fist closed in the wind-up and swung into the gun knocks it aside below,
                 // it does not take it; round-3 skeptic, 2026-10-28.)
+                // (Nor a fist that just landed a blow, as BodyGrab's: its squeeze was the punch's. Stopped on him after the blow, beside his
+                // gun and still within the squeeze's window, it could take the gun on that squeeze.)
                 if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
+                    && Time.unscaledTime - MeleeHandler.LastHandBlow[i] > 0.6f
                     && hand.BodyRelativeVelocity.sqrMagnitude <= SwingSpeed * SwingSpeed
                     && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(palm))
                 {

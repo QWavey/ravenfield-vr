@@ -324,7 +324,9 @@ namespace RavenfieldVR.Core
             if (LocalPlayer.actor == null || LocalPlayer.actor.dead)
             {
                 Results.Add("Could not deploy the player; weapon tests skipped.");
-                Problem("[deploy] the player could not be deployed: no weapon or check ran"); // (counted: the run read "Problems: 0"; round-7 scout)
+                Problem("[deploy] the player could not be deployed: no weapon or check ran" // (counted: the run read "Problems: 0"; round-7 scout)
+                        + $" ({(LocalPlayer.actor == null ? "no player" : "dead")}, loadout screen {(LoadoutUi.instance == null ? "missing" : LoadoutUi.IsOpen() ? "open" : LoadoutUi.HasBeenOpen() ? "closed" : "never opened")}, "
+                        + $"{_deployNote ?? "spawn point not looked at"})");
             }
             else
             {
@@ -4504,6 +4506,14 @@ namespace RavenfieldVR.Core
                     }
                     OffAt(offRaw.position + offPalmFromRaw);
                 }
+                // (What the free hand took on the way, if anything: since 11-07 every step after the gun bash found it holding a rifle,
+                // "the free hand is Weapon", and the steps were skipped.)
+                string FreeHandTook(string after) => off.Role == Rig.HandRole.Free ? null
+                    : $"free hand after {after}: NOT FREE, it holds {(off.Held is UnityEngine.Object held0 && held0 != null ? held0.name : off.Held != null ? off.Held.GetType().Name : "nothing")} ({off.Role})";
+                if (FreeHandTook("the fists") is string tookFists)
+                {
+                    report(tookFists);
+                }
                 // The gun back in the hand for the bash.
                 if (drawn != null && player.weapons != null)
                 {
@@ -4528,7 +4538,10 @@ namespace RavenfieldVR.Core
                 {
                     Quaternion along = Quaternion.LookRotation(flat, Vector3.up); // the gun pointing ahead, across the swing
                     Vector3 centre = Spot(0.8f) + Vector3.up * 1.25f;
-                    Vector3 swingFrom = centre - flat * 0.45f - sideAxis * 0.6f;
+                    // The hand's line so the gun's front half crosses his chest: 45 cm before his middle suits a rifle, and a revolver's muzzle
+                    // passed 14 cm short of him (NO HIT, 2026-11-08; the hit before it was by a hair).
+                    float reachBefore = Mathf.Clamp(gun.Rig.Data.LengthFromGrip * 0.6f + 0.08f, 0.2f, 0.45f);
+                    Vector3 swingFrom = centre - flat * reachBefore - sideAxis * 0.6f;
                     DomAt(swingFrom, along); // there before the soldier and past the bash's half-second cooldown
                     yield return new WaitForSecondsRealtime(0.7f);
                     yield return Bring(bashed, 0.8f, false, there);
@@ -4546,6 +4559,11 @@ namespace RavenfieldVR.Core
                     }
                     GunToHip();
                     yield return new WaitForSecondsRealtime(0.7f);
+                }
+
+                if (FreeHandTook("the gun bash") is string tookBash)
+                {
+                    report(tookBash);
                 }
 
                 // 5. A human shield: a soldier held up in front, his friend shooting at the player through him.
@@ -6276,6 +6294,7 @@ namespace RavenfieldVR.Core
                 try
                 {
                     mag.Go.transform.position = ground.point - Vector3.up * depth;
+                    PropPhysics.LastBackMiss = "not found under the ground";
                     mag.Drop(Vector3.zero, Vector3.zero);
                     start = mag.Go.transform.position;
                     Vector3 last = start;
@@ -6309,7 +6328,9 @@ namespace RavenfieldVR.Core
                     Metric($"magazine let go {depth * 100f:0} cm in the ground: top speed m/s", top);
                     report($"magazine let go {depth * 100f:0} cm in the ground: {(ok ? "came out and lay still" : "NOT LAID OUT")} "
                            + $"(top speed {top:0.0} m/s, ends {above * 100f:0} cm above the ground and {across * 100f:0} cm aside; moved out "
-                           + $"{(start - (ground.point - Vector3.up * depth)).magnitude * 100f:0} cm on release)");
+                           + $"{(start - (ground.point - Vector3.up * depth)).magnitude * 100f:0} cm on release"
+                           + (ok ? ")" : $"; the ground: {ground.collider.name} ({ground.collider.GetType().Name}, layer {ground.collider.gameObject.layer}); "
+                                         + $"left there: {PropPhysics.LastBackMiss ?? "not moved back"})"));
                 }
                 finally
                 {
@@ -6318,6 +6339,7 @@ namespace RavenfieldVR.Core
             }
             // A weapon the same way (a soldier's death drop, or the player's let-go gun, with its hand in the ground).
             WeaponManager.WeaponEntry entry = held.Weapon != null ? held.Weapon.weaponEntry : null;
+            PropPhysics.LastBackMiss = "not found under the ground";
             DroppedWeapon gun = entry != null
                 ? sys.Drops.Spawn(entry, new Runtime.RigidPose(ground.point - Vector3.up * 0.3f, Quaternion.LookRotation(Vector3.Cross(Vector3.up, fwd), Vector3.up)),
                                   Vector3.one, Vector3.zero, -1, -1, open: head.position)
@@ -6357,7 +6379,8 @@ namespace RavenfieldVR.Core
                     under = "; under it: " + (names.Count > 0 ? string.Join(", ", names) : "nothing within 3 m");
                 }
                 string without = control != null && control.Go != null ? $"; without the fix it ends {(control.Go.transform.position.y - ground2.point.y) * 100f:0} cm above" : "";
-                report($"weapon let go 30 cm in the ground: {(above > -0.1f && above < 1f ? "came out on top" : "NOT LAID OUT")} (ends {above * 100f:0} cm above the ground{without}{under})");
+                string missed = above > -0.1f ? "" : $"; left there: {PropPhysics.LastBackMiss ?? "not moved back"}";
+                report($"weapon let go 30 cm in the ground: {(above > -0.1f && above < 1f ? "came out on top" : "NOT LAID OUT")} (ends {above * 100f:0} cm above the ground{without}{under}{missed})");
                 UnityEngine.Object.Destroy(gun.Go);
             }
             if (control != null && control.Go != null)
@@ -6446,10 +6469,22 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>Why the last <see cref="Deploy"/> left the player dead (for the report), or null.</summary>
+        private static string _deployNote;
+
         private static IEnumerator Deploy()
         {
             for (int attempt = 0; attempt < 6 && (LocalPlayer.actor == null || LocalPlayer.actor.dead); attempt++)
             {
+                // A spawn point of the player's own team picked on the map first: the game spawns the player only at the map's selected point
+                // when his team owns it (FpsActorController.SelectedSpawnPoint), or with none selected at a front-line point of his team. With
+                // the selected point taken by the enemy, or no front line yet, the deploy click did nothing and two runs of 2026-11-08 ended
+                // "the player could not be deployed" after 72 s of clicking.
+                _deployNote = PickOwnSpawn();
+                if (LoadoutUi.instance != null && !LoadoutUi.IsOpen() && !LoadoutUi.HasBeenOpen() && LocalPlayer.actor != null && LocalPlayer.actor.dead)
+                {
+                    LoadoutUi.Show(false); // (never opened: the game spawns no one before it has been)
+                }
                 if (LoadoutUi.instance != null && LoadoutUi.IsOpen())
                 {
                     LoadoutUi.instance.OnDeployClick();
@@ -6460,6 +6495,47 @@ namespace RavenfieldVR.Core
                     yield return null;
                 }
             }
+        }
+
+        /// <summary>
+        /// The map's selected spawn point set to one the player's team owns, when it is not (the nearest to the one selected, else the first):
+        /// what it found, for the report.
+        /// </summary>
+        private static string PickOwnSpawn()
+        {
+            if (MinimapUi.instance == null || ActorManager.instance == null || ActorManager.instance.spawnPoints == null)
+            {
+                return "no map or spawn points";
+            }
+            int team = GameManager.PlayerTeam();
+            SpawnPoint selected = MinimapUi.instance.selectedSpawnPoint;
+            SpawnPoint[] all = ActorManager.instance.spawnPoints;
+            int own = all.Count(s => s != null && s.owner == team);
+            if (selected != null && selected.owner == team)
+            {
+                return $"spawn point {selected.name} is the team's ({own} of {all.Length})";
+            }
+            SpawnPoint best = null;
+            float bestDistance = float.MaxValue;
+            foreach (SpawnPoint s in all)
+            {
+                if (s == null || s.owner != team)
+                {
+                    continue;
+                }
+                float d = selected != null ? (s.transform.position - selected.transform.position).sqrMagnitude : 0f;
+                if (d < bestDistance)
+                {
+                    best = s;
+                    bestDistance = d;
+                }
+            }
+            if (best == null)
+            {
+                return $"THE TEAM OWNS NO SPAWN POINT (of {all.Length})";
+            }
+            MinimapUi.SelectSpawnPoint(best);
+            return $"spawn point {best.name} picked for the team ({own} of {all.Length}; the map had {(selected != null ? $"{selected.name}, owned by team {selected.owner}" : "none")})";
         }
 
         private static IEnumerator TestWeapons()

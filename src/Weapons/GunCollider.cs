@@ -275,26 +275,38 @@ namespace RavenfieldVR.Weapons
             float length = way.magnitude;
             if (root == null || length < 0.05f)
             {
+                LastBackMiss = "no way back (at the eyes)";
                 return false;
             }
             way /= length;
             int n = Physics.BoxCastNonAlloc(open, b.extents, way, SurfaceHits, Quaternion.identity, length, ~BodyMask, QueryTriggerInteraction.Ignore);
             float free = length;
+            Collider first = null;
             for (int i = 0; i < n; i++)
             {
-                if (SurfaceHits[i].distance > 0f && IsLevelFor(SurfaceHits[i].collider, own))
+                // (Not the held gun's stand-in: it lets loose things pass, and on the line from the eyes to a hand in the ground it is
+                // the first thing met, so a magazine let go 40 cm deep was left there, "more than 0.8 m behind" the gun, and fell.)
+                if (SurfaceHits[i].distance > 0f && SurfaceHits[i].distance < free && !GunCollider.IsStandIn(SurfaceHits[i].collider)
+                    && IsLevelFor(SurfaceHits[i].collider, own))
                 {
-                    free = Mathf.Min(free, SurfaceHits[i].distance);
+                    free = SurfaceHits[i].distance;
+                    first = SurfaceHits[i].collider;
                 }
             }
             if (free >= length || length - free > maxBehind)
             {
+                LastBackMiss = first == null ? $"nothing on the {length:0.00} m from the eyes"
+                    : $"the first surface from the eyes, {first.name} (layer {first.gameObject.layer}), {length - free:0.00} m before it (over {maxBehind:0.0})";
                 return false;
             }
+            LastBackMiss = null;
             root.position -= way * (length - Mathf.Max(0f, free - 0.01f));
             Physics.SyncTransforms();
             return true;
         }
+
+        /// <summary>Why the last <see cref="BackToward"/> left a thing where it was (null when it moved it): for the buried checks' report.</summary>
+        internal static string LastBackMiss;
 
         /// <summary>The world bounds of <paramref name="pieces"/> (an empty box at the origin when there are none).</summary>
         internal static Bounds BoundsOf(IList<Collider> pieces)

@@ -104,6 +104,202 @@ namespace RavenfieldVR.Weapons
             return parts.Count == 0 ? "no image in it" : string.Join("; ", parts.ToArray());
         }
 
+        /// <summary>A gun's own reticle found in its 2D scope picture: the texture, drawn added (glowing) or blended; null when it has none.</summary>
+        private sealed class Picture
+        {
+            public Texture Texture;
+            public bool Additive;
+            public Vector2 Scale = Vector2.one, Offset;
+        }
+
+        private static readonly Dictionary<string, Picture> Pictures = new Dictionary<string, Picture>();
+        private static Shader _additiveShader;
+
+        /// <summary>
+        /// The lens's reticle from the gun's own flat 2D scope picture, where that picture is a reticle drawn on a clear middle (the RECON
+        /// LRR's is the game's DMR chevrons, dmr_sight: black lines on a transparent texture). The lens drew the mod's duplex on every gun;
+        /// the flat game shows each its own. Not a picture with no texture (the SL-DEFENDER's dark mesh), a vignette, or one that covers
+        /// the middle of the view (read once on the GPU: a picture of a whole scope would cover the lens's view): those keep the duplex.
+        /// </summary>
+        private static Material OwnPictureMaterial(WeaponRig rig)
+        {
+            Weapon w = rig != null ? rig.Weapon : null;
+            Picture pic = PictureFor(w, rig != null && rig.Data.Key != null ? rig.Data.Key : w != null ? w.name : null);
+            if (pic == null || pic.Texture == null)
+            {
+                return null;
+            }
+            Shader shader = SpriteShader;
+            if (pic.Additive)
+            {
+                if (_additiveShader == null)
+                {
+                    _additiveShader = Shader.Find("Legacy Shaders/Particles/Additive");
+                }
+                shader = _additiveShader != null ? _additiveShader : SpriteShader;
+            }
+            var m = new Material(shader) { mainTexture = pic.Texture, renderQueue = 3001 };
+            m.mainTextureScale = pic.Scale;
+            m.mainTextureOffset = pic.Offset;
+            return m;
+        }
+
+        /// <summary>
+        /// The weapon warm-up's share: a scoped gun's picture looked at in the menu, so its GPU read (a few ms, once) is not paid on its first
+        /// scoped draw in a match.
+        /// </summary>
+        internal static void WarmPicture(Weapon w, WeaponRigData data)
+        {
+            if (w != null && data != null && w.configuration != null && w.configuration.scopeAimObject != null && w.GetAimFov() < 40f)
+            {
+                PictureFor(w, data.Key ?? w.name);
+            }
+        }
+
+        /// <summary>The picture for a gun, looked for once and kept by its key (null: it has none to use).</summary>
+        private static Picture PictureFor(Weapon w, string key)
+        {
+            if (key == null)
+            {
+                return null;
+            }
+            if (!Pictures.TryGetValue(key, out Picture pic))
+            {
+                string why;
+                try
+                {
+                    pic = FindPicture(w, out why);
+                }
+                catch (System.Exception e)
+                {
+                    pic = null;
+                    why = $"its picture could not be read ({e.GetType().Name}: {e.Message})";
+                }
+                Pictures[key] = pic;
+                Log.Info(pic != null
+                    ? $"{key}: the lens draws the gun's own reticle, '{pic.Texture.name}' from its 2D scope picture{(pic.Additive ? " (glowing)" : "")}."
+                    : $"{key}: the lens draws the mod's duplex reticle ({why}).");
+            }
+            return pic;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex NotAReticle =
+            new System.Text.RegularExpressions.Regex(@"vignette|unitywhite|font|white|black|noise|lock|target", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>The first reticle texture among the picture's renderers and images, vetted by <see cref="ClearInTheMiddle"/>; why not, else.</summary>
+        private static Picture FindPicture(Weapon w, out string why)
+        {
+            GameObject o = w != null && w.configuration != null ? w.configuration.scopeAimObject : null;
+            why = "no 2D scope picture";
+            if (o == null)
+            {
+                return null;
+            }
+            why = "no texture in its 2D scope picture";
+            var found = new List<Picture>();
+            foreach (Renderer r in o.GetComponentsInChildren<Renderer>(true))
+            {
+                Material m = r is ParticleSystemRenderer ? null : r.sharedMaterial;
+                Texture t = m != null && m.HasProperty("_MainTex") ? m.mainTexture : null;
+                if (t != null)
+                {
+                    string shader = m.shader != null ? m.shader.name : "";
+                    found.Add(new Picture
+                    {
+                        Texture = t, Additive = shader.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) >= 0,
+                        Scale = m.mainTextureScale, Offset = m.mainTextureOffset
+                    });
+                }
+            }
+            foreach (UnityEngine.UI.Graphic g in o.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            {
+                if (g is UnityEngine.UI.RawImage raw && raw.texture != null)
+                {
+                    found.Add(new Picture { Texture = raw.texture, Scale = raw.uvRect.size, Offset = raw.uvRect.position });
+                }
+                else if (g is UnityEngine.UI.Image img && img.sprite != null && img.sprite.texture != null)
+                {
+                    Rect tr = img.sprite.textureRect;
+                    Texture2D st = img.sprite.texture;
+                    found.Add(new Picture
+                    {
+                        Texture = st, Scale = new Vector2(tr.width / st.width, tr.height / st.height), Offset = new Vector2(tr.x / st.width, tr.y / st.height)
+                    });
+                }
+            }
+            foreach (Picture p in found)
+            {
+                if (NotAReticle.IsMatch(p.Texture.name))
+                {
+                    why = $"'{p.Texture.name}' is no reticle";
+                    continue;
+                }
+                if (!ClearInTheMiddle(p, out why))
+                {
+                    continue;
+                }
+                return p;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The picture drawn small on the GPU and read back once: a reticle covers little of the middle of the view (its lines), a picture of
+        /// a whole scope or a coloured screen covers it all. Blended pictures by their alpha, glowing (added) ones by their brightness.
+        /// </summary>
+        private static bool ClearInTheMiddle(Picture p, out string why)
+        {
+            const int n = 32;
+            RenderTexture rt = RenderTexture.GetTemporary(n, n, 0, RenderTextureFormat.ARGB32);
+            RenderTexture before = RenderTexture.active;
+            var read = new Texture2D(n, n, TextureFormat.RGBA32, false);
+            try
+            {
+                Graphics.Blit(p.Texture, rt, p.Scale, p.Offset);
+                RenderTexture.active = rt;
+                read.ReadPixels(new Rect(0, 0, n, n), 0, 0, false);
+                read.Apply(false);
+                Color32[] px = read.GetPixels32();
+                float inner = 0f, all = 0f;
+                int innerCount = 0;
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        Color32 c = px[y * n + x];
+                        float cover = p.Additive ? (c.r + c.g + c.b) / (3f * 255f) : c.a / 255f;
+                        all += cover;
+                        float u = (x + 0.5f) / n - 0.5f, v = (y + 0.5f) / n - 0.5f;
+                        if (u * u + v * v < 0.35f * 0.35f)
+                        {
+                            inner += cover;
+                            innerCount++;
+                        }
+                    }
+                }
+                inner /= Mathf.Max(1, innerCount);
+                all /= n * n;
+                if (inner > 0.35f)
+                {
+                    why = $"'{p.Texture.name}' covers {inner:P0} of the middle: a picture, not a reticle";
+                    return false;
+                }
+                if (all < 0.002f)
+                {
+                    why = $"'{p.Texture.name}' is empty";
+                    return false;
+                }
+                why = null;
+                return true;
+            }
+            finally
+            {
+                RenderTexture.active = before;
+                RenderTexture.ReleaseTemporary(rt);
+                Object.Destroy(read);
+            }
+        }
+
         /// <summary>A reticle the model draws itself: a material named as one (the mods' "reticle_ui_stencil" on a scope's glass).</summary>
         private static readonly System.Text.RegularExpressions.Regex ReticleName =
             new System.Text.RegularExpressions.Regex(@"retic|recticle|crosshair|cross_hair", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -218,7 +414,7 @@ namespace RavenfieldVR.Weapons
                 EnsureAssets();
                 _lensMaterial = new Material(SpriteShader) { mainTexture = _texture, renderQueue = 3000 };
                 CreateDisc("Lens", _lensMaterial, 0f);
-                _reticleMaterial = new Material(SpriteShader) { mainTexture = _reticle, renderQueue = 3001 };
+                _reticleMaterial = (fov <= 0f ? OwnPictureMaterial(rig) : null) ?? new Material(SpriteShader) { mainTexture = _reticle, renderQueue = 3001 };
                 CreateDisc("Reticle", _reticleMaterial, -0.0008f);
                 _shadowMesh = Object.Instantiate(_disc);
                 _shadowMesh.name = "ScopeShadow";
