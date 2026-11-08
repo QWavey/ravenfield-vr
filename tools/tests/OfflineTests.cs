@@ -133,6 +133,27 @@ namespace RavenfieldVR.Tests
             RestingBodyTests(mod);
             ReusedFrameTests(mod);
             RackSplitTests(mod);
+            WholeReloadNameTests(mod);
+        }
+
+        /// <summary>A short clip named as a whole reload is bound to no one hand action (WeaponAnalyzer.WholeReloadName, 2026-11-08).</summary>
+        private static void WholeReloadNameTests(System.Reflection.Assembly mod)
+        {
+            var rx = mod.GetType("RavenfieldVR.Weapons.WeaponAnalyzer")?.GetField("WholeReloadName",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null) as System.Text.RegularExpressions.Regex;
+            Check(rx != null, "Whole reload names: WeaponAnalyzer.WholeReloadName found");
+            if (rx == null)
+            {
+                return;
+            }
+            foreach (string n in new[] { "Garand Reload Full", "AK_ReloadEmpty", "M4_Reload_Tactical", "full_reload_02", "Tactical Reload" })
+            {
+                Check(rx.IsMatch(n), $"Whole reload names: '{n}' is a whole reload");
+            }
+            foreach (string n in new[] { "Greaser_Reload_01", "Handguns_.357_Condor_Reload_01", "P220 BOLT GO", "SA80_Reload_Mag_In_01", "reload_fuller" })
+            {
+                Check(!rx.IsMatch(n), $"Whole reload names: '{n}' is not");
+            }
         }
 
         /// <summary>

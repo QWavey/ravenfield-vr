@@ -142,6 +142,13 @@ namespace RavenfieldVR.Weapons
             {
                 AudioClip clip = ClipOfCue(reloadCues[i], w);
                 said[i] = clip != null ? CueNames.Of(clip.name) : CueName.Unknown;
+                // A short clip named as a whole reload is no one hand action's: under a second it is not sliced at the actions (WholeReloadSeconds),
+                // and bound by its time it played whole for one of them (the M1 GARRET's 'Garand Reload Full', 0.78 s, on every bolt going home,
+                // a clip pushed in with it; 2026-11-08). Left to a vanilla gun's sound for the action.
+                if (clip != null && clip.length < WholeReloadSeconds && WholeReloadName.IsMatch(clip.name))
+                {
+                    said[i] = CueName.Other;
+                }
             }
             var taken = new bool[reloadCues.Count];
             if (keyframes.Count > 0)
@@ -243,6 +250,10 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>A clip this long is a whole reload (or most of one), not the sound of one action: the game's own actions are under 0.7 s.</summary>
         internal const float WholeReloadSeconds = 1f;
+
+        /// <summary>A clip named as a whole reload, not one action of it ("Garand Reload Full", "AK_ReloadEmpty", "tactical reload").</summary>
+        internal static readonly Regex WholeReloadName = new Regex(@"reload[ _-]*(full|empty|complete|whole|tactical|tac)($|[^a-z])|(full|empty|complete|tactical)[ _-]*reload",
+            RegexOptions.IgnoreCase);
 
         /// <summary>What a sampled sound plays: an audio object's clip, or the sound bank's clip for its event; null where that is not one clip.</summary>
         private static AudioClip ClipOfCue(SampledCue c, Weapon w)
