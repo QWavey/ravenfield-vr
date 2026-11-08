@@ -733,7 +733,7 @@ namespace RavenfieldVR.Weapons
             // The floor test from its pivot alone (the hand's hold): the physics sync for the pieces' bounds only when there is no
             // floor under it. On a death frame the ragdoll has just moved many transforms, and syncing them all on every drop
             // cost about 0.14 ms a drop (autotest, 2026-10-21).
-            if (open == null || pieces.Count == 0 || !PropPhysics.NothingUnder(root.position, pieces))
+            if (open == null || pieces.Count == 0 || !PropPhysics.NothingUnder(root.position, pieces) && !PropPhysics.GroundBetween(open.Value, root.position, pieces))
             {
                 return;
             }

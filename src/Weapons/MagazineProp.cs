@@ -978,7 +978,7 @@ namespace RavenfieldVR.Weapons
             // and a magazine let go 15 or 40 cm under the ground fell through the world; buried-magazine check, 2026-10-21), or
             // deeper in a wall than the push goes: back toward the eyes, onto the surface in between.
             Transform head = WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null ? WeaponSystem.Instance.Rig.Head : null;
-            if (head != null && (deep || PropPhysics.NothingUnder(b.center, _colliders)))
+            if (head != null && (deep || PropPhysics.NothingUnder(b.center, _colliders) || PropPhysics.GroundBetween(head.position, b.center, _colliders)))
             {
                 PropPhysics.BackToward(Go.transform, _colliders, head.position, b, deep ? 1f : 0.8f); // (at most a metre: an arm's length)
             }

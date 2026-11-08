@@ -220,6 +220,34 @@ namespace RavenfieldVR.Weapons
             return false;
         }
 
+        /// <summary>
+        /// Ground between the eyes and <paramref name="at"/>: the first level surface on the line from <paramref name="open"/> faces up and lies
+        /// before it, so the point is under the ground as the player sees it. <see cref="NothingUnder"/> alone missed it where something of the
+        /// level is under the ground there (a building's foundation, a tunnel): a magazine and a gun let go 40 and 30 cm in the ground fell
+        /// 11 m through the terrain onto it (autotest, 2026-11-08, beside a building).
+        /// </summary>
+        internal static bool GroundBetween(Vector3 open, Vector3 at, IList<Collider> own)
+        {
+            Vector3 way = at - open;
+            float length = way.magnitude;
+            if (length < 0.05f)
+            {
+                return false;
+            }
+            int n = Physics.RaycastNonAlloc(open, way / length, SurfaceHits, length, ~BodyMask, QueryTriggerInteraction.Ignore);
+            float nearest = float.MaxValue;
+            bool up = false;
+            for (int i = 0; i < n; i++)
+            {
+                if (SurfaceHits[i].distance < nearest && !GunCollider.IsStandIn(SurfaceHits[i].collider) && IsLevelFor(SurfaceHits[i].collider, own))
+                {
+                    nearest = SurfaceHits[i].distance;
+                    up = SurfaceHits[i].normal.y > 0.6f;
+                }
+            }
+            return up && nearest < length - 0.01f;
+        }
+
         /// <summary>No floor of the level within 3 m under <paramref name="at"/>: under the ground (or out over a drop).</summary>
         internal static bool NothingUnder(Vector3 at, IList<Collider> own)
         {
