@@ -1285,3 +1285,9 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
    `WeaponSystem.LetGoForNewLife` (also from a prefix on the player's `Actor.SpawnAt`: a takeover has no dead frame), a soldier's gun not taken
    within 0.6 s of a hand's blow. Not verified in the game: the runs were stopped at the user's word; the last one froze at the let-go check
    (Tasks 370).
+37. **1.16.15** (2026-11-08, built and installed, not published; notes in `dist/notes-1.16.15.md`, setup
+   `dist/RavenfieldVR-Setup-1.16.15.exe`): Tasks 371, made with the game not started. `GraphicsPresets` (the hold's render-scale
+   step after `_scaleNeeds` heavy GPU windows in a row; terrain settings only on change), `PropPhysics.MakeKinematic`/`MakeDynamic`,
+   `EnterSeatPutAwayPatch`, `MudSplash` and `SoldierGuns` in water, the real-time projectile prefixes guarded, `HeldWeapon`'s lens
+   rebuild and mode lenses (`HasOwnReticle`), `VRScope.WarmPicture` in `PrepareInSteps`, the chest pouch on the free hand's side, the
+   suite's `enum_switches.py` and `mixed_clocks.py`, reflected names in `harmony_targets_test.py`. Not verified in the game.
