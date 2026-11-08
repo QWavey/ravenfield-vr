@@ -3681,8 +3681,15 @@ namespace RavenfieldVR.Core
         private static string MoveOffVehicles(Actor player, Rig.VRRig rig)
         {
             const int vehicles = 1 << 12;
+            int level = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2) & ~vehicles;
             Vector3 flat = Vector3.ProjectOnPlane(rig.Head.forward, Vector3.up).normalized;
-            if (Physics.OverlapSphere(rig.Head.position + flat * 1f, 3f, vehicles, QueryTriggerInteraction.Ignore).Length == 0)
+            Vector3 side = Vector3.Cross(Vector3.up, flat);
+            Vector3 chest = player.transform.position + Vector3.up * 1.1f;
+            // (Walls too: on 2026-11-08 the GREASER's run stood with a building's wall along its left, the soldiers brought into it knocked over.)
+            bool vehicleNear = Physics.OverlapSphere(rig.Head.position + flat * 1f, 3f, vehicles, QueryTriggerInteraction.Ignore).Length > 0;
+            bool wallNear = Physics.Raycast(chest, flat, 2.5f, level, QueryTriggerInteraction.Ignore)
+                            || Physics.Raycast(chest, side, 1.2f, level, QueryTriggerInteraction.Ignore) || Physics.Raycast(chest, -side, 1.2f, level, QueryTriggerInteraction.Ignore);
+            if (!vehicleNear && !wallNear)
             {
                 return null;
             }
@@ -3697,17 +3704,19 @@ namespace RavenfieldVR.Core
                     {
                         continue;
                     }
-                    Vector3 eye = ground.point + Vector3.up * 1.5f;
+                    Vector3 eye = ground.point + Vector3.up * 1.5f, waist = ground.point + Vector3.up * 1.1f;
                     if (Physics.OverlapSphere(eye + flat * 1f, 4f, vehicles, QueryTriggerInteraction.Ignore).Length > 0
-                        || Physics.Raycast(eye, flat, 3f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
+                        || Physics.Raycast(eye, flat, 3f, level | vehicles, QueryTriggerInteraction.Ignore) || Physics.Raycast(waist, flat, 3f, level | vehicles, QueryTriggerInteraction.Ignore)
+                        || Physics.Raycast(waist, side, 1.5f, level, QueryTriggerInteraction.Ignore) || Physics.Raycast(waist, -side, 1.5f, level, QueryTriggerInteraction.Ignore)
+                        || Physics.CheckCapsule(ground.point + Vector3.up * 0.4f, ground.point + Vector3.up * 1.7f, 0.35f, level, QueryTriggerInteraction.Ignore))
                     {
                         continue;
                     }
                     player.SetPositionAndRotation(ground.point, player.transform.rotation);
-                    return $"a vehicle was where the soldiers are brought: moved {Vector3.Distance(from, ground.point):0} m to open ground first";
+                    return $"{(vehicleNear ? "a vehicle" : "a wall")} was where the soldiers are brought: moved {Vector3.Distance(from, ground.point):0} m to open ground first";
                 }
             }
-            return "a vehicle is where the soldiers are brought, and no open ground was found within 25 m";
+            return $"{(vehicleNear ? "a vehicle" : "a wall")} is where the soldiers are brought, and no open ground was found within 25 m";
         }
 
         /// <summary>
@@ -4793,14 +4802,15 @@ namespace RavenfieldVR.Core
                     int knifeSlot = -1;
                     for (int s = 0; player.weapons != null && s < player.weapons.Length; s++)
                     {
-                        if (player.weapons[s] is MeleeWeapon)
+                        if (player.weapons[s] is MeleeWeapon && !(player.weapons[s] is Airhorn)) // (the horn hits only on its trigger, as its own blast)
                         {
                             knifeSlot = s;
                         }
                     }
                     if (knifeSlot < 0 && player.weapons != null)
                     {
-                        WeaponManager.WeaponEntry knifeEntry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.prefab.GetComponent<MeleeWeapon>() != null);
+                        WeaponManager.WeaponEntry knifeEntry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.prefab.GetComponent<MeleeWeapon>() != null
+                                                                                                                    && e.prefab.GetComponent<Airhorn>() == null);
                         // A slot of its own: an empty one, else one that is neither the grenade's (step 7) nor the gun's.
                         knifeSlot = Array.IndexOf(player.weapons, null);
                         for (int s = player.weapons.Length - 1; s >= 0 && knifeSlot < 0; s--)
@@ -6073,12 +6083,16 @@ namespace RavenfieldVR.Core
                             mag.Go.transform.position = start;
                             mag.Drop(flat * 1f, Vector3.zero);
                             float t0 = Time.realtimeSinceStartup;
+                            yield return new WaitForFixedUpdate();
+                            // Its own speed just after the let-go (game units): 1 is the world's pace from the drop; more is a sped-up throw, and a
+                            // later rise a push (the slowed hand catching up runs into it: 0.92 m/s across on 2026-11-08, 0.18 the day before).
+                            float launched = mag.Body != null ? mag.Body.velocity.magnitude : -1f;
                             yield return new WaitForSecondsRealtime(0.25f);
                             yield return new WaitForEndOfFrame();
                             float across = Vector3.ProjectOnPlane(mag.Go.transform.position - start, Vector3.up).magnitude / Mathf.Max(1e-3f, Time.realtimeSinceStartup - t0);
                             Metric("slowed hands: real-time m/s across of a magazine let go at 1", across);
                             bool realTime = across > 0.6f;
-                            line += $"; a magazine let go at 1 m/s: {across:0.00} m/s across in real time{(realTime ? " (NOT AT THE WORLD'S PACE: the slowed hand's throw was sped up again)" : "")}";
+                            line += $"; a magazine let go at 1 m/s: {across:0.00} m/s across in real time (left at {launched:0.00} m/s){(realTime ? " (NOT AT THE WORLD'S PACE: the slowed hand's throw was sped up again)" : "")}";
                             instant |= realTime;
                         }
                     }
