@@ -34,6 +34,7 @@ namespace RavenfieldVR.Core.Showcase
             ("inspect", RifleSetup("inspect"), InspectScene),
             ("grenade", RifleSetup("grenade"), GrenadeScene),
             ("pistol", PistolSetup, PistolScene),
+            ("slowmo", RifleSetup("slowmo"), SlowmoScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
@@ -71,6 +72,10 @@ namespace RavenfieldVR.Core.Showcase
                     LetGoHands();
                     ReleaseTrigger();
                     SecondWeapon.TestTrigger = false;
+                    if (!Mathf.Approximately(Time.timeScale, 1f) && GameManager.instance != null)
+                    {
+                        GameManager.SetTimeScale(1f); // (a slow-motion scene that threw half way)
+                    }
                     Input.VRInput.SimulatedMove = Vector2.zero;
                     ShowcaseCamera.Shake.Reset();
                     yield return rec.Finish();

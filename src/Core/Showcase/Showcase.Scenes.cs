@@ -102,7 +102,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
                 rec.TakeFrame();
-            }, () => Time.time, start);
+            }, () => rec.Elapsed, start);
             // (Each of its seven moves runs a frame or so past its time, in both passes alike: the next step's planned end absorbs it.)
 
             // The rack (0.93 s): the free hand on the charging handle, pulled back hard and let go; the eyes on the gun's rear.
@@ -120,7 +120,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
                 rec.TakeFrame();
-            }, () => Time.time, lastOff);
+            }, () => rec.Elapsed, lastOff);
             report("showcase reload: " + string.Join("; ", lines.ToArray()));
 
             // The hand back on the handguard (0.3 s, eased from where the reload left it), then up to the sights (0.4 s).
@@ -488,7 +488,7 @@ namespace RavenfieldVR.Core.Showcase
                 KeepAlive();
                 PlaceGun(chest.At, chest.Aim, false);
                 rec.TakeFrame();
-            }, () => Time.time, lastOff);
+            }, () => rec.Elapsed, lastOff);
             report("showcase pistol: " + string.Join("; ", lines.ToArray()));
 
             // Both hands on it and up to the sights (0.4 s): the free hand cups the grip.
@@ -523,6 +523,114 @@ namespace RavenfieldVR.Core.Showcase
             yield return Film(rec, 0.35f, u => HoldGun(1f, 0.3f));
             PistolCup = false;
             report($"showcase pistol: drawn, racked, {shots} shot(s)");
+        }
+
+        /// <summary>
+        /// Slow motion with the hands at their own speed (about 7 s of video): a burst on the helmet cam; time sinks to a fifth (the
+        /// game's own slow motion: its sound sinks with it) while the trigger is held, seen beside the gun's receiver, the cases
+        /// drifting out; the trigger let go, the hands change the magazine at full speed in the slowed world (first person); time back,
+        /// a last shot.
+        /// </summary>
+        private static IEnumerator SlowmoScene(ShowcaseRecorder rec, Action<string> report)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            VRRig rig = VRRig.Instance;
+            if (held == null || rig == null || GameManager.instance == null)
+            {
+                report("showcase slowmo: NO GUN HELD");
+                yield break;
+            }
+            Vector3 receiver = Vector3.Lerp(held.Rig.Data.EyePoint, held.Rig.Data.MagSeat.position, 0.5f);
+            Vector3 well = held.Rig.Data.MagSeat.position;
+            const float slow = 0.2f;
+            rec.Start();
+            int ammo = int.MaxValue;
+
+            // Full speed, the burst starting (0.6 s).
+            rec.Mark = "burst";
+            rec.Shot = () => ShowcaseCamera.HelmetCam();
+            yield return Film(rec, 0.6f, u => { HoldGun(1f, 0.2f); HoldTrigger(ref ammo); });
+
+            // Time sinking to a fifth over 0.35 s of video, then held there (1.4 s), the trigger still held: beside the receiver.
+            rec.Mark = "slowing";
+            rec.Shot = () => ShowcaseCamera.CloseUp(receiver, new Vector3(0.34f, 0.07f, 0.16f), 44f);
+            yield return Film(rec, 0.35f, u =>
+            {
+                GameManager.SetTimeScale(Mathf.Lerp(1f, slow, EaseOut(u)));
+                HoldGun(1f, 0.2f);
+                HoldTrigger(ref ammo);
+            });
+            rec.Mark = "slow burst";
+            yield return Film(rec, 1.4f, u =>
+            {
+                HoldGun(1f, 0.2f);
+                HoldTrigger(ref ammo, 0.12f);
+                if (u >= 0.5f)
+                {
+                    rec.Still("slowmo-cases");
+                }
+            });
+            ReleaseTrigger();
+
+            // In the slowed world, the hands at full speed: presented, the magazine out and in (first person, on the video's clock).
+            rec.Mark = "present";
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(PlacedPoint(well), 0.85f);
+            yield return Film(rec, 0.3f, u =>
+            {
+                GunPose g = GunPose.Lerp(HipToEye(1f, 0f), Presented(), EaseOut(u));
+                PlaceGun(g.At, g.Aim, true);
+            });
+            VRHand off = rig.Off;
+            int side = (int)off.Side;
+            Input.VRInput.SimulatedGrab[side] = false;
+            rec.Mark = "release";
+            yield return Film(rec, 0.1f, u => HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false));
+            if (off.Role != HandRole.Free)
+            {
+                held.SetTwoHanded(false);
+                off.Role = HandRole.Free;
+            }
+            var lines = new System.Collections.Generic.List<string>();
+            Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[side];
+            rec.Planned += 3.25;
+            yield return held.Reload.ReloadFilm(lines.Add, note =>
+            {
+                lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
+                rec.Mark = "slow " + note;
+                if (note == "held")
+                {
+                    rec.Still("slowmo-magazine-out");
+                }
+                KeepAlive();
+                HoldGunAt(new Vector3(0.04f, -0.24f, 0.36f), -28f, -12f, 0.55f, false);
+                rec.TakeFrame();
+            }, () => rec.Elapsed, lastOff);
+            report("showcase slowmo: " + string.Join("; ", lines.ToArray()));
+
+            // Time back over 0.3 s as the hand goes back and the rifle comes up; a shot at full speed.
+            Runtime.RigidPose? from = lastOff;
+            float aim = 0f;
+            rec.Mark = "back";
+            rec.Shot = () => ShowcaseCamera.Blend(ShowcaseCamera.FirstPersonLook(PlacedPoint(well), 0.85f), ShowcaseCamera.FirstPersonAim(aim), aim);
+            yield return Film(rec, 0.45f, u =>
+            {
+                GameManager.SetTimeScale(Mathf.Lerp(slow, 1f, Ease(Mathf.Min(1f, u * 1.5f))));
+                aim = EaseOut(u);
+                GunPose g = GunPose.Lerp(Presented(), HipToEye(1f, 0.3f), aim);
+                PlaceGun(g.At, g.Aim, true);
+                if (from.HasValue && Rig.VRHand.Scripted[side].HasValue)
+                {
+                    Rig.VRHand.Scripted[side] = Runtime.RigidPose.Lerp(from.Value, Rig.VRHand.Scripted[side].Value, Ease(Mathf.Min(1f, u * 2f)));
+                }
+            });
+            GameManager.SetTimeScale(1f);
+            rec.Shot = () => ShowcaseCamera.FirstPersonAim(1f);
+            rec.Mark = "shot";
+            bool fired = false;
+            yield return Moment(rec, () => { HoldGun(1f, 0.3f); fired = Fire(); });
+            rec.Mark = "after";
+            yield return Film(rec, 0.5f, u => HoldGun(1f, 0.3f));
+            report($"showcase slowmo: slowed to {slow:0.0}, the magazine changed at full speed, {(fired ? "a last shot" : "THE LAST SHOT DID NOT FIRE")}");
         }
 
         /// <summary>Fast in, slow out: a hand bringing something somewhere (a raise is quick, then settles).</summary>

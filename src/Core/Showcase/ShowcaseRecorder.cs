@@ -71,8 +71,11 @@ namespace RavenfieldVR.Core.Showcase
         internal int Frame => _frame;
         internal string Dir => _dir;
 
-        /// <summary>Seconds of the take so far: the frames filmed at the fixed rate (picture), game time from its start (sound).</summary>
-        internal float Elapsed => Sound ? Time.time - _startTime : _frame / (float)Fps;
+        /// <summary>
+        /// Seconds of the video so far: the frames filmed at the fixed rate (picture), unscaled time from the start (sound: the clock
+        /// its WAV runs on). Video time, not game time: in slow motion the world's time crawls while the video's and the hands' go on.
+        /// </summary>
+        internal float Elapsed => Sound ? Time.unscaledTime - _startTime : _frame / (float)Fps;
 
         internal ShowcaseRecorder(string dir, bool sound, int width = 1920, int height = 1080)
         {
@@ -112,7 +115,7 @@ namespace RavenfieldVR.Core.Showcase
             MuteMusic(true);
             AudioListener.pause = false;
             AudioListener.volume = 1f;
-            _startTime = Time.time;
+            _startTime = Time.unscaledTime;
             Planned = 0;
             if (Sound)
             {
