@@ -1109,7 +1109,8 @@ A work-until-limit run (session 85 / weekly 30), the game started for null-drive
 8. **Hot paths trimmed**: a finger solve reads the hand's root pose once (`HandModel._chainRoot`); the muzzle flash's visibility
    steps each line to the eye only where it crosses the gun's box (`GunVolume.LineInsideModel`); the soldier's-gun reach makes
    one pass over the match's soldiers a frame for both hands; the match bar's canvas group is written only when it changes.
-   `tools/tests/harmony_targets_test.py` checks every Harmony patch named by a string against the decompiled game.
+   `tools/tests/harmony_targets_test.py` checks every Harmony patch named by a string against the decompiled game, and since
+   Tasks 371 every member read by reflection (`FieldRefAccess`, `AccessTools.Method/Field/Property`) too.
 9. **Magazines in slow motion and on the move** (the user's report): a magazine let go in slow motion flies as in real time
    until its first touch (`Weapons/RealTimeFlight.cs`: the hand's real-time velocity divided by the time scale, gravity g/s²,
    given back to the world's pace at the touch); eases that start from a hand or the gun keep their start against the rig
