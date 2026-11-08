@@ -658,7 +658,8 @@ namespace RavenfieldVR.Core
         /// <summary>
         /// The frame rate hold's steps on made-up windows (Medium, the hold on): late frames with the GPU at 3.3 of 11.1 ms (the
         /// user's CPU-bound Medium) hold the preset down to step 5 and never lower the render scale; with the GPU at 10 ms the last
-        /// step lowers it; the GPU back at 4 ms gives it back. The hold, the preset and the scale are put back after.
+        /// step lowers it (from the second such window in a row since Tasks 371: one heavy window took it and the next gave it back);
+        /// the GPU back at 4 ms gives it back. The hold, the preset and the scale are put back after.
         /// </summary>
         private static IEnumerator HoldStepCheck()
         {

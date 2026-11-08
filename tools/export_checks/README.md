@@ -39,5 +39,5 @@ off the grip; fixed in WeaponAnalyzer.PullMuzzleOntoBarrel).
 
 - `stacked_docs.py --brief`: a doc comment pushed onto the wrong member by an insertion.
 - `unused_private.py`: private members nothing uses.
-- `enum_switches.py [--all]`: switches and tables over the mod's enums that name at least half of an enum's values but not all, with no `default` (a value added without its row fell through: `MechSound.HandGrab` had no cut table). Known and meant: the Game preset has no profile (`GraphicsPresets.Profiles`), the intro's `Done` phase has nothing to do.
+- `enum_switches.py [--all]`: switches and tables over the mod's enums that name at least half of an enum's values but not all, with no `default` (a value added without its row fell through: `MechSound.HandGrab` had no cut table). Known and meant (listed as `known:`, not counted; `KNOWN` in the script): the Game preset has no profile (`GraphicsPresets.Profiles`), the intro's `Done` phase has nothing to do. Both this and `mixed_clocks.py` run in `tools/tests/run-tests.ps1` and fail it above 0.
 - `mixed_clocks.py`: a timestamp set from one of Unity's clocks and read against another (Time.time slows in slow motion and stops in a pause; unscaledTime and realtimeSinceStartup do not). 0 on 2026-11-08 (297 assignments, 124 reads seen).

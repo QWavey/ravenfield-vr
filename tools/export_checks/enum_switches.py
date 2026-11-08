@@ -17,6 +17,9 @@ import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src')
+# Known and meant (file name, enum): not counted. The Game preset has no profile of its own (the game's quality is used); the intro's
+# Done phase does nothing.
+KNOWN = {('GraphicsPresets.cs', 'GraphicsPreset'), ('IntroStage.cs', 'Phase')}
 
 ENUM_RE = re.compile(r'\benum\s+(\w+)\s*(?::\s*\w+\s*)?\{([^}]*)\}', re.S)
 
@@ -112,9 +115,10 @@ def main():
             if missing and len(keys) * 2 >= len(members):
                 line = t.count('\n', 0, m.start()) + 1
                 findings.append(f'{rel}:{line}: table keyed by {e} has {len(keys)} of {len(members)}; missing: {", ".join(missing)}')
+    known = [f for f in findings if any(f.split(':')[0].endswith(name) and (' over ' + e + ' ' in f or ' by ' + e + ' ' in f) for name, e in KNOWN)]
     for f in sorted(findings):
-        print(f)
-    print(f'{len(findings)} switch(es) or table(s) over {len(enums)} enum(s) missing values')
+        print(('known: ' if f in known else '') + f)
+    print(f'{len(findings) - len(known)} switch(es) or table(s) over {len(enums)} enum(s) missing values ({len(known)} known and meant)')
 
 
 if __name__ == '__main__':

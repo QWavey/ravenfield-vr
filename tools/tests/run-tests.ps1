@@ -98,6 +98,14 @@ if (($stacked | Select-Object -Last 1) -notmatch '^0 ') { $stacked | Select-Obje
 $unused = python -I (Join-Path $Root 'tools/export_checks/unused_private.py')
 $unused | Select-Object -Last 1
 if (($unused | Select-Object -Last 1) -notmatch '^0 ') { $unused | Select-Object -SkipLast 1; $code = 1 }
+# No timestamp read against another of Unity's clocks; no switch or table over the mod's enums missing values with no default (a value
+# added without its row: MechSound.HandGrab). Both 0 on 2026-11-08 (tools/export_checks/mixed_clocks.py, enum_switches.py).
+$clocks = python -I (Join-Path $Root 'tools/export_checks/mixed_clocks.py')
+$clocks | Select-Object -Last 1
+if (($clocks | Select-Object -Last 1) -notmatch '^0 ') { $clocks | Select-Object -SkipLast 1; $code = 1 }
+$enums = python -I (Join-Path $Root 'tools/export_checks/enum_switches.py')
+$enums | Select-Object -Last 1
+if (($enums | Select-Object -Last 1) -notmatch '^0 ') { $enums | Where-Object { $_ -notmatch '^known: ' } | Select-Object -SkipLast 1; $code = 1 }
 # The magazine-line table against the sandbox export, in Unity's space (it once shipped mirrored in z: 134-178 degrees off in
 # game). Needs the local export (reports/sandbox/data, not in the repository): skipped without it.
 if (Test-Path (Join-Path $Root 'reports/sandbox/data/weapons')) {
