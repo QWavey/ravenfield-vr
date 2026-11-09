@@ -1,0 +1,43 @@
+{
+  "fps": 60,
+  "takes": {
+    "s": "showcase/takes/slowmo-*"
+  },
+  "shots": [
+    {
+      "take": "s",
+      "mark": "burst",
+      "in": 8
+    },
+    {
+      "take": "s",
+      "mark": "slowing"
+    },
+    {
+      "take": "s",
+      "mark": "slow burst"
+    },
+    {
+      "take": "s",
+      "mark": "slow dropping"
+    },
+    {
+      "take": "s",
+      "mark": "slow from the pouch"
+    },
+    {
+      "take": "s",
+      "mark": "slow inserting"
+    },
+    {
+      "take": "s",
+      "mark": "back"
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
+  ],
+  "grade": true
+}
