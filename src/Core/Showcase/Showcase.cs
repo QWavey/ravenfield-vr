@@ -40,6 +40,7 @@ namespace RavenfieldVR.Core.Showcase
             ("fight", FightSetup, FightScene),
             ("cover", CoverSetup, CoverScene),
             ("grab", GrabSetup, GrabScene),
+            ("vehicles", VehiclesSetup, VehiclesScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>

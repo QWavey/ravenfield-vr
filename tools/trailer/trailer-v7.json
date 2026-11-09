@@ -1,0 +1,869 @@
+{
+ "fps": 60,
+ "takes": {
+  "fd.f": "showcase/takes/fight-dustbowl-*",
+  "gr.g": "showcase/takes/grab-*",
+  "fn.f": "showcase/takes/fight-eagle_base_night-*",
+  "kf": "showcase/takes/fight-canyon-20261109-2128",
+  "m9.d1": "showcase/takes/montage-01-hk416-swap-dustbowl-20261109-1437",
+  "m9.t3": "showcase/takes/montage-03-*-temple-*",
+  "m9.t5": "showcase/takes/montage-05-*-temple-*",
+  "m9.t6": "showcase/takes/montage-06-*-temple-*",
+  "m9.k6": "showcase/takes/montage-06-*-canyon-*",
+  "m9.k3": "showcase/takes/montage-03-*-canyon-*",
+  "m9.k5": "showcase/takes/montage-05-*-canyon-*",
+  "m9.c1": "showcase/takes/montage-01-hk416-swap-coastline-20261109-2113",
+  "m9.c2": "showcase/takes/montage-02-p220-rack-coastline-20261109-2113",
+  "m9.i1": "showcase/takes/montage-01-m4a1-swap-island-20261109-2115",
+  "m9.i3": "showcase/takes/montage-03-f2000-shotshelmet-island-20261109-2115",
+  "m9.i5": "showcase/takes/montage-05-glock_43x-aimshots-island-20261109-2115",
+  "tn": "showcase/takes/fight-temple_night-20261109-2127",
+  "m1": "showcase/takes/montage-01-hk416_a-swap-mountains-20261109-2131",
+  "m2": "showcase/takes/montage-02-p220_t_s-rack-mountains-20261109-2131",
+  "m3": "showcase/takes/montage-03-xm8-shotshelmet-mountains-20261109-2131",
+  "ps": "showcase/takes/pistol-mountains-20261109-1415",
+  "m5": "showcase/takes/montage-05-p220_t_s-aimshots-mountains-20261109-2131",
+  "m6": "showcase/takes/montage-06-asval-swap-mountains-20261109-2131",
+  "c5": "showcase/takes/montage-05-mwii_g17-aimshots-coastline-20261109-2113",
+  "i6": "showcase/takes/montage-06-rk_44-swap-island-20261109-2115",
+  "m7": "showcase/takes/montage-07-ak12h_squad-turn-mountains-20261109-2131",
+  "fc": "showcase/takes/fight-dustbowl-20261109-1411",
+  "c3": "showcase/takes/montage-03-ak12squad-shotshelmet-coastline-20261109-2113",
+  "s1.s": "showcase/takes/slowmo-coastline-20261109-1444",
+  "s2.s": "showcase/takes/slowmo-coastline-20261109-2129",
+  "sc": "showcase/takes/scope-mountains-20261109-1415",
+  "fa": "showcase/takes/fight-dustbowl-20261109-1434",
+  "vj": "showcase/takes/vehicles-dustbowl-20261109-2138",
+  "na": "showcase/takes/fight-eagle_base_night-20261109-1413",
+  "t6": "showcase/takes/montage-06-m4a1-swap-temple-20261109-1439",
+  "t5": "showcase/takes/montage-05-glock_43x-aimshots-temple-20261109-1439",
+  "c6": "showcase/takes/montage-06-asval-swap-coastline-20261109-2113",
+  "c7": "showcase/takes/montage-07-ak12squad-turn-coastline-20261109-2113",
+  "vh": "showcase/takes/vehicles-dustbowl-20261109-2138",
+  "fb": "showcase/takes/fight-dustbowl-20261109-1416",
+  "i7": "showcase/takes/montage-07-pkm-turn-island-20261109-2115"
+ },
+ "shots": [
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 9.6,
+   "out": 11.2,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 34.5,
+   "out": 35.7,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "card": "RAVENFIELD VR",
+   "seconds": 2.46,
+   "tail": 0.8,
+   "at": 8.9
+  },
+  {
+   "take": "fd.f",
+   "mark": "raise"
+  },
+  {
+   "take": "fd.f",
+   "mark": "engage"
+  },
+  {
+   "take": "fd.f",
+   "mark": "reverse",
+   "out": 30
+  },
+  {
+   "take": "fd.f",
+   "mark": "over the gun"
+  },
+  {
+   "take": "fd.f",
+   "mark": "after",
+   "out": 16
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 23.0,
+   "out": 25.1,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "gr.g",
+   "mark": "reach",
+   "in": 4
+  },
+  {
+   "take": "gr.g",
+   "mark": "grab"
+  },
+  {
+   "take": "gr.g",
+   "mark": "lift"
+  },
+  {
+   "take": "gr.g",
+   "mark": "throw"
+  },
+  {
+   "take": "gr.g",
+   "mark": "flying",
+   "out": 6
+  },
+  {
+   "take": "gr.g",
+   "mark": "after him",
+   "in": 4
+  },
+  {
+   "take": "gr.g",
+   "mark": "shot"
+  },
+  {
+   "take": "gr.g",
+   "mark": "after",
+   "out": 30
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 1.0,
+   "out": 2.9,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 36.2,
+   "out": 37.6,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "fn.f",
+   "mark": "contact",
+   "in": 30
+  },
+  {
+   "take": "fn.f",
+   "mark": "reverse"
+  },
+  {
+   "take": "fn.f",
+   "mark": "over the gun"
+  },
+  {
+   "take": "fn.f",
+   "mark": "after",
+   "out": 16
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 25.4,
+   "out": 26.8,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "kf",
+   "mark": "raise"
+  },
+  {
+   "take": "kf",
+   "mark": "engage"
+  },
+  {
+   "take": "kf",
+   "mark": "reverse",
+   "out": 30
+  },
+  {
+   "take": "kf",
+   "mark": "over the gun"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 38.25,
+   "out": 39.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.5
+  },
+  {
+   "card": "FULL MOD SUPPORT",
+   "seconds": 1.5,
+   "tail": 0.8,
+   "sub": "every workshop gun, in your hands",
+   "at": 30.09
+  },
+  {
+   "take": "m9.d1",
+   "mark": "dropping",
+   "in": 4
+  },
+  {
+   "take": "m9.d1",
+   "mark": "from the pouch"
+  },
+  {
+   "take": "m9.d1",
+   "mark": "inserting"
+  },
+  {
+   "take": "m9.c2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "m9.c2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "m9.c2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "m9.t3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.t3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.t3",
+   "shot": 2,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.i1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m9.i1",
+   "mark": "inserting"
+  },
+  {
+   "take": "m9.t5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "m9.t5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.i3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.i3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.t6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m9.t6",
+   "mark": "inserting"
+  },
+  {
+   "take": "m9.i5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "m9.i5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.c1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m9.c1",
+   "mark": "inserting"
+  },
+  {
+   "take": "m9.k6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m9.k6",
+   "mark": "inserting"
+  },
+  {
+   "take": "m9.k3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.k3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m9.k5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "m9.k5",
+   "shot": 1,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "m9.k5",
+   "shot": 2,
+   "pre": 0,
+   "post": 30
+  },
+  {
+   "card": "REAL GAMEPLAY",
+   "seconds": 0.94,
+   "tail": 0.8,
+   "at": 39.09
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 16.5,
+   "out": 22.3,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 29.0,
+   "out": 31.8,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 42.9,
+   "out": 44.7,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 49.9,
+   "out": 51.9,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 55.0,
+   "out": 57.0,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 63.4,
+   "out": 66.6,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 68.4,
+   "out": 70.81,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "card": "",
+   "seconds": 0.0,
+   "tail": 0.8,
+   "at": 60.0
+  },
+  {
+   "take": "tn",
+   "mark": "contact",
+   "in": 30
+  },
+  {
+   "take": "tn",
+   "mark": "reverse",
+   "out": 30
+  },
+  {
+   "take": "tn",
+   "mark": "over the gun"
+  },
+  {
+   "take": "m1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m1",
+   "mark": "inserting"
+  },
+  {
+   "take": "m2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "m2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "m2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "m3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "ps",
+   "mark": "rack taking"
+  },
+  {
+   "take": "ps",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "ps",
+   "mark": "aim",
+   "in": 0,
+   "out": 20
+  },
+  {
+   "take": "ps",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "ps",
+   "shot": 1,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 57.4,
+   "out": 59.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "m5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "m5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "m6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "m6",
+   "mark": "inserting"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 32.0,
+   "out": 33.2,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "c5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "c5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "i6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "i6",
+   "mark": "inserting"
+  },
+  {
+   "take": "m7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 46.5,
+   "out": 48.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "fc",
+   "mark": "raise"
+  },
+  {
+   "take": "fc",
+   "mark": "engage"
+  },
+  {
+   "take": "fc",
+   "mark": "reverse",
+   "out": 30
+  },
+  {
+   "take": "c3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "c3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 15.0,
+   "out": 16.4,
+   "crop": "2304:1296:0:72",
+   "spare": 2.0
+  },
+  {
+   "card": "",
+   "seconds": 0.0,
+   "tail": 0.8,
+   "at": 75.0
+  },
+  {
+   "take": "s1.s",
+   "mark": "burst",
+   "in": 8
+  },
+  {
+   "take": "s1.s",
+   "mark": "slowing"
+  },
+  {
+   "take": "s1.s",
+   "mark": "slow burst"
+  },
+  {
+   "take": "s1.s",
+   "mark": "slow dropping"
+  },
+  {
+   "take": "s1.s",
+   "mark": "slow from the pouch"
+  },
+  {
+   "take": "s1.s",
+   "mark": "slow inserting"
+  },
+  {
+   "take": "s1.s",
+   "mark": "back"
+  },
+  {
+   "take": "s2.s",
+   "mark": "burst",
+   "in": 8
+  },
+  {
+   "take": "s2.s",
+   "mark": "slowing"
+  },
+  {
+   "take": "s2.s",
+   "mark": "slow burst"
+  },
+  {
+   "take": "s2.s",
+   "mark": "slow dropping"
+  },
+  {
+   "take": "s2.s",
+   "mark": "slow from the pouch"
+  },
+  {
+   "take": "s2.s",
+   "mark": "slow inserting"
+  },
+  {
+   "take": "s2.s",
+   "mark": "back"
+  },
+  {
+   "card": "",
+   "seconds": 0.0,
+   "tail": 0.8,
+   "at": 82.5
+  },
+  {
+   "take": "sc",
+   "mark": "bolt taking"
+  },
+  {
+   "take": "sc",
+   "mark": "bolt pulling back"
+  },
+  {
+   "take": "sc",
+   "mark": "bolt let go",
+   "out": 14
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 44.7,
+   "out": 46.5,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "fa",
+   "mark": "reverse",
+   "out": 30
+  },
+  {
+   "take": "fa",
+   "mark": "over the gun"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 12.6,
+   "out": 14.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.5
+  },
+  {
+   "card": "",
+   "seconds": 0.0,
+   "tail": 0.8,
+   "at": 88.25
+  },
+  {
+   "take": "vj",
+   "mark": "jeep incoming"
+  },
+  {
+   "take": "vj",
+   "mark": "aim"
+  },
+  {
+   "take": "vj",
+   "mark": "fire"
+  },
+  {
+   "take": "vj",
+   "mark": "jeep hit"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 3.0,
+   "out": 5.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "na",
+   "mark": "reverse",
+   "out": 40
+  },
+  {
+   "take": "t6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "t6",
+   "mark": "inserting"
+  },
+  {
+   "take": "t5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "t5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 39.0,
+   "out": 41.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "c6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "c6",
+   "mark": "inserting"
+  },
+  {
+   "take": "c7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 66.6,
+   "out": 68.4,
+   "crop": "2304:1296:0:72",
+   "spare": 2.0
+  },
+  {
+   "card": "",
+   "seconds": 0.0,
+   "tail": 0.8,
+   "at": 103.15
+  },
+  {
+   "take": "vh",
+   "mark": "heli incoming"
+  },
+  {
+   "take": "vh",
+   "mark": "aim",
+   "nth": 1
+  },
+  {
+   "take": "vh",
+   "mark": "fire",
+   "nth": 1
+  },
+  {
+   "take": "vh",
+   "mark": "heli hit"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 26.8,
+   "out": 29.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "fb",
+   "mark": "raise"
+  },
+  {
+   "take": "fb",
+   "mark": "engage"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 51.9,
+   "out": 54.4,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "take": "i7",
+   "mark": "turn",
+   "in": 20,
+   "out": 72
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 70.81,
+   "out": 72.0,
+   "crop": "2304:1296:0:72",
+   "spare": 0.0
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 59.0,
+   "out": 61.0,
+   "crop": "2304:1296:0:72",
+   "spare": 1.0
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 61.0,
+   "out": 63.4,
+   "crop": "2304:1296:0:72",
+   "spare": 0.6
+  },
+  {
+   "card": "RAVENFIELD VR",
+   "seconds": 2.6,
+   "tail": 0.8,
+   "sub": "a virtual reality mod",
+   "at": 120.0
+  },
+  {
+   "card": "LEAVE YOU FAR BEHIND",
+   "seconds": 2.6,
+   "tail": 0.8,
+   "sub": "music by Lunatic Calm"
+  }
+ ],
+ "grade": true,
+ "beat": {
+  "start": 6.1,
+  "grid0": 11.36,
+  "period": 0.46875,
+  "div": 2
+ },
+ "music": {
+  "path": "showcase/music/Leave You Far Behind - Lunatic Calm.mp3",
+  "start": 6.1,
+  "gain": 0.7,
+  "game": 0.8,
+  "fade_in": 0.3,
+  "fade_out": 2.6
+ }
+}
