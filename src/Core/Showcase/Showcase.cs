@@ -45,10 +45,8 @@ namespace RavenfieldVR.Core.Showcase
         {
             string[] picked = Picked();
             Steady = true;
-            // The mod's own gloves for the showcase (a run-time override, as the reload mode's: the saved setting stays): with the
-            // weapons' own first-person arms, stretched to the shoulders by the IK, the sleeves broke into spikes in the air.
-            HandsMode? handsBefore = VRConfig.TestHands;
-            VRConfig.TestHands = HandsMode.VRHands;
+            // The hands are the user's own setting (the weapons' own arms for the user: "i chose the guns hands / weapons hands for
+            // the vid not the steam ones", 2026-11-08); ShowcaseBody leads the body's arms into them.
             foreach ((string name, Func<Action<string>, IEnumerator> setup, Func<ShowcaseRecorder, Action<string>, IEnumerator> perform) in Scenes.Concat(MontageScenes()))
             {
                 // A scene by its name, or a group by its first word ("montage": every beat of the montage).
@@ -97,7 +95,6 @@ namespace RavenfieldVR.Core.Showcase
                 }
             }
             Steady = false;
-            VRConfig.TestHands = handsBefore;
         }
 
         /// <summary>
@@ -872,11 +869,24 @@ namespace RavenfieldVR.Core.Showcase
     {
         internal static readonly bool Night = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-showcase-night", StringComparison.OrdinalIgnoreCase));
 
-        private static void Prefix(MapEntryData entry)
+        // (The parameters' night mode, not the entry's flag: StartLevel sets entry.nightVersion from parameters.nightMode itself, after
+        // a prefix, and the first night take loaded the map by day.)
+        private static void Prefix(MapEntryData entry, GameModeParameters parameters)
         {
-            if (Night && entry != null && !entry.isCustomMap)
+            GameModeParameters p = parameters ?? (GameManager.instance != null ? GameManager.instance.gameModeParameters : null);
+            if (Night && entry != null && !entry.isCustomMap && p != null)
             {
-                entry.nightVersion = true;
+                p.nightMode = true;
+            }
+        }
+
+        /// <summary>No pumpkins: the game turns a night game into its Halloween one at minute 7, 27 and 47 of each hour.</summary>
+        private static void Postfix(GameModeParameters parameters)
+        {
+            GameModeParameters p = parameters ?? (GameManager.instance != null ? GameManager.instance.gameModeParameters : null);
+            if (Night && p != null)
+            {
+                p.halloweenMode = false;
             }
         }
     }

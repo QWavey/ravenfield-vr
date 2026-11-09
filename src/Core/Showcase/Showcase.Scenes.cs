@@ -38,7 +38,8 @@ namespace RavenfieldVR.Core.Showcase
             report($"showcase {scene}: " + Stage());
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase {scene}: turned {FaceOpen():0} degrees to the best view");
-            string rifle = GiveRifle("PATRIOT", "RK-44");
+            // The first of -rfvr-showcase-guns (a workshop rifle: the user, "concentrate on more modded weapons"), else the PATRIOT.
+            string rifle = GiveRifle(MontageGuns()[0], "PATRIOT", "RK-44");
             report($"showcase {scene}: rifle {rifle ?? "NO RIFLE FOUND (the loadout's own)"}");
             yield return new WaitForSecondsRealtime(0.8f);
             int slot = GunSlot(0);
@@ -611,16 +612,17 @@ namespace RavenfieldVR.Core.Showcase
             }
             var lines = new System.Collections.Generic.List<string>();
             Runtime.RigidPose? lastOff = Rig.VRHand.Scripted[side];
-            yield return Choreography(rec, 3.25, held.Reload.ReloadFilm(lines.Add, note =>
+            // The natural swap (the montage's: dropped, the pouch, in with a slap; the user on ReloadFilm's: "it kindoff stutters").
+            yield return Choreography(rec, 1.36, held.Reload.SwapFilm(lines.Add, note =>
             {
                 lastOff = Rig.VRHand.Scripted[side] ?? lastOff;
                 rec.Mark = "slow " + note;
-                if (note == "held")
+                if (note == "inserting")
                 {
-                    rec.Still("slowmo-magazine-out");
+                    rec.Still("slowmo-magazine-in");
                 }
                 KeepAlive();
-                life.Place(rec, Presented(), note == "pulling out" ? null : note, off, false);
+                life.Place(rec, Presented(), note, off, false);
                 rec.TakeFrame();
             }, () => rec.Elapsed, lastOff));
             report("showcase slowmo: " + string.Join("; ", lines.ToArray()));

@@ -1,0 +1,13 @@
+{
+  "fps": 60,
+  "takes": {"i": "showcase/takes/inspect-*"},
+  "shots": [
+    {"take": "i", "mark": "bring up", "in": 6},
+    {"take": "i", "mark": "turn"},
+    {"take": "i", "mark": "raise"},
+    {"take": "i", "mark": "shot"},
+    {"take": "i", "mark": "after", "out": 24},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}

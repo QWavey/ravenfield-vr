@@ -51,6 +51,20 @@ namespace RavenfieldVR.Weapons
 
         public bool Active => _right.Valid || _left.Valid;
 
+        /// <summary>
+        /// The showcase's body: the bones of the weapon's own gun arm or off arm (false when the weapon draws no such arm). The body's
+        /// upper arm goes to its elbow (the lower bone): its sleeve can end there (a pistol's arms are forearms only).
+        /// </summary>
+        internal bool Chain(bool gunArm, out Transform root, out Transform upper, out Transform lower, out Transform hand)
+        {
+            Arm a = gunArm ? _right : _left;
+            root = a.Root;
+            upper = a.Upper;
+            lower = a.Lower;
+            hand = a.Hand;
+            return a.Valid;
+        }
+
         /// <summary>Self-test: the off hand's fingers' mean bend toward its palm (degrees; -1 with none found).</summary>
         internal float OffFingerBend => _fingers != null && _left.Hand != null ? _fingers.MeanBend(-(_left.Hand.rotation * _left.Chain.BackDir)) : -1f;
 

@@ -39,14 +39,22 @@ The user's favourite so far: `showcase/clips/07-montage-3-maps-23-beats-KEEP.mp4
    (the hand ends up in the face).
 3. **Natural hands**: `SwapFilm` (the magazine dropped, the hand to the pouch, a fresh one, under the well, in with a slap: one smooth curve),
    `RackFilm` (a hard pull and let go), `ShowcaseGunLife` (the gun hand meets the other, flicks, takes the slap, pushes against the pull,
-   breathes). The mod's gloves (not the weapons' arms) with the body's own arms drawn from the eyes, the forearm stretched when out of reach.
+   breathes). The weapon's own hands (8. below), the body drawn from the eyes too, its head folded away.
 4. **Tight edit**: each beat cut to 0.3-1.1 s, hard cuts, beats alternating map and kind (`tools/trailer/make_montage.py`), a cut into a
    shot on its shot frame, a 1.6 s card with the last sound ringing out. 16-20 s for ~23 beats.
 5. **Sound that sticks to the picture**: two passes per take (picture frame-locked, sound in real time); each mechanical sound and each round
    logged in both passes; each cut's sound placed by its nearest anchors (`showcase_take.anchors`). Peak to -1 dB. Game sounds only.
 6. **Steady and clean**: the clock half a physics step off its boundary, the grip measured once (no walk shake), the player not knocked over or
    hurt, staged away from vehicles with room for the cameras, the camera kept out of walls, the holstered copies hidden for the helmet cam.
-7. **Check every take before the next**: `showcase_take.py` (frames, sync, events, ping-pong jitter), a contact sheet, a look at the frames.
+7. **The three montage runs** (one game run each, 8 beats; `--fast --no-build --timeout 20`):
+   - Dustbowl: `--mods 3748850972,3386154098,3169820332,3612726243,2910595478,2885168343,3294676658,3052233026 --guns "HK416,P220,ak12squad,QBZ192,mwii-g17,vector,BRN180 L,asval" --map dustbowl`
+   - Temple: `--mods 3174118844,3066156660,2885097896,3292970646,2833843792,3315750959,3288449020 --guns "xm8,ARS Glock 19,f2000,PPSh-41 [DRUM],GLOCK 43X,M4A1,PKM,rk-44" --map temple`
+   - Canyon: `--mods 3174118844,3066156660,3748850972,3279979942,3386154098,3052233026,3612726243,3169820332 --guns "xm8,ARS MP9,HK416-A,mg3,P220 T S,asval,QBZ192-B,ak12h squad" --map canyon`
+8. **The hands are the weapon's own** (the user, 2026-11-09: "i chose the guns hands / weapons hands for the vid not the steam ones"): the
+   user's Hands setting (WeaponArms), never the gloves; the body's upper arm leads into the weapon arm's elbow, its forearm and hand
+   folded away, the weapon's upper arm folded into the elbow for each picture (`ShowcaseBody.FoldUpper`), so a pistol's forearm-only
+   sleeve shows no spikes.
+9. **Check every take before the next**: `showcase_take.py` (frames, sync, events, ping-pong jitter), a contact sheet, a look at the frames.
 
 Clips are kept and named in `showcase/clips/NN-scene-map-what.mp4`; `python -I tools/showcase_all.py` joins all of them into
 `showcase/showcase-all.mp4` (the user: "at the end always produce a full combined clip so i can see everything you did").

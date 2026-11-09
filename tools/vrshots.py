@@ -687,7 +687,7 @@ def main():
         if mode == 'film':
             subprocess.run([sys.executable, '-I', os.path.join(REPO, 'tools', 'flashfilm.py'), dest])
         if mode == 'showcase':
-            keep_takes(dest, a.map)
+            keep_takes(dest, (a.map or 'island').replace(' ', '_') + ('_night' if a.night else ''))  # (a folder name: no spaces; the night marked)
         summary(dest)
     if failed:
         sys.exit(1)
