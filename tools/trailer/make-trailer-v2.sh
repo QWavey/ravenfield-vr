@@ -3,7 +3,7 @@
 # night through the goggles, slow motion, a grenade; then the workshop part: the 3-map montage; the end card. Re-run after new takes:
 # each scene edit takes the newest take of its scene.
 cd "$(dirname "$0")/../.."
-python -I tools/trailer/make_montage.py tools/trailer/montage-v6.json dustbowl:d temple:t canyon:k
+# (montage-v6.json: made by make_montage.py, its d1 pinned to the Dustbowl swap of 14:37: the newest did not seat)
 python -I tools/trailer/make_trailer.py tools/trailer/trailer-v2.json \
   tools/trailer/inspect.json "card:RAVENFIELD VR::1.6" \
   tools/trailer/fight-day.json tools/trailer/grab.json tools/trailer/cover.json \

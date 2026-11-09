@@ -1,13 +1,39 @@
 {
   "fps": 60,
-  "takes": {"i": "showcase/takes/inspect-*"},
+  "takes": {
+    "i": "showcase/takes/inspect-*"
+  },
   "shots": [
-    {"take": "i", "mark": "bring up", "in": 8},
-    {"take": "i", "mark": "turn", "in": 20, "out": 84},
-    {"take": "i", "mark": "raise", "in": 8},
-    {"take": "i", "mark": "shot"},
-    {"take": "i", "mark": "after", "out": 20},
-    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+    {
+      "take": "i",
+      "mark": "bring up",
+      "in": 8
+    },
+    {
+      "take": "i",
+      "mark": "turn",
+      "in": 40,
+      "out": 84
+    },
+    {
+      "take": "i",
+      "mark": "raise",
+      "in": 8
+    },
+    {
+      "take": "i",
+      "mark": "shot"
+    },
+    {
+      "take": "i",
+      "mark": "after",
+      "out": 20
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
   ],
   "grade": true
 }
