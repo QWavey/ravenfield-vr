@@ -299,7 +299,9 @@ namespace RavenfieldVR.Core.Showcase
 
             // Wound up beside the head (0.35 s), thrown (0.15 s: let go at its end, up and away at 14 m/s), followed through.
             rec.Mark = "wind up";
-            rec.Shot = () => ShowcaseCamera.HelmetCam(0.34f, 0.17f * -sign, 0.1f);
+            // Over the throwing shoulder, wide enough for the arm cocked back with the grenade (the helmet cam on that side saw only
+            // the helmet, Coastline take 1).
+            rec.Shot = () => ShowcaseCamera.OverShoulder(1.25f, 0.62f * -sign, 0.32f, 54f);
             yield return Film(rec, 0.35f, u =>
             {
                 HoldGun(0.12f, 0.3f, false);
@@ -311,7 +313,8 @@ namespace RavenfieldVR.Core.Showcase
             });
             rec.Mark = "throw";
             yield return Film(rec, 0.15f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(back, release, u * u), grip * Quaternion.Euler(Mathf.Lerp(-40f, 30f, u), 0f, 0f)); });
-            Vector3 throwV = (Flat(head.forward) + Vector3.up * 0.45f).normalized * 14f;
+            // (11 m/s and higher: at 14 m/s the grenade went off 30 m out behind the rocks, the blast out of the picture.)
+            Vector3 throwV = (Flat(head.forward) + Vector3.up * 0.55f).normalized * 11f;
             second.TestThrow(throwV);
             SecondWeapon.TestTrigger = false;
             int live = second.LastLiveCount;
@@ -333,7 +336,7 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 last = release + throwV.normalized * 3f;
             bool blown = false;
             float blastAt = 2f;
-            rec.Shot = () => ShowcaseCamera.FirstPersonLook(last, 0.55f, 60f);
+            rec.Shot = () => ShowcaseCamera.FirstPersonLook(last, 0.85f, 56f);
             yield return Film(rec, 0.25f, u => { HoldGun(0.12f, 0.3f, false); OffAt(Vector3.Lerp(release, follow, EaseOut(u)), grip); last = flying != null ? flying.transform.position : last; });
             Input.VRInput.SimulatedGrab[side] = false;
             yield return Film(rec, fuse - 0.25f + 0.9f, u =>

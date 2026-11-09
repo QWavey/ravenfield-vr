@@ -46,7 +46,7 @@ namespace RavenfieldVR.Core.Showcase
 
         /// <summary>
         /// Where <paramref name="count"/> soldiers can stand in front of the player, each in plain sight of the eyes, on ground about the
-        /// player's height: the nearest distance and the smallest turn from the facing that has room for all of them (14-22 m out,
+        /// player's height: the nearest distance and the smallest turn from the facing that has room for all of them (11-18 m out,
         /// up to 60 degrees off). Last night's soldiers were put 28 m out behind a crest of the canyon's rim and none was seen.
         /// </summary>
         private static List<Vector3> FightPlaces(int count, out float yaw)
@@ -56,7 +56,7 @@ namespace RavenfieldVR.Core.Showcase
             VRRig rig = VRRig.Instance;
             var places = new List<Vector3>();
             Vector3 eye = rig.Head.position, fwd0 = Flat(rig.Head.forward);
-            foreach (float ahead in new[] { 16f, 19f, 14f, 22f })
+            foreach (float ahead in new[] { 13f, 15f, 11f, 18f })
             {
                 foreach (float turn in new[] { 0f, 20f, -20f, 40f, -40f, 60f, -60f })
                 {
@@ -149,7 +149,7 @@ namespace RavenfieldVR.Core.Showcase
         /// <summary>
         /// The reverse shot: behind a soldier's shoulder, looking back at the player who fires at him (the muzzle flashes at the camera).
         /// </summary>
-        private static ShowcaseCamera.Shot OverEnemy(Actor a, float fov = 46f)
+        private static ShowcaseCamera.Shot OverEnemy(Actor a, float fov = 30f)
         {
             Transform h = VRRig.Instance != null ? VRRig.Instance.Head : null;
             if (h == null || a == null)
@@ -181,7 +181,7 @@ namespace RavenfieldVR.Core.Showcase
         }
 
         /// <summary>
-        /// The firefight (about 6 s): three soldiers brought 14-22 m out where the eyes see them, walking in and firing; over the
+        /// The firefight (about 6 s): three soldiers brought 11-18 m out where the eyes see them, walking in and firing; over the
         /// shoulder as they come, then up into the sights and a burst at the first (first person), the reverse shot behind the second as
         /// the player fires at him, the third on the gun cam (the face behind the firing gun), the helmet cam on what is left. With
         /// -rfvr-showcase-night, through the goggles.
@@ -204,7 +204,7 @@ namespace RavenfieldVR.Core.Showcase
             List<Vector3> places = FightPlaces(3, out float yaw);
             if (places.Count == 0)
             {
-                report("showcase fight: NO PLACE IN SIGHT for the soldiers (14-22 m out, 60 degrees either way)");
+                report("showcase fight: NO PLACE IN SIGHT for the soldiers (11-18 m out, 60 degrees either way)");
                 yield break;
             }
             VRRig.Instance.AddYaw(yaw);
@@ -242,6 +242,7 @@ namespace RavenfieldVR.Core.Showcase
             rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim);
             yield return Film(rec, 0.35f, u => { aim = EaseOut(u); TurnToward(Chest(target), 4f); GunPose g = AimAt(Chest(target), aim); PlaceGun(g.At, g.Aim, true); });
             rec.Mark = "engage";
+            string aimNote = null;
             yield return Film(rec, 0.9f, u =>
             {
                 target = Next();
@@ -253,13 +254,21 @@ namespace RavenfieldVR.Core.Showcase
                 {
                     rec.Still("fight-sights");
                 }
+                if (u >= 0.5f && aimNote == null)
+                {
+                    // (How far off the target the rounds leave: the muzzle's own line against the line to his chest.)
+                    Weapon w = held.Weapon != null ? held.Weapon.GetActiveSubWeapon() : null;
+                    Transform m = w != null ? w.CurrentMuzzle() : null;
+                    aimNote = m == null ? "no muzzle" : $"muzzle {Vector3.Angle(m.forward, Chest(target) - m.position):0.0} deg off the chest at {Vector3.Distance(m.position, Chest(target)):0} m, sight {Vector3.Angle(g.Aim * Vector3.forward, Chest(target) - g.At):0.0} deg";
+                }
             });
             ReleaseTrigger();
 
-            // The reverse: behind the next one as the player fires at him.
-            Actor reversed = Next();
+            // The reverse: behind the next one as the player fires at him (the camera set where it starts: on a falling soldier it
+            // would swing with his ragdoll).
+            ShowcaseCamera.Shot reverse = OverEnemy(Next());
             rec.Mark = "reverse";
-            rec.Shot = () => OverEnemy(reversed);
+            rec.Shot = () => reverse;
             yield return Film(rec, 0.9f, u =>
             {
                 target = Next();
@@ -302,7 +311,8 @@ namespace RavenfieldVR.Core.Showcase
             int down = enemies.Count(a => a != null && a.dead);
             Vector3 eye1 = VRRig.Instance.Head.position;
             report($"showcase fight: {down} of {enemies.Count} down{(goggles ? ", through the goggles" : "")}; the soldiers at "
-                   + string.Join(", ", enemies.Select(a => a == null ? "?" : $"{Vector3.Distance(eye1, a.Position()):0} m{(a.dead ? " (down)" : SeenFrom(eye1, a.Position()) ? "" : " (out of sight)")}")));
+                   + string.Join(", ", enemies.Select(a => a == null ? "?" : $"{Vector3.Distance(eye1, a.Position()):0} m{(a.dead ? " (down)" : $" ({a.health:0} health{(SeenFrom(eye1, a.Position()) ? "" : ", out of sight")})")}"))
+                   + $"; {aimNote}");
             if (goggles && NightVision.isEnabled)
             {
                 Input.VRGameInput.GogglesGesturePressed = true; // (off again for the next pass's own switch)

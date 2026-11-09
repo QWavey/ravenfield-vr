@@ -38,6 +38,8 @@ namespace RavenfieldVR.Core.Showcase
             ("scope", ScopeSetup, ScopeScene),
             ("hands", HandsSetup, HandsScene),
             ("fight", FightSetup, FightScene),
+            ("cover", CoverSetup, CoverScene),
+            ("grab", GrabSetup, GrabScene),
         };
 
         /// <summary>Every picked scene: its setup, the picture pass, the spot restored, the sound pass; <paramref name="report"/> gets the lines.</summary>
@@ -514,6 +516,9 @@ namespace RavenfieldVR.Core.Showcase
             {
                 return;
             }
+            // (The burst's growing spread held at the gun's own base spread: by the game's follow-up spread every round of a burst
+            // went wider, and three soldiers at 16-22 m took a 2.5 s burst each without one going down, the rounds over them.)
+            active.followupSpreadMagnitude = 0f;
             active.Fire(active.CurrentMuzzle().forward, true);
             if (active.ammo < lastAmmo)
             {
