@@ -31,6 +31,9 @@ namespace RavenfieldVR.Core.Showcase
             }
             _on = true;
             Application.onBeforeRender += Pose; // (after the mod's own: the rig, the gun and the gloves are placed first)
+            _unfolder = new GameObject("RavenfieldVR showcase unfold");
+            UnityEngine.Object.DontDestroyOnLoad(_unfolder);
+            _unfolder.AddComponent<Unfolder>();
         }
 
         internal static void End()
@@ -41,6 +44,12 @@ namespace RavenfieldVR.Core.Showcase
             }
             _on = false;
             Application.onBeforeRender -= Pose;
+            Unfold();
+            if (_unfolder != null)
+            {
+                UnityEngine.Object.Destroy(_unfolder);
+                _unfolder = null;
+            }
             Fold(null, false);
             foreach (KeyValuePair<Transform, Vector3> kv in Own)
             {
@@ -97,6 +106,20 @@ namespace RavenfieldVR.Core.Showcase
             // camera sits where they are. Unfolded again for the other cameras (its scale is not the animator's to put back).
             ShowcaseCamera.Shot next = ShowcaseRecorder.Current != null && ShowcaseRecorder.Current.Shot != null ? ShowcaseRecorder.Current.Shot() : ShowcaseCamera.Shot.None;
             Fold(head, next.Valid && next.FromEyes);
+            if (next.Valid && next.FromEyes)
+            {
+                // From the eyes: the weapon's own arms as in play, a forearm-only arm's upper bone folded into its elbow (no spikes).
+                HeldWeapon fpHeld = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+                ArmIK fpArms = fpHeld != null && fpHeld.ArmsShownByMod && VRConfig.HandsNow == HandsMode.WeaponArms ? fpHeld.Arms : null;
+                foreach (bool gunArm in new[] { true, false })
+                {
+                    if (fpArms != null && fpArms.Chain(gunArm, out Transform wRoot, out Transform wUp, out Transform wLow, out _) && ForearmOnly(fpHeld, wUp, wLow))
+                    {
+                        FoldUpper(wRoot, wUp, wLow);
+                    }
+                }
+                return; // (the body is not drawn from the eyes)
+            }
             Vector3 lookFlat = Vector3.ProjectOnPlane(eyes.forward, Vector3.up);
             if (lookFlat.sqrMagnitude < 1e-4f)
             {
@@ -153,6 +176,123 @@ namespace RavenfieldVR.Core.Showcase
                 Vector3 pole = up.position + Vector3.down * 0.5f + outward * 0.35f - lookFlat * 0.15f;
                 TwoBone(up, low, wrist, target, pole);
             }
+        }
+
+
+        /// <summary>The weapon arms' bones folded for this frame's pictures: each with what it had (put back by <see cref="Unfold"/>).</summary>
+        private static readonly List<(Transform root, Vector3 rootLocal, Transform upper, Vector3 upperScale, Transform lower, Vector3 lowerScale)> FoldedArms =
+            new List<(Transform, Vector3, Transform, Vector3, Transform, Vector3)>();
+
+        /// <summary>
+        /// A forearm-only weapon arm's upper bone folded into its elbow for this frame's first-person picture: the arm's root moved so the upper bone sits on the
+        /// elbow, the upper bone made tiny and the forearm made as much bigger (its place, turn and size the same: the forearm and the
+        /// hand exactly where the weapon's own solve put them). Every part of the sleeve that hangs on the upper bone goes into the
+        /// elbow, inside the end of the body's upper arm: the end of a forearm-only sleeve (a pistol's) bent toward the weapon's own
+        /// shoulder and stuck out of the body's arm in spikes. Put back in the next frame's Update, before the weapon's solve reads it.
+        /// </summary>
+        private static void FoldUpper(Transform root, Transform upper, Transform lower)
+        {
+            if (root == null || upper == null || lower == null || FoldedArms.Exists(f => f.upper == upper))
+            {
+                return; // (folded already this frame)
+            }
+            Vector3 elbow = lower.position;
+            FoldedArms.Add((root, root.localPosition, upper, upper.localScale, lower, lower.localScale));
+            Quaternion lowRot = lower.rotation;
+            upper.localScale *= 0.001f;
+            lower.localScale *= 1000f;
+            root.position += elbow - upper.position;
+            lower.rotation = lowRot;
+        }
+
+        /// <summary>The weapon arms as their own solve left them (the frame's pictures are taken): each frame's Update.</summary>
+        private static void Unfold()
+        {
+            for (int i = FoldedArms.Count - 1; i >= 0; i--)
+            {
+                (Transform root, Vector3 rootLocal, Transform upper, Vector3 upperScale, Transform lower, Vector3 lowerScale) = FoldedArms[i];
+                if (upper != null)
+                {
+                    upper.localScale = upperScale;
+                }
+                if (lower != null)
+                {
+                    lower.localScale = lowerScale;
+                }
+                if (root != null)
+                {
+                    root.localPosition = rootLocal;
+                }
+            }
+            FoldedArms.Clear();
+        }
+
+        /// <summary>Puts the folded weapon arms back each frame before anything reads them (the weapon's solve runs before rendering).</summary>
+        private sealed class Unfolder : MonoBehaviour
+        {
+            private void Update() => Unfold();
+        }
+
+        private static GameObject _unfolder;
+
+        /// <summary>Per weapon arm (its upper bone): its mesh is a forearm only, nothing of it hangs on the upper arm but its last ring.</summary>
+        private static readonly Dictionary<Transform, bool> ForearmOnlyOf = new Dictionary<Transform, bool>();
+
+        /// <summary>
+        /// Whether a weapon arm's mesh is a forearm only: under 6% of its vertices (at least 16) mostly on the upper arm's bones. Those
+        /// arms' last ring, half on the upper bone, stood out of the sleeve in spikes when the elbow bent (a pistol racked, a gun turned:
+        /// the user, "the hands/arms"); folded into the elbow they close (FoldUpper), while a whole arm folded so ballooned into a ball
+        /// (the PKM's, the user's picture of 2026-11-09). A mesh that cannot be read: a pistol's arms are taken for forearms.
+        /// </summary>
+        private static bool ForearmOnly(HeldWeapon held, Transform upper, Transform lower)
+        {
+            if (ForearmOnlyOf.TryGetValue(upper, out bool known))
+            {
+                return known;
+            }
+            int onUpper = 0, total = 0;
+            bool read = false;
+            foreach (Renderer r in held.Rig.ArmRenderers)
+            {
+                if (!(r is SkinnedMeshRenderer smr) || smr.sharedMesh == null || smr.bones == null || !smr.sharedMesh.isReadable)
+                {
+                    continue;
+                }
+                var upperBones = new HashSet<int>();
+                for (int b = 0; b < smr.bones.Length; b++)
+                {
+                    Transform t = smr.bones[b];
+                    if (t != null && (t == upper || t.IsChildOf(upper)) && t != lower && !t.IsChildOf(lower))
+                    {
+                        upperBones.Add(b);
+                    }
+                }
+                if (upperBones.Count == 0)
+                {
+                    continue;
+                }
+                try
+                {
+                    BoneWeight[] weights = smr.sharedMesh.boneWeights;
+                    read = true;
+                    foreach (BoneWeight w in weights)
+                    {
+                        float u = (upperBones.Contains(w.boneIndex0) ? w.weight0 : 0f) + (upperBones.Contains(w.boneIndex1) ? w.weight1 : 0f)
+                                  + (upperBones.Contains(w.boneIndex2) ? w.weight2 : 0f) + (upperBones.Contains(w.boneIndex3) ? w.weight3 : 0f);
+                        total++;
+                        onUpper += u > 0.5f ? 1 : 0;
+                    }
+                }
+                catch (Exception)
+                {
+                    // (not readable after all: judged by the gun below)
+                }
+            }
+            bool only = read && total > 0 ? onUpper < Mathf.Max(16f, total * 0.06f) : held.Rig.Data.IsPistol;
+            ForearmOnlyOf[upper] = only;
+            Log.InfoOnce("showcase-forearm:" + held.Rig.Data.Key + upper.name, $"Showcase: {held.Rig.Data.Key}'s arm at {upper.name}: "
+                + (read ? $"{onUpper} of {total} vertices on the upper arm" : "its mesh not readable") + (only ? ", a forearm only (folded from the eyes)" : ", a whole arm"));
+            return only;
         }
 
         /// <summary>

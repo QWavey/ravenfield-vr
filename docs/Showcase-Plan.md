@@ -50,10 +50,15 @@ The user's favourite so far: `showcase/clips/07-montage-3-maps-23-beats-KEEP.mp4
    - Dustbowl: `--mods 3748850972,3386154098,3169820332,3612726243,2910595478,2885168343,3294676658,3052233026 --guns "HK416,P220,ak12squad,QBZ192,mwii-g17,vector,BRN180 L,asval" --map dustbowl`
    - Temple: `--mods 3174118844,3066156660,2885097896,3292970646,2833843792,3315750959,3288449020 --guns "xm8,ARS Glock 19,f2000,PPSh-41 [DRUM],GLOCK 43X,M4A1,PKM,rk-44" --map temple`
    - Canyon: `--mods 3174118844,3066156660,3748850972,3279979942,3386154098,3052233026,3612726243,3169820332 --guns "xm8,ARS MP9,HK416-A,mg3,P220 T S,asval,QBZ192-B,ak12h squad" --map canyon`
-8. **The hands are the weapon's own** (the user, 2026-11-09: "i chose the guns hands / weapons hands for the vid not the steam ones"): the
-   user's Hands setting (WeaponArms), never the gloves; the body's upper arm leads into the weapon arm's elbow, its forearm and hand
-   folded away, the weapon's upper arm folded into the elbow for each picture (`ShowcaseBody.FoldUpper`), so a pistol's forearm-only
-   sleeve shows no spikes.
+8. **The hands are the weapon's own** (the user, 2026-11-09: "i chose the guns hands / weapons hands for the vid not the steam ones"):
+   the user's Hands setting (WeaponArms), never the gloves. From the eyes the weapon's own arms exactly as in play, the body not drawn.
+   From outside the soldier's own arms and hands reach the weapon's hand bones (`ShowcaseBody`), the weapon's arms and the gloves
+   hidden for that picture (`ShowcaseCamera.HideHands`). (Leading the body's upper arm into the weapon's elbow made blocks and a
+   ballooned sleeve in every first-person shot: the user, "this happens in every clip which is very bad".)
+   **The aim is checked**: `PlaceGun` corrects itself by where the gun really points (the sights stood 7-10 degrees beside the soldier
+   before: "the player just aims beside"); the rounds leave along the aimed line; one soldier to each shot. **No shots into the air**:
+   in fights the shot after the reverse is over the gun onto the target, not the gun cam on the face (the sky behind it read as
+   firing into the air); the gun cam is kept for walking fire.
 9. **Check every take before the next**: `showcase_take.py` (frames, sync, events, ping-pong jitter), a contact sheet, a look at the frames.
 
 **The trailer** (2026-11-09): every scene has its own edit in `tools/trailer/` (inspect, pilot-walk, fight-day, fight-night, cover,

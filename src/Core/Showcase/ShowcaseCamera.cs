@@ -390,7 +390,7 @@ namespace RavenfieldVR.Core.Showcase
         /// Higher, further back and over the other shoulder since the body's own arms hold the gun (2026-11-09): the gun arm, raised to
         /// aim, filled half of the view from behind the gun shoulder.
         /// </summary>
-        internal static Shot HelmetCam(float back = 0.42f, float side = -0.13f, float up = 0.2f, float fov = 50f)
+        internal static Shot HelmetCam(float back = 0.4f, float side = -0.24f, float up = 0.1f, float fov = 50f)
         {
             Transform h = Head;
             if (h == null)
