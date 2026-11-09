@@ -19,6 +19,8 @@ An edit list (JSON):
                                                  black with the title (and a small line under it); "tail": the last shot's sound rings on
     ],
     "grade": true,                               a little contrast, a touch less saturation, a soft vignette
+    "music": {"path": "...", "start": 5.9, "gain": 0.5, "game": 0.85, "fade_in": 0.3, "fade_out": 2.0}
+                                                 a track under the game's sound from "start" s at the trailer's start (optional)
     "letterbox": 2.39                            black bars to this picture shape (optional)
   }
 
@@ -119,6 +121,29 @@ def faded(clip, rate):
         clip[:k] *= ramp
         clip[-k:] *= ramp[::-1]
     return clip
+
+
+def with_music(audio, rate, m):
+    """The edit's music under the game's sound: the track from m["start"] s at the trailer's start, m["gain"] (0.5), faded in over
+    m["fade_in"] (0.3 s) and out over m["fade_out"] s (2.0) at the end, the game's own sound kept on top; the sum held under -1 dB."""
+    exe = take.ffmpeg()
+    r = subprocess.run([exe, '-loglevel', 'error', '-ss', str(m['start']), '-i', m['path'], '-f', 'f32le', '-ac', str(audio.shape[1]),
+                        '-ar', str(rate), '-'], capture_output=True)
+    if r.returncode != 0:
+        raise SystemExit('music: ffmpeg failed: ' + r.stderr.decode(errors='replace')[-400:])
+    music = np.frombuffer(r.stdout, dtype=np.float32).reshape(-1, audio.shape[1]).copy()
+    n = len(audio)
+    if len(music) < n:
+        music = np.concatenate([music, np.zeros((n - len(music), audio.shape[1]), dtype=np.float32)])
+    music = music[:n] * float(m.get('gain', 0.5))
+    fi, fo = int(rate * float(m.get('fade_in', 0.3))), int(rate * float(m.get('fade_out', 2.0)))
+    if fi > 0:
+        music[:fi] *= np.linspace(0.0, 1.0, fi)[:, None]
+    if fo > 0:
+        music[-fo:] *= np.linspace(1.0, 0.0, fo)[:, None]
+    mixed = audio * float(m.get('game', 0.85)) + music
+    peak = float(np.abs(mixed).max())
+    return (mixed * (min(1.0, 0.89 / peak) if peak > 0 else 1.0)).astype(np.float32)
 
 
 def write_wav(path, audio, rate):
@@ -249,6 +274,8 @@ def build(edit, out, keep=False):
         lines.append(f'  {shot["take"]} {first}-{end} ({(end - first) / fps:.2f} s, {", ".join(cams)})')
         last = (t, end)
     audio = np.concatenate(sound) if sound else np.zeros((1, channels), dtype=np.float32)
+    if edit.get('music'):
+        audio = with_music(audio, rate, edit['music'])
     wav = os.path.join(tmp, 'sound.wav')
     write_wav(wav, audio, rate)
     exe = take.ffmpeg()

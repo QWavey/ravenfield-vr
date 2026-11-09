@@ -1,0 +1,31 @@
+{
+  "fps": 60,
+  "takes": {
+    "c": "showcase/takes/cover-dustbowl-20261109-1501"
+  },
+  "shots": [
+    {
+      "take": "c",
+      "mark": "step out",
+      "nth": 0,
+      "in": 16
+    },
+    {
+      "take": "c",
+      "mark": "engage",
+      "nth": 0
+    },
+    {
+      "take": "c",
+      "mark": "back in",
+      "nth": 0,
+      "out": 40
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
+  ],
+  "grade": true
+}

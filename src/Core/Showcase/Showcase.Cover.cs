@@ -199,23 +199,39 @@ namespace RavenfieldVR.Core.Showcase
             Vector3 side = Vector3.Cross(Vector3.up, _coverFacing) * _coverSide;
             Vector3 edgeEye = rig.Head.position + side * 1.3f;
             var places = new List<Vector3>();
-            foreach (float ahead in new[] { 14f, 17f, 12f, 20f })
+            // Spread out past the edge, else closer to the edge's line (the line the stage checked for level ground), else as many as
+            // there is room for: three cover takes in a row put no one there (the open side beyond the edge not level).
+            var best = new List<Vector3>();
+            Func<int, float>[] laterals = { i => 2.5f + i * 3.5f, i => 1.3f + i * 2f, i => 1.3f + (i - 1) * 1.5f };
+            foreach (Func<int, float> lateral in laterals)
             {
-                places.Clear();
-                for (int i = 0; i < 3 && places.Count == i; i++)
+                foreach (float ahead in new[] { 14f, 17f, 12f, 20f, 10f })
                 {
-                    Vector3 at = player.Position() + side * (2.5f + i * 3.5f) + _coverFacing * (ahead + i * 2.5f);
-                    if (Physics.Raycast(at + Vector3.up * 30f, Vector3.down, out RaycastHit g, 60f, LevelMask, QueryTriggerInteraction.Ignore)
-                        && g.normal.y > 0.75f && Mathf.Abs(g.point.y - player.Position().y) < 3.5f && SeenFrom(edgeEye, g.point))
+                    places.Clear();
+                    for (int i = 0; i < 3; i++)
                     {
-                        places.Add(g.point);
+                        Vector3 at = player.Position() + side * lateral(i) + _coverFacing * (ahead + i * 2.5f);
+                        if (Physics.Raycast(at + Vector3.up * 30f, Vector3.down, out RaycastHit g, 60f, LevelMask, QueryTriggerInteraction.Ignore)
+                            && g.normal.y > 0.75f && Mathf.Abs(g.point.y - player.Position().y) < 3.5f && SeenFrom(edgeEye, g.point))
+                        {
+                            places.Add(g.point);
+                        }
+                    }
+                    if (places.Count > best.Count)
+                    {
+                        best = new List<Vector3>(places);
+                    }
+                    if (best.Count == 3)
+                    {
+                        break;
                     }
                 }
-                if (places.Count == 3)
+                if (best.Count == 3)
                 {
                     break;
                 }
             }
+            places = best;
             List<Actor> enemies = places.Count > 0 ? BringEnemies(places, 9f) : new List<Actor>();
             report($"showcase cover: {enemies.Count} soldier(s) brought past the edge{(enemies.Count == 0 ? " (NO PLACE IN SIGHT past the edge)" : "")}");
             yield return new WaitForSecondsRealtime(0.8f);
