@@ -85,6 +85,65 @@ namespace RavenfieldVR.Core.Showcase
             return null;
         }
 
+        /// <summary>
+        /// The rocket's flight in slow motion (the user, on trailer v7: "also not slowmotion while it flew"): time down to 0.15 as it leaves,
+        /// a camera close behind it looking at the vehicle until it arrives (by game time), the vehicle finished there, the blast from
+        /// <paramref name="hitCam"/> as time comes back to full speed.
+        /// </summary>
+        private static IEnumerator RocketInto(ShowcaseRecorder rec, Vehicle v, Action drive, Vector3 hitCam, string name, Action<Vehicle> finish, float speed)
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            Weapon w = held != null && held.Weapon != null ? held.Weapon.GetActiveSubWeapon() : null;
+            Vector3 from = w != null && w.CurrentMuzzle() != null ? w.CurrentMuzzle().position : VRRig.Instance.Head.position;
+            Projectile flying = UnityEngine.Object.FindObjectsOfType<Projectile>().Where(x => x != null && x.gameObject.activeInHierarchy)
+                                          .OrderBy(x => (x.transform.position - from).sqrMagnitude).FirstOrDefault();
+            if (flying != null && (flying.transform.position - from).sqrMagnitude > 25f)
+            {
+                flying = null; // (not this shot's)
+            }
+            Vector3 at = flying != null ? flying.transform.position : from;
+            Vector3 dir = (v.transform.position - at).normalized;
+            float flight = Vector3.Distance(at, v.transform.position) / Mathf.Max(1f, speed);
+            const float slow = 0.15f; // (at 0.3 the 295 m/s rocket crossed 60 m in 0.6 s of video)
+            GameManager.SetTimeScale(slow);
+            rec.Mark = name + " rocket";
+            rec.Shot = () =>
+            {
+                Vector3 cam = at - dir * 2.2f + Vector3.up * 0.35f;
+                return new ShowcaseCamera.Shot { Valid = true, Name = "behind the rocket", Position = cam, Rotation = Quaternion.LookRotation(v.transform.position + Vector3.up * 0.6f - cam, Vector3.up), Fov = 55f, ShowBody = true };
+            };
+            float t0 = Time.time;
+            yield return Film(rec, Mathf.Clamp(flight / slow, 0.4f, 3f), u =>
+            {
+                drive();
+                if (flying != null && flying.gameObject.activeInHierarchy)
+                {
+                    at = flying.transform.position;
+                    dir = flying.transform.forward;
+                }
+                else
+                {
+                    at = Vector3.MoveTowards(at, v.transform.position, speed * Time.deltaTime);
+                }
+                if (Time.time - t0 >= flight)
+                {
+                    finish(v);
+                }
+            });
+            finish(v);
+            rec.Mark = name + " hit";
+            rec.Shot = () => ShowcaseCamera.Fixed(hitCam, v.transform.position + Vector3.up * 0.8f, 52f, "the blast");
+            yield return Film(rec, 1.4f, u =>
+            {
+                GameManager.SetTimeScale(Mathf.Lerp(slow, 1f, Ease(Mathf.Min(1f, u * 1.3f))));
+                if (u >= 0.3f)
+                {
+                    rec.Still("vehicles-" + name + "-hit");
+                }
+            });
+            GameManager.SetTimeScale(1f);
+        }
+
         private static IEnumerator VehiclesSetup(Action<string> report)
         {
             report("showcase vehicles: " + Stage(40f, 160f));
@@ -93,12 +152,16 @@ namespace RavenfieldVR.Core.Showcase
             string launcher = GiveLauncher();
             report($"showcase vehicles: launcher {launcher ?? "NO LAUNCHER FOUND"}");
             yield return new WaitForSecondsRealtime(0.8f);
-            int slot = GunSlot(0);
+            // The launcher's own slot: GunSlot takes guns of more than one round, and drew the revolver (the user, on trailer v7: "you used a
+            // reveolver and not rpg to shoot them").
+            Actor actor = LocalPlayer.actor;
+            int slot = launcher != null && actor != null && actor.weapons != null && actor.weapons.Length > 0 && actor.weapons[0] != null ? 0 : -1; // (GiveLauncher's slot)
             if (slot < 0)
             {
                 throw new InvalidOperationException("no launcher in the loadout");
             }
             yield return Draw(slot);
+            report($"showcase vehicles: drawn {(WeaponSystem.Instance != null && WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Weapon != null ? WeaponSystem.Instance.Held.Weapon.name : "NOTHING")} (slot {slot})");
         }
 
         /// <summary>
@@ -137,6 +200,10 @@ namespace RavenfieldVR.Core.Showcase
                 carAt = g.point + Vector3.up * 0.6f;
             }
             bool carCrewed = Crewed(car, carAt, -fwd);
+            if (w != null)
+            {
+                w.ammo = Mathf.Max(1, w.configuration != null ? w.configuration.ammo : 1); // (loaded: the sound pass found the tube empty after the picture pass)
+            }
             yield return new WaitForSecondsRealtime(0.5f);
             rec.Start();
             void Drive(Vehicle v, Vector3 to, float speed, bool flat)
@@ -191,30 +258,8 @@ namespace RavenfieldVR.Core.Showcase
             rec.Mark = "fire";
             bool fired = false;
             yield return Moment(rec, () => { Drive(car, home, 13f, true); GunPose p = AimAt(Lead(car), 1f); PlaceGun(p.At, p.Aim, true); fired = Fire(0.5f); });
-            float flight = Vector3.Distance(rig.Head.position, car.transform.position) / rocket;
-            // The hit from beside the jeep: the rocket coming in, the blast.
             Vector3 hitCam = car.transform.position + side * 9f + fwd * 4f + Vector3.up * 1.5f;
-            rec.Mark = "jeep hit";
-            rec.Shot = () => ShowcaseCamera.Fixed(hitCam, car.transform.position + Vector3.up * 0.8f, 52f, "beside the jeep");
-            float shown = 0f;
-            yield return Film(rec, flight + 1.2f, u =>
-            {
-                shown = u * (flight + 1.2f);
-                if (!car.dead)
-                {
-                    Drive(car, home, 13f, true);
-                }
-                if (shown >= flight + 0.05f)
-                {
-                    Finish(car);
-                }
-                GunPose p = AimAt(car.transform.position, 1f);
-                PlaceGun(p.At, p.Aim, true);
-                if (shown >= flight + 0.4f)
-                {
-                    rec.Still("vehicles-jeep-hit");
-                }
-            });
+            yield return RocketInto(rec, car, () => { if (!car.dead) { Drive(car, home, 13f, true); } }, hitCam, "jeep", Finish, rocket);
             report($"showcase vehicles: the jeep {(car.dead ? "destroyed" : "NOT DESTROYED")} ({(carCrewed ? "an enemy at the wheel" : "no driver")}), {(fired ? "the rocket fired" : "THE ROCKET DID NOT FIRE")}, rocket {rocket:0} m/s");
             if (heli == null)
             {
@@ -240,26 +285,8 @@ namespace RavenfieldVR.Core.Showcase
             rec.Mark = "fire";
             fired = false;
             yield return Moment(rec, () => { Drive(heli, over, 22f, false); GunPose p = AimAt(Lead(heli), 1f); PlaceGun(p.At, p.Aim, true); fired = Fire(0.5f); });
-            flight = Vector3.Distance(rig.Head.position, heli.transform.position) / rocket;
             Vector3 lowCam = player.Position() + fwd * 4f + side * 6f + Vector3.up * 0.8f;
-            rec.Mark = "heli hit";
-            rec.Shot = () => ShowcaseCamera.Fixed(lowCam, heli.transform.position, 50f, "below the helicopter");
-            yield return Film(rec, flight + 1.6f, u =>
-            {
-                shown = u * (flight + 1.6f);
-                if (!heli.dead)
-                {
-                    Drive(heli, over, 22f, false);
-                }
-                if (shown >= flight + 0.05f)
-                {
-                    Finish(heli);
-                }
-                if (shown >= flight + 0.5f)
-                {
-                    rec.Still("vehicles-heli-hit");
-                }
-            });
+            yield return RocketInto(rec, heli, () => { if (!heli.dead) { Drive(heli, over, 22f, false); } }, lowCam, "heli", Finish, rocket);
             report($"showcase vehicles: the {(heli is Helicopter ? "helicopter" : "plane")} {(heli.dead ? "destroyed" : "NOT DESTROYED")} ({(heliCrewed ? "an enemy at the controls" : "no pilot")}), {(fired ? "the rocket fired" : "THE ROCKET DID NOT FIRE")}");
         }
     }

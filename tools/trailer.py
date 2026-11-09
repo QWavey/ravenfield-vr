@@ -33,6 +33,7 @@ The sound of each take is lined up with its picture first (tools/showcase_take.p
 import argparse
 import glob
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -205,6 +206,30 @@ def check(edit):
     return ok
 
 
+def shot_range(t, shot, i):
+    """A take shot's frames [first, end): by its shot, its mark or its frames."""
+    if 'shot' in shot:
+        fired = [f for f, _, mark, _ in t.marks if mark == 'shot']
+        k = int(shot['shot'])
+        if not 0 <= k < len(fired):
+            raise SystemExit(f'shot {i}: the take has {len(fired)} shot(s), not a shot {k}')
+        first, end = fired[k] - int(shot.get('pre', 6)), fired[k] + int(shot.get('post', 24))
+        # Inside the shot's own camera: frames of the camera before it made a tenth of a second's flash of another view.
+        cams = {f: cam for f, _, _, cam in t.marks}
+        cam = cams.get(fired[k])
+        while first < fired[k] and cams.get(first) != cam:
+            first += 1
+        while end > fired[k] + 1 and cams.get(end - 1) != cam:
+            end -= 1
+    elif 'mark' in shot:
+        start, stop = t.mark_run(shot['mark'], int(shot.get('nth', 0)))
+        first = start + int(shot.get('in', 0))
+        end = start + int(shot['out']) if shot.get('out') is not None else stop
+    else:
+        first, end = int(shot['in']), int(shot['out'])
+    return first, end
+
+
 def snapped_length(edit, i, n, length, most, fps):
     """A shot's length in frames moved so it ends on the music (the user, 2026-11-09: "it also needs to match the song ... more"): with
     the edit's "beat" block ({"start": the song's second at the trailer's start, "grid0": a beat's second in the song, "period": seconds
@@ -218,6 +243,11 @@ def snapped_length(edit, i, n, length, most, fps):
     if nxt is not None and 'card' in nxt and nxt.get('at') is not None:
         want = int(round((float(nxt['at']) - start) * fps)) - n
         return max(6, min(most, want))
+    # (A moment of a few frames left alone, and "most" is never past the frames the next shot of the same take shows: lengthened into
+    # them, a one-frame shot and the cut after it showed the same frames twice, the trailer jumped back on every fire and rack, v7. To
+    # the nearest point: shortened only, every section came up 2 s short, v8's first try.)
+    if length < 6:
+        return length
     step = float(beat['period']) / int(beat.get('div', 2))
     grid0 = float(beat['grid0'])
     t_end = start + (n + length) / fps
@@ -295,28 +325,16 @@ def build(edit, out, keep=False):
             last = None
             continue
         t = takes[shot['take']]
-        if 'shot' in shot:
-            fired = [f for f, _, mark, _ in t.marks if mark == 'shot']
-            k = int(shot['shot'])
-            if not 0 <= k < len(fired):
-                raise SystemExit(f'shot {i}: the take has {len(fired)} shot(s), not a shot {k}')
-            first, end = fired[k] - int(shot.get('pre', 6)), fired[k] + int(shot.get('post', 24))
-            # Inside the shot's own camera: frames of the camera before it made a tenth of a second's flash of another view.
-            cams = {f: cam for f, _, _, cam in t.marks}
-            cam = cams.get(fired[k])
-            while first < fired[k] and cams.get(first) != cam:
-                first += 1
-            while end > fired[k] + 1 and cams.get(end - 1) != cam:
-                end -= 1
-        elif 'mark' in shot:
-            start, stop = t.mark_run(shot['mark'], int(shot.get('nth', 0)))
-            first = start + int(shot.get('in', 0))
-            end = start + int(shot['out']) if shot.get('out') is not None else stop
-        else:
-            first, end = int(shot['in']), int(shot['out'])
+        first, end = shot_range(t, shot, i)
         if not 0 <= first < end <= t.frames:
             raise SystemExit(f'shot {i}: frames {first}-{end} outside the take ({t.frames} frames)')
-        end = first + snapped_length(edit, i, n, end - first, t.frames - first, fps)
+        most = t.frames - first
+        nxt = edit['shots'][i + 1] if i + 1 < len(edit['shots']) else None
+        if nxt is not None and nxt.get('take') == shot['take'] and 'card' not in nxt and 'video' not in nxt:
+            nfirst, _ = shot_range(t, nxt, i + 1)
+            if nfirst >= first:
+                most = min(most, max(end - first, nfirst - first))
+        end = first + snapped_length(edit, i, n, end - first, most, fps)
         for f in range(first, end):
             src = os.path.join(t.path, f'f{f:05d}.jpg')
             if not os.path.exists(src):
