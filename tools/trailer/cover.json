@@ -1,15 +1,53 @@
 {
   "fps": 60,
-  "takes": {"c": "showcase/takes/cover-dustbowl-20261109-1410"},
+  "takes": {
+    "c": "showcase/takes/cover-*"
+  },
   "shots": [
-    {"take": "c", "mark": "behind cover", "in": 12},
-    {"take": "c", "mark": "step out", "nth": 0, "in": 20},
-    {"take": "c", "mark": "engage", "nth": 0},
-    {"take": "c", "mark": "back in", "nth": 0, "out": 24},
-    {"take": "c", "mark": "step out", "nth": 1, "in": 8},
-    {"take": "c", "mark": "engage", "nth": 1, "out": 40},
-    {"take": "c", "mark": "back in", "nth": 1},
-    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+    {
+      "take": "c",
+      "mark": "behind cover",
+      "in": 24
+    },
+    {
+      "take": "c",
+      "mark": "step out",
+      "nth": 0,
+      "in": 20
+    },
+    {
+      "take": "c",
+      "mark": "engage",
+      "nth": 0
+    },
+    {
+      "take": "c",
+      "mark": "back in",
+      "nth": 0,
+      "out": 24
+    },
+    {
+      "take": "c",
+      "mark": "step out",
+      "nth": 1,
+      "in": 8
+    },
+    {
+      "take": "c",
+      "mark": "engage",
+      "nth": 1,
+      "out": 40
+    },
+    {
+      "take": "c",
+      "mark": "back in",
+      "nth": 1
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
   ],
   "grade": true
 }

@@ -241,7 +241,7 @@ namespace RavenfieldVR.Core.Showcase
             for (int peek = 0; peek < 2; peek++)
             {
                 rec.Mark = "step out"; // (0.8 s: in 0.55 s the eyes were still at the wall, cover take 2)
-                rec.Shot = peek == 0 ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.FirstPersonAim(aim)) : () => ShowcaseCamera.GunCam(0.06f, 0.07f, 0.08f, 66f);
+                rec.Shot = peek == 0 ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.FirstPersonAim(aim)) : () => OverShoulderAt(Ahead(), 0.75f, 0.32f * _coverSide, 0.1f, 38f); // (over the gun: the gun cam on the face read as firing into the sky)
                 Input.VRInput.SimulatedMove = new Vector2(_coverSide, 0f);
                 yield return Film(rec, 0.8f, u =>
                 {
@@ -263,7 +263,7 @@ namespace RavenfieldVR.Core.Showcase
                     }
                     if (u >= 0.5f)
                     {
-                        rec.Still(peek == 0 ? "cover-sights" : "cover-gun-cam");
+                        rec.Still(peek == 0 ? "cover-sights" : "cover-over-the-gun");
                     }
                 });
                 ReleaseTrigger();

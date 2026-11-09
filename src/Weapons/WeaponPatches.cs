@@ -461,7 +461,8 @@ namespace RavenfieldVR.Weapons
 
         private static void Postfix(Actor __instance)
         {
-            if (!VRManager.Active || __instance == null || __instance.aiControlled || __instance.dead || !ReferenceEquals(__instance, LocalPlayer.actor))
+            if (!VRManager.Active || __instance == null || __instance.aiControlled || __instance.dead || !ReferenceEquals(__instance, LocalPlayer.actor)
+                || Core.Showcase.Showcase.BodyLooksAhead) // (a showcase take with the gun down at the hip: the body bent double after it)
             {
                 return;
             }

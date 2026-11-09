@@ -84,6 +84,7 @@ namespace RavenfieldVR.Core.Showcase
                     LetGoHands();
                     ReleaseTrigger();
                     SecondWeapon.TestTrigger = false;
+                    BodyLooksAhead = false;
                     if (!Mathf.Approximately(Time.timeScale, 1f) && GameManager.instance != null)
                     {
                         GameManager.SetTimeScale(1f); // (a slow-motion scene that threw half way)
@@ -433,7 +434,24 @@ namespace RavenfieldVR.Core.Showcase
                 _gripPos = inv * (raw.position - eyeNow);
                 _gripRot = inv * raw.rotation;
             }
-            Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(target + aimRot * _gripPos, aimRot * _gripRot);
+            // Where the gun really points against where the scene put it last frame (the grip measured once, the two-handed aim
+            // through the other hand's grasp point, a heavy gun's lag, the kick): the sights stood 7-10 degrees off the soldier the
+            // scene aimed at, beside him in every first-person shot (the user, 2026-11-09: "the player just aims beside"). A slow
+            // correction of that, a fifth of it a frame, at most 1.5 degrees a frame and 15 in all (no ping-pong with the hand's lag).
+            if (ReferenceEquals(_placedGun, held) && Time.frameCount != _fixFrame && Time.frameCount - _fixFrame <= 2 && support == _fixSupport)
+            {
+                Quaternion err = Quaternion.FromToRotation(gunFwd, _placedSight.rotation * Vector3.forward);
+                Quaternion step = Quaternion.RotateTowards(Quaternion.identity, Quaternion.Slerp(Quaternion.identity, err, 0.2f), 1.5f);
+                _aimFix = Quaternion.RotateTowards(Quaternion.identity, step * _aimFix, 15f);
+            }
+            else if (Time.frameCount != _fixFrame)
+            {
+                _aimFix = Quaternion.identity;
+            }
+            _fixFrame = Time.frameCount;
+            _fixSupport = support;
+            Quaternion placeRot = _aimFix * aimRot;
+            Rig.VRHand.Scripted[(int)dom.Side] = new Runtime.RigidPose(target + placeRot * _gripPos, placeRot * _gripRot);
             _placedSight = new Runtime.RigidPose(target, aimRot);
             _placedGun = held;
             // The support hand where the handguard is to be (the gun's own geometry, turned to the aim about its sight at the target), not
@@ -441,7 +459,7 @@ namespace RavenfieldVR.Core.Showcase
             // shots and stood pointing up after the burst (take 6, 2026-11-08).
             if (support)
             {
-                Support(held, rig, target + aimRot * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow)));
+                Support(held, rig, target + placeRot * (Quaternion.Inverse(gunNow) * (held.Rig.ToWorld(held.Rig.Data.SupportPoint) - eyeNow)));
             }
         }
 
@@ -449,6 +467,22 @@ namespace RavenfieldVR.Core.Showcase
         private static bool PistolCup;
 
         private static HeldWeapon _gripOf, _placedGun;
+        private static Quaternion _aimFix = Quaternion.identity;
+        private static int _fixFrame = -10;
+        private static bool _fixSupport;
+
+        /// <summary>How far (degrees) the gun's real sight line is off the one the scene put it on (for the scenes' reports).</summary>
+        private static float AimOff()
+        {
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            if (held == null || !ReferenceEquals(held, _placedGun))
+            {
+                return -1f;
+            }
+            SightLine sight = held.CurrentSight;
+            Vector3 fwd = held.Rig.DirToWorld(sight != null ? sight.EyeDirection : held.Rig.Data.EyeDirection);
+            return Vector3.Angle(fwd, _placedSight.rotation * Vector3.forward);
+        }
         private static Vector3 _gripPos;
         private static Quaternion _gripRot;
         private static Runtime.RigidPose _placedSight;

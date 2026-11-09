@@ -71,12 +71,26 @@ namespace RavenfieldVR.Core.Showcase
             List<Shown> shown = shot.ShowBody ? ShowBody(!shot.FromEyes) : null;
             Weapons.HolsterDisplay holsters = shot.HideHolstered && Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Holsters : null;
             holsters?.HideForRender(true);
+            // Seen from outside, the soldier's own arms and hands hold the gun (ShowcaseBody leads them to the weapon's hands): the
+            // weapon's first-person arms and the gloves are not drawn then (the user, 2026-11-09, on the arms: "this happens in every
+            // clip which is very bad"). From the eyes they are drawn as in play, and the body is not.
+            List<Renderer> hidden = shot.ShowBody && !shot.FromEyes ? HideHands() : null;
             try
             {
                 cam.Render();
             }
             finally
             {
+                if (hidden != null)
+                {
+                    foreach (Renderer back in hidden)
+                    {
+                        if (back != null)
+                        {
+                            back.enabled = true;
+                        }
+                    }
+                }
                 holsters?.HideForRender(false);
                 if (shown != null)
                 {
@@ -84,6 +98,43 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 cam.targetTexture = null;
             }
+        }
+
+        /// <summary>The weapon's first-person arms and the gloves switched off for one picture; the ones that were on, to switch on again.</summary>
+        private static List<Renderer> HideHands()
+        {
+            var off = new List<Renderer>();
+            void Hide(Renderer r)
+            {
+                if (r != null && r.enabled)
+                {
+                    r.enabled = false;
+                    off.Add(r);
+                }
+            }
+            Weapons.HeldWeapon held = Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Held : null;
+            if (held != null && held.Rig != null && held.Rig.ArmRenderers != null)
+            {
+                foreach (Renderer r in held.Rig.ArmRenderers)
+                {
+                    Hide(r);
+                }
+            }
+            VRRig rig = VRRig.Instance;
+            if (rig != null)
+            {
+                foreach (VRHand hand in rig.Hands)
+                {
+                    if (hand != null && hand.Model != null && hand.Model.Root != null)
+                    {
+                        foreach (Renderer r in hand.Model.Root.GetComponentsInChildren<Renderer>())
+                        {
+                            Hide(r);
+                        }
+                    }
+                }
+            }
+            return off;
         }
 
         private static UnityEngine.Rendering.PostProcessing.PostProcessLayer _pp;
@@ -218,7 +269,7 @@ namespace RavenfieldVR.Core.Showcase
         internal static Shot FirstPerson(float fov = 62f, bool lens = false)
         {
             Transform h = Head;
-            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = lens, ShowBody = true, FromEyes = true };
+            return h == null ? Shot.None : new Shot { Valid = true, Name = "first person", Position = h.position, Rotation = h.rotation, Fov = fov, Lens = lens, ShowBody = false, FromEyes = true };
         }
 
         /// <summary>
@@ -258,7 +309,7 @@ namespace RavenfieldVR.Core.Showcase
             Quaternion at = to.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(to, Vector3.up) : h.rotation;
             float k = Mathf.Clamp01(look);
             k = k * k * (3f - 2f * k);
-            return new Shot { Valid = true, Name = "first person look", Position = h.position, Rotation = Quaternion.Slerp(h.rotation, at, k), Fov = fov, ShowBody = true, FromEyes = true };
+            return new Shot { Valid = true, Name = "first person look", Position = h.position, Rotation = Quaternion.Slerp(h.rotation, at, k), Fov = fov, ShowBody = false, FromEyes = true };
         }
 
         /// <summary>
@@ -286,7 +337,7 @@ namespace RavenfieldVR.Core.Showcase
             k = k * k * (3f - 2f * k);
             return new Shot
             {
-                Valid = true, Name = "first person", ShowBody = true, FromEyes = true, Position = Vector3.Lerp(h.position, eye, k),
+                Valid = true, Name = "first person", ShowBody = false, FromEyes = true, Position = Vector3.Lerp(h.position, eye, k),
                 Rotation = Quaternion.Slerp(h.rotation, Quaternion.LookRotation(dir, h.up), k), Fov = Mathf.Lerp(fov, aimedFov, k), Lens = lens
             };
         }

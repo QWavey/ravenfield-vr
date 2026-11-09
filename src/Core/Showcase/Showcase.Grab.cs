@@ -15,6 +15,13 @@ namespace RavenfieldVR.Core.Showcase
     internal static partial class Showcase
     {
         /// <summary>
+        /// The third-person body aims where the head looks, not along the barrel (Weapons.ThirdPersonAimPatch), while a scene holds the
+        /// gun down at the hip: following a barrel pointed at the ground, the body bent double over the soldier it took hold of (grab
+        /// takes, 2026-11-09: the user, "grab positions are very wrong").
+        /// </summary>
+        internal static bool BodyLooksAhead;
+
+        /// <summary>
         /// A soldier of the other side put <paramref name="ahead"/> m in front facing the player, his AI paused so he stands (the
         /// autotest's Bring: out of a seat, a squad where he had none, his look set). Null when none could be put there.
         /// </summary>
@@ -101,6 +108,7 @@ namespace RavenfieldVR.Core.Showcase
             }
             VRHand off = rig.Off;
             int side = (int)off.Side;
+            BodyLooksAhead = true; // (upright, not bent after the lowered barrel; off again after the pass, Showcase.Run)
             // The rifle down at the hip, pointing at the ground, before he is brought (slowly: no bash on the way): held out at low
             // ready, it bashed the soldier dead as he appeared at arm's length (Dustbowl take 1, the gore mod's blood everywhere).
             Transform head = rig.Head;
@@ -141,7 +149,9 @@ namespace RavenfieldVR.Core.Showcase
                 GunPose g0 = Low();
                 PlaceGun(g0.At, g0.Aim, false);
             }
-            Vector3 chest = soldier.CenterPosition() + Vector3.up * 0.2f;
+            // By the collar (high on the chest, below the neck), as a hand takes a man to throw him; at the middle of the chest the hand
+            // sat low and the side view looked like a hug.
+            Vector3 chest = soldier.CenterPosition() + Vector3.up * 0.35f;
             Vector3 start = off.PalmCentre;
             Vector3 between = Vector3.Lerp(rig.Head.position, chest, 0.5f) - Vector3.up * 0.4f;
             float camSide = off.IsLeft ? -1f : 1f; // (on the gun hand's side: the free arm reaching toward the camera's far side)

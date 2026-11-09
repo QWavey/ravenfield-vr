@@ -183,7 +183,7 @@ namespace RavenfieldVR.Core.Showcase
         /// <summary>
         /// The firefight (about 6 s): three soldiers brought 11-18 m out where the eyes see them, walking in and firing; over the
         /// shoulder as they come, then up into the sights and a burst at the first (first person), the reverse shot behind the second as
-        /// the player fires at him, the third on the gun cam (the face behind the firing gun), the helmet cam on what is left. With
+        /// the player fires at him, the third over the gun (close behind the shoulder, along the barrel), the helmet cam on what is left. With
         /// -rfvr-showcase-night, through the goggles.
         /// </summary>
         private static IEnumerator FightScene(ShowcaseRecorder rec, Action<string> report)
@@ -274,7 +274,7 @@ namespace RavenfieldVR.Core.Showcase
                     // (How far off the target the rounds leave: the muzzle's own line against the line to his chest.)
                     Weapon w = held.Weapon != null ? held.Weapon.GetActiveSubWeapon() : null;
                     Transform m = w != null ? w.CurrentMuzzle() : null;
-                    aimNote = m == null ? "no muzzle" : $"muzzle {Vector3.Angle(m.forward, Chest(target) - m.position):0.0} deg off the chest at {Vector3.Distance(m.position, Chest(target)):0} m, sight {Vector3.Angle(g.Aim * Vector3.forward, Chest(target) - g.At):0.0} deg";
+                    aimNote = m == null ? "no muzzle" : $"muzzle {Vector3.Angle(m.forward, Chest(target) - m.position):0.0} deg off the chest at {Vector3.Distance(m.position, Chest(target)):0} m, the gun's sight {AimOff():0.0} deg off its aim";
                 }
             });
             ReleaseTrigger();
@@ -299,10 +299,11 @@ namespace RavenfieldVR.Core.Showcase
             });
             ReleaseTrigger();
 
-            // The last on the gun cam: the face behind the gun as it fires.
-            rec.Mark = "gun cam";
-            rec.Shot = () => ShowcaseCamera.GunCam(0.06f, 0.07f, 0.08f, 66f);
+            // The last over the gun: close behind the shoulder, along the barrel to him (the gun cam on the face here read as firing into
+            // the sky: the user, 2026-11-09, "sometimes the player just shoots into the air").
             Actor third = Other(first, second);
+            rec.Mark = "over the gun";
+            rec.Shot = () => OverShoulderAt(Chest(third), 0.75f, 0.32f, 0.1f, 38f);
             yield return Film(rec, 0.8f, u =>
             {
                 target = third;
@@ -312,7 +313,7 @@ namespace RavenfieldVR.Core.Showcase
                 FireAt(third, u > 0.12f);
                 if (u >= 0.6f)
                 {
-                    rec.Still("fight-gun-cam");
+                    rec.Still("fight-over-the-gun");
                 }
             });
             ReleaseTrigger();

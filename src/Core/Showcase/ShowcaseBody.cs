@@ -8,14 +8,12 @@ namespace RavenfieldVR.Core.Showcase
 {
     /// <summary>
     /// The player's body as the cinematic cameras see it during a showcase take: the game animates it on its own (its facing, its aim
-    /// pose holding a gun that is not there), while the gun and the gloves follow the VR hands, so in third person the gun floated beside
-    /// the body and its arms held nothing (take 5, 2026-11-08). Each frame before rendering (after the rig, the gun and its arms are
-    /// placed): the body turned to the headset's facing and put under it, its head looking where the headset looks, each arm led into
-    /// the hand that is drawn. With the weapon's own arms (the user's setting, WeaponArms) the body's upper arm goes to the weapon arm's
-    /// elbow and its forearm and hand fold away: one arm, the weapon's hand at its end (a pistol's arms are forearms only, and their
-    /// sleeves ended in spikes in the air). With a glove (a weapon that draws no arm on that side) the arm reaches the glove's cuff
-    /// (two-bone IK, the elbow down and out), the body's hand tucked inside it. Showcase takes only; the scales set (the animator sets
-    /// none) are put back at the end.
+    /// pose holding a gun that is not there), while the gun follows the VR hands, so in third person the gun floated beside the body
+    /// and its arms held nothing (take 5, 2026-11-08). Each frame before rendering (after the rig, the gun and its arms are placed):
+    /// the body turned to the headset's facing and put under it, its head looking where the headset looks, each arm reaching the hand
+    /// that holds the gun (the weapon's own hand bone, else the glove: two-bone IK, the elbow down and out, the forearm stretched along
+    /// its length when out of reach), the soldier's own hands at the ends. From outside only: from the eyes the body is not drawn and
+    /// the weapon's own arms are (ShowcaseCamera). Showcase takes only; the scales set (the animator sets none) are put back at the end.
     /// </summary>
     internal static class ShowcaseBody
     {
@@ -33,9 +31,6 @@ namespace RavenfieldVR.Core.Showcase
             }
             _on = true;
             Application.onBeforeRender += Pose; // (after the mod's own: the rig, the gun and the gloves are placed first)
-            _unfolder = new GameObject("RavenfieldVR showcase unfold");
-            UnityEngine.Object.DontDestroyOnLoad(_unfolder);
-            _unfolder.AddComponent<Unfolder>();
         }
 
         internal static void End()
@@ -46,12 +41,6 @@ namespace RavenfieldVR.Core.Showcase
             }
             _on = false;
             Application.onBeforeRender -= Pose;
-            Unfold();
-            if (_unfolder != null)
-            {
-                UnityEngine.Object.Destroy(_unfolder);
-                _unfolder = null;
-            }
             Fold(null, false);
             foreach (KeyValuePair<Transform, Vector3> kv in Own)
             {
@@ -134,7 +123,10 @@ namespace RavenfieldVR.Core.Showcase
                 ang -= 360f;
             }
             head.rotation = Quaternion.AngleAxis(Mathf.Clamp(ang, -70f, 70f), axis) * head.rotation;
-            // The arms into the hands that are drawn: the weapon's own arms (at their elbows), else the gloves.
+            // The arms to the hands that hold the gun: the weapon's own hand bones (where its first-person arms put them; those arms are
+            // not drawn from outside, ShowcaseCamera.HideHands), else the glove; the soldier's own hands at their ends. One arm and one
+            // hand from the shoulder to the gun, the soldier's (the user, 2026-11-09: the body's upper arm into the weapon's forearm
+            // made blocks and a ballooned sleeve "in every clip").
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             ArmIK weaponArms = held != null && held.ArmsShownByMod && VRConfig.HandsNow == HandsMode.WeaponArms ? held.Arms : null;
             foreach (VRHand hand in rig.Hands)
@@ -153,95 +145,15 @@ namespace RavenfieldVR.Core.Showcase
                 }
                 up.localScale = OwnScale(up);
                 low.localScale = OwnScale(low);
-                wrist.localScale = OwnScale(wrist) * 0.001f; // (inside the glove's cuff, or folded away with the forearm)
-                if (weaponArms != null && weaponArms.Chain(ReferenceEquals(hand, rig.Dominant), out Transform wRoot, out Transform wUp, out Transform wLow, out _))
-                {
-                    ToElbow(up, low, wLow.position);
-                    FoldUpper(wRoot, wUp, wLow);
-                    continue;
-                }
-                Transform glove = hand.Model.Root;
-                // The glove's cuff (palm space: +Z the fingers, its wrist row at -0.058): the sleeve ends just inside it.
-                Vector3 target = glove.TransformPoint(new Vector3(0f, 0f, -0.075f));
+                wrist.localScale = OwnScale(wrist);
+                Vector3 target = weaponArms != null && weaponArms.Chain(ReferenceEquals(hand, rig.Dominant), out _, out _, out _, out Transform wHand)
+                    ? wHand.position
+                    : hand.Model.Root.TransformPoint(new Vector3(0f, 0f, -0.04f)); // (the glove's wrist: palm space, +Z the fingers)
                 Vector3 outward = Vector3.ProjectOnPlane(up.position - hips.position, Vector3.up).normalized;
                 Vector3 pole = up.position + Vector3.down * 0.5f + outward * 0.35f - lookFlat * 0.15f;
                 TwoBone(up, low, wrist, target, pole);
             }
         }
-
-        /// <summary>
-        /// The body's upper arm laid from its shoulder to the weapon arm's elbow, stretched or shortened along its length to reach it
-        /// (at most 2x, at least half), the body's forearm and hand folded into the elbow: the weapon's sleeve goes on from there.
-        /// </summary>
-        private static void ToElbow(Transform upper, Transform lower, Vector3 elbow)
-        {
-            lower.localScale = OwnScale(lower) * 0.001f;
-            Vector3 s = upper.position;
-            float a = Vector3.Distance(s, lower.position);
-            Vector3 toT = elbow - s;
-            if (a < 1e-4f || toT.sqrMagnitude < 1e-8f)
-            {
-                return;
-            }
-            upper.rotation = Quaternion.FromToRotation(lower.position - s, toT) * upper.rotation;
-            StretchToward(upper, lower, Mathf.Clamp(toT.magnitude / a, 0.5f, 2f));
-        }
-
-        /// <summary>The weapon arms' bones folded for this frame's pictures: each with what it had (put back by <see cref="Unfold"/>).</summary>
-        private static readonly List<(Transform root, Vector3 rootLocal, Transform upper, Vector3 upperScale, Transform lower, Vector3 lowerScale)> FoldedArms =
-            new List<(Transform, Vector3, Transform, Vector3, Transform, Vector3)>();
-
-        /// <summary>
-        /// The weapon arm's upper arm folded into its elbow for this frame's pictures: the arm's root moved so the upper bone sits on the
-        /// elbow, the upper bone made tiny and the forearm made as much bigger (its place, turn and size the same: the forearm and the
-        /// hand exactly where the weapon's own solve put them). Every part of the sleeve that hangs on the upper bone goes into the
-        /// elbow, inside the end of the body's upper arm: the end of a forearm-only sleeve (a pistol's) bent toward the weapon's own
-        /// shoulder and stuck out of the body's arm in spikes. Put back in the next frame's Update, before the weapon's solve reads it.
-        /// </summary>
-        private static void FoldUpper(Transform root, Transform upper, Transform lower)
-        {
-            if (root == null || upper == null || lower == null || FoldedArms.Exists(f => f.upper == upper))
-            {
-                return; // (folded already this frame)
-            }
-            Vector3 elbow = lower.position;
-            FoldedArms.Add((root, root.localPosition, upper, upper.localScale, lower, lower.localScale));
-            Quaternion lowRot = lower.rotation;
-            upper.localScale *= 0.001f;
-            lower.localScale *= 1000f;
-            root.position += elbow - upper.position;
-            lower.rotation = lowRot;
-        }
-
-        /// <summary>The weapon arms as their own solve left them (the frame's pictures are taken): each frame's Update.</summary>
-        private static void Unfold()
-        {
-            for (int i = FoldedArms.Count - 1; i >= 0; i--)
-            {
-                (Transform root, Vector3 rootLocal, Transform upper, Vector3 upperScale, Transform lower, Vector3 lowerScale) = FoldedArms[i];
-                if (upper != null)
-                {
-                    upper.localScale = upperScale;
-                }
-                if (lower != null)
-                {
-                    lower.localScale = lowerScale;
-                }
-                if (root != null)
-                {
-                    root.localPosition = rootLocal;
-                }
-            }
-            FoldedArms.Clear();
-        }
-
-        /// <summary>Puts the folded weapon arms back each frame before anything reads them (the weapon's solve runs before rendering).</summary>
-        private sealed class Unfolder : MonoBehaviour
-        {
-            private void Update() => Unfold();
-        }
-
-        private static GameObject _unfolder;
 
         /// <summary>
         /// A bone scaled along the local axis that points at its child (the bone's length) by <paramref name="k"/>: the child moves out
