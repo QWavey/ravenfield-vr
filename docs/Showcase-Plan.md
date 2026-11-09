@@ -56,6 +56,13 @@ The user's favourite so far: `showcase/clips/07-montage-3-maps-23-beats-KEEP.mp4
    sleeve shows no spikes.
 9. **Check every take before the next**: `showcase_take.py` (frames, sync, events, ping-pong jitter), a contact sheet, a look at the frames.
 
+**The trailer** (2026-11-09): every scene has its own edit in `tools/trailer/` (inspect, pilot-walk, fight-day, fight-night, cover,
+grab, slowmo, grenade, scope, pistol-tight, montage-v5), each taking the newest take of its scene (`showcase/takes/SCENE-*`); each is cut
+alone into a clip, and `bash tools/trailer/make-trailer-v1.sh` joins them with the cards into `tools/trailer/trailer-v1.json`
+(`make_trailer.py`: the scene edits' own closing cards dropped, their take names made unique), cut with `tools/trailer.py` like any
+edit. Order: cold open (the gun turned in the hands, a shot), the title, the fight by day, cover, the grab, the night fight through the
+goggles, slow motion, a grenade, "FULL MOD SUPPORT", the 3-map montage, the end card.
+
 Clips are kept and named in `showcase/clips/NN-scene-map-what.mp4`; `python -I tools/showcase_all.py` joins all of them into
 `showcase/showcase-all.mp4` (the user: "at the end always produce a full combined clip so i can see everything you did").
 
