@@ -387,10 +387,10 @@ namespace RavenfieldVR.Core.Showcase
         /// A camera on the helmet: just behind it, a little right and above, rigid with the head and looking where it looks (converging 25
         /// m ahead), the helmet big in the lower left and the gun ahead of it. Found by chance: an over-the-shoulder view pushed in by a
         /// rock behind the player (take 7, frame 251), and the user wanted it kept ("we can take that as a additional helmet camera").
-        /// A little higher and further back since the body's upper arm leads into the weapon's elbow (2026-11-09): raised to aim, that
-        /// arm filled half of the old view.
+        /// Higher, further back and over the other shoulder since the body's own arms hold the gun (2026-11-09): the gun arm, raised to
+        /// aim, filled half of the view from behind the gun shoulder.
         /// </summary>
-        internal static Shot HelmetCam(float back = 0.4f, float side = 0.15f, float up = 0.15f, float fov = 50f)
+        internal static Shot HelmetCam(float back = 0.42f, float side = -0.13f, float up = 0.2f, float fov = 50f)
         {
             Transform h = Head;
             if (h == null)

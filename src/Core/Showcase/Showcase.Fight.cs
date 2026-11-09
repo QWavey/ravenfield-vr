@@ -303,7 +303,7 @@ namespace RavenfieldVR.Core.Showcase
             // the sky: the user, 2026-11-09, "sometimes the player just shoots into the air").
             Actor third = Other(first, second);
             rec.Mark = "over the gun";
-            rec.Shot = () => OverShoulderAt(Chest(third), 0.75f, 0.32f, 0.1f, 38f);
+            rec.Shot = () => OverShoulderAt(Chest(third), 0.85f, 0.45f, 0.16f, 38f);
             yield return Film(rec, 0.8f, u =>
             {
                 target = third;

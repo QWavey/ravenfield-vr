@@ -128,9 +128,31 @@ namespace RavenfieldVR.Core.Showcase
                 held.SetTwoHanded(false);
                 off.Role = HandRole.Free;
             }
+            // Every other soldier nearby quiet for the take (their AI paused, back after): standing paused at arm's length, he was shot
+            // dead by the player's own side before the hand came (grab take of 14:34, the picture pass), as the autotest's soldier check
+            // found before.
+            var quiet = new System.Collections.Generic.List<Actor>();
+            if (ActorManager.instance != null)
+            {
+                foreach (Actor a in ActorManager.instance.actors)
+                {
+                    if (a != null && a.aiControlled && !a.dead && a.controller != null && a.controller.enabled && (a.Position() - rig.Head.position).sqrMagnitude < 150f * 150f)
+                    {
+                        a.controller.enabled = false;
+                        quiet.Add(a);
+                    }
+                }
+            }
             Actor soldier = StandBefore(0.7f);
             if (soldier == null)
             {
+                foreach (Actor a in quiet)
+                {
+                    if (a != null && a.controller != null)
+                    {
+                        a.controller.enabled = true;
+                    }
+                }
                 report("showcase grab: NO SOLDIER to take hold of");
                 yield break;
             }
@@ -245,6 +267,13 @@ namespace RavenfieldVR.Core.Showcase
             if (soldier.controller != null)
             {
                 soldier.controller.enabled = true; // (his AI back: the game goes on with him)
+            }
+            foreach (Actor a in quiet)
+            {
+                if (a != null && a.controller != null)
+                {
+                    a.controller.enabled = true;
+                }
             }
         }
     }
