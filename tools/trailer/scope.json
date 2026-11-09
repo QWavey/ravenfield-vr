@@ -1,0 +1,18 @@
+{
+  "fps": 60,
+  "takes": {"s": "showcase/takes/scope-*"},
+  "shots": [
+    {"take": "s", "mark": "aim", "nth": 0, "in": 8},
+    {"take": "s", "mark": "steady"},
+    {"take": "s", "shot": 0, "pre": 0, "post": 24},
+    {"take": "s", "mark": "lower"},
+    {"take": "s", "mark": "bolt reaching", "in": 6},
+    {"take": "s", "mark": "bolt taking"},
+    {"take": "s", "mark": "bolt pulling back"},
+    {"take": "s", "mark": "bolt pushing home"},
+    {"take": "s", "mark": "aim", "nth": 1},
+    {"take": "s", "shot": 1, "pre": 0, "post": 30},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}

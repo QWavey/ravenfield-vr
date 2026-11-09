@@ -393,8 +393,22 @@ namespace RavenfieldVR.Core.Showcase
         /// <summary>For <see cref="ShowcaseGunLife"/>: <see cref="PlaceGun"/> from outside the director.</summary>
         internal static void PlaceGunAt(Vector3 target, Quaternion aimRot, bool support) => PlaceGun(target, aimRot, support);
 
+        /// <summary>The line the scene last aimed the gun along (its sight's): the showcase's rounds go along it (<see cref="AimedDirection"/>).</summary>
+        private static Vector3 _aimedAlong;
+        private static int _aimedFrame = -1;
+
+        /// <summary>
+        /// Where a round leaves for: the line the scene aimed along this frame or the last, else the muzzle's own. The mod's recoil turns
+        /// the drawn gun up after each round while the scene holds its sight on the target: fired along the muzzle, the fight's bursts
+        /// climbed 8-10 degrees over three soldiers at 10-14 m and none went down (2026-11-09); the gun is still seen kicking.
+        /// </summary>
+        private static Vector3 AimedDirection(Weapon active) =>
+            Time.frameCount - _aimedFrame <= 1 && _aimedAlong.sqrMagnitude > 0.5f ? _aimedAlong : active.CurrentMuzzle().forward;
+
         private static void PlaceGun(Vector3 target, Quaternion aimRot, bool support)
         {
+            _aimedAlong = aimRot * Vector3.forward;
+            _aimedFrame = Time.frameCount;
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             VRRig rig = VRRig.Instance;
             if (held == null || rig == null)
@@ -497,7 +511,7 @@ namespace RavenfieldVR.Core.Showcase
             {
                 return false;
             }
-            bool fired = active.Fire(active.CurrentMuzzle().forward, true);
+            bool fired = active.Fire(AimedDirection(active), false);
             active.StopFire();
             if (fired)
             {
@@ -519,7 +533,7 @@ namespace RavenfieldVR.Core.Showcase
             // (The burst's growing spread held at the gun's own base spread: by the game's follow-up spread every round of a burst
             // went wider, and three soldiers at 16-22 m took a 2.5 s burst each without one going down, the rounds over them.)
             active.followupSpreadMagnitude = 0f;
-            active.Fire(active.CurrentMuzzle().forward, true);
+            active.Fire(AimedDirection(active), false);
             if (active.ammo < lastAmmo)
             {
                 ShowcaseCamera.Shake.Add(trauma, 0.8f);
@@ -804,7 +818,7 @@ namespace RavenfieldVR.Core.Showcase
             report("showcase pilot: " + Stage());
             yield return new WaitForSecondsRealtime(1.2f);
             report($"showcase pilot: turned {FaceOpen():0} degrees to the widest view");
-            string rifle = GiveRifle("PATRIOT", "RK-44");
+            string rifle = GiveRifle(MontageGuns()[0], "PATRIOT", "RK-44"); // (a workshop rifle when -rfvr-showcase-guns names one)
             report($"showcase pilot: rifle {rifle ?? "NO RIFLE FOUND (the loadout's own)"}");
             yield return new WaitForSecondsRealtime(0.8f);
             int slot = GunSlot(0);

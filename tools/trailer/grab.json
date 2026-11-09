@@ -1,0 +1,16 @@
+{
+  "fps": 60,
+  "takes": {"g": "showcase/takes/grab-*"},
+  "shots": [
+    {"take": "g", "mark": "reach", "in": 4},
+    {"take": "g", "mark": "grab"},
+    {"take": "g", "mark": "lift"},
+    {"take": "g", "mark": "throw"},
+    {"take": "g", "mark": "flying"},
+    {"take": "g", "mark": "after him", "in": 6},
+    {"take": "g", "mark": "shot"},
+    {"take": "g", "mark": "after", "out": 30},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}

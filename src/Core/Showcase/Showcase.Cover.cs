@@ -240,10 +240,10 @@ namespace RavenfieldVR.Core.Showcase
             // Out past the edge and up into the sights (the step: the move stick sideways, its own walk).
             for (int peek = 0; peek < 2; peek++)
             {
-                rec.Mark = "step out";
+                rec.Mark = "step out"; // (0.8 s: in 0.55 s the eyes were still at the wall, cover take 2)
                 rec.Shot = peek == 0 ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.FirstPersonAim(aim)) : () => ShowcaseCamera.GunCam(0.06f, 0.07f, 0.08f, 66f);
                 Input.VRInput.SimulatedMove = new Vector2(_coverSide, 0f);
-                yield return Film(rec, 0.55f, u =>
+                yield return Film(rec, 0.8f, u =>
                 {
                     aim = EaseOut(u);
                     TurnToward(Ahead(), 3f);
@@ -271,7 +271,7 @@ namespace RavenfieldVR.Core.Showcase
                 rec.Mark = "back in";
                 rec.Shot = peek == 0 ? (Func<ShowcaseCamera.Shot>)(() => ShowcaseCamera.HelmetCam()) : () => BehindCover();
                 Input.VRInput.SimulatedMove = new Vector2(-_coverSide, 0f);
-                yield return Film(rec, 0.55f, u =>
+                yield return Film(rec, 0.8f, u =>
                 {
                     aim = 1f - EaseOut(u);
                     TurnToward(rig.Head.position + _coverFacing * 10f, 4f);

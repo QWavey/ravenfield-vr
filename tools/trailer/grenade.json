@@ -7,7 +7,7 @@
     {"take": "g", "mark": "wind up"},
     {"take": "g", "mark": "throw"},
     {"take": "g", "mark": "flight", "out": 50},
-    {"take": "g", "mark": "blast", "out": 60},
+    {"take": "g", "mark": "blast", "out": 54},
     {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
   ],
   "grade": true

@@ -120,7 +120,7 @@ namespace RavenfieldVR.Core.Showcase
                 held.SetTwoHanded(false);
                 off.Role = HandRole.Free;
             }
-            Actor soldier = StandBefore(0.85f);
+            Actor soldier = StandBefore(0.7f);
             if (soldier == null)
             {
                 report("showcase grab: NO SOLDIER to take hold of");
@@ -173,19 +173,22 @@ namespace RavenfieldVR.Core.Showcase
             // Lifted, side on.
             rec.Mark = "lift";
             rec.Shot = () => sideOn;
-            Vector3 lifted = chest + Vector3.up * 0.18f - flat * 0.1f;
+            Vector3 lifted = chest + Vector3.up * 0.16f - flat * 0.15f; // (lifted and pulled in a little: the throw starts within reach)
             yield return Film(rec, 0.3f, u => { PlaceLow(); PalmAt(Vector3.Lerp(chest, lifted, EaseOut(u)), grip); });
             // Thrown: the hand swung up and away at 6 m/s for eight frames, the grip opened.
             rec.Mark = "throw";
             Vector3 v = (flat + Vector3.up * 0.6f).normalized * 6f;
-            yield return Film(rec, 8f / 60f, u => { PlaceLow(); PalmAt(lifted + v * (u * 8f / 60f), grip, v); });
+            // (The hand moves 0.3 m while it gives him 6 m/s, the game throwing by the hand's speed: moved the 0.8 m that speed makes in
+            // eight frames, the weapon's hand went past the arm's reach and flew off the arm, grab take 2.)
+            Vector3 swing = v.normalized * 0.3f;
+            yield return Film(rec, 8f / 60f, u => { PlaceLow(); PalmAt(lifted + swing * u, grip, v); });
             Input.VRInput.SimulatedGrab[side] = false;
             Rig.VRHand.ScriptedVelocity[side] = Vector3.zero;
             rec.Mark = "flying";
             yield return Film(rec, 0.45f, u =>
             {
                 PlaceLow();
-                PalmAt(lifted + v * (8f / 60f), grip);
+                PalmAt(Vector3.Lerp(lifted + swing, lifted - flat * 0.1f, Ease(u)), grip); // (and back in, following through)
                 if (u >= 0.5f)
                 {
                     rec.Still("grab-thrown");
@@ -194,6 +197,7 @@ namespace RavenfieldVR.Core.Showcase
             // After him: the eyes and the rifle on where he lands, the hand back on the handguard, a shot.
             Rigidbody body = soldier.ragdoll != null && soldier.ragdoll.IsRagdoll() ? soldier.ragdoll.MainRigidbody() : null;
             Vector3 lastWhere = lifted + v * 0.5f;
+            Vector3 thrownFrom = lifted - flat * 0.1f;
             Vector3 Where()
             {
                 Vector3 w = body != null ? body.position : soldier.CenterPosition();
@@ -207,7 +211,6 @@ namespace RavenfieldVR.Core.Showcase
             float aim = 0f;
             rec.Mark = "after him";
             rec.Shot = () => ShowcaseCamera.FirstPersonAim(aim);
-            Vector3 thrownFrom = lifted + v * (8f / 60f);
             yield return Film(rec, 0.5f, u =>
             {
                 aim = EaseOut(u);

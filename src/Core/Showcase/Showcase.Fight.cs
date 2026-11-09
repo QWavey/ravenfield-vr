@@ -243,13 +243,28 @@ namespace RavenfieldVR.Core.Showcase
             yield return Film(rec, 0.35f, u => { aim = EaseOut(u); TurnToward(Chest(target), 4f); GunPose g = AimAt(Chest(target), aim); PlaceGun(g.At, g.Aim, true); });
             rec.Mark = "engage";
             string aimNote = null;
+            // One soldier to each shot, the trigger let go when he falls: fired at whoever stood first, the first burst took all three
+            // and the reverse shot had no one before the camera (Dustbowl, 14:11).
+            Actor Other(params Actor[] not) => enemies.FirstOrDefault(a => a != null && !a.dead && !not.Contains(a)) ?? Next();
+            void FireAt(Actor at, bool fire)
+            {
+                if (fire && !at.dead)
+                {
+                    HoldTrigger(ref ammo, 0.2f);
+                }
+                else
+                {
+                    ReleaseTrigger();
+                }
+            }
+            Actor first = target;
             yield return Film(rec, 0.9f, u =>
             {
-                target = Next();
+                target = first;
                 TurnToward(Chest(target), 4f);
                 GunPose g = AimAt(Chest(target), 1f);
                 PlaceGun(g.At, g.Aim, true);
-                HoldTrigger(ref ammo, 0.2f);
+                FireAt(first, u > 0.1f);
                 if (u >= 0.4f)
                 {
                     rec.Still("fight-sights");
@@ -266,19 +281,17 @@ namespace RavenfieldVR.Core.Showcase
 
             // The reverse: behind the next one as the player fires at him (the camera set where it starts: on a falling soldier it
             // would swing with his ragdoll).
-            ShowcaseCamera.Shot reverse = OverEnemy(Next());
+            Actor second = Other(first);
+            ShowcaseCamera.Shot reverse = OverEnemy(second);
             rec.Mark = "reverse";
             rec.Shot = () => reverse;
             yield return Film(rec, 0.9f, u =>
             {
-                target = Next();
+                target = second;
                 TurnToward(Chest(target), 4f);
                 GunPose g = AimAt(Chest(target), 1f);
                 PlaceGun(g.At, g.Aim, true);
-                if (u > 0.1f)
-                {
-                    HoldTrigger(ref ammo, 0.2f);
-                }
+                FireAt(second, u > 0.3f);
                 if (u >= 0.5f)
                 {
                     rec.Still("fight-reverse");
@@ -289,16 +302,14 @@ namespace RavenfieldVR.Core.Showcase
             // The last on the gun cam: the face behind the gun as it fires.
             rec.Mark = "gun cam";
             rec.Shot = () => ShowcaseCamera.GunCam(0.06f, 0.07f, 0.08f, 66f);
+            Actor third = Other(first, second);
             yield return Film(rec, 0.8f, u =>
             {
-                target = Next();
+                target = third;
                 TurnToward(Chest(target), 4f);
                 GunPose g = AimAt(Chest(target), 1f);
                 PlaceGun(g.At, g.Aim, true);
-                if (u > 0.12f)
-                {
-                    HoldTrigger(ref ammo, 0.2f);
-                }
+                FireAt(third, u > 0.12f);
                 if (u >= 0.6f)
                 {
                     rec.Still("fight-gun-cam");
@@ -307,7 +318,7 @@ namespace RavenfieldVR.Core.Showcase
             ReleaseTrigger();
             rec.Mark = "after";
             rec.Shot = () => ShowcaseCamera.HelmetCam();
-            yield return Film(rec, 0.7f, u => { GunPose g = AimAt(Chest(Next()), 1f); PlaceGun(g.At, g.Aim, true); });
+            yield return Film(rec, 0.7f, u => { GunPose g = AimAt(Chest(third), 1f); PlaceGun(g.At, g.Aim, true); });
             int down = enemies.Count(a => a != null && a.dead);
             Vector3 eye1 = VRRig.Instance.Head.position;
             report($"showcase fight: {down} of {enemies.Count} down{(goggles ? ", through the goggles" : "")}; the soldiers at "

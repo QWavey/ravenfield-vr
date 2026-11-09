@@ -1,0 +1,14 @@
+{
+  "fps": 60,
+  "takes": {"p": "showcase/takes/pilot-*"},
+  "shots": [
+    {"take": "p", "mark": "walk", "in": 30, "out": 110},
+    {"take": "p", "mark": "raise", "in": 10},
+    {"take": "p", "shot": 0, "pre": 0, "post": 14},
+    {"take": "p", "shot": 1, "pre": 0, "post": 14},
+    {"take": "p", "shot": 2, "pre": 0, "post": 20},
+    {"take": "p", "mark": "burst", "in": 0, "out": 70},
+    {"card": "RAVENFIELD VR", "seconds": 1.4, "tail": 1.0}
+  ],
+  "grade": true
+}

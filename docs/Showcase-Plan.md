@@ -97,7 +97,11 @@ Clips are kept and named in `showcase/clips/NN-scene-map-what.mp4`; `python -I t
 | `pistol` (4.5 s) | drawn from the hip holster (a hip camera), brought to the chest, the slide racked by the free hand, cupped two-handed up to the sights, 3 shots (the last on the helmet cam) | yes | written |
 | `grenade` (5 s + fuse) | the free hand takes a grenade beside the rifle (the mod's second weapon), pin, wind-up beside the head (helmet cam on that side), a live throw, followed out to the blast | yes | written |
 | `slowmo` (7 s) | a burst on the helmet cam slowing to a fifth (the game's own slow motion, its sound sinking too) beside the receiver, the cases drifting; the magazine changed at full speed in the slowed world; time back, a shot | yes | written |
-| `scope` | a scoped rifle, its own lens in first person | partly | to write |
+| `scope` | a scoped rifle, its own lens in first person | partly | written |
+| `fight` (4.8 s) | three soldiers 11-18 m out where the eyes see them, walking in and firing: over the shoulder at them, up into the sights and a burst, the reverse shot from behind one of them (a 30-degree lens), the gun cam, the helmet cam; with `--night` through the goggles | yes | filmed (Dustbowl by day, Eagle Base at night) |
+| `cover` (5.5 s) | behind the edge of a wall (found by walking walls to their ends), soldiers out past it; step out, burst, back in (helmet cam), out again on the gun cam | yes | written, re-filming |
+| `grab` (3.5 s) | a soldier at arm's length, the rifle down at the hip; the free hand takes him by the chest, lifts, throws him (side on), the rifle after him and a shot | yes | written, re-filming |
+| `inspect`, `slowmo`, `grenade` | as above, with the first `--guns` rifle | yes | filmed (Coastline, QBZ192) |
 | `brawl` | a soldier grabbed and thrown, a punch | yes | later (needs soldiers brought: the autotest's `Bring`) |
 | mods | MG belt by hand, the M1's clip, the gore mod | yes | after the user picks the mods |
 
