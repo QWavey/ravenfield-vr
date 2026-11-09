@@ -19,6 +19,9 @@ An edit list (JSON):
                                                  black with the title (and a small line under it); "tail": the last shot's sound rings on
     ],
     "grade": true,                               a little contrast, a touch less saturation, a soft vignette
+    "beat": {"start": 6.1, "grid0": 11.36, "period": 0.46875, "div": 2}
+                                                 every shot's end moved onto the music's beat grid; a card with "at" (a
+                                                 second of the song) starts exactly there (the shot before it made to fit)
     "music": {"path": "...", "start": 5.9, "gain": 0.5, "game": 0.85, "fade_in": 0.3, "fade_out": 2.0}
                                                  a track under the game's sound from "start" s at the trailer's start (optional)
     "letterbox": 2.39                            black bars to this picture shape (optional)
@@ -202,6 +205,30 @@ def check(edit):
     return ok
 
 
+def snapped_length(edit, i, n, length, most, fps):
+    """A shot's length in frames moved so it ends on the music (the user, 2026-11-09: "it also needs to match the song ... more"): with
+    the edit's "beat" block ({"start": the song's second at the trailer's start, "grid0": a beat's second in the song, "period": seconds
+    a beat, "div": cuts per beat}) the shot ends on the nearest grid point; when the next shot is a card with "at" (a second of the song),
+    on that second exactly. Never under 6 frames, never past "most" frames (what the take or video has)."""
+    beat = edit.get('beat')
+    if not beat:
+        return length
+    start = float(beat['start'])
+    nxt = edit['shots'][i + 1] if i + 1 < len(edit['shots']) else None
+    if nxt is not None and 'card' in nxt and nxt.get('at') is not None:
+        want = int(round((float(nxt['at']) - start) * fps)) - n
+        return max(6, min(most, want))
+    step = float(beat['period']) / int(beat.get('div', 2))
+    grid0 = float(beat['grid0'])
+    t_end = start + (n + length) / fps
+    k = round((t_end - grid0) / step)
+    for kk in (k, k - 1, k + 1, k - 2):
+        want = int(round((grid0 + kk * step - start) * fps)) - n
+        if 6 <= want <= most:
+            return want
+    return length
+
+
 def build(edit, out, keep=False):
     fps = int(edit.get('fps', 60))
     paths = resolve(edit)
@@ -224,6 +251,7 @@ def build(edit, out, keep=False):
             # A piece of a recorded video (the user's own play, 2026-11-09): seconds "in" to "out", cropped to 16:9 ("crop", ffmpeg's
             # w:h:x:y) and scaled to 1920x1080 at the edit's rate, its own sound with it ("gain").
             a, b = float(shot['in']), float(shot['out'])
+            b = a + snapped_length(edit, i, n, int(round((b - a) * fps)), int(round((b - a + float(shot.get('spare', 1.0))) * fps)), fps) / fps
             vdir = os.path.join(tmp, f'video{i}')
             os.makedirs(vdir)
             vf = (f"crop={shot['crop']}," if shot.get('crop') else '') + f'scale=1920:1080,fps={fps}'
@@ -288,6 +316,7 @@ def build(edit, out, keep=False):
             first, end = int(shot['in']), int(shot['out'])
         if not 0 <= first < end <= t.frames:
             raise SystemExit(f'shot {i}: frames {first}-{end} outside the take ({t.frames} frames)')
+        end = first + snapped_length(edit, i, n, end - first, t.frames - first, fps)
         for f in range(first, end):
             src = os.path.join(t.path, f'f{f:05d}.jpg')
             if not os.path.exists(src):
