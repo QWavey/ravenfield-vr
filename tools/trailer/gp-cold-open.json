@@ -1,0 +1,24 @@
+{
+  "fps": 60,
+  "takes": {},
+  "shots": [
+    {
+      "video": "showcase/gameplay/1109.mp4",
+      "in": 9.6,
+      "out": 11.2,
+      "crop": "2304:1296:0:72"
+    },
+    {
+      "video": "showcase/gameplay/1109.mp4",
+      "in": 34.5,
+      "out": 35.7,
+      "crop": "2304:1296:0:72"
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
+  ],
+  "grade": true
+}

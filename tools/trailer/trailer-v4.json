@@ -1,0 +1,463 @@
+{
+ "fps": 60,
+ "takes": {
+  "fight-day.f": "showcase/takes/fight-dustbowl-*",
+  "grab.g": "showcase/takes/grab-*",
+  "cover-v3.c": "showcase/takes/cover-dustbowl-20261109-1501",
+  "fight-night-v3.f": "showcase/takes/fight-eagle_base_night-*",
+  "slowmo.s": "showcase/takes/slowmo-*",
+  "montage-v7.d1": "showcase/takes/montage-01-hk416-swap-dustbowl-20261109-1437",
+  "montage-v7.t4": "showcase/takes/montage-04-*-temple-*",
+  "montage-v7.d2": "showcase/takes/montage-02-*-dustbowl-*",
+  "montage-v7.t3": "showcase/takes/montage-03-*-temple-*",
+  "montage-v7.k1": "showcase/takes/montage-01-*-canyon-*",
+  "montage-v7.d4": "showcase/takes/montage-04-*-dustbowl-*",
+  "montage-v7.t5": "showcase/takes/montage-05-*-temple-*",
+  "montage-v7.k2": "showcase/takes/montage-02-*-canyon-*",
+  "montage-v7.t6": "showcase/takes/montage-06-*-temple-*",
+  "montage-v7.d3": "showcase/takes/montage-03-*-dustbowl-*",
+  "montage-v7.k6": "showcase/takes/montage-06-*-canyon-*",
+  "montage-v7.d5": "showcase/takes/montage-05-*-dustbowl-*",
+  "montage-v7.t2": "showcase/takes/montage-02-*-temple-*",
+  "montage-v7.k3": "showcase/takes/montage-03-*-canyon-*",
+  "montage-v7.d6": "showcase/takes/montage-06-*-dustbowl-*",
+  "montage-v7.t8": "showcase/takes/montage-08-*-temple-*",
+  "montage-v7.k8": "showcase/takes/montage-08-*-canyon-*",
+  "montage-v7.k5": "showcase/takes/montage-05-*-canyon-*"
+ },
+ "shots": [
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 9.6,
+   "out": 11.2,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 34.5,
+   "out": 35.7,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "card": "RAVENFIELD VR",
+   "seconds": 2.46,
+   "tail": 0.8
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "contact",
+   "in": 30
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "raise"
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "engage"
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "reverse"
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "over the gun"
+  },
+  {
+   "take": "fight-day.f",
+   "mark": "after",
+   "out": 16
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 20.2,
+   "out": 21.6,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "take": "grab.g",
+   "mark": "reach",
+   "in": 4
+  },
+  {
+   "take": "grab.g",
+   "mark": "grab"
+  },
+  {
+   "take": "grab.g",
+   "mark": "lift"
+  },
+  {
+   "take": "grab.g",
+   "mark": "throw"
+  },
+  {
+   "take": "grab.g",
+   "mark": "flying",
+   "out": 6
+  },
+  {
+   "take": "grab.g",
+   "mark": "after him",
+   "in": 4
+  },
+  {
+   "take": "grab.g",
+   "mark": "shot"
+  },
+  {
+   "take": "grab.g",
+   "mark": "after",
+   "out": 30
+  },
+  {
+   "take": "cover-v3.c",
+   "mark": "step out",
+   "nth": 0,
+   "in": 16
+  },
+  {
+   "take": "cover-v3.c",
+   "mark": "engage",
+   "nth": 0
+  },
+  {
+   "take": "cover-v3.c",
+   "mark": "back in",
+   "nth": 0,
+   "out": 40
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 23.3,
+   "out": 25.1,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "take": "fight-night-v3.f",
+   "mark": "contact",
+   "in": 30
+  },
+  {
+   "take": "fight-night-v3.f",
+   "mark": "reverse"
+  },
+  {
+   "take": "fight-night-v3.f",
+   "mark": "over the gun"
+  },
+  {
+   "take": "fight-night-v3.f",
+   "mark": "after",
+   "out": 16
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "burst",
+   "in": 8
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "slowing"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "slow burst"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "slow dropping"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "slow from the pouch"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "slow inserting"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "back"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "shot"
+  },
+  {
+   "take": "slowmo.s",
+   "mark": "after",
+   "out": 24
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 38.2,
+   "out": 39.04,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "card": "FULL MOD SUPPORT",
+   "seconds": 1.5,
+   "tail": 0.8,
+   "sub": "every workshop gun, in your hands"
+  },
+  {
+   "take": "montage-v7.d1",
+   "mark": "dropping",
+   "in": 4
+  },
+  {
+   "take": "montage-v7.d1",
+   "mark": "from the pouch"
+  },
+  {
+   "take": "montage-v7.d1",
+   "mark": "inserting"
+  },
+  {
+   "take": "montage-v7.t4",
+   "in": 4,
+   "out": 82
+  },
+  {
+   "take": "montage-v7.d2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "montage-v7.d2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "montage-v7.d2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "montage-v7.t3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.t3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.k1",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "montage-v7.k1",
+   "mark": "inserting"
+  },
+  {
+   "take": "montage-v7.d4",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "montage-v7.t5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "montage-v7.t5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.k2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "montage-v7.k2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "montage-v7.k2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "montage-v7.t6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "montage-v7.t6",
+   "mark": "inserting"
+  },
+  {
+   "take": "montage-v7.d3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.d3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.k6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "montage-v7.k6",
+   "mark": "inserting"
+  },
+  {
+   "take": "montage-v7.d5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "montage-v7.d5",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.t2",
+   "mark": "rack taking"
+  },
+  {
+   "take": "montage-v7.t2",
+   "mark": "rack pulling back"
+  },
+  {
+   "take": "montage-v7.t2",
+   "mark": "rack let go",
+   "in": 0,
+   "out": 10
+  },
+  {
+   "take": "montage-v7.k3",
+   "shot": 0,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.k3",
+   "shot": 1,
+   "pre": 0,
+   "post": 14
+  },
+  {
+   "take": "montage-v7.d6",
+   "mark": "from the pouch",
+   "in": 0
+  },
+  {
+   "take": "montage-v7.d6",
+   "mark": "inserting"
+  },
+  {
+   "take": "montage-v7.t8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "montage-v7.k8",
+   "in": 4,
+   "out": 70
+  },
+  {
+   "take": "montage-v7.k5",
+   "shot": 0,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "montage-v7.k5",
+   "shot": 1,
+   "pre": 0,
+   "post": 13
+  },
+  {
+   "take": "montage-v7.k5",
+   "shot": 2,
+   "pre": 0,
+   "post": 30
+  },
+  {
+   "card": "REAL GAMEPLAY",
+   "seconds": 0.69,
+   "tail": 0.8
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 16.4,
+   "out": 18.0,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 29.4,
+   "out": 31.8,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 42.9,
+   "out": 44.6,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 49.9,
+   "out": 51.9,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 55.0,
+   "out": 57.0,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 63.8,
+   "out": 66.6,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "video": "showcase/gameplay/1109.mp4",
+   "in": 68.4,
+   "out": 70.81,
+   "crop": "2304:1296:0:72"
+  },
+  {
+   "card": "RAVENFIELD VR",
+   "seconds": 2.6,
+   "tail": 0.8,
+   "sub": "a virtual reality mod"
+  },
+  {
+   "card": "LEAVE YOU FAR BEHIND",
+   "seconds": 2.6,
+   "tail": 0.8,
+   "sub": "music by Lunatic Calm"
+  }
+ ],
+ "grade": true,
+ "music": {
+  "path": "showcase/music/Leave You Far Behind - Lunatic Calm.mp3",
+  "start": 6.1,
+  "gain": 0.7,
+  "game": 0.8,
+  "fade_in": 0.3,
+  "fade_out": 2.6
+ }
+}

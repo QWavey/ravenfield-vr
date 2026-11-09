@@ -184,7 +184,7 @@ def check(edit):
             takes[name] = Take(p)
     ok = True
     for i, shot in enumerate(edit['shots']):
-        if 'card' in shot:
+        if 'card' in shot or 'video' in shot:
             continue
         t = takes.get(shot['take'])
         if t is None:
@@ -218,7 +218,32 @@ def build(edit, out, keep=False):
     sound = []
     last = None  # (take, frame after the last shot) for a card's ring-out
     lines = []
+    exe = take.ffmpeg()
     for i, shot in enumerate(edit['shots']):
+        if 'video' in shot:
+            # A piece of a recorded video (the user's own play, 2026-11-09): seconds "in" to "out", cropped to 16:9 ("crop", ffmpeg's
+            # w:h:x:y) and scaled to 1920x1080 at the edit's rate, its own sound with it ("gain").
+            a, b = float(shot['in']), float(shot['out'])
+            vdir = os.path.join(tmp, f'video{i}')
+            os.makedirs(vdir)
+            vf = (f"crop={shot['crop']}," if shot.get('crop') else '') + f'scale=1920:1080,fps={fps}'
+            r = subprocess.run([exe, '-loglevel', 'error', '-ss', str(a), '-t', str(b - a), '-i', shot['video'], '-vf', vf, '-q:v', '2',
+                                os.path.join(vdir, 'f%05d.jpg')], capture_output=True, text=True)
+            files = sorted(os.listdir(vdir))[:int(round((b - a) * fps))]
+            if r.returncode != 0 or not files:
+                raise SystemExit(f'shot {i}: the video gave no frames ({r.stderr[-300:]})')
+            for f in files:
+                link(os.path.join(vdir, f), os.path.join(frames_dir, f'f{n:05d}.jpg'))
+                n += 1
+            raw = subprocess.run([exe, '-loglevel', 'error', '-ss', str(a), '-t', str(len(files) / fps), '-i', shot['video'], '-vn', '-f', 'f32le',
+                                  '-ac', str(channels), '-ar', str(rate), '-'], capture_output=True).stdout
+            clip = np.frombuffer(raw, dtype=np.float32).reshape(-1, channels).copy() * float(shot.get('gain', 1.0))
+            need = int(round(len(files) / fps * rate))
+            clip = np.concatenate([clip, np.zeros((max(0, need - len(clip)), channels), dtype=np.float32)])[:need]
+            sound.append(faded(clip, rate))
+            lines.append(f'  video {os.path.basename(shot["video"])} {a:.2f}-{b:.2f} ({len(files) / fps:.2f} s)')
+            last = None
+            continue
         if 'card' in shot:
             secs = float(shot.get('seconds', 1.6))
             png = os.path.join(tmp, f'card{i}.png')

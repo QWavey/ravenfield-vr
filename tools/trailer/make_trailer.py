@@ -24,6 +24,9 @@ def part_shots(path, takes):
     for s in edit['shots']:
         if 'card' in s:
             continue
+        if 'video' in s:
+            shots.append(dict(s))  # (a piece of a recorded video: no take)
+            continue
         s = dict(s)
         s['take'] = names[s['take']]
         shots.append(s)

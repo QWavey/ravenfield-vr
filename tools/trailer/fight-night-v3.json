@@ -1,0 +1,32 @@
+{
+  "fps": 60,
+  "takes": {
+    "f": "showcase/takes/fight-eagle_base_night-*"
+  },
+  "shots": [
+    {
+      "take": "f",
+      "mark": "contact",
+      "in": 30
+    },
+    {
+      "take": "f",
+      "mark": "reverse"
+    },
+    {
+      "take": "f",
+      "mark": "over the gun"
+    },
+    {
+      "take": "f",
+      "mark": "after",
+      "out": 16
+    },
+    {
+      "card": "RAVENFIELD VR",
+      "seconds": 1.4,
+      "tail": 1.0
+    }
+  ],
+  "grade": true
+}
