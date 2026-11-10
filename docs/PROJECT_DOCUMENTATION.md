@@ -661,6 +661,19 @@ join from the list, by a friend's invitation, or by address.
   stand-in knocked over** locally stands up where its owner has it after 2.5 s (`InstantGetUpAtPosition`). **A player's name** is a
   `TextMesh` over his stand-in (id 0 of each owner), scaled with the distance. Note: `ActorManager.instance` is the same object in
   every match; a new match is told by its new player actor.
+- **Start choice and lobby (2026-11-10 evening).** `UI/StartChoicePanel.cs` opens once a game start over the main menu (`MainMenu.instance`
+  there, a menu canvas visible, not in a test run); while it is open it is the laser's only target. A joined player outside a match
+  (`following` in `UISystem.Update`): `CanvasManager.HideMenus` disables the game's menu canvases (given back when it ends) and leaves
+  them out of the laser's targets, and the multiplayer panel is reopened whenever it is shut. The host's `NetGame.TellLobby` reads
+  `InstantActionConfigMenu.instance` (selected map and mode, the two soldier counts, `PreviewTerrain.isNight`, respawn time) twice a
+  second and sends `LobbyState` (kind 21: up to 12 lines of text) when the text changed or someone joined.
+- **One speed.** In a session `NetGame.Update` undoes any time scale but 1 (`GameManager.UnpauseGame` + `SetTimeScale(1)`): the game's slow
+  motion, its pause menu's pause, the mod's own dashboard pause.
+- **Loadout.** `ActorInfo` carries, after the weapon in the hands, the slot in the hands and the five slots' entry names; the stand-in
+  is spawned with all of them, changed slots are re-equipped, and `SwitchWeapon(slot)` is called when its hands hold another (checked
+  twice a second: its own AI picks weapons too). An info without that tail (older check code) still reads.
+- **Checks:** `vrshots --lobbycheck` (main menu: choice, panel, following a host made in-process, menus hidden and back);
+  `--netcheck` also makes a hidden Steam lobby (`k_ELobbyTypePrivate`), reads its data back and asks for the list.
 - **Not carried yet:** vehicles (none in a shared match, see above), a soldier knocked over or held (ragdolls are each PC's own), scores, flags and the match's end (each PC counts its
   own), VR hands on the stand-in (the state has head yaw and pitch only), thrown things.
 - **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
