@@ -226,12 +226,43 @@ namespace RavenfieldVR.Sandbox
             Section("The vehicle the tool makes");
             Choice("Side", SideNames, Sandbox.VehicleFriendly ? 1 : 0, i => Sandbox.VehicleFriendly = i == 1);
             var types = (VehicleSpawner.VehicleSpawnType[])Enum.GetValues(typeof(VehicleSpawner.VehicleSpawnType));
-            // (Four to a row: eleven kinds in three rows.)
+            // Tiles, four to a row, each with the picture the game's own preview camera took of it in the main menu (none taken:
+            // the name alone); the chosen one in the accent colour.
+            const float tileHeight = 130f, gap = 8f;
+            float tileWidth = Mathf.Floor((CanvasWidth - 68f - gap * 3f) / 4f);
             for (int from = 0; from < types.Length; from += 4)
             {
-                VehicleSpawner.VehicleSpawnType[] row = types.Skip(from).Take(4).ToArray();
-                int chosen = Array.IndexOf(row, Sandbox.Vehicle);
-                Choice("", row.Select(VehicleName).ToArray(), chosen, i => Sandbox.Vehicle = row[i], 180f);
+                RectTransform row = Row(tileHeight + 8f);
+                for (int c = 0; c < 4 && from + c < types.Length; c++)
+                {
+                    VehicleSpawner.VehicleSpawnType type = types[from + c];
+                    Texture picture = Sandbox.VehiclePicture(type);
+                    Button tile = ButtonIn(row, VehicleName(type), 34f + (3 - c) * (tileWidth + gap), tileWidth, () => Sandbox.Vehicle = type, type == Sandbox.Vehicle);
+                    var tileRect = (RectTransform)tile.transform;
+                    tileRect.sizeDelta = new Vector2(tileWidth, tileHeight);
+                    Text name = tile.GetComponentInChildren<Text>();
+                    if (name != null && picture != null)
+                    {
+                        name.fontSize = 17;
+                        name.alignment = TextAnchor.LowerCenter;
+                        name.rectTransform.offsetMin = new Vector2(6f, 4f);
+                    }
+                    if (picture != null)
+                    {
+                        var shown = new GameObject("Picture", typeof(RectTransform));
+                        shown.layer = 5;
+                        var shownRect = (RectTransform)shown.transform;
+                        shownRect.SetParent(tileRect, false);
+                        // (A square in the tile's upper part: the preview is square.)
+                        shownRect.anchorMin = shownRect.anchorMax = new Vector2(0.5f, 1f);
+                        shownRect.pivot = new Vector2(0.5f, 1f);
+                        shownRect.anchoredPosition = new Vector2(0f, -4f);
+                        shownRect.sizeDelta = new Vector2(tileHeight - 32f, tileHeight - 32f);
+                        RawImage image = shown.AddComponent<RawImage>();
+                        image.texture = picture;
+                        image.raycastTarget = false;
+                    }
+                }
             }
             Gap(6f);
             ActionRow("Empty, for that side: its soldiers get in on their own.", Sandbox.Armed == Sandbox.ToolKind.Vehicle ? "Put away" : "Take the tool", () => TakeOrPutAway(Sandbox.ToolKind.Vehicle),

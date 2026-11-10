@@ -786,6 +786,7 @@ namespace RavenfieldVR.Sandbox
         /// <summary>Once a frame from the UI's update: the lists kept clean (twice a second), the player's own invulnerability held.</summary>
         internal static void Update()
         {
+            RenderVehiclePictures();
             if (!_modeGreeted && InMode)
             {
                 Actor me = LocalPlayer.actor;
@@ -960,6 +961,71 @@ namespace RavenfieldVR.Sandbox
             if (player != null && !player.dead)
             {
                 player.isInvulnerable = on;
+            }
+        }
+
+        // ---- pictures of the vehicles --------------------------------------------------------------------------------
+
+        // The game has no picture of a vehicle in its data: its own vehicle picker renders each one with the main menu's preview
+        // camera (GamePreview.RenderVehiclePreview). The same here, in the main menu, one vehicle every third of a second, kept
+        // for the panel's Vehicles page (the user, 2026-11-10: "no images of the guns or things i want to spawn ... its important").
+        private static readonly Dictionary<VehicleSpawner.VehicleSpawnType, Texture2D> VehiclePictures = new Dictionary<VehicleSpawner.VehicleSpawnType, Texture2D>();
+        private static int _pictureNext;
+        private static float _pictureAt = -1f;
+        private static bool _picturesOff;
+
+        internal static Texture VehiclePicture(VehicleSpawner.VehicleSpawnType type) =>
+            VehiclePictures.TryGetValue(type, out Texture2D picture) && picture != null ? picture : null;
+
+        private static void RenderVehiclePictures()
+        {
+            if (_picturesOff || Util.GameContext.InGame || GamePreview.instance == null || ActorManager.instance == null || MainMenu.instance == null)
+            {
+                return;
+            }
+            GameObject[] prefabs = ActorManager.instance.defaultVehiclePrefabs;
+            VehicleSpawner.VehicleSpawnType[] types = VehicleSpawner.ALL_VEHICLE_TYPES;
+            if (prefabs == null || types == null || _pictureNext >= Mathf.Min(prefabs.Length, types.Length))
+            {
+                return; // (all taken)
+            }
+            if (_pictureAt < 0f)
+            {
+                _pictureAt = Time.unscaledTime + 4f; // (the menu settles first)
+                return;
+            }
+            if (Time.unscaledTime < _pictureAt)
+            {
+                return;
+            }
+            _pictureAt = Time.unscaledTime + 0.35f;
+            int i = _pictureNext++;
+            try
+            {
+                Camera camera = GamePreview.instance.vehiclePreviewCamera;
+                RenderTexture target = camera != null ? camera.targetTexture : null;
+                if (target == null || GamePreview.instance.vehiclePreviewParent == null)
+                {
+                    _picturesOff = true;
+                    Log.Info("Sandbox: the game's vehicle preview is not there; the Vehicles page stays names.");
+                    return;
+                }
+                if (prefabs[i] == null)
+                {
+                    return;
+                }
+                var picture = new Texture2D(target.width, target.height, TextureFormat.ARGB32, false, false) { hideFlags = HideFlags.HideAndDontSave };
+                GamePreview.RenderVehiclePreview(prefabs[i], -1, picture);
+                VehiclePictures[types[i]] = picture;
+                if (_pictureNext >= Mathf.Min(prefabs.Length, types.Length))
+                {
+                    Log.Info($"Sandbox: {VehiclePictures.Count} vehicle picture(s) taken with the game's preview camera ({target.width}x{target.height}).");
+                }
+            }
+            catch (Exception e)
+            {
+                _picturesOff = true;
+                Log.WarnOnce("sandbox-vehicle-pictures", "Sandbox: the vehicles' pictures could not be taken (the page stays names): " + e);
             }
         }
 
