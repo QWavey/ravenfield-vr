@@ -812,7 +812,11 @@ namespace RavenfieldVR.Weapons
             // and the hand does not, so a swing moved a magazine in the well in or out by the lag, or took it off the line and on again,
             // each time flown round to the hand (user, 2026-11-03: "mags ... flying in the air trying to correct their positions").
             RigidPose hold = prop.HoldPose(off);
-            return PoseAlongRail(prop, new RigidPose(hold.position + _held.InertiaLag, hold.rotation), out lateral);
+            // (An en-bloc clip by where it is, not by how the fist turns it: its way in is measured at its tip, and a clip turned
+            // 120 degrees in the hand never reached the seat's depth: "taken onto its way in, NOT SEATED" in the check, and the
+            // user's "putting a new one in doesnt work still".)
+            Quaternion turn = prop.Kind == PropKind.Magazine && Data.EnBloc ? SeatPose.rotation : hold.rotation;
+            return PoseAlongRail(prop, new RigidPose(hold.position + _held.InertiaLag, turn), out lateral);
         }
 
         /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>

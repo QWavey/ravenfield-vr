@@ -1037,7 +1037,9 @@ namespace RavenfieldVR.Sandbox
 
         private static void RenderVehiclePictures()
         {
-            if (_picturesOff || Util.GameContext.InGame || GamePreview.instance == null || ActorManager.instance == null || MainMenu.instance == null)
+            // (Not in a test run: each picture builds a vehicle in the menu, a slow frame, and the menu check's laser clicks
+            // fell into those frames: "the VR settings panel's tabs do not switch", two runs of two, 2026-11-10.)
+            if (_picturesOff || Core.AutoTest.Requested || Util.GameContext.InGame || GamePreview.instance == null || ActorManager.instance == null || MainMenu.instance == null)
             {
                 return;
             }
@@ -1056,7 +1058,7 @@ namespace RavenfieldVR.Sandbox
             {
                 return;
             }
-            _pictureAt = Time.unscaledTime + 0.35f;
+            _pictureAt = Time.unscaledTime + 0.8f; // (one slow frame at a time, well apart)
             int i = _pictureNext++;
             try
             {

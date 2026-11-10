@@ -7187,6 +7187,15 @@ namespace RavenfieldVR.Core
                     }
                     bool counts = held != null && held.Weapon == weapon && held.ActiveAmmo != null && held.ActiveAmmo.Participates
                                   && held.Rig.Data.Action != ActionType.Throwable;
+                    if (counts && held.Rig.Data.EnBloc && !held.ActiveAmmo.MagInserted)
+                    {
+                        // (An en-bloc rifle's clip jumps out when its rod is pulled, since 1.17.2: the rack check before this left
+                        // the gun without one, and it "did not fire". A clip in and the bolt home, as the hand does it.)
+                        held.ActiveAmmo.InsertMagazine(held.ActiveAmmo.Capacity);
+                        held.ActiveAmmo.RackForward();
+                        lines.Add("a clip put in for the shots (the rack check threw its clip out, as the rod's pull does)");
+                        yield return new WaitForSecondsRealtime(0.3f);
+                    }
                     _shots = 0;
                     int casesBefore = Casings.Spawned;
                     float shotKick = 0f, shotBack = 0f, shotImpulse = 0f;
