@@ -290,6 +290,8 @@ namespace RavenfieldVR.Sandbox
                     case SoldierHealth.OneHit:
                         a.health = 1f;
                         break;
+                    case SoldierHealth.Normal:
+                        break;
                 }
                 if (spec.Behaviour == SoldierBehaviour.Frozen)
                 {

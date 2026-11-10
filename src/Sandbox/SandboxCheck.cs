@@ -228,6 +228,10 @@ namespace RavenfieldVR.Sandbox
                     {
                         threw = e.GetType().Name + ": " + e.Message;
                     }
+                    // (A picture of each page, to look its layout over: reports/shots/sandboxcheck.)
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    yield return new WaitForEndOfFrame();
+                    Core.Shots.Capture("sandbox-panel-" + (tab + 1));
                     yield return null;
                 }
                 panel.Close();

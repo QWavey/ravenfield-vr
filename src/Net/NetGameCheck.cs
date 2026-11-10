@@ -166,6 +166,17 @@ namespace RavenfieldVR.Net
                 yield break;
             }
 
+            // (A picture of the panel with the two players in it, to look its layout over: reports/shots/netcheck.)
+            UI.MultiplayerPanel panel = UI.UISystem.Instance != null ? UI.UISystem.Instance.MultiplayerPanel : null;
+            if (panel != null)
+            {
+                panel.Open();
+                yield return For(0.5f);
+                yield return new WaitForEndOfFrame();
+                Core.Shots.Capture("multiplayer-panel-hosting");
+                panel.Close();
+            }
+
             // 2. His soldier here: made, of his side, with his weapon; then walking where he says (2 m/s sideways for 4 s).
             yield return For(1.5f);
             NetGame.Remote remote = Standin();
@@ -257,6 +268,14 @@ namespace RavenfieldVR.Net
             report($"multiplayer second player left: {(NetGame.RemoteCount == 0 && (body == null || body.dead) ? "his soldier went with him" : "HIS SOLDIER NOT REMOVED")}, {Multiplayer.Session.PlayerCount} in the game");
             Multiplayer.Leave();
             report($"multiplayer closed: {(Multiplayer.Active ? "NOT CLOSED" : "closed")}");
+            if (panel != null)
+            {
+                panel.Open(); // (not in a game: host, the list, the address)
+                yield return new WaitForSecondsRealtime(1.5f);
+                yield return new WaitForEndOfFrame();
+                Core.Shots.Capture("multiplayer-panel-list");
+                panel.Close();
+            }
         }
     }
 }

@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -73,6 +73,9 @@ namespace RavenfieldVR.Net
         /// <summary>The check's: how often a stand-in's speed was asked for, and the last answer.</summary>
         internal static int VelocityAsked;
         internal static Vector3 LastVelocity;
+
+        /// <summary>A match is being started here because the host started it (read by the test's own match-size patch).</summary>
+        internal static bool StartingFromNet => _startingFromNet;
 
         internal static int RemoteCount => Remotes.Count;
         internal static IEnumerable<Remote> AllRemotes => Remotes.Values;
@@ -363,6 +366,14 @@ namespace RavenfieldVR.Net
                     case Hit:
                         TakeHit(sender, ref r);
                         break;
+                    case NeedInfo:
+                        // Someone sees my soldiers move and does not know what they are (he loaded the map after I told it,
+                        // and a new scene forgets the old one's soldiers): each is told again.
+                        foreach (Own own in Owned.Values)
+                        {
+                            own.Told = false;
+                        }
+                        break;
                 }
             }
             catch (NetFormatException e)
@@ -464,6 +475,7 @@ namespace RavenfieldVR.Net
             KeepRemotes();
         }
 
+        private static float _nextAsk;
         private static ActorManager _vehiclesOffIn;
         private static float _nextVehicleSweep;
 
@@ -593,7 +605,7 @@ namespace RavenfieldVR.Net
                     if (alive && c != null)
                     {
                         flags |= (c.Crouch() || a.stance == Actor.Stance.Crouch ? Crouched : 0) | (a.stance == Actor.Stance.Prone ? Proned : 0) | (c.IsSprinting() ? Sprinting : 0)
-                                 | (c.WantsToFire() ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0);
+                                 | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0);
                         velocity = a.Velocity();
                         facing = c.FacingDirection();
                     }
@@ -612,6 +624,9 @@ namespace RavenfieldVR.Net
                 }
             }
         }
+
+        /// <summary>A shot within the last fifth of a second (the gun's own clock: however the trigger was pulled, a VR hand included).</summary>
+        private static bool FiredJustNow(Actor a) => a.activeWeapon != null && Time.time - a.activeWeapon.lastFiredTimestamp < 0.2f;
 
         /// <summary>One soldier's state as it goes over the line (19 bytes).</summary>
         internal static void PutState(NetWriter w, ushort id, int flags, Vector3 position, Vector3 velocity, Vector3 facing)
@@ -681,6 +696,12 @@ namespace RavenfieldVR.Net
                 bool alive = r.Is(Alive) && now - r.Heard < 6f; // (silent for six seconds: off the field until heard again)
                 if (a == null)
                 {
+                    if (alive && !r.HasInfo && now >= _nextAsk && _session != null)
+                    {
+                        _nextAsk = now + 2f;
+                        Out.Reset();
+                        _session.SendTo(r.Owner, NeedInfo, Out, true);
+                    }
                     if (!alive || !r.HasInfo)
                     {
                         continue;

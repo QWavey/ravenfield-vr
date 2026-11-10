@@ -7651,7 +7651,8 @@ namespace RavenfieldVR.Core
     {
         private static void Prefix(GameModeParameters parameters)
         {
-            if (!AutoTest.Requested)
+            // (Not a match the multiplayer's host started: its joining side has no soldiers of its own, and the check counts them.)
+            if (!AutoTest.Requested || Net.NetGame.StartingFromNet)
             {
                 return;
             }

@@ -33,8 +33,9 @@ namespace RavenfieldVR.Net
             UdpTransport line = null;
             NetSession host = null;
             string failed = null;
-            int hits = 0;
+            int hits = 0, asked = 0;
             ushort hitVictim = 0;
+            bool infoSent = true; // (as if told before the game here had loaded: it has to ask)
             try
             {
                 line = new UdpTransport(Port);
@@ -45,6 +46,11 @@ namespace RavenfieldVR.Net
                     {
                         hitVictim = r.UShort();
                         hits++;
+                    }
+                    else if (kind == NetGame.NeedInfo)
+                    {
+                        asked++;
+                        infoSent = false; // (told again, as NetGame does on this message)
                     }
                 };
             }
@@ -61,7 +67,7 @@ namespace RavenfieldVR.Net
             // What the host's soldiers do (ids 1..3: two of the other side, one of the player's), told as a real host tells them.
             var w = new NetWriter(512);
             var soldiers = new List<(ushort id, int team, Vector3 at, bool alive)>();
-            bool telling = false, infoSent = false;
+            bool telling = false;
             float nextSend = 0f;
             string weapon = "";
             void Pump()
@@ -126,7 +132,7 @@ namespace RavenfieldVR.Net
             }
 
             // 2. The host starts the match: this game loads the same map, with no soldiers of its own.
-            ActorManager before = ActorManager.instance;
+            Actor before = player; // (the new match has a new player; the actor manager is the same object in every match)
             string scene = map.isCustomMap ? Path.GetFileName(map.sceneName) : map.sceneName;
             string mode = parameters.gameMode != null ? parameters.gameMode.name : "";
             w.Reset();
@@ -139,12 +145,12 @@ namespace RavenfieldVR.Net
             w.Byte(1);
             host.Send(NetGame.MatchStart, w, true);
             by = Time.unscaledTime + 90f;
-            while (Time.unscaledTime < by && (ActorManager.instance == null || ReferenceEquals(ActorManager.instance, before) || LocalPlayer.actor == null))
+            while (Time.unscaledTime < by && (ActorManager.instance == null || LocalPlayer.actor == null || ReferenceEquals(LocalPlayer.actor, before)))
             {
                 Pump();
                 yield return null;
             }
-            bool loaded = ActorManager.instance != null && !ReferenceEquals(ActorManager.instance, before) && LocalPlayer.actor != null;
+            bool loaded = ActorManager.instance != null && LocalPlayer.actor != null && !ReferenceEquals(LocalPlayer.actor, before);
             report($"multiplayer match started by the host ({scene}, {mode}): {(loaded ? "loaded here" : "NOT LOADED")}");
             if (!loaded)
             {
@@ -184,7 +190,8 @@ namespace RavenfieldVR.Net
             yield return For(2.5f);
             List<NetGame.Remote> standins = NetGame.AllRemotes.Where(r => r.Actor != null && !r.Actor.dead).ToList();
             bool sides = standins.All(r => r.Actor.team == soldiers.First(s => s.id == r.Id).team);
-            report($"multiplayer host's soldiers here: {standins.Count} of 3 on the field{(standins.Count != 3 ? " NOT ALL THERE" : "")}{(sides ? "" : " NOT ON THEIR SIDES")}");
+            report($"multiplayer host's soldiers here: {standins.Count} of 3 on the field{(standins.Count != 3 ? " NOT ALL THERE" : "")}{(sides ? "" : " NOT ON THEIR SIDES")}"
+                   + $" (told before this game knew them: it asked {asked} time(s){(asked == 0 ? " NOT ASKED" : "")})");
 
             // 4. One told dead: dead, and still dead after the game's own spawn wave; the match has not ended for want of soldiers.
             soldiers[1] = (2, 1 - team, soldiers[1].at, false);
