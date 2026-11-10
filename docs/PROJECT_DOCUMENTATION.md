@@ -626,6 +626,15 @@ Soldiers, vehicles and weapons made on the spot in any match, for testing. Opene
   shots fired, the player's health), weapons compared by name, health by damage dealt, the quiet field over two spawn waves, a vehicle
   made and removed, a weapon given, the panel's four pages built, the clearing.
 
+**Added 2026-11-10 late (Tasks 376; built, not yet run in the game):**
+
+- **The mode.** `Sandbox.InitMode` (from `UISystem`'s constructor) patches `GameManager.AvailableGameModes` (postfix `AddMode`: a `ScriptableObject.Instantiate` copy of Point Match's `GameModeInfo`, its `name` field set to "Sandbox", `sourceMod` copied by hand because it is not serialized), `GameManager.GetBuiltInGameModeByName` (postfix `FindMode`: saved configurations look a mode up by name), `GameManager.StartLevel` (prefix `OnStartLevel`: `countTeam0/1 = 0`; a restart passes no parameters, so the game's held ones are taken) and `VictoryUi.EndGame` (prefix `HoldEnd`). `Sandbox.InMode` compares `GameManager.instance.gameModeParameters.gameMode` with the copy. In the mode `Sandbox.Update` arms the tool once per match. The map's `GameModeLevelLayout` is matched by the mode's name, so a map's Point Match layout is not used: the default owners are.
+- **Pause.** `Sandbox.Paused` makes the two behaviour postfixes (`WantsToFire`, `Velocity`) hold every AI soldier; reset at a scene change.
+- **Flying.** `Sandbox.FlyTick(head)` (from `SandboxTool.Update`, every frame): while flying the game's `FirstPersonController` is disabled (no gravity, no walking) and the `CharacterController` is moved by `VRGameInput.MoveStick` along the head's forward and its level right, 9 m/s. `_flyHolds` remembers that the controller is off, so death, a seat or turning it off give it back at once.
+- **The tool's hand and model.** `SandboxTool.ToolHand`: the dominant hand while it is tracked, free (or pointing) and no weapon is held, else the off hand; `_side` carries it to `BeforeRender`. `TryModel` (once, at the first showing in a match): the first vanilla secondary whose third-person model lies along z and is 8 to 45 cm long is copied (scripts, colliders, audio, lights off), posed as it sits in the weapon's own frame (`Inverse(root.rotation) * source.rotation`: the game hangs its muzzles on that model, so the weapon's forward is its barrel), its box taken from its mesh bounds because a hidden renderer keeps none.
+- **Pictures.** The Weapons page builds tiles from `WeaponManager.WeaponEntry.uiSprite` (an `Image` with `preserveAspect` over the button, the name under it). Vehicles have no sprite in the game's data.
+- **A log line per pull and per soldier** (`Sandbox tool (...)`, `Sandbox: a soldier made at ...`): the first report of spawning that did nothing on a modded map left no trace.
+
 ### 3.12 Multiplayer (`Net/*`, `UI/MultiplayerPanel.cs`; Tasks 373)
 
 Opened from the VR settings' footer ("Multiplayer"): host over Steam (public or friends) or on a UDP port, Steam's list of open games,
