@@ -41,7 +41,8 @@ namespace RavenfieldVR.Net
 
             UdpTransport line = null;
             NetSession ghost = null;
-            int hitsGot = 0, statesGot = 0, othersHits = 0, knocksGot = 0;
+            int hitsGot = 0, statesGot = 0, othersHits = 0, knocksGot = 0, posesGot = 0, poseFlags = 0;
+            Vector3 poseMuzzle = Vector3.zero;
             float hitDamage = 0f;
             var told = new HashSet<ushort>();
             string failed = null;
@@ -68,6 +69,17 @@ namespace RavenfieldVR.Net
                             hitsGot++;
                             othersHits--;
                         }
+                    }
+                    else if (kind == NetGame.VrPose)
+                    {
+                        posesGot++;
+                        poseFlags = r.Byte();
+                        r.SmallVector();
+                        r.SmallVector();
+                        r.Rotation();
+                        r.SmallVector();
+                        r.Rotation();
+                        poseMuzzle = r.SmallVector();
                     }
                     else if (kind == NetGame.Knock)
                     {
@@ -250,11 +262,28 @@ namespace RavenfieldVR.Net
             infoSent = false;
             yield return For(1.5f);
 
+            // (This game's own player draws a gun first: what he tells of himself is read below, and he spawns empty-handed.)
+            if (player.activeWeapon == null && player.weapons != null && player.weapons[0] != null)
+            {
+                player.SwitchWeapon(0);
+                yield return For(1.5f);
+            }
+            // (And his soldier has the long gun back in his hands: with the sidearm still out, a muzzle told 85 cm in front put the
+            // grip beyond the arm's reach and the hand hung 11 cm short of it.)
+            float longBy = Time.unscaledTime + 4f;
+            while (Time.unscaledTime < longBy && (body.activeWeapon == null || body.activeWeapon != body.weapons[0]))
+            {
+                Pump();
+                yield return null;
+            }
+            yield return For(0.5f);
             // 2c. He is a VR player: his hands and his gun are where he tells them (30 times a second, for two seconds).
             {
                 Vector3 up = Vector3.up, toMe = -forward;
-                Vector3 handR = up * 1.35f + toMe * 0.45f + side * 0.15f, handL = up * 1.75f - side * 0.45f; // gun hand out front, the other raised
-                Vector3 muzzleAt = up * 1.4f + toMe * 0.85f + side * 0.15f;
+                // (He faces the player, so his right is the player's left: -side. With the gun on his left, as first written, the grip was
+                // 62 cm from his right shoulder and his arm is 55 cm long.)
+                Vector3 handR = up * 1.35f + toMe * 0.4f - side * 0.18f, handL = up * 1.75f + side * 0.45f; // gun hand out front, the other raised
+                Vector3 muzzleAt = up * 1.4f + toMe * 0.85f - side * 0.18f;
                 Quaternion muzzleLook = Quaternion.LookRotation((toMe + up * 0.35f).normalized, up); // the gun pointed up a little, at the player
                 var vr = new NetWriter(128);
                 int armsBefore = NetAvatar.ArmsSet;
@@ -265,7 +294,7 @@ namespace RavenfieldVR.Net
                     {
                         nextPose = Time.unscaledTime + 1f / 30f;
                         vr.Reset();
-                        NetAvatar.Put(vr, NetAvatar.HasGun | NetAvatar.LeftHand | NetAvatar.RightHand, toMe, handL, Quaternion.identity, handR, Quaternion.identity, muzzleAt, muzzleLook);
+                        NetAvatar.Put(vr, NetAvatar.HasGun | NetAvatar.LeftHand | NetAvatar.RightHand | NetAvatar.Magazine, toMe, handL, Quaternion.identity, handR, Quaternion.identity, muzzleAt, muzzleLook);
                         ghost.Send(NetGame.VrPose, vr, false);
                     }
                     Pump();
@@ -288,15 +317,29 @@ namespace RavenfieldVR.Net
                 // (The gun hand is on the gun's grip as this soldier holds this gun, wherever the told palm is: measured against the
                 // hand's place on the gun at rest, carried to where the gun is now.)
                 float gripOff = -1f;
+                string reach = "";
                 NetAvatar.Pose pose = remote.Pose;
                 if (pose != null && pose.Model != null && boneR != null && pose.TargetR != null)
                 {
                     gripOff = Vector3.Distance(boneR.position, pose.TargetR.position);
+                    Transform upper = anim.GetBoneTransform(HumanBodyBones.RightUpperArm), lower = anim.GetBoneTransform(HumanBodyBones.RightLowerArm);
+                    if (upper != null && lower != null)
+                    {
+                        float arm = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, boneR.position);
+                        Vector3 inBody = body.transform.InverseTransformPoint(pose.TargetR.position);
+                        reach = $"; the grip is {Vector3.Distance(upper.position, pose.TargetR.position) * 100f:0} cm from his shoulder, his arm is {arm * 100f:0} cm long; in his body's frame the grip is right {inBody.x * 100f:0}, up {inBody.y * 100f:0}, ahead {inBody.z * 100f:0} cm";
+                    }
                 }
                 float gunOff = mz != null ? Vector3.Distance(mz.position, at + muzzleAt) : -1f, gunTurn = mz != null ? Quaternion.Angle(mz.rotation, muzzleLook) : -1f;
                 report($"multiplayer VR player's arms and gun: his soldier's arms set {NetAvatar.ArmsSet - armsBefore} time(s){(NetAvatar.ArmsSet == armsBefore ? " NOT SET" : "")}; "
-                       + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, gun hand {gripOff * 100f:0} cm from where his soldier grips this gun{(gripOff < 0f || gripOff > 0.08f ? " NOT ON THE GRIP" : "")}; "
-                       + $"his gun's muzzle {gunOff * 100f:0} cm off and {gunTurn:0} degrees off his{(gunOff < 0f || gunOff > 0.05f || gunTurn > 5f ? " NOT WHERE HE HOLDS IT" : "")}");
+                       + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, gun hand {gripOff * 100f:0} cm from where his soldier grips this gun ({(pose != null && pose.OwnRight != null ? "the game's own grip point on the gun" : "the hand's place on the gun at rest")}){(gripOff < 0f || gripOff > 0.08f ? " NOT ON THE GRIP" : "")}; "
+                       + reach.TrimStart(';', ' ') + (reach.Length > 0 ? "; " : "") + $"his gun's muzzle {gunOff * 100f:0} cm off and {gunTurn:0} degrees off his{(gunOff < 0f || gunOff > 0.05f || gunTurn > 5f ? " NOT WHERE HE HOLDS IT" : "")}");
+                GameObject box = pose != null ? pose.MagazineBox : null;
+                float boxOff = box != null && box.activeSelf ? Vector3.Distance(box.transform.position, at + handL) : -1f;
+                report($"multiplayer VR player's magazine in his free hand: {(boxOff >= 0f && boxOff < 0.05f ? $"shown, {boxOff * 100f:0} cm from the hand" : "NOT SHOWN")}; "
+                       + $"this game's own player told to him {posesGot} time(s) in the check so far{(posesGot == 0 ? " NOT TOLD" : "")}"
+                       + (posesGot > 0 ? $": hands {((poseFlags & NetAvatar.LeftHand) != 0 ? "left " : "")}{((poseFlags & NetAvatar.RightHand) != 0 ? "right " : "")}tracked, "
+                                         + $"{((poseFlags & NetAvatar.HasGun) != 0 ? $"his gun's muzzle {poseMuzzle.magnitude:0.00} m from his feet" : "no gun in hand")}" : ""));
                 yield return For(1f);
             }
 

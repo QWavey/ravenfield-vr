@@ -1074,6 +1074,23 @@ namespace RavenfieldVR.Net
                         else if (now - r.FallenSince > 2.5f)
                         {
                             r.FallenSince = -1f;
+                    // A player's soldier stands turned the way the player does (his head's way when he is in VR, else his aim's): the
+                    // game turns a soldier's body only into his walk, so one who had walked sideways stood sideways to his own gun,
+                    // and the gun hand could not reach its grip across the chest (10 cm short in the check, 2026-11-10).
+                    if (r.Id == 0 && !a.IsSeated() && !a.IsOnLadder())
+                    {
+                        Vector3 way = r.Pose != null && r.Pose.Fresh ? r.Pose.HeadForward : r.Facing;
+                        way.y = 0f;
+                        if (way.sqrMagnitude > 1e-4f)
+                        {
+                            Quaternion turned = Quaternion.RotateTowards(a.transform.rotation, Quaternion.LookRotation(way, Vector3.up), 540f * Time.deltaTime);
+                            a.transform.rotation = turned;
+                            if (a.rigidbody != null)
+                            {
+                                a.rigidbody.rotation = turned;
+                            }
+                        }
+                    }
                             a.InstantGetUpAtPosition(r.Position);
                         }
                         continue;

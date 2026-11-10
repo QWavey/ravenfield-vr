@@ -18,7 +18,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetAvatar
     {
-        internal const int HasGun = 1, LeftHand = 2, RightHand = 4, GunInLeft = 8;
+        internal const int HasGun = 1, LeftHand = 2, RightHand = 4, GunInLeft = 8, Magazine = 16;
         private const float SendEvery = 1f / 30f, FreshFor = 0.6f;
 
         /// <summary>What a VR player's game told last, and where the stand-in's hands and gun are being eased to.</summary>
@@ -43,6 +43,15 @@ namespace RavenfieldVR.Net
             public Vector3 MuzzleInModel;
             public Quaternion MuzzleRotInModel;
             public bool GunPlaced;
+
+            /// <summary>The magazine in his free hand, as a plain dark box (the gun's own magazine model is the weapon mod's; this shows the reload's moves).</summary>
+            public GameObject MagazineBox;
+
+            /// <summary>The game's own right-hand target on this gun, or (with none) the hand bone's place on the gun taken once, before ours moved it.</summary>
+            public Transform OwnRight;
+            public bool GripKnown;
+            public Vector3 GripInModel;
+            public Quaternion GripRotInModel;
 
             /// <summary>The game's own left-hand target on this gun (kept while ours stands in for it).</summary>
             public Transform OwnLeft;
@@ -73,6 +82,10 @@ namespace RavenfieldVR.Net
             if (remote.Pose != null)
             {
                 GiveBack(remote.Pose);
+                if (remote.Pose.MagazineBox != null)
+                {
+                    Object.Destroy(remote.Pose.MagazineBox);
+                }
                 if (remote.Pose.TargetL != null)
                 {
                     Object.Destroy(remote.Pose.TargetL.gameObject);
@@ -130,7 +143,8 @@ namespace RavenfieldVR.Net
             }
             Vector3 origin = player.Position();
             VRHand left = rig.Hand(Input.Hand.Left), right = rig.Hand(Input.Hand.Right);
-            int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0);
+            int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0)
+                        | (rig.Off.Role == HandRole.Magazine ? Magazine : 0);
             Vector3 muzzle = Vector3.zero;
             Quaternion muzzleRot = Quaternion.identity;
             Weapon gun = player.activeWeapon;
@@ -229,7 +243,25 @@ namespace RavenfieldVR.Net
                 p.ModelRotation = p.MuzzleRotNow * Quaternion.Inverse(p.MuzzleRotInModel);
                 p.ModelPosition = origin + p.MuzzleNow - p.ModelRotation * p.MuzzleInModel;
                 p.GunPlaced = true;
-                p.TargetR.SetPositionAndRotation(p.ModelPosition + p.ModelRotation * (inRest * (boneR.position - restAt)), p.ModelRotation * (inRest * boneR.rotation));
+                // (Where the game itself aims the gun hand on this gun, when it has such a point on the gun's model; else the hand
+                // bone's own place against the gun. The bone alone fed on itself: where the arm's IK left it last frame became the
+                // next target, and the hand hung 10 cm off the grip.)
+                Transform ownR = __instance.handTargetR == p.TargetR ? p.OwnRight : __instance.handTargetR;
+                if (ownR != null && ownR != p.TargetR && ownR.IsChildOf(p.Model))
+                {
+                    p.OwnRight = ownR;
+                    p.TargetR.SetPositionAndRotation(p.ModelPosition + p.ModelRotation * (inRest * (ownR.position - restAt)), p.ModelRotation * (inRest * ownR.rotation));
+                }
+                else
+                {
+                    if (!p.GripKnown)
+                    {
+                        p.GripKnown = true;
+                        p.GripInModel = inRest * (boneR.position - restAt);
+                        p.GripRotInModel = inRest * boneR.rotation;
+                    }
+                    p.TargetR.SetPositionAndRotation(p.ModelPosition + p.ModelRotation * p.GripInModel, p.ModelRotation * p.GripRotInModel);
+                }
                 __instance.handTargetR = p.TargetR;
                 // The other hand: on the gun as the game has it (its own left-hand target rides on the gun's model) while his
                 // free hand is near the gun; off it, where his free hand is.
@@ -303,6 +335,8 @@ namespace RavenfieldVR.Net
                 p.MuzzleInModel = inModel * (muzzle.position - model.position);
                 p.MuzzleRotInModel = inModel * muzzle.rotation;
                 p.OwnLeft = null;
+                p.OwnRight = null;
+                p.GripKnown = false;
             }
             return p.Model != null;
         }
@@ -333,6 +367,33 @@ namespace RavenfieldVR.Net
                 {
                     continue;
                 }
+                // The magazine in his free hand while he reloads by hand.
+                bool magazine = p.Is(Magazine) && Usable(kv.Value, out Actor holder, out Pose _);
+                if (magazine && p.MagazineBox == null)
+                {
+                    p.MagazineBox = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.Destroy(p.MagazineBox.GetComponent<Collider>());
+                    p.MagazineBox.name = "RavenfieldVR Net Magazine";
+                    p.MagazineBox.transform.localScale = new Vector3(0.026f, 0.12f, 0.062f);
+                    Shader lit = Shader.Find("Standard");
+                    var renderer = p.MagazineBox.GetComponent<Renderer>();
+                    renderer.material = new Material(lit != null ? lit : Shader.Find("Sprites/Default")) { color = new Color(0.13f, 0.13f, 0.14f) };
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+                if (p.MagazineBox != null)
+                {
+                    if (p.MagazineBox.activeSelf != magazine)
+                    {
+                        p.MagazineBox.SetActive(magazine);
+                    }
+                    if (magazine)
+                    {
+                        bool left = !p.Is(GunInLeft);
+                        Quaternion turn = left ? p.LeftRot : p.RightRot;
+                        Vector3 at = kv.Value.Actor.Position() + (left ? p.LeftNow : p.RightNow);
+                        p.MagazineBox.transform.SetPositionAndRotation(at, turn);
+                    }
+                }
                 if (!Usable(kv.Value, out Actor _, out Pose _) || !p.Is(HasGun))
                 {
                     if (p.Model != null)
@@ -342,6 +403,10 @@ namespace RavenfieldVR.Net
                         if (kv.Key != null && p.OwnLeft != null && kv.Key.handTargetL == p.TargetL)
                         {
                             kv.Key.handTargetL = p.OwnLeft;
+                        }
+                        if (kv.Key != null && p.OwnRight != null && kv.Key.handTargetR == p.TargetR)
+                        {
+                            kv.Key.handTargetR = p.OwnRight;
                         }
                         p.Eased = false;
                     }
