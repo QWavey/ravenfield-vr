@@ -1133,9 +1133,56 @@ namespace RavenfieldVR.Sandbox
         /// <summary>The game looks a mode up by its name (a saved game configuration that names ours): ours is found too.</summary>
         private static void FindMode(string name, ref GameModeInfo __result)
         {
-            if (__result == null && _modeInfo != null && string.Equals(name, _modeInfo.name, StringComparison.InvariantCultureIgnoreCase))
+            // (Made here too: a saved configuration that names it is read before the picker ever listed the modes, and the
+            // game set a null mode.)
+            if (__result == null && string.Equals(name, ModeName, StringComparison.InvariantCultureIgnoreCase))
             {
-                __result = _modeInfo;
+                try
+                {
+                    if (EnsureMode())
+                    {
+                        __result = _modeInfo;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.WarnOnce("sandbox-mode-find", "Sandbox: the mode could not be made for a lookup by name: " + e);
+                }
+            }
+        }
+
+        private const string ModeName = "Sandbox";
+        private static bool _makingMode;
+
+        /// <summary>The mode's entry, made at its first asking (the picker's list, or a saved configuration that names it).</summary>
+        private static bool EnsureMode()
+        {
+            if (_modeInfo != null)
+            {
+                return true;
+            }
+            if (_makingMode || GameManager.instance == null)
+            {
+                return false;
+            }
+            _makingMode = true;
+            try
+            {
+                GameModeInfo basis = GameManager.GetBuiltInGameModeByName("Point Match") ?? GameManager.GetDefaultGameMode();
+                if (basis == null)
+                {
+                    return false;
+                }
+                _modeInfo = UnityEngine.Object.Instantiate(basis);
+                _modeInfo.hideFlags = HideFlags.HideAndDontSave;
+                _modeInfo.name = ModeName;
+                _modeInfo.sourceMod = basis.sourceMod;
+                Log.Info($"Sandbox: added to the game's modes (made from {basis.name}).");
+                return true;
+            }
+            finally
+            {
+                _makingMode = false;
             }
         }
 
@@ -1143,18 +1190,9 @@ namespace RavenfieldVR.Sandbox
         {
             try
             {
-                if (_modeInfo == null)
+                if (!EnsureMode())
                 {
-                    GameModeInfo basis = GameManager.GetBuiltInGameModeByName("Point Match") ?? GameManager.GetDefaultGameMode();
-                    if (basis == null)
-                    {
-                        return;
-                    }
-                    _modeInfo = UnityEngine.Object.Instantiate(basis);
-                    _modeInfo.hideFlags = HideFlags.HideAndDontSave;
-                    _modeInfo.name = "Sandbox";
-                    _modeInfo.sourceMod = basis.sourceMod;
-                    Log.Info($"Sandbox: added to the game's modes (made from {basis.name}).");
+                    return;
                 }
                 if (__result != null && !__result.Contains(_modeInfo))
                 {
