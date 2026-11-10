@@ -2819,6 +2819,11 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 375. Gameplay feel while the user playtests 1.17.x (user, 2026-11-10 19:40: "Concentrate on sandbox and multiplayer but also normal gameplay / gameplay feeling for example the glock17 still has the pull back and forward sound when only pulled back ... also /optimize if you can ... just make sure to not break things"; the game not started from here)
+
+- [x] Setups built at the user's word: 1.17.0 (sandbox + multiplayer), then 1.17.1 with the item below; each installed with the game closed. Notes: `dist/notes-1.17.1.md`.
+- [ ] The Glock 17's pull (mod `mwii-g17`, workshop 2910595478): its bank has two clips only, `r1x12` (1.56 s) and `x12_r2` (1.67 s), both whole reloads (read with `tools/bundles/sound_banks.py`), so its slide sounds are slices of them, and a mod's compressed clip cannot be read for its strokes (`RackSplit.Readable`: decompress-on-load only), so a pull's slice running on into the slide going home played both. Now (`WeaponSoundPlayer.PlaySlice`): such a slice is cut where the gun's own reload animation sends the slide home (`TSlideForward` against the slice's `SourceTime`), else, longer than 0.3 s, after its first 55%; logged once a gun ("its pull's sound ... cannot be read: cut at ..."). **A reasoned change, not heard yet:** to confirm from the user's play log (the line above, and "its own sounds: ..." for mwii-g17) and their word.
+
 ### 374. Sandbox: a spawn tool, soldiers by behaviour, a quiet battlefield (user, 2026-11-10: "I want you to do the future Ideas NOW and focus on them"; the idea, 2026-11-09: "do like a sandbox gun like in boneworks to spawn stuff and also enemys etc etc and set their behaivior lioke neutral, still standing ... giving them weapons or no weapon like loadouts or just random or with nothing etc or friendlys or stay still npcs etc. to test stuff basically")
 
 In any match: VR settings (double press of the left stick) -> **Sandbox** in the footer. Mechanism: `docs/PROJECT_DOCUMENTATION.md` 3.11.

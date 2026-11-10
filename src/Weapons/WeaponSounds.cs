@@ -564,6 +564,34 @@ namespace RavenfieldVR.Weapons
             {
                 // A pull's slice that runs on into the slide going home: its first stroke only (RackSplit.OfSlice).
                 float split = RackSplit.OfSlice(cue.Clip, cue.Start, cue.Length);
+                if (split <= 0f && !RackSplit.Readable(cue.Clip) && cue.Kind == CueKind.ClipSlice && cue.SourceTime > 0f) // (a slice cut from a reload's clip at its action's moment: only those carry it)
+                {
+                    // A mod's compressed clip cannot be listened into (most mods' are: the Glock 17's two reload clips, user,
+                    // 2026-11-10: "the glock17 still has the pull back and forward sound when only pulled back"). Cut by what the
+                    // gun's own reload animation says instead: where its slide goes home, when that falls inside the pull's slice;
+                    // with no such moment known, a slice longer than a single stroke (0.3 s) is taken to run on into the next
+                    // one and its first 55% is the pull, as for a whole clip (Stroke).
+                    WeaponRigData d = _rig.Data;
+                    float home = -1f;
+                    if (d.TSlideForward >= 0f && d.TSlideForward > cue.SourceTime)
+                    {
+                        // (The slice starts 0.06 s before its action's moment in the clip: WeaponAnalyzer.BuildSoundMap.)
+                        home = cue.Start + 0.06f + (d.TSlideForward - cue.SourceTime) - 0.02f;
+                    }
+                    if (home > cue.Start + 0.05f && home < cue.Start + cue.Length - 0.03f)
+                    {
+                        split = home;
+                    }
+                    else if (cue.Length > 0.3f)
+                    {
+                        split = cue.Start + cue.Length * 0.55f;
+                    }
+                    if (split > 0f)
+                    {
+                        Log.InfoOnce($"rackguess-s:{d.Key}:{cue.Clip.name}", $"{d.Key}: its pull's sound (a slice of '{cue.Clip.name}', {cue.Start:0.00}+{cue.Length:0.00} s) cannot be read: "
+                            + (home > 0f && Mathf.Approximately(split, home) ? $"cut at {split:0.00} s, where its reload's slide goes home." : $"its first 55% for the pull (to {split:0.00} s)."));
+                    }
+                }
                 if (split > cue.Start + 0.03f && split < cue.Start + cue.Length - 0.03f)
                 {
                     _rackSliceClip = cue.Clip;
