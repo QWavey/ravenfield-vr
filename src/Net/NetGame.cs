@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -474,6 +474,15 @@ namespace RavenfieldVR.Net
                     case Hit:
                         TakeHit(sender, ref r);
                         break;
+                    case BackToMenu:
+                        // The host left the match for the menu: so does everyone ("just follow what he does").
+                        if (sender == 0 && _session != null && !_session.IsHost && InMatch && !_loading)
+                        {
+                            Log.Info("Multiplayer: the host went back to the menu.");
+                            UI.UISystem.Instance?.Notice?.Show("The host went back to the menu.", 4f);
+                            GameManager.ReturnToMenu();
+                        }
+                        break;
                     case MatchState:
                         if (sender == 0 && _session != null && !_session.IsHost)
                         {
@@ -616,6 +625,17 @@ namespace RavenfieldVR.Net
                 _nextLobbyTell = Time.unscaledTime + 0.5f;
                 TellLobby(session);
             }
+            // The host out of a match he was in (back in the menu, not loading the next one): the others are told to come along.
+            bool inMatchNow = InMatch && !_loading;
+            if (session.IsHost && _hostWasInMatch && !inMatchNow && !_loading && session.PlayerCount > 1)
+            {
+                Out.Reset();
+                session.Send(BackToMenu, Out, true);
+                _lastStart = null;
+                Multiplayer.Map = "";
+                Multiplayer.Mode = "";
+            }
+            _hostWasInMatch = inMatchNow;
             Multiplayer.InMatch = InMatch && !_loading;
             if (!InMatch || _loading)
             {
@@ -800,6 +820,7 @@ namespace RavenfieldVR.Net
             }
         }
 
+        private static bool _hostWasInMatch;
         private static float _nextAsk, _nextLobbyTell;
         private static string _lobbyTold = "";
 

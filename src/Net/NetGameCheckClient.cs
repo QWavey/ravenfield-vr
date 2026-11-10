@@ -253,6 +253,23 @@ namespace RavenfieldVR.Net
                 }
             }
 
+            // 5c. The host goes back to the menu: so does this game, still in his game and following him there.
+            {
+                w.Reset();
+                host.Send(NetGame.BackToMenu, w, true);
+                float menuBy = Time.unscaledTime + 60f;
+                while (Time.unscaledTime < menuBy && (MainMenu.instance == null || RavenfieldVR.Util.GameContext.InGame))
+                {
+                    Pump();
+                    yield return null;
+                }
+                yield return For(2f);
+                bool inMenu = MainMenu.instance != null && !RavenfieldVR.Util.GameContext.InGame;
+                UI.UISystem menuUi = UI.UISystem.Instance;
+                report($"multiplayer host back to the menu: {(inMenu ? "this game followed him there" : "NOT FOLLOWED")}, still in his game: {(Multiplayer.Active ? "yes" : "NOT IN IT")}, "
+                       + $"the game's own menus {(menuUi != null && menuUi.Canvases.HideMenus ? "hidden (he chooses)" : "NOT HIDDEN")}");
+            }
+
             // 6. The host leaves: the game here ends in words, his soldiers go.
             host.Leave();
             line.Dispose();
