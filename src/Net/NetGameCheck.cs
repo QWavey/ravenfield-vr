@@ -263,6 +263,9 @@ namespace RavenfieldVR.Net
                    + $" (his speed asked {NetGame.VelocityAsked - askedBefore} time(s), answered up to {fastest:0.0} m/s, last {NetGame.LastVelocity.magnitude:0.0}; moving {body.moving}, fallen {body.fallenOver}, frozen {body.isFrozen}, auto-move {body.autoMoveActor})");
 
             // 2b. All he carries is on his soldier, and the weapon in his hands follows his: he draws his sidearm.
+            // (What he does not hold is seen on him: the sidearm at his thigh now, the long gun on his back once he draws the sidearm.)
+            yield return For(0.8f);
+            int carriedWithLong = NetAvatar.CarriedShown;
             string CarriedBy(Actor a) => string.Join(", ", a.weapons.Where(x => x != null && x.weaponEntry != null).Select(x => x.weaponEntry.name).ToArray());
             string carriedAll = CarriedBy(body);
             ghostSlot = 1;
@@ -270,7 +273,18 @@ namespace RavenfieldVR.Net
             yield return For(2.5f);
             string inHands = body.activeWeapon != null && body.activeWeapon.weaponEntry != null ? body.activeWeapon.weaponEntry.name : "nothing";
             report($"multiplayer stand-in's loadout: carries [{carriedAll}] (told {weapon}, {sidearm}){(carriedAll.Contains(weapon) && carriedAll.Contains(sidearm) ? "" : " NOT ALL HE CARRIES")}; "
-                   + $"he drew his sidearm: in the stand-in's hands {inHands}{(inHands == sidearm ? "" : " NOT THE SIDEARM")}");
+                   + $"he drew his sidearm: in the stand-in's hands {inHands}{(inHands == sidearm ? "" : " NOT THE SIDEARM")}; "
+                   + $"seen on him: {carriedWithLong} weapon(s) with the long gun in his hands, {NetAvatar.CarriedShown} with the sidearm{(carriedWithLong != 1 || NetAvatar.CarriedShown != 1 ? " NOT ONE EACH TIME" : "")}");
+            {
+                Vector3 chestNow = body.CenterPosition() + Vector3.up * 0.2f, back = -body.transform.forward, rightOf = body.transform.right;
+                (Vector3? position, Quaternion? rotation) Behind(Vector3 from) => (chestNow + from, Quaternion.LookRotation(-from, Vector3.up));
+                yield return new WaitForEndOfFrame();
+                Core.Shots.CaptureFirstClear("multiplayer-carried", new[]
+                {
+                    Behind((back + rightOf * 0.6f).normalized * 2f + Vector3.up * 0.2f), Behind((back - rightOf * 0.6f).normalized * 2f + Vector3.up * 0.2f),
+                    Behind(rightOf * 2f + Vector3.up * 0.2f), Behind(back * 1.6f + Vector3.up * 1.2f)
+                }, 60f);
+            }
             ghostSlot = 0;
             infoSent = false;
             yield return For(1.5f);

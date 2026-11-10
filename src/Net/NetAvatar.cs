@@ -79,6 +79,7 @@ namespace RavenfieldVR.Net
 
         internal static void Forget(NetGame.Remote remote)
         {
+            ForgetCarried(remote);
             if (remote.Pose != null)
             {
                 GiveBack(remote.Pose);
@@ -118,7 +119,11 @@ namespace RavenfieldVR.Net
             }
         }
 
-        internal static void Clear() => ByIk.Clear();
+        internal static void Clear()
+        {
+            ByIk.Clear();
+            Inventories.Clear(); // (the copies went with the scene, or with their soldiers)
+        }
 
         /// <summary>
         /// The muzzle a gun's place is told by and put by: its first, always. The one it fires from next changes with every shot
@@ -450,6 +455,179 @@ namespace RavenfieldVR.Net
                 {
                     p.Model.SetPositionAndRotation(p.ModelPosition, p.ModelRotation);
                 }
+            }
+        }
+
+        // ---- what he carries, on his soldier -------------------------------------------------------------------------
+
+        /// <summary>One carried weapon shown on a player's soldier: a copy of its model on his back or at his hip.</summary>
+        private sealed class Carried
+        {
+            public Weapon Source;
+            public GameObject Copy;
+        }
+
+        private static readonly Dictionary<NetGame.Remote, Carried[]> Inventories = new Dictionary<NetGame.Remote, Carried[]>();
+        private static readonly List<Renderer> RendererScratch = new List<Renderer>();
+
+        /// <summary>The check's: weapons shown on players' soldiers now.</summary>
+        internal static int CarriedShown
+        {
+            get
+            {
+                int n = 0;
+                foreach (Carried[] slots in Inventories.Values)
+                {
+                    foreach (Carried c in slots)
+                    {
+                        n += c != null && c.Copy != null && c.Copy.activeSelf ? 1 : 0;
+                    }
+                }
+                return n;
+            }
+        }
+
+        /// <summary>
+        /// The other player's inventory seen on him (the user, 2026-11-10: "hands (gun hands with then gun models etc and
+        /// inventory) should be seen"): the long gun he is not holding lies across his soldier's back, the sidearm he is not
+        /// holding sits at the right thigh. Copies of the weapons' own third-person models (no scripts, no colliders), hung on
+        /// the chest and the thigh bone. Looked at twice a second from the stand-ins' upkeep.
+        /// </summary>
+        internal static void KeepCarried(NetGame.Remote r, Actor a, bool alive)
+        {
+            if (!Inventories.TryGetValue(r, out Carried[] slots))
+            {
+                if (!alive)
+                {
+                    return;
+                }
+                slots = new Carried[2];
+                Inventories[r] = slots;
+            }
+            for (int slot = 0; slot < 2; slot++)
+            {
+                Weapon w = alive && a.weapons != null && slot < a.weapons.Length ? a.weapons[slot] : null;
+                bool show = w != null && w != a.activeWeapon && w.thirdPersonTransform != null && !a.fallenOver;
+                Carried c = slots[slot];
+                if (c != null && (c.Copy == null || c.Source != w))
+                {
+                    if (c.Copy != null)
+                    {
+                        Object.Destroy(c.Copy);
+                    }
+                    slots[slot] = c = null;
+                }
+                if (show && c == null)
+                {
+                    GameObject copy = MakeCopy(w, a, slot == 0);
+                    if (copy != null)
+                    {
+                        slots[slot] = c = new Carried { Source = w, Copy = copy };
+                    }
+                }
+                if (c != null && c.Copy.activeSelf != show)
+                {
+                    c.Copy.SetActive(show);
+                }
+            }
+        }
+
+        private static GameObject MakeCopy(Weapon w, Actor a, bool onBack)
+        {
+            Animator animator = a.animator;
+            Transform bone = animator != null ? animator.GetBoneTransform(onBack ? HumanBodyBones.Chest : HumanBodyBones.RightUpperLeg) : null;
+            if (bone == null && animator != null && onBack)
+            {
+                bone = animator.GetBoneTransform(HumanBodyBones.Spine);
+            }
+            if (bone == null)
+            {
+                return null;
+            }
+            try
+            {
+                Transform model = w.thirdPersonTransform;
+                Vector3 size = model.lossyScale;
+                GameObject copy = Object.Instantiate(model.gameObject);
+                copy.name = "RavenfieldVR Net Carried " + (onBack ? "long gun" : "sidearm");
+                copy.SetActive(true);
+                foreach (MonoBehaviour script in copy.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    Object.Destroy(script);
+                }
+                foreach (Collider collider in copy.GetComponentsInChildren<Collider>(true))
+                {
+                    Object.Destroy(collider);
+                }
+                foreach (ParticleSystem particles in copy.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    particles.gameObject.SetActive(false); // (its muzzle flash does not hang on his back)
+                }
+                Transform t = copy.transform;
+                t.SetParent(null, false);
+                t.localScale = size;
+                t.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                // The model's box in its own frame: its long side is the gun's length.
+                RendererScratch.Clear();
+                copy.GetComponentsInChildren(false, RendererScratch);
+                bool any = false;
+                var box = new Bounds();
+                foreach (Renderer renderer in RendererScratch)
+                {
+                    if (!(renderer is MeshRenderer) && !(renderer is SkinnedMeshRenderer))
+                    {
+                        continue;
+                    }
+                    if (!any)
+                    {
+                        box = renderer.bounds;
+                        any = true;
+                    }
+                    else
+                    {
+                        box.Encapsulate(renderer.bounds);
+                    }
+                }
+                if (!any)
+                {
+                    Object.Destroy(copy);
+                    return null;
+                }
+                Vector3 e = box.extents;
+                Vector3 along = e.x >= e.y && e.x >= e.z ? Vector3.right : e.y >= e.z ? Vector3.up : Vector3.forward;
+                Vector3 thin = e.x <= e.y && e.x <= e.z ? Vector3.right : e.y <= e.z ? Vector3.up : Vector3.forward;
+                // Where it goes on him, in the world now: across the back, leaning to his right shoulder, its thin side against
+                // him; or down along the right thigh.
+                Vector3 up = a.transform.up, forward = a.transform.forward, right = a.transform.right;
+                Vector3 wantAlong = onBack ? (up * 0.82f + right * 0.57f).normalized : -up;
+                Vector3 wantThin = onBack ? -forward : right;
+                Quaternion turn = Quaternion.LookRotation(wantAlong, wantThin) * Quaternion.Inverse(Quaternion.LookRotation(along, thin));
+                Vector3 place = onBack ? bone.position - forward * (0.13f + Mathf.Min(e.x, Mathf.Min(e.y, e.z))) + up * 0.02f
+                    : bone.position + right * (0.07f + Mathf.Min(e.x, Mathf.Min(e.y, e.z))) - up * 0.14f;
+                t.rotation = turn;
+                t.position = place - turn * box.center;
+                t.SetParent(bone, true);
+                return copy;
+            }
+            catch (System.Exception e)
+            {
+                Log.WarnOnce("net-carried", "Multiplayer: a carried weapon could not be shown on a player's soldier: " + e.Message);
+                return null;
+            }
+        }
+
+        internal static void ForgetCarried(NetGame.Remote r)
+        {
+            if (Inventories.TryGetValue(r, out Carried[] slots))
+            {
+                foreach (Carried c in slots)
+                {
+                    if (c != null && c.Copy != null)
+                    {
+                        Object.Destroy(c.Copy);
+                    }
+                }
+                Inventories.Remove(r);
             }
         }
     }

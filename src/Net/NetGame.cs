@@ -39,7 +39,7 @@ namespace RavenfieldVR.Net
             /// <summary>Everything he carries, by slot (null: only the weapon in his hands was told), and the slot in his hands.</summary>
             public string[] Loadout;
             public int Slot = -1;
-            public float NextSlotCheck;
+            public float NextSlotCheck, NextCarriedCheck;
             public int Flags;
             public Vector3 Position, Velocity;
             public float Yaw, Pitch;
@@ -1306,6 +1306,11 @@ namespace RavenfieldVR.Net
                 if (r.Id == 0)
                 {
                     KeepTag(r, a, alive);
+                    if (now >= r.NextCarriedCheck)
+                    {
+                        r.NextCarriedCheck = now + 0.5f;
+                        NetAvatar.KeepCarried(r, a, alive && !a.dead);
+                    }
                 }
                 if (!alive || a.dead)
                 {
