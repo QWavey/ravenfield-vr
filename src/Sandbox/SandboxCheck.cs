@@ -300,7 +300,7 @@ namespace RavenfieldVR.Sandbox
                 var pages = new List<string>();
                 bool empty = false;
                 string threw = null;
-                for (int tab = 0; tab < 4; tab++)
+                for (int tab = 0; tab < 5; tab++)
                 {
                     try
                     {
@@ -319,7 +319,44 @@ namespace RavenfieldVR.Sandbox
                     yield return null;
                 }
                 panel.Close();
-                report($"sandbox panel: buttons on its four pages: {string.Join(", ", pages.ToArray())}{(empty ? " NOT BUILT" : "")}{(threw != null ? " NOT BUILT (" + threw + ")" : "")}");
+                report($"sandbox panel: buttons on its five pages: {string.Join(", ", pages.ToArray())}{(empty ? " NOT BUILT" : "")}{(threw != null ? " NOT BUILT (" + threw + ")" : "")}");
+            }
+
+            // 10a. What came on 2026-11-10 late (Tasks 376): pause and play, flying, the mode in the game's list, the pictures.
+            Core.Log.Info("[sandbox check] step: pause, flying, mode");
+            {
+                Actor probe = own.FirstOrDefault(a => a != null && !a.dead && a.aiControlled && a.controller is AiActorController);
+                string pausedSaid = Sandbox.SetPaused(true);
+                yield return null;
+                float speedPaused = probe != null ? ((AiActorController)probe.controller).Velocity().magnitude : -1f;
+                bool firePaused = probe != null && ((AiActorController)probe.controller).WantsToFire();
+                Sandbox.SetPaused(false);
+                report($"sandbox pause: {(Sandbox.Paused ? "NOT OFF AGAIN" : "on and off")} ({pausedSaid}); a soldier's wanted speed while paused {speedPaused:0.00} m/s"
+                       + $"{(speedPaused > 0.001f ? " NOT HELD" : "")}{(firePaused ? ", wants to fire NOT HOLDING FIRE" : "")}{(probe == null ? " (no soldier of the sandbox to ask)" : "")}");
+                bool listed = GameManager.AvailableGameModes().Any(m => m != null && m.name == "Sandbox");
+                GameModeInfo byName = GameManager.GetBuiltInGameModeByName("Sandbox");
+                report($"sandbox mode: {(listed ? "in the game's list of modes" : "NOT IN THE LIST")}, {(byName != null ? "found by its name" : "NOT FOUND BY NAME")}; "
+                       + $"this match {(Sandbox.InMode ? "is" : "is not")} one; vehicle pictures taken in the menu: {Sandbox.VehiclePictureCount}");
+                FpsActorController fps = FpsActorController.instance;
+                if (fps != null && fps.controller != null && !player.dead && !player.IsSeated())
+                {
+                    Vector3 from = player.Position();
+                    Sandbox.SetFly(true);
+                    Input.VRInput.SimulatedMove = new Vector2(0f, 1f);
+                    yield return new WaitForSecondsRealtime(1f);
+                    float flown = Vector3.Distance(from, player.Position());
+                    bool walkingOff = !fps.controller.enabled;
+                    Input.VRInput.SimulatedMove = Vector2.zero;
+                    Sandbox.SetFly(false);
+                    yield return null;
+                    yield return null;
+                    report($"sandbox flying: {flown:0.0} m in 1 s with the stick forward{(flown < 2f ? " NOT FLYING" : "")}, the game's own walking {(walkingOff ? "off" : "NOT OFF")} meanwhile "
+                           + $"and {(fps.controller.enabled ? "back" : "NOT BACK")} after");
+                }
+                else
+                {
+                    report("sandbox flying: skipped (the player is not on his feet)");
+                }
             }
 
             // 10b. The set saved, cleared, loaded: the same number of soldiers stand again.

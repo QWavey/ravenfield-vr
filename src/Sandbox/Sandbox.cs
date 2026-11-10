@@ -974,6 +974,8 @@ namespace RavenfieldVR.Sandbox
         private static float _pictureAt = -1f;
         private static bool _picturesOff;
 
+        internal static int VehiclePictureCount => VehiclePictures.Count;
+
         internal static Texture VehiclePicture(VehicleSpawner.VehicleSpawnType type) =>
             VehiclePictures.TryGetValue(type, out Texture2D picture) && picture != null ? picture : null;
 
