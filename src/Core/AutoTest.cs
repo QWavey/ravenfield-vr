@@ -4021,6 +4021,13 @@ namespace RavenfieldVR.Core
             // is there (respawned once more if the game moved it off). False: it is not.
             IEnumerator Bring(Actor a, float ahead, bool facingAway, bool[] there)
             {
+                if (a == null)
+                {
+                    // (No soldier left to bring, a small match with all of them used: the step says "skipped", the check goes on.
+                    // It threw here and ended the whole soldier check, 2026-11-10.)
+                    there[0] = false;
+                    yield break;
+                }
                 Vector3 at = Spot(ahead);
                 // The earlier steps' soldiers still standing at the spot sent away first: left there, the next grab took the one
                 // from the step before (alive, standing in the same place: "took hold of Lens, NOT DOWN", 2026-10-24).

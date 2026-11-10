@@ -522,9 +522,13 @@ namespace RavenfieldVR.Weapons
                 point = centre + Vector3.down * 0.03f; // under its middle (the magazine side for a gun held upright)
                 return true;
             }
-            Vector3 end = local.center;
-            end[axis] += e[axis] * 0.75f;
-            point = tp.TransformPoint(end);
+            // The end away from him (its muzzle end, in his hands): the model's own "plus" end is the butt at his shoulder on some
+            // guns, and a squeeze there is a squeeze on him ("NOT WRESTED ... took hold of him instead" in every full run).
+            Vector3 plus = local.center, minus = local.center;
+            plus[axis] += e[axis] * 0.75f;
+            minus[axis] -= e[axis] * 0.75f;
+            Vector3 plusAt = tp.TransformPoint(plus), minusAt = tp.TransformPoint(minus), chest = a.CenterPosition();
+            point = (plusAt - chest).sqrMagnitude >= (minusAt - chest).sqrMagnitude ? plusAt : minusAt;
             return true;
         }
 
