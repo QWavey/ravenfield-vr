@@ -740,7 +740,19 @@ namespace RavenfieldVR.Sandbox
 
         private static string F(float v) => v.ToString("0.###", CultureInfo.InvariantCulture);
 
-        private static float P(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+        /// <summary>A number of a set's line; a line with one that is no number, or far off any map, is not made (it throws: counted as failed).</summary>
+        private static float P(string s)
+        {
+            float v = float.Parse(s, CultureInfo.InvariantCulture);
+            if (float.IsNaN(v) || float.IsInfinity(v) || Mathf.Abs(v) > 100000f)
+            {
+                throw new FormatException("a place off the map");
+            }
+            return v;
+        }
+
+        /// <summary>A choice of a set's line, held to the choices there are (a file edited by hand, or of a later version).</summary>
+        private static int C(string s, int count) => Mathf.Clamp(int.Parse(s), 0, count - 1);
 
         /// <summary>The saved set's file for the map that is running (a set is places on one map).</summary>
         private static string SetFile()
@@ -818,8 +830,8 @@ namespace RavenfieldVR.Sandbox
                         {
                             var spec = new SoldierSpec
                             {
-                                Side = (SoldierSide)int.Parse(p[1]), Behaviour = (SoldierBehaviour)int.Parse(p[2]), Weapons = (SoldierWeapons)int.Parse(p[3]),
-                                Health = (SoldierHealth)int.Parse(p[4]), Count = int.Parse(p[5])
+                                Side = (SoldierSide)C(p[1], 2), Behaviour = (SoldierBehaviour)C(p[2], 5), Weapons = (SoldierWeapons)C(p[3], 4),
+                                Health = (SoldierHealth)C(p[4], 3), Count = Mathf.Clamp(int.Parse(p[5]), 1, 12)
                             };
                             int n = SpawnSoldiers(spec, new Vector3(P(p[6]), P(p[7]), P(p[8])), new Vector3(P(p[9]), 0f, P(p[10])), out _).Count;
                             made += n > 0 ? 1 : 0;
@@ -827,7 +839,7 @@ namespace RavenfieldVR.Sandbox
                         }
                         else if (p[0] == "V" && p.Length >= 8)
                         {
-                            Vehicle v = SpawnVehicle((VehicleSpawner.VehicleSpawnType)int.Parse(p[1]), p[2] == "1", new Vector3(P(p[3]), P(p[4]), P(p[5])), new Vector3(P(p[6]), 0f, P(p[7])), out _);
+                            Vehicle v = SpawnVehicle((VehicleSpawner.VehicleSpawnType)C(p[1], Enum.GetValues(typeof(VehicleSpawner.VehicleSpawnType)).Length), p[2] == "1", new Vector3(P(p[3]), P(p[4]), P(p[5])), new Vector3(P(p[6]), 0f, P(p[7])), out _);
                             made += v != null ? 1 : 0;
                             failed += v != null ? 0 : 1;
                         }

@@ -172,6 +172,8 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>A game hosted over Steam: a lobby the list shows (or only friends see), the players' messages relayed by Steam.</summary>
+        /// <param name="friendsOnly">Only friends see the lobby and may join it.</param>
+        /// <param name="maxPlayers">How many may be in the game, the host counted.</param>
         /// <param name="hidden">A lobby nobody sees or can find (the self-check's: made, read back and left again).</param>
         public static void HostSteam(bool friendsOnly, int maxPlayers = 8, bool hidden = false)
         {
