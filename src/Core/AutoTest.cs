@@ -2904,14 +2904,16 @@ namespace RavenfieldVR.Core
             Vector3 target = ((RectTransform)button.transform).position;
             try
             {
-                for (int k = 0; k < 14; k++)
+                // (The aim held a while before the pull and after it: with 8 frames before and 3 after, a slow frame or the laser
+                // changing hands at the pull lost the click, and "A TAB DID NOT SHOW ITS PAGE" came in three runs of four.)
+                for (int k = 0; k < 30; k++)
                 {
-                    float wobble = k >= 9 && k <= 11 ? 1.5f : 0f; // the controller dips while the trigger is pulled
+                    float wobble = k >= 17 && k <= 19 ? 1.5f : 0f; // the controller dips while the trigger is pulled
                     Runtime.RigidPose raw = dom.Raw;
                     Vector3 want = Quaternion.AngleAxis(wobble, Vector3.right) * (target - dom.Pointer.position).normalized;
                     Quaternion turn = Quaternion.FromToRotation(dom.Pointer.Forward, want);
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(dom.Pointer.position + turn * (raw.position - dom.Pointer.position), turn * raw.rotation);
-                    Input.VRInput.SimulatedTrigger[side] = k >= 8 && k <= 10 ? 1f : 0f;
+                    Input.VRInput.SimulatedTrigger[side] = k >= 16 && k <= 20 ? 1f : 0f;
                     yield return null;
                 }
             }
