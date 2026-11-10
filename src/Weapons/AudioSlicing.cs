@@ -11,7 +11,10 @@ namespace RavenfieldVR.Weapons
     {
         private const float FrameSeconds = 0.01f;
 
-        public static void Refine(AudioClip clip, float keyTime, ref float start, ref float end)
+        /// <param name="notBefore">The clip's second before which this action's sound cannot start (the action before it): the
+        /// search for its onset went back a quarter second and, with a louder action 0.2 s earlier, took THAT one's onset: a pull
+        /// that was the magazine's clack, a slide home that began with the pull (review, 2026-11-10).</param>
+        public static void Refine(AudioClip clip, float keyTime, ref float start, ref float end, float notBefore = 0f)
         {
             if (clip == null || clip.loadType != AudioClipLoadType.DecompressOnLoad || clip.loadState != AudioDataLoadState.Loaded)
             {
@@ -19,7 +22,7 @@ namespace RavenfieldVR.Weapons
             }
             int freq = clip.frequency;
             int channels = Mathf.Max(1, clip.channels);
-            float windowStart = Mathf.Max(0f, keyTime - 0.25f);
+            float windowStart = Mathf.Max(Mathf.Max(0f, keyTime - 0.25f), Mathf.Min(notBefore, keyTime - 0.03f));
             float windowEnd = Mathf.Min(clip.length, Mathf.Max(end, keyTime + 0.15f) + 0.05f);
             int offset = Mathf.FloorToInt(windowStart * freq);
             int count = Mathf.FloorToInt((windowEnd - windowStart) * freq);

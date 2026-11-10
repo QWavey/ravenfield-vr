@@ -122,7 +122,9 @@ namespace RavenfieldVR.Weapons
             {
                 return -1f;
             }
-            int first = Array.FindIndex(env, e => e >= 0.5f * peak);
+            // (A quarter of the peak, not half: with the slide's slam home more than twice as loud as the pull, the "first stroke"
+            // was the slam, nothing came after it, and the pull's slice was left holding both; review of 2026-11-10.)
+            int first = Array.FindIndex(env, e => e >= 0.25f * peak);
             int quietFrom = -1, quietFor = 0;
             for (int i = first + 1; i < n; i++)
             {
@@ -355,6 +357,14 @@ namespace RavenfieldVR.Weapons
                 split = clip.length * 0.55f;
                 Log.InfoOnce("rackguess:" + clip.name, $"{_rig.Data.Key}: its pull's sound '{clip.name}' cannot be read, and the gun has a home sound apart: its first 55% for the pull.");
             }
+            if (split <= 0f && !RackSplit.Readable(clip) && _kind == MechSound.SlideBack && clip.length > 0.35f)
+            {
+                // The gun's one clip for its slide, too long for one stroke and not to be listened into: the pull plays its first
+                // 55%. The rest is NOT kept for the slide going home (it may be the pull's own tail): home has the gun's kind's
+                // sound, as for any gun with no home sound of its own.
+                Log.InfoOnce("rackguess-w:" + clip.name, $"{_rig.Data.Key}: its pull's sound '{clip.name}' ({clip.length:0.00} s) cannot be read and is the gun's only slide sound: its first 55% for the pull.");
+                return PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = clip.length * 0.55f }, volume);
+            }
             if (split <= 0f)
             {
                 return false;
@@ -584,7 +594,10 @@ namespace RavenfieldVR.Weapons
             if (_kind == MechSound.SlideBack)
             {
                 // A pull's slice that runs on into the slide going home: its first stroke only (RackSplit.OfSlice).
+                // (Each pull starts clean: the rest of an earlier pull's slice is not this one's home stroke.)
+                _rackSliceClip = null;
                 float split = RackSplit.OfSlice(cue.Clip, cue.Start, cue.Length);
+                bool known = split > 0f; // (heard in the samples, or below: told by the gun's own animation)
                 if (split <= 0f && !RackSplit.Readable(cue.Clip) && cue.Kind == CueKind.ClipSlice && cue.SourceTime > 0f) // (a slice cut from a reload's clip at its action's moment: only those carry it)
                 {
                     // A mod's compressed clip cannot be listened into (most mods' are: the Glock 17's two reload clips, user,
@@ -593,8 +606,12 @@ namespace RavenfieldVR.Weapons
                     // with no such moment known, a slice longer than a single stroke (0.3 s) is taken to run on into the next
                     // one and its first 55% is the pull, as for a whole clip (Stroke).
                     WeaponRigData d = _rig.Data;
-                    split = RackSplit.GuessCut(cue.Start, cue.Length, cue.SourceTime, d.TSlideForward, out bool byAnimation);
+                    // (The animation's moment only for the gun's own slice: a slice lent by another gun carries that gun's
+                    // timeline, and this gun's slide-home moment against it cut the pull at a chance place.)
+                    bool own = d.Cues.TryGetValue(MechSound.SlideBack, out List<SoundCue> mine) && mine.Exists(c => c != null && c.Clip == cue.Clip && Mathf.Abs(c.Start - cue.Start) < 0.001f);
+                    split = RackSplit.GuessCut(cue.Start, cue.Length, cue.SourceTime, own ? d.TSlideForward : -1f, out bool byAnimation);
                     float home = byAnimation ? split : -1f;
+                    known = byAnimation;
                     if (split > 0f)
                     {
                         Log.InfoOnce($"rackguess-s:{d.Key}:{cue.Clip.name}", $"{d.Key}: its pull's sound (a slice of '{cue.Clip.name}', {cue.Start:0.00}+{cue.Length:0.00} s) cannot be read: "
@@ -603,7 +620,9 @@ namespace RavenfieldVR.Weapons
                 }
                 if (split > cue.Start + 0.03f && split < cue.Start + cue.Length - 0.03f)
                 {
-                    _rackSliceClip = cue.Clip;
+                    // The rest is the slide going home only where the cut is known (heard, or the animation's): after a guessed
+                    // 55% it may be the pull's own tail, and was played as the "home" stroke on every release.
+                    _rackSliceClip = known ? cue.Clip : null;
                     _rackSliceFrom = split;
                     _rackSliceTo = cue.Start + cue.Length;
                     cue = new SoundCue { Kind = CueKind.ClipSlice, Clip = cue.Clip, Start = cue.Start, Length = split - cue.Start, Volume = cue.Volume };

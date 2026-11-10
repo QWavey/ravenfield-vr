@@ -232,7 +232,9 @@ namespace RavenfieldVR.Weapons
                     float next = i + 1 < keyframes.Count ? keyframes[i + 1].Value - clipStart : clip.length;
                     float start = Mathf.Max(0f, t - 0.06f);
                     float end = Mathf.Min(clip.length, Mathf.Min(next - 0.02f, t + 0.5f));
-                    AudioSlicing.Refine(clip, t, ref start, ref end);
+                    // (Not back into the action before this one: 40 ms after its moment at the earliest.)
+                    float notBefore = i > 0 ? keyframes[i - 1].Value - clipStart + 0.04f : 0f;
+                    AudioSlicing.Refine(clip, t, ref start, ref end, notBefore);
                     if (end - start >= 0.08f && start < clip.length)
                     {
                         AddCue(d, kind, new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = start, Length = end - start, SourceTime = at });

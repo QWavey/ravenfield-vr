@@ -196,6 +196,10 @@ namespace RavenfieldVR.Tests
             Check(rattle < 0f, $"Rack split: one stroke and a faint rattle: not cut ({rattle:0.000})");
             float close = At(Clip(0.4f, new[] { 0.02f, 0.1f, 0.9f }, new[] { 0.11f, 0.2f, 0.9f }));
             Check(close < 0f, $"Rack split: two strokes with no gap between: not cut ({close:0.000})");
+            float quietPull = At(Clip(0.5f, new[] { 0.02f, 0.12f, 0.35f }, new[] { 0.24f, 0.32f, 1.0f }));
+            Check(quietPull > 0.12f && quietPull < 0.24f, $"Rack split: a quiet pull, then a slam home three times as loud: cut in the gap ({quietPull:0.000} s)");
+            float faintBefore = At(Clip(0.4f, new[] { 0.01f, 0.05f, 0.12f }, new[] { 0.15f, 0.3f, 0.9f }));
+            Check(faintBefore < 0f, $"Rack split: a faint handling noise before one stroke: not cut ({faintBefore:0.000})");
             // A slice of a clip that cannot be read (a mod's compressed reload sound: the Glock 17's pull, 2026-11-10): cut by the
             // reload animation's slide-home moment when it falls inside the slice, else after 55% of a long one, else left whole.
             System.Reflection.MethodInfo guess = mod.GetType("RavenfieldVR.Weapons.RackSplit")?.GetMethod("GuessCut",

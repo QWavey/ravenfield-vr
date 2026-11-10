@@ -128,6 +128,12 @@ namespace RavenfieldVR.Weapons
                 {
                     slice.Length = split - slice.Start;
                 }
+                else if (split <= 0f && !RackSplit.Readable(slice.Clip) && slice.Length > 0.3f && slice.Clip.length < WeaponAnalyzer.WholeReloadSeconds * 4f)
+                {
+                    // (Not to be listened into, and too long for one stroke: its first 55%, as the gun hand's pull has it. The free
+                    // hand's second gun played its whole slice on the pull, the slide's home in it, and then the home sound again.)
+                    slice.Length *= 0.55f;
+                }
             }
             return picked;
         }
