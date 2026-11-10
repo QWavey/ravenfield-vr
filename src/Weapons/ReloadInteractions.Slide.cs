@@ -362,6 +362,22 @@ namespace RavenfieldVR.Weapons
                     _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
                 }
             }
+            else if (!HandDriven && _rackedBack && _strokeOut && !_rackFromBoltLock && fraction <= 0.1f
+                     && !(Data.LockOnEmpty && Ammo.UsesChamber && !(Ammo.FeedReady && Ammo.MagRounds > 0)))
+            {
+                // A spring-driven slide ridden all the way home by the hand (not let go at the back): it chambers and shuts as it
+                // arrives, as softly or hard as it was brought there. It did nothing until the hand let go, the gun said RACK
+                // meanwhile, and a second pull without letting go was silent (scout, 2026-11-10). Not where it would only catch
+                // again on an empty magazine: that stays for the let-go.
+                float closing = Mathf.Abs(moved) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f);
+                float hard = Mathf.Clamp01(0.2f + closing / 1.5f);
+                _rackedBack = false;
+                _strokeOut = false;
+                Ammo.RackForward();
+                _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, hard);
+                off.Haptic(0.03f, 120f, 0.25f + 0.3f * hard);
+                _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.35f * hard);
+            }
             else if (HandDriven && !_rackedBack && _strokeOut && fraction <= 0.1f)
             {
                 // Pushed home short of the line, its case or round still in: it shuts with a click, not in silence. Nothing is fed.
