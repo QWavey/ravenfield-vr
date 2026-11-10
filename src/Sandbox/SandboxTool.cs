@@ -131,7 +131,34 @@ namespace RavenfieldVR.Sandbox
                             }
                         }
                     }
+                    // (A skinned model too, by its mesh as it lies under its own transform: measured by mesh filters only it was passed over.)
+                    foreach (SkinnedMeshRenderer skinned in copy.GetComponentsInChildren<SkinnedMeshRenderer>(false))
+                    {
+                        if (skinned.sharedMesh == null)
+                        {
+                            continue;
+                        }
+                        Bounds mesh = skinned.sharedMesh.bounds;
+                        Matrix4x4 m = toTool * skinned.transform.localToWorldMatrix;
+                        for (int corner = 0; corner < 8; corner++)
+                        {
+                            Vector3 point = m.MultiplyPoint3x4(mesh.center + Vector3.Scale(mesh.extents, new Vector3((corner & 1) == 0 ? -1f : 1f, (corner & 2) == 0 ? -1f : 1f, (corner & 4) == 0 ? -1f : 1f)));
+                            if (!any)
+                            {
+                                box = new Bounds(point, Vector3.zero);
+                                any = true;
+                            }
+                            else
+                            {
+                                box.Encapsulate(point);
+                            }
+                        }
+                    }
                     Vector3 size = box.size;
+                    if (!any || !(size.z > 0.08f && size.z < 0.45f && size.z >= Mathf.Max(size.x, size.y) * 0.9f))
+                    {
+                        Log.Info($"Sandbox tool: {e.name}'s model is not taken ({(any ? $"{size.x * 100f:0} x {size.y * 100f:0} x {size.z * 100f:0} cm in the tool's frame" : "no mesh found")}).");
+                    }
                     // A pistol lying along the pointing line: 8 to 45 cm long, and no longer any other way.
                     bool fits = any && size.z > 0.08f && size.z < 0.45f && size.z >= Mathf.Max(size.x, size.y) * 0.9f && !float.IsNaN(size.x + size.y + size.z);
                     if (!fits)

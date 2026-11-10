@@ -420,7 +420,7 @@ namespace RavenfieldVR.Weapons
             switch (prop.Kind)
             {
                 case PropKind.Magazine:
-                    // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber), and only with rounds in it: the
+                    // An en-bloc clip goes in only with rounds in it (until 2026-11-10 also only through the open action; see below): the
                     // empty one the last shot threw out, picked up off the ground and pressed home, left the bolt locked on nothing to feed, and no
                     // way took it out again, so no other clip went in (user, 2026-11-08: "i cant reload it rn").
                     // (2026-11-10: also at a shut bolt. The release throws the clip out with the bolt home on a round, and the next clip
