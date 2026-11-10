@@ -303,6 +303,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>The off hand takes the seated magazine: it unlatches and slides out along the well with the hand.</summary>
         private void PullSeatedMagazine(VRHand off)
         {
+            Ammo.BeltState(out _beltWasLaid, out _beltWasLifted);
             int rounds = Ammo.EjectMagazine();
             MagazineProp prop = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
             prop.Owner = Ammo;
@@ -1052,6 +1053,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The next seating is of a magazine that never left its seat (taken and let go at once): no sound, no push.</summary>
         private bool _quietSeat;
+        private bool _beltWasLaid, _beltWasLifted;
 
         private void SeatProp(VRHand off, MagazineProp prop)
         {
@@ -1239,6 +1241,12 @@ namespace RavenfieldVR.Weapons
                 // and off again played the magazine out and in; scout, 2026-11-10.)
                 _quietSeat = !prop.TuggedFromSeat;
                 SeatProp(off, prop);
+                if (_quietSeat && Ammo.HasCover)
+                {
+                    // (A machine gun's box under an open cover: taking it un-laid the belt, and put back the gun said LAY BELT
+                    // again though nothing had moved; scout, 2026-11-10.)
+                    Ammo.RestoreBelt(_beltWasLaid, _beltWasLifted);
+                }
                 _quietSeat = false;
                 return;
             }

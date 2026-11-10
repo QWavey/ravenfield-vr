@@ -192,6 +192,20 @@ namespace RavenfieldVR.Weapons
         private bool _beltLifted;
         /// <summary>Off the tray only because the cover is up: shut, it is laid again. A gun put down so comes back so.</summary>
         internal bool BeltOnlyLifted => BeltLifted;
+
+        /// <summary>The belt as it lies now, to put back for a box that was taken and let go at once and never left the gun.</summary>
+        internal void BeltState(out bool laid, out bool lifted)
+        {
+            laid = BeltLaid;
+            lifted = BeltLifted;
+        }
+
+        internal void RestoreBelt(bool laid, bool lifted)
+        {
+            BeltLaid = laid;
+            BeltLifted = lifted;
+            Sync();
+        }
         /// <summary>A bolt or pump gun fired: the case stays in the chamber until the action is worked.</summary>
         public bool SpentInChamber
         {
