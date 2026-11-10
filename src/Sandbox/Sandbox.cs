@@ -1222,7 +1222,7 @@ namespace RavenfieldVR.Sandbox
 
         /// <summary>The game's mode by name, ours among them (a joined PC looks the host's mode up).</summary>
         internal static GameModeInfo ModeByName(string name) =>
-            _modeInfo != null && string.Equals(name, _modeInfo.name, StringComparison.OrdinalIgnoreCase) ? _modeInfo : null;
+            string.Equals(name, ModeName, StringComparison.OrdinalIgnoreCase) && EnsureMode() ? _modeInfo : null; // (made here too: a joined PC never opened the picker)
 
         /// <summary>A new scene: what was spawned went with the old one; the quiet battlefield and the tool are for one match.</summary>
         internal static void OnSceneChanged()
