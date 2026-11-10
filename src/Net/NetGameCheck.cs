@@ -42,7 +42,8 @@ namespace RavenfieldVR.Net
             UdpTransport line = null;
             NetSession ghost = null;
             int hitsGot = 0, statesGot = 0, othersHits = 0, knocksGot = 0, posesGot = 0, poseFlags = 0;
-            Vector3 poseMuzzle = Vector3.zero;
+            Vector3 poseMuzzle = Vector3.zero, poseLeft = Vector3.zero, poseRight = Vector3.zero;
+            Quaternion poseMuzzleRot = Quaternion.identity;
             float hitDamage = 0f;
             var told = new HashSet<ushort>();
             string failed = null;
@@ -75,11 +76,12 @@ namespace RavenfieldVR.Net
                         posesGot++;
                         poseFlags = r.Byte();
                         r.SmallVector();
-                        r.SmallVector();
+                        poseLeft = r.SmallVector();
                         r.Rotation();
-                        r.SmallVector();
+                        poseRight = r.SmallVector();
                         r.Rotation();
                         poseMuzzle = r.SmallVector();
+                        poseMuzzleRot = r.Rotation();
                     }
                     else if (kind == NetGame.Knock)
                     {
@@ -277,6 +279,18 @@ namespace RavenfieldVR.Net
                 yield return null;
             }
             yield return For(0.5f);
+            // (What this game's own player tells of his gun, measured against what he tells of his hands: the muzzle must be near
+            // the hand that holds the gun and at a height a held gun has.)
+            string GunTold()
+            {
+                Vector3 gunHand = (poseFlags & NetAvatar.GunInLeft) != 0 ? poseLeft : poseRight;
+                float fromHand = Vector3.Distance(poseMuzzle, gunHand);
+                bool sane = fromHand < 1.3f && poseMuzzle.y > 0.2f && poseMuzzle.y < 2.4f;
+                Vector3 aim = poseMuzzleRot * Vector3.forward;
+                return $"his gun's muzzle {fromHand * 100f:0} cm from his gun hand, {poseMuzzle.y:0.00} m above his feet, pointing {(Mathf.Asin(Mathf.Clamp(aim.y, -1f, 1f)) * Mathf.Rad2Deg):0} degrees up"
+                       + (sane ? "" : " NOT WHERE A HELD GUN IS");
+            }
+
             // 2c. He is a VR player: his hands and his gun are where he tells them (30 times a second, for two seconds).
             {
                 Vector3 up = Vector3.up, toMe = -forward;
@@ -339,7 +353,7 @@ namespace RavenfieldVR.Net
                 report($"multiplayer VR player's magazine in his free hand: {(boxOff >= 0f && boxOff < 0.05f ? $"shown, {boxOff * 100f:0} cm from the hand" : "NOT SHOWN")}; "
                        + $"this game's own player told to him {posesGot} time(s) in the check so far{(posesGot == 0 ? " NOT TOLD" : "")}"
                        + (posesGot > 0 ? $": hands {((poseFlags & NetAvatar.LeftHand) != 0 ? "left " : "")}{((poseFlags & NetAvatar.RightHand) != 0 ? "right " : "")}tracked, "
-                                         + $"{((poseFlags & NetAvatar.HasGun) != 0 ? $"his gun's muzzle {poseMuzzle.magnitude:0.00} m from his feet" : "no gun in hand")}" : ""));
+                                         + $"{((poseFlags & NetAvatar.HasGun) != 0 ? GunTold() : "no gun in hand")}" : ""));
                 yield return For(1f);
             }
 

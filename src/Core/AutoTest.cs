@@ -2916,9 +2916,13 @@ namespace RavenfieldVR.Core
                 {
                     float wobble = k >= 17 && k <= 19 ? 1.5f : 0f; // the controller dips while the trigger is pulled
                     Runtime.RigidPose raw = dom.Raw;
-                    Vector3 want = Quaternion.AngleAxis(wobble, Vector3.right) * (target - dom.Pointer.position).normalized;
-                    Quaternion turn = Quaternion.FromToRotation(dom.Pointer.Forward, want);
-                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(dom.Pointer.position + turn * (raw.position - dom.Pointer.position), turn * raw.rotation);
+                    // (Aimed with the controller's own pointer, the one the laser is drawn and worked from: with a gun in the hand
+                    // the hand's other pointer is the gun's, some degrees off, and the small tabs of the settings panel were missed in
+                    // every full run while the same check passed with empty hands.)
+                    Runtime.RigidPose pointer = dom.TrackedPointer;
+                    Vector3 want = Quaternion.AngleAxis(wobble, Vector3.right) * (target - pointer.position).normalized;
+                    Quaternion turn = Quaternion.FromToRotation(pointer.Forward, want);
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(pointer.position + turn * (raw.position - pointer.position), turn * raw.rotation);
                     Input.VRInput.SimulatedTrigger[side] = k >= 16 && k <= 20 ? 1f : 0f;
                     yield return null;
                 }
