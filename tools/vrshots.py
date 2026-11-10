@@ -318,8 +318,10 @@ def run_game(game, args, timeout_min, vr):
                 except OSError:
                     pass
             if not running('ravenfield.exe'):
-                if vr and time.time() - start < 40:
-                    flat = True  # taken down while SteamVR was still starting
+                if vr and time.time() - start < 40 and not report_since(game, start):
+                    # taken down while SteamVR was still starting (with a report written it ran through: the lobby check is done
+                    # in half a minute and was started three times, then called "did not come up", 2026-11-10)
+                    flat = True
                 elif vr and '-rfvr-autotest' in args and time.time() - start < 120 and not report_since(game, start):
                     # Gone in its first two minutes with no report: SteamVR closed it (room setup asks the game to quit,
                     # the autotest ignores that, and SteamVR then ends the process; check-1018i ended so after 42 s).
