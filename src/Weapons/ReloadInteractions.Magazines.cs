@@ -1050,6 +1050,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>A magazine driven home at least this fast (m/s) releases a locked slide (<see cref="VRConfig.MagSlapReleasesSlide"/>).</summary>
         private const float SlapSpeed = 0.9f;
 
+        /// <summary>The next seating is of a magazine that never left its seat (taken and let go at once): no sound, no push.</summary>
+        private bool _quietSeat;
+
         private void SeatProp(VRHand off, MagazineProp prop)
         {
             _seatedAt = Time.unscaledTime;
@@ -1062,8 +1065,11 @@ namespace RavenfieldVR.Weapons
                         Log.InfoOnce("sistermag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: took a sister gun's magazine ({prop.WeaponKey}).");
                     }
                     Ammo.InsertMagazine(prop.Rounds);
-                    _held.Sounds.Play(MechSound.MagIn, at);
-                    _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
+                    if (!_quietSeat)
+                    {
+                        _held.Sounds.Play(MechSound.MagIn, at);
+                        _held.Nudge(SeatPose.TransformDirection(prop.InsertDirLocal) * 0.14f); // seated with a push into the gun
+                    }
                     if (Data.EnBloc && prop.Rounds > 0 && (Ammo.SlideLocked || !Ammo.Chambered))
                     {
                         // The clip pressed home releases the bolt: it slams forward on its own and chambers the first round.
@@ -1229,7 +1235,11 @@ namespace RavenfieldVR.Weapons
             {
                 // Taken by the seated magazine and let go before it came out (a hand on the well, a squeeze that meant the gun): it stays in.
                 // It fell out of a full well, or waited at the latch, with nothing pulled. (Pulled a centimetre on purpose, it goes as it did.)
+                // (Never tugged: it never left its seat, so it goes back without the seating's sound and push. A hand on the well
+                // and off again played the magazine out and in; scout, 2026-11-10.)
+                _quietSeat = !prop.TuggedFromSeat;
                 SeatProp(off, prop);
+                _quietSeat = false;
                 return;
             }
             if (Stows(off))
