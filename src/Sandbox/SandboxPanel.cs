@@ -33,8 +33,8 @@ namespace RavenfieldVR.Sandbox
         private static readonly string[] HealthNames = { "Normal", "No damage", "One hit" };
         private static readonly int[] Counts = { 1, 2, 4, 8 };
         private static readonly string[] SlotNames = { "All", "Primary", "Secondary", "Gear" };
-        private static readonly string[] BodyNames = { "5 s", "20 s", "1 min", "5 min" };
-        private static readonly float[] BodyTimes = { 5f, 20f, 60f, 300f };
+        private static readonly string[] BodyNames = { "5 s", "10 s", "1 min", "5 min" };
+        private static readonly float[] BodyTimes = { 5f, 10f, 60f, 300f };
         private const int WeaponsPerPage = 12, WeaponsPerRow = 4;
 
         private Tab _tab;
@@ -69,7 +69,7 @@ namespace RavenfieldVR.Sandbox
             // (Each in bits of its own: added up, two states could give one number and a change went unseen.)
             (Sandbox.Quiet ? 1 : 0) | (Sandbox.PlayerInvulnerable ? 2 : 0) | ((int)Sandbox.Armed << 2) | (GameContext.InGame ? 16 : 0)
             | (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 32 : 0) | ((Sandbox.SpawnedCount & 0xFFF) << 6) | ((Sandbox.PlacedCount & 0xFFF) << 18)
-            | (Sandbox.Paused ? 1 << 30 : 0) | (Sandbox.Fly ? int.MinValue : 0);
+            | (Sandbox.Paused ? 1 << 30 : 0) | (Sandbox.Fly ? int.MinValue : 0) ^ (Sandbox.RemoveDead ? 0 : 0x2AAAAAAA) ^ (Net.Multiplayer.Active ? Net.Multiplayer.Hosting ? 0x11111111 : 0x22222222 : 0);
 
         private void Say(string status)
         {
@@ -99,6 +99,18 @@ namespace RavenfieldVR.Sandbox
                     }
                 }
             });
+            // In a shared match the field is the host's: on a joined PC what changes it is shown greyed out; and no PC makes
+            // vehicles there (the user, 2026-11-10: "in multiplayer some things need to be greyed out").
+            bool shared = Net.Multiplayer.Active, joined = shared && !Net.Multiplayer.Hosting;
+            if (joined && _tab != Tab.Me && _tab != Tab.Weapons)
+            {
+                Label("A shared match: the field is the host's to change. What only he can do is greyed out.", 19, FontStyle.Italic, UiKit.TextColor, 34f);
+            }
+            else if (shared && _tab == Tab.Vehicles)
+            {
+                Label("A shared match is on foot for now: no vehicles.", 19, FontStyle.Italic, UiKit.TextColor, 34f);
+            }
+            Greyed = joined && (_tab == Tab.Soldiers || _tab == Tab.Field) || shared && _tab == Tab.Vehicles;
             switch (_tab)
             {
                 case Tab.Soldiers:
@@ -117,6 +129,7 @@ namespace RavenfieldVR.Sandbox
                     Field();
                     break;
             }
+            Greyed = false;
             Gap(8f);
             bool live = Time.unscaledTime < _statusUntil && _status.Length > 0;
             Label(live ? _status : $"On the field from the sandbox: {Sandbox.SpawnedCount}" + (Sandbox.Quiet ? "   |   quiet battlefield" : ""),
@@ -146,7 +159,7 @@ namespace RavenfieldVR.Sandbox
                 case SoldierBehaviour.StandStill: return "Stays where he is put and fights from there.";
                 case SoldierBehaviour.Frozen: return "A statue: no move, no shot. To test hits, throws and holds.";
                 case SoldierBehaviour.Follow: return s.Side == SoldierSide.Friendly ? "Joins your squad and takes your orders." : "Only a friendly soldier follows; an enemy fights as normal.";
-                default: return "Fights as any soldier of the match.";
+                default: return "Fights as any soldier of the match: he runs off to its flags at once.";
             }
         }
 
@@ -308,8 +321,11 @@ namespace RavenfieldVR.Sandbox
             ActionRow($"Quiet battlefield (none of the match's own soldiers): {(Sandbox.Quiet ? "on" : "off")}.", Sandbox.Quiet ? "Turn off" : "Turn on", () => Say(Sandbox.SetQuiet(!Sandbox.Quiet)));
             ActionRow("Every enemy soldier.", "Kill", () => Say(Sandbox.HostsField ? $"{Sandbox.KillEnemies()} enemy soldier(s) killed." : "In a shared match the field is the host's to change."));
             Section("What the sandbox made");
-            Choice("A dead one's body lies", BodyNames, Array.IndexOf(BodyTimes, Sandbox.BodySeconds), i => Sandbox.BodySeconds = BodyTimes[i]);
-            Label("Then he is taken off the field with it. A sandbox soldier never comes back by himself.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
+            ActionRow($"A dead one is taken off the field and stays away: {(Sandbox.RemoveDead ? "on" : "off (the match brings him back at its spawn points)")}.", Sandbox.RemoveDead ? "Turn off" : "Turn on", () => Say(Sandbox.SetRemoveDead(!Sandbox.RemoveDead)));
+            if (Sandbox.RemoveDead)
+            {
+                Choice("His body lies", BodyNames, Array.IndexOf(BodyTimes, Sandbox.BodySeconds), i => Sandbox.BodySeconds = BodyTimes[i]);
+            }
             ActionRow("Take it off the field again.", "The last", () => Say(Sandbox.RemoveLast() ? "Removed." : "Nothing of the sandbox's is left."),
                       "All", () => Say($"{Sandbox.RemoveAll()} removed."), 150f);
             ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),

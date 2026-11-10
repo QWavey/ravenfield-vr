@@ -31,6 +31,9 @@ namespace RavenfieldVR.UI
         /// <summary>Seconds between rebuilds while open with nothing pressed (0: only when marked changed).</summary>
         protected virtual float RefreshSeconds => 0f;
 
+        /// <summary>While set by a page's Build, the buttons it makes are greyed out (shown, not to be pressed).</summary>
+        protected bool Greyed;
+
         /// <summary>Whether the panel has its own Close at the bottom (not one that is a choice to make, or that the game keeps open).</summary>
         protected virtual bool HasClose => true;
 
@@ -109,7 +112,9 @@ namespace RavenfieldVR.UI
                 UnityEngine.Object.Destroy(_content.GetChild(i).gameObject);
             }
             _height = 24f;
+            Greyed = false;
             Build();
+            Greyed = false;
             _height += 16f;
             if (HasClose)
             {
@@ -189,6 +194,14 @@ namespace RavenfieldVR.UI
                 colors.normalColor = colors.selectedColor = UiKit.Accent;
                 b.colors = colors;
                 text.color = UiKit.AccentText;
+            }
+            if (Greyed)
+            {
+                // Shown, not to be pressed (what is not this player's to change in a shared match): dim, no answer to the laser.
+                b.interactable = false;
+                Color dim = text.color;
+                dim.a = 0.35f;
+                text.color = dim;
             }
             return b;
         }

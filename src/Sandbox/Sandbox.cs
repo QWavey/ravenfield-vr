@@ -71,7 +71,9 @@ namespace RavenfieldVR.Sandbox
             Remove
         }
 
-        internal static readonly SoldierSpec Soldier = new SoldierSpec();
+        // (He stays where he is put: a "normal" soldier runs off to the match's flags at once, 20 m in four seconds in the check, and
+        // was reported as "they spawn on spawnpoints and not in the place i want to spawn them"; user, 2026-11-10.)
+        internal static readonly SoldierSpec Soldier = new SoldierSpec { Behaviour = SoldierBehaviour.StandStill };
         internal static VehicleSpawner.VehicleSpawnType Vehicle = VehicleSpawner.VehicleSpawnType.Jeep;
         internal static bool VehicleFriendly = true;
 
@@ -99,7 +101,32 @@ namespace RavenfieldVR.Sandbox
         private static bool _wavePatched;
 
         /// <summary>Seconds a dead sandbox soldier's body lies before it is taken off the field (the panel's choice).</summary>
-        internal static float BodySeconds = 20f;
+        internal static float BodySeconds = 10f;
+
+        /// <summary>
+        /// A dead sandbox soldier is taken off the field after his body's time and never comes back (the default; the user,
+        /// 2026-11-10: "they also dont get removed from the match when they died (which should be the case if enabled, can be
+        /// disabled tho normally)"). Off: he is the match's like any other soldier, and its next spawn wave brings him back.
+        /// </summary>
+        internal static bool RemoveDead { get; private set; } = true;
+
+        internal static string SetRemoveDead(bool on)
+        {
+            RemoveDead = on;
+            if (!on)
+            {
+                // The dead ones still lying are the match's again (the mark kept its waves off them).
+                foreach (Actor a in Made)
+                {
+                    if (a != null && a.dead && !a.isDeactivated)
+                    {
+                        a.isScheduledToSpawn = false;
+                    }
+                }
+                DiedAt.Clear();
+            }
+            return on ? "Dead sandbox soldiers are taken off the field and stay away." : "Dead sandbox soldiers come back with the match's next wave, at its spawn points.";
+        }
 
         /// <summary>The check's: sandbox soldiers there are in this match (standing, lying dead, or put away), and how many are put away.</summary>
         internal static int MadeCount => Made.Count;
@@ -149,7 +176,7 @@ namespace RavenfieldVR.Sandbox
         {
             if (actorsToSpawn != null && (Quiet || Made.Count > 0))
             {
-                actorsToSpawn.RemoveAll(a => a != null && (Quiet ? a.aiControlled : Made.Contains(a)));
+                actorsToSpawn.RemoveAll(a => a != null && (Quiet ? a.aiControlled : RemoveDead && Made.Contains(a)));
             }
         }
 
@@ -761,9 +788,26 @@ namespace RavenfieldVR.Sandbox
                     {
                         Scratch.Add(a);
                     }
+                    else if (!RemoveDead)
+                    {
+                        // (The match's own: its waves bring him back.)
+                    }
                     else if (!a.dead)
                     {
-                        DiedAt.Remove(a);
+                        if (DiedAt.Remove(a))
+                        {
+                            // Seen dead, not put away yet, and alive again: something of the game or the map brought him back
+                            // (at one of its spawn points). Said, and he is taken off again.
+                            Log.Info($"Sandbox: {a.name} was dead and stands again at {a.Position():F1} (brought back by the game or the map, not by the sandbox): taken off the field.");
+                            try
+                            {
+                                a.KillSilently();
+                            }
+                            catch (Exception e)
+                            {
+                                Log.WarnOnce("sandbox-back", "Sandbox: a soldier brought back could not be taken off again: " + e.Message);
+                            }
+                        }
                     }
                     else if (!DiedAt.TryGetValue(a, out float died))
                     {
