@@ -63,6 +63,25 @@ namespace RavenfieldVR.Weapons
                 d.LockOnEmpty = true;
                 d.MagEjectAxis = d.Up;
                 d.Notes += "en-bloc clip (from the top, the bolt locks open, the empty clip flies out) ";
+                // Its clip sits IN the receiver, under the bolt: the seat was taken where the reload brings the clip nearest the
+                // bore line, which is on its way in, and the clip stood half out of the top (the report: "100% outside the gun";
+                // user, 2026-11-10: "the mag at the beginning (which is full) isnt seated ... its above"). Pushed down until its
+                // top is just under the bore line, 6 cm at most.
+                if (d.MagBounds.size.sqrMagnitude > 1e-6f && d.Up.sqrMagnitude > 0.5f)
+                {
+                    Vector3 up = d.Up.normalized, ext = d.MagBounds.extents;
+                    Quaternion turn = d.MagSeat.rotation;
+                    float half = Mathf.Abs(Vector3.Dot(turn * Vector3.right, up)) * ext.x + Mathf.Abs(Vector3.Dot(turn * Vector3.up, up)) * ext.y
+                                 + Mathf.Abs(Vector3.Dot(turn * Vector3.forward, up)) * ext.z;
+                    float top = Vector3.Dot(d.MagSeat.position + turn * d.MagBounds.center - d.MuzzlePoint, up) + half;
+                    float down = Mathf.Clamp(top + 0.005f, 0f, 0.06f);
+                    if (down > 0.003f)
+                    {
+                        d.MagSeat = new RigidPose(d.MagSeat.position - up * down, turn);
+                        d.Notes += $"clip seated {down * 100f:0.0} cm deeper (its top stood {top * 100f:0.0} cm over the bore line) ";
+                        Log.InfoOnce("enbloc-seat:" + d.Key, $"{d.Key}: the clip's seat {down * 100f:0.0} cm deeper, into the receiver (its top stood {top * 100f:0.0} cm over the bore line).");
+                    }
+                }
             }
             if (d.Action == ActionType.BreakOpen)
             {

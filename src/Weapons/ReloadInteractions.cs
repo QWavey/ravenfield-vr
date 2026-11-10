@@ -407,6 +407,10 @@ namespace RavenfieldVR.Weapons
                         GameSounds.PlayPart(Data, MechSound.MagOut, SeatPose.position, 0f, 0.2f, 0.35f);
                         dom.Haptic(0.02f, 140f, 0.4f);
                     }
+                    else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Data.EnBloc)
+                    {
+                        ThrowEmptyClip(); // (an M1's clip latch: the clip jumps out of the top with its rounds, it does not slide down a rail)
+                    }
                     else if (Ammo.UsesDetachableMag && Ammo.MagInserted)
                     {
                         if (Data.IsPistol)
@@ -741,8 +745,9 @@ namespace RavenfieldVR.Weapons
             // (Not an en-bloc clip with the operating rod's handle in reach: the M1 GARRET's clip sits 5 cm from it, and a hand on the
             // handle took the clip instead, so the rod could not be pulled back; user, 2026-11-03: "the m1garand ... the thing isnt
             // able to be pulled back". A clip is not pulled out of an M1 by hand: the rod is worked and it pings out empty.)
-            if (Manual && Ammo.UsesDetachableMag && Ammo.MagInserted && _ejecting == null && !Ammo.BoxLocked
-                && !(Data.EnBloc && Ammo.UsesChamber && RackZoneDistance(palm) < radius * 1.3f))
+            // (2026-11-10: not by hand at all. Taken out of the full gun it left the bolt shut on a round with no clip in, and the
+            // clip in the hand was refused there: "the m1 garand isnt reloadable". The rod or the release throws it out.)
+            if (Manual && Ammo.UsesDetachableMag && Ammo.MagInserted && _ejecting == null && !Ammo.BoxLocked && !Data.EnBloc)
             {
                 float d = Vector3.Distance(palm, SeatedMagBaseWorld);
                 if (d < radius * 1.1f)

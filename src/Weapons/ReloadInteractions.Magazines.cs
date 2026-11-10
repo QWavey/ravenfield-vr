@@ -422,7 +422,9 @@ namespace RavenfieldVR.Weapons
                     // An en-bloc clip goes in only through the open action (locked back, or nothing in the chamber), and only with rounds in it: the
                     // empty one the last shot threw out, picked up off the ground and pressed home, left the bolt locked on nothing to feed, and no
                     // way took it out again, so no other clip went in (user, 2026-11-08: "i cant reload it rn").
-                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || prop.Rounds > 0 && (Ammo.SlideLocked || !Ammo.Chambered));
+                    // (2026-11-10: also at a shut bolt. The release throws the clip out with the bolt home on a round, and the next clip
+                    // was refused until the rod was pulled, which nothing on the gun said: "i cant insert the mag".)
+                    return Ammo.UsesDetachableMag && !Ammo.MagInserted && (!Data.EnBloc || prop.Rounds > 0);
                 case PropKind.Rocket:
                     return Ammo.MagRounds == 0;
                 default:

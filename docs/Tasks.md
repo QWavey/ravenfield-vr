@@ -2819,6 +2819,19 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 376. The user's playtest of 1.17.1 (user, 2026-11-10 20:15, while playing; the game not started from here)
+
+Their words: "sandbox should be a mode in game mode not in the UI. when sandbox mdoe is launched we start on both sides with 0 bots except me. Also the UI is pretty unsorted and not very handy and there are no images of the guns or things i want to spawn, we need images its important so we see what we spawn. Spawning things doesnt work, sapwning enemys on a modded map for example doesnt spawn them, the tool is also stuck to one hand only and the tool looks bad, could you use a default gun for the toolgun from ravenfield? (secondary) and also add pause and play buttons so i can pause npc behavior etc and also a fly tool to fly around or enable infinite health in sandbox mode etc. Also the m1 garand isnt reloadable i grab a empty mag and i cant insert the mag and also the mag at the beginning (which is fulll) isnt seated in the m1 garret / garand, its above which is bad, it should jump out when pulling back or reloading ... dont foucs only on sounds like you do rn".
+
+- [ ] 376.1 Spawning does not work: enemies on a modded map are not made.
+- [ ] 376.2 M1 Garand (M1 GARRET): an empty clip in the hand cannot be inserted; the full clip at the start sits above the gun, not seated; the clip should jump out on the pull back / reload.
+- [ ] 376.3 Sandbox is a game mode (chosen where the game's modes are), not a button of the settings; started, both sides have 0 bots, only the player.
+- [ ] 376.4 The sandbox panel: sorted and handy, with pictures of the guns and things to spawn.
+- [ ] 376.5 The tool in either hand; its model a gun of the game (a secondary), not the one made from blocks.
+- [ ] 376.6 Pause and play for the soldiers' behaviour.
+- [ ] 376.7 A fly tool; no damage for the player easy to find in the sandbox.
+- [ ] 376.8 Not only sounds: the run's rounds spread over handling, sandbox, multiplayer.
+
 ### 375. Gameplay feel while the user playtests 1.17.x (user, 2026-11-10 19:40: "Concentrate on sandbox and multiplayer but also normal gameplay / gameplay feeling for example the glock17 still has the pull back and forward sound when only pulled back ... also /optimize if you can ... just make sure to not break things"; the game not started from here)
 
 - [x] Setups built at the user's word: 1.17.0 (sandbox + multiplayer), then 1.17.1 with the item below; each installed with the game closed. Notes: `dist/notes-1.17.1.md`.

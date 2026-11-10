@@ -330,6 +330,12 @@ namespace RavenfieldVR.Weapons
                 {
                     Casings.Eject(_held, live: ejected); // a live round flies out, or the fired case a bolt or pump held
                 }
+                if (Data.EnBloc && Ammo.UsesDetachableMag && Ammo.MagInserted)
+                {
+                    // The rod pulled back throws the clip out with what is left in it, and the bolt stays open for the next one
+                    // (user, 2026-11-10: "it should jump out when pulling back or reloading").
+                    ThrowEmptyClip();
+                }
                 if (HandDriven)
                 {
                     Ammo.BoltOpen = true;
@@ -342,6 +348,7 @@ namespace RavenfieldVR.Weapons
                 float closing = Mathf.Abs(moved) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f);
                 float hard = Mathf.Clamp01(0.25f + closing / 1.2f);
                 _rackedBack = false;
+                _strokeOut = false; // (else the short-stroke click below played a second home sound and buzz a frame later; scout, 2026-11-10)
                 Ammo.BoltOpen = false;
                 Ammo.RackForward();
                 _held.Nudge(Rig.AimWorld * (0.1f * hard), 10f); // the bolt or pump closing jolts the gun
@@ -501,7 +508,14 @@ namespace RavenfieldVR.Weapons
                 FinishEject();
             }
             int rounds = Ammo.EjectMagazine();
-            Log.InfoOnce("enbloc-empty:" + Data.Key, $"{Data.Key}: the last round fired, the empty clip thrown out, the bolt {(Ammo.SlideLocked ? "locked back" : "NOT LOCKED")}.");
+            if (rounds == 0)
+            {
+                Log.InfoOnce("enbloc-empty:" + Data.Key, $"{Data.Key}: the last round fired, the empty clip thrown out, the bolt {(Ammo.SlideLocked ? "locked back" : "NOT LOCKED")}.");
+            }
+            else
+            {
+                Log.InfoOnce("enbloc-out:" + Data.Key, $"{Data.Key}: the clip thrown out by hand (the rod or the release) with {rounds} round(s) in it.");
+            }
             MagazineProp clip = MagazineProp.Create(Rig, PropKind.Magazine, rounds);
             clip.Owner = Ammo;
             Vector3 up = Rig.UpWorld, right = Rig.DirToWorld(Vector3.Cross(Data.Up, Data.AimAxis).normalized);
