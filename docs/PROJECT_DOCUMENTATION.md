@@ -674,6 +674,21 @@ join from the list, by a friend's invitation, or by address.
   twice a second: its own AI picks weapons too). An info without that tail (older check code) still reads.
 - **Checks:** `vrshots --lobbycheck` (main menu: choice, panel, following a host made in-process, menus hidden and back);
   `--netcheck` also makes a hidden Steam lobby (`k_ELobbyTypePrivate`), reads its data back and asks for the list.
+- **VR presence (`Net/NetAvatar.cs`).** `VrPose` (kind 23, unreliable, 30 Hz, about 45 bytes): flags (gun, which hands tracked, gun in the
+  left hand, magazine in the free hand), head forward, both palms and the gun's muzzle (place and turn), all relative to the player's
+  own soldier's place. Receiving side, for a player's stand-in only: a Harmony prefix on `ActorIk.OnAnimatorIK` (the game's humanoid
+  arm IK: `handTargetL/R`, `SetHandIkEnabled`, `aimPoint`) puts our own target transforms in; the gun's model
+  (`Weapon.thirdPersonTransform`, the muzzles are its children on an AI's weapon) is set before render so that its muzzle is on the
+  told one (`model = toldMuzzle * inverse(muzzleInModel)`), its local pose given back when no pose is told. The gun hand's target is
+  the hand's place on the gun at rest (the bone against the model at its original local pose, taken ONCE: taken each frame it reads
+  last frame's IK result and follows itself), carried to the gun's told pose, so the wrist is right without the glove's axes. The
+  other hand keeps the game's own left-hand target (a child of the gun's model) while the player's free hand is within 22 cm of it.
+  A player's stand-in is turned to his head's direction each frame (the game turns a soldier only into his walk). Poses are eased
+  (`1 - exp(-25 dt)`) between tellings. A test pose must be one an arm can take: the report line gives the grip's distance from the
+  shoulder and the arm's length.
+- **Knock-downs and the match's state.** `Knock` (22): a postfix on `Actor.KnockOver` tells a stand-in's owner, who knocks his own
+  soldier over with the same force. `MatchState` (24): the host's flag owners (`SpawnPoint.owner`, applied with `SetOwner`) and the
+  end (`VictoryUi.EndGame` is held back by a prefix on a PC that joined and called with the host's winner).
 - **Not carried yet:** vehicles (none in a shared match, see above), a soldier knocked over or held (ragdolls are each PC's own), scores, flags and the match's end (each PC counts its
   own), VR hands on the stand-in (the state has head yaw and pitch only), thrown things.
 - **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
