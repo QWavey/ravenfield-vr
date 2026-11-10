@@ -115,6 +115,7 @@ namespace RavenfieldVR.Net
         private static void Attach(NetSession session)
         {
             _session = session;
+            _backPending = false;
             _hostWasInMatch = false; // (left over from a game hosted before, it sent a joined player's own match back to the menu; scout)
             session.Message += OnMessage;
             session.Joined += OnJoined;
@@ -165,6 +166,8 @@ namespace RavenfieldVR.Net
 
         private static readonly List<VehicleSpawner> StoppedSpawners = new List<VehicleSpawner>();
         private static bool _loading;
+        /// <summary>The host's "back to the menu" came while this PC was loading his match: followed once it is loaded.</summary>
+        private static bool _backPending;
 
         /// <summary>The match that is on, as it is told to who joins (and what the list shows of it).</summary>
         private static void RememberStart(MapEntryData entry, GameModeParameters p)
@@ -453,6 +456,7 @@ namespace RavenfieldVR.Net
 
         private static void StartFromHost(ref NetReader r)
         {
+            _backPending = false; // (a new start from him: the earlier leaving is no longer the last word)
             bool custom = r.Bool();
             string scene = r.String(512);
             string modeName = r.String(128);
@@ -558,6 +562,12 @@ namespace RavenfieldVR.Net
                             Log.Info("Multiplayer: the host went back to the menu.");
                             UI.UISystem.Instance?.Notice?.Show("The host went back to the menu.", 4f);
                             GameManager.ReturnToMenu();
+                        }
+                        else if (sender == 0 && _session != null && !_session.IsHost && _loading)
+                        {
+                            // (Still loading the match he just left: taken once it is loaded. It was dropped, and the joined
+                            // player stood in the match alone; scout, 2026-11-10.)
+                            _backPending = true;
                         }
                         break;
                     case MatchState:
@@ -721,6 +731,17 @@ namespace RavenfieldVR.Net
                     Clear(false);
                 }
                 return;
+            }
+            if (_backPending)
+            {
+                _backPending = false;
+                if (_session != null && !_session.IsHost)
+                {
+                    Log.Info("Multiplayer: the host went back to the menu while this PC was loading; following now.");
+                    UI.UISystem.Instance?.Notice?.Show("The host went back to the menu.", 4f);
+                    GameManager.ReturnToMenu();
+                    return;
+                }
             }
             // (A new match is told by its new player: the actor manager is the same object in every match.)
             bool newMatch = !ReferenceEquals(_vehiclesOffFor, LocalPlayer.actor);
