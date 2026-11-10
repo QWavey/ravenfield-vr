@@ -231,6 +231,7 @@ namespace RavenfieldVR.Weapons
             {
                 _firedBy = __instance;
                 _firedMuzzle = __instance.CurrentMuzzle();
+                AlongTheSights(__instance, _firedMuzzle);
             }
             catch (System.Exception e)
             {
@@ -239,8 +240,56 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        // The game fires along the muzzle part's own forward. That part hangs in the gun's animated model: with the animator left
+        // in another pose than the rest the gun was analysed in (its "empty" pose with the slide back, a pose a reload left), the
+        // part points elsewhere than the barrel the hand holds, and the shot leaves low or aside of the sights (user, 2026-11-10:
+        // "the g17 has crazy bullet drop and doesnt shoot on ironsight anymore, same with some other guns sometimes"). A
+        // one-barrelled gun whose muzzle part is 1 to 40 degrees off the gun's own aim line is turned onto that line for the shot
+        // and put back after it. Said in the log once a gun, with the numbers, and for every gun its bullet's speed and drop once.
+        private static Transform _turned;
+        private static Quaternion _turnedBack;
+
+        private static void AlongTheSights(Weapon w, Transform muzzle)
+        {
+            _turned = null;
+            HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            WeaponRig rig = held != null ? held.ActiveRig : null;
+            if (muzzle == null || rig == null || !ReferenceEquals(rig.Weapon, w) || w.configuration == null || w is ThrowableWeapon || w is MeleeWeapon)
+            {
+                return;
+            }
+            Vector3 aim = rig.AimWorld;
+            if (aim.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            float off = Vector3.Angle(muzzle.forward, aim);
+            Projectile bullet = w.configuration.projectilePrefab != null ? w.configuration.projectilePrefab.GetComponent<Projectile>() : null;
+            Log.InfoOnce("shot:" + rig.Data.Key, $"{rig.Data.Key}: first shot: its muzzle part '{muzzle.name}' (under '{(muzzle.parent != null ? muzzle.parent.name : "nothing")}') points {off:0.0} deg off the gun's aim line; "
+                                              + $"its bullet {(bullet != null && bullet.configuration != null ? $"{bullet.configuration.speed:0} m/s, gravity x{bullet.configuration.gravityMultiplier:0.00}" : "unknown")}; {w.configuration.muzzles.Length} muzzle(s).");
+            bool one = !w.configuration.fireFromAllMuzzles && w.configuration.muzzles != null && w.configuration.muzzles.Length == 1;
+            if (!one || off < 1f || off > 40f)
+            {
+                if (off >= 1f)
+                {
+                    Log.InfoOnce("shot-off-left:" + rig.Data.Key, $"{rig.Data.Key}: its muzzle part points {off:0.0} deg off the aim line and is left so ({(one ? "too far off to be a pose" : "several muzzles")}).");
+                }
+                return;
+            }
+            _turned = muzzle;
+            _turnedBack = muzzle.rotation;
+            muzzle.rotation = Quaternion.LookRotation(aim, muzzle.up);
+            string pose = w.animator != null && w.animator.isActiveAndEnabled && w.animator.layerCount > 0 ? w.animator.GetCurrentAnimatorStateInfo(0).shortNameHash.ToString() : "no animator";
+            Log.InfoOnce("shot-off:" + rig.Data.Key + ":" + Mathf.RoundToInt(off / 3f), $"{rig.Data.Key}: its muzzle part pointed {off:0.0} deg off the gun's aim line at a shot (animator state {pose}): the shot is sent along the aim line.");
+        }
+
         private static void Postfix(Weapon __instance, bool __result)
         {
+            if (_turned != null)
+            {
+                _turned.rotation = _turnedBack;
+                _turned = null;
+            }
             // Not a grenade let go or a melee swing (both run Shoot too): they got a gunshot's kick, view jolt and buzz.
             if (__result && !(__instance is ThrowableWeapon) && !(__instance is MeleeWeapon) && WeaponHooks.PlayerWeaponInVR(__instance))
             {

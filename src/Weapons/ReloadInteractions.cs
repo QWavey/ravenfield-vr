@@ -370,7 +370,7 @@ namespace RavenfieldVR.Weapons
                     MagazineProp.KeepLoadedLook(Rig); // its rocket as it sits loaded: the one from the pouch is drawn with it
                 }
                 else if (Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds >= Mathf.Max(1, Ammo.Capacity - 1)
-                         && !MagazineProp.KeepsLoadedLook(Data.Key) && _held.SettledLoaded)
+                         && !MagazineProp.KeepsLoadedLook(Data.Key) && (_held.SettledLoaded || Data.EnBloc && Ammo.MagRounds >= Ammo.Capacity - 1))
                 {
                     // (Only once the gun has settled loaded: see HeldWeapon.SettledLoaded.)
                     // Its magazine as it sits full (one in the chamber at most): a full one from the pouch is drawn with it. With one

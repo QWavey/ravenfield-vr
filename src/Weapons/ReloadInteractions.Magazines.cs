@@ -553,6 +553,11 @@ namespace RavenfieldVR.Weapons
             {
                 GripWellRail(prop);
             }
+            if (!prop.OnRail && prop.Kind == PropKind.Magazine && Data.EnBloc)
+            {
+                // An en-bloc clip's way in starts above the receiver (8 cm of it): its 3 cm began inside the gun.
+                prop.RailFromGripBottom(0.08f);
+            }
             float along = HandAlongRail(off, prop, out float lateral);
 
             if (!prop.OnRail)
@@ -576,13 +581,19 @@ namespace RavenfieldVR.Weapons
                 // well's play: the keep-out lets it no further) and nearly straight.
                 // Judged where the magazine is drawn, not where the hand is: held back at the mouth by the gun with the hand
                 // pushing on (a fast push passes the mouth's 2 cm in a frame), it is still at the mouth.
-                bool magazine = prop.Kind == PropKind.Magazine;
+                // An en-bloc clip (the M1's) is not judged as a magazine here: it goes in from the top, pressed down, and the
+                // hand holds it as a magazine (its way in pointing up out of the fist), so it was never within 35 degrees of
+                // the way in and never taken onto it: "m1 garret cant be reloaded still ... putting a new one in doesnt work"
+                // (user, 2026-11-10, twice). Taken by where the hand has it, over the open action, however it is turned; on
+                // its way in it is drawn as it goes into the gun.
+                bool enBloc = prop.Kind == PropKind.Magazine && Data.EnBloc;
+                bool magazine = prop.Kind == PropKind.Magazine && !enBloc;
                 float drawnLateral = lateral;
                 float drawnAlong = magazine && prop.Go != null ? PoseAlongRail(prop, RigidPose.Of(prop.Go.transform), out drawnLateral) : along;
                 bool atMouth = !magazine || drawnAlong < MouthReach + 0.005f;
-                float lateralMax = rocket ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
-                float angleMax = !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
-                bool lined = (magazine ? drawnLateral : lateral) < lateralMax && along > (rocket ? -0.03f : -0.005f) && (rocket ? along < RocketTakenIn : (magazine ? drawnAlong : along) < prop.RailLength)
+                float lateralMax = rocket ? 0.06f : enBloc ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
+                float angleMax = enBloc ? 181f : !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
+                bool lined = (magazine ? drawnLateral : lateral) < lateralMax && along > (rocket || enBloc ? -0.03f : -0.005f) && (rocket ? along < RocketTakenIn : (magazine ? drawnAlong : along) < prop.RailLength)
                              && angle < angleMax;
                 if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
                 {
@@ -602,8 +613,16 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.04f, 70f, 0.55f);
                     _sys.FlashMessage("TAIL FIRST");
                 }
+                if (enBloc && !lined && lateral < 0.15f && along > -0.12f && along < prop.RailLength + 0.05f)
+                {
+                    Log.InfoOnce("enbloc-near:" + Data.Key, $"{Data.Key}: a clip near the open action, not on its way in yet: {along * 100f:0.0} cm along its {prop.RailLength * 100f:0.0} cm way, {lateral * 100f:0.0} cm aside (6 at most), turned {angle:0} deg, {prop.Rounds} round(s).");
+                }
                 if (lined)
                 {
+                    if (enBloc)
+                    {
+                        Log.InfoOnce("enbloc-on:" + Data.Key, $"{Data.Key}: a clip taken onto its way in at {along * 100f:0.0} cm of {prop.RailLength * 100f:0.0} cm, {lateral * 100f:0.0} cm aside, turned {angle:0} deg in the hand.");
+                    }
                     prop.OnRail = true;
                     _railInSpeed = 0f;
                     prop.RailDepth = Mathf.Clamp(along, rocket ? -RocketLineAhead : 0f, prop.RailLength);

@@ -187,27 +187,31 @@ namespace RavenfieldVR.Weapons
             {
                 return -1f;
             }
-            int from = (int)(n * 0.3f), to = (int)(n * 0.7f), best = from;
-            for (int i = from; i <= to; i++)
+            // The deepest dip with a stroke on either side: for every 10 ms, the loudest before it and the loudest after it; where
+            // both are at least a quarter of the peak and it is at most 60% of the quieter one, the one lowest against its
+            // strokes is the cut. (Before: the quietest point between 30% and 70% of the clip. The S-IND7's handle has both
+            // strokes in its first part and a tail after: nothing was found, and the Glock played all of it on the pull and all
+            // of it again on the release; user, 2026-11-10, 1.17.2.)
+            var after = new float[n];
+            float run = 0f;
+            for (int i = n - 1; i >= 0; i--)
             {
-                if (env[i] < env[best])
-                {
-                    best = i;
-                }
+                after[i] = run;
+                run = Math.Max(run, env[i]);
             }
-            float before = 0f, after = 0f;
+            float before = 0f, bestRatio = 0.6f;
+            int best = -1;
             for (int i = 0; i < n; i++)
             {
-                if (i < best)
+                float quieter = Math.Min(before, after[i]);
+                if (i >= 2 && i < n - 2 && quieter >= 0.25f * peak && env[i] <= bestRatio * quieter)
                 {
-                    before = Math.Max(before, env[i]);
+                    bestRatio = env[i] / quieter;
+                    best = i;
                 }
-                else if (i > best)
-                {
-                    after = Math.Max(after, env[i]);
-                }
+                before = Math.Max(before, env[i]);
             }
-            return before >= 0.3f * peak && after >= 0.3f * peak ? (best + 0.5f) * win / frequency : -1f;
+            return best >= 0 ? (best + 0.5f) * win / frequency : -1f;
         }
 
         private static readonly Dictionary<int, float> KnownBoth = new Dictionary<int, float>();
@@ -447,6 +451,13 @@ namespace RavenfieldVR.Weapons
             {
                 // One clip for the pull and for the slide going home, its own or lent, with no gap heard in it: it holds both.
                 float cut = RackSplit.OfBoth(clip);
+                if (!(cut > 0.03f && cut < clip.length - 0.03f) && clip.length > 0.45f)
+                {
+                    // No two strokes heard in it, and the gun still plays it for both: half each, so neither action plays the
+                    // other's (the user's word on the Glock: "we only need the slide back sound and slide forth").
+                    cut = clip.length * 0.5f;
+                    Log.InfoOnce("rackboth-half:" + _rig.Data.Key + ":" + clip.name, $"{_rig.Data.Key}: '{clip.name}' ({clip.length:0.00} s) is played for its pull and its slide going home and no two strokes were heard in it: its first half for the pull, its second for home.");
+                }
                 if (cut > 0.03f && cut < clip.length - 0.03f)
                 {
                     Log.InfoOnce("rackboth:" + _rig.Data.Key + ":" + clip.name, $"{_rig.Data.Key}: one sound '{clip.name}' ({clip.length:0.00} s) is its pull and its slide going home: the pull plays it to {cut:0.00} s, home the rest.");

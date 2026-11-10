@@ -197,6 +197,8 @@ namespace RavenfieldVR.Tests
                 float Both(float[] s) => (float)noGap.Invoke(null, new object[] { s, 2, hz });
                 float touching = Both(Clip(0.68f, new[] { 0.03f, 0.3f, 0.8f }, new[] { 0.3f, 0.36f, 0.3f }, new[] { 0.36f, 0.6f, 0.9f }));
                 Check(touching > 0.29f && touching < 0.37f, $"Rack split (one clip for both): pull and home with no gap, a dip between: cut in the dip ({touching:0.000} s)");
+                float early = Both(Clip(0.68f, new[] { 0.03f, 0.1f, 0.7f }, new[] { 0.1f, 0.15f, 0.2f }, new[] { 0.15f, 0.24f, 0.9f }, new[] { 0.24f, 0.68f, 0.05f }));
+                Check(early > 0.09f && early < 0.16f, $"Rack split (one clip for both): both strokes in its first third, a tail after: cut between them ({early:0.000} s)");
                 float single = Both(Clip(0.6f, new[] { 0.02f, 0.15f, 0.9f }, new[] { 0.15f, 0.6f, 0.1f }));
                 Check(single < 0f, $"Rack split (one clip for both): one stroke and its tail: not cut ({single:0.000})");
             }
