@@ -322,7 +322,7 @@ namespace RavenfieldVR.Sandbox
             // With a gun drawn the tool is in the other hand, whose trigger is also the gun's (the pump, the launcher under the
             // barrel, the light): near the gun that hand is the gun's, and the tool waits (it took every press; review, 2026-11-10).
             if (Weapons.WeaponSystem.Instance != null && Weapons.WeaponSystem.Instance.Held != null
-                && Vector3.Distance(hand.Palm.position, _rig.Dominant.Palm.position) < 0.35f)
+                && Vector3.Distance(hand.Palm.position, _rig.Dominant.Palm.position) < 0.22f) // (at the gun: 35 cm made the tool wait with the arm only half out)
             {
                 _gunShown = false;
                 _pulled = hand.Trigger > ReleaseAt;
