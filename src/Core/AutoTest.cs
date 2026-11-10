@@ -69,6 +69,7 @@ namespace RavenfieldVR.Core
         /// </summary>
         private static readonly bool GrabCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabcheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-sandboxcheck (with -rfvr-autotest -vr): only the sandbox's check (Sandbox.SandboxCheck), about two minutes.</summary>
+        internal static readonly bool InSandboxMode = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-sandboxmode", StringComparison.OrdinalIgnoreCase));
         private static readonly bool SandboxCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-sandboxcheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>What holds the game's time still, in words (a check that waits on game time says it and goes on).</summary>
         internal static string WhyPaused()
@@ -7728,6 +7729,18 @@ namespace RavenfieldVR.Core
             if (p?.configuration == null)
             {
                 return;
+            }
+            if (AutoTest.InSandboxMode)
+            {
+                // (-rfvr-sandboxmode: the test's match is the Sandbox mode itself, no soldier on either side.)
+                GameModeInfo sandbox = Sandbox.Sandbox.ModeByName("Sandbox");
+                if (sandbox != null)
+                {
+                    p.gameMode = sandbox;
+                    p.configuration.SetInt("countTeam0", 0);
+                    p.configuration.SetInt("countTeam1", 0);
+                    return;
+                }
             }
             p.configuration.SetInt("countTeam0", 4);
             p.configuration.SetInt("countTeam1", 4);

@@ -568,6 +568,7 @@ def main():
     ap.add_argument('--bench', action='store_true', help='graphics bench')
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--grabcheck', action='store_true', help='only the soldier checks: grab, throw, fist, a gun swung into one (a few minutes)')
+    ap.add_argument('--sandboxmode', action='store_true', help='with --sandboxcheck: the match is the Sandbox game mode itself (no soldiers of its own)')
     ap.add_argument('--sandboxcheck', action='store_true', help='only the sandbox check: soldiers by behaviour, quiet field, vehicle, weapon, panel (two minutes)')
     ap.add_argument('--netcheck', action='store_true', help='only the multiplayer check: a second player in the same game over UDP (a minute)')
     ap.add_argument('--lobbycheck', action='store_true', help="only the main menu's part of multiplayer: the start choice, a joined player following the host (a minute)")
@@ -670,7 +671,7 @@ def main():
         elif mode == 'netcheck':
             args, timeout = base + ['-rfvr-netcheck'], a.timeout or 6
         elif mode == 'sandboxcheck':
-            args, timeout = base + ['-rfvr-sandboxcheck'], a.timeout or 8
+            args, timeout = base + ['-rfvr-sandboxcheck'] + (['-rfvr-sandboxmode'] if a.sandboxmode else []), a.timeout or 8
         elif mode == 'grabcheck':
             args, timeout = base + ['-rfvr-grabcheck'] + (['-rfvr-walkcheck'] if a.walkcheck else []), a.timeout or 8
         else:

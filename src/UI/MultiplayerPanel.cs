@@ -52,6 +52,10 @@ namespace RavenfieldVR.UI
                 {
                     shown = shown * 31 + line.GetHashCode();
                 }
+                if (NetMods.HostCount > 0)
+                {
+                    shown = shown * 31 + NetMods.Missing(out int off) * 5 + off * 3 + (NetMods.Asked ? 1 : 0) + NetMods.HostCount * 7;
+                }
             }
             return shown;
         }
@@ -106,6 +110,30 @@ namespace RavenfieldVR.UI
                     Label(line, 24, FontStyle.Normal, UiKit.TextColor);
                 }
                 Label("When the host starts the match, it starts here by itself.", 19, FontStyle.Italic);
+                if (NetMods.HostCount > 0)
+                {
+                    // The host's workshop mods this PC lacks: asked for through Steam on the player's word.
+                    Section("The host's mods");
+                    int missing = NetMods.Missing(out int off);
+                    if (missing > 0 && !NetMods.Asked)
+                    {
+                        ActionRow($"{missing} of the host's {NetMods.HostCount} workshop mods are not on this PC.", "Get them", () => UISystem.Instance?.Notice?.Show(NetMods.GetThem(), 6f));
+                        Label("Steam downloads them from the workshop and the game loads each when it is there. Without them his weapons and maps are missing here.", 18, FontStyle.Italic, UiKit.MutedText, 50f);
+                    }
+                    else if (missing > 0)
+                    {
+                        Label($"Steam is fetching the host's mods: {missing} still to come.", 22, FontStyle.Normal, UiKit.TextColor);
+                        Label("Should a weapon or map still be missing once all are there, start the game again.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
+                    }
+                    else
+                    {
+                        Label($"You have all {NetMods.HostCount} of the host's workshop mods.", 22, FontStyle.Normal, UiKit.TextColor);
+                    }
+                    if (off > 0)
+                    {
+                        Label($"{off} of them are switched off on this PC (the game's Mods page turns them on).", 18, FontStyle.Italic, UiKit.MutedText, 34f);
+                    }
+                }
             }
             Label("No slow motion and no pause in a shared match: it runs at one speed for everyone.", 19, FontStyle.Italic);
             Label("On foot for now: vehicles are not shared between the PCs yet, so a shared match has none.", 19, FontStyle.Italic);
@@ -116,6 +144,7 @@ namespace RavenfieldVR.UI
             }
             if (session.IsHost)
             {
+                Label($"Who joins is told your {NetMods.Mine().Count} workshop mods and asked whether to fetch the ones he lacks. Everyone needs the VR mod itself.", 19, FontStyle.Italic, UiKit.MutedText, 50f);
                 Label("Start a match from the game's own menu: everyone in your game comes along.", 19, FontStyle.Italic);
             }
             ActionRow(session.IsHost ? "Close your game (everyone leaves)." : "Leave this game.", session.IsHost ? "Close" : "Leave", Multiplayer.Leave);

@@ -116,6 +116,7 @@ namespace RavenfieldVR.Net
         {
             _session = session;
             _backPending = false;
+            NetMods.Clear();
             _hostWasInMatch = false; // (left over from a game hosted before, it sent a joined player's own match back to the menu; scout)
             session.Message += OnMessage;
             session.Joined += OnJoined;
@@ -197,6 +198,10 @@ namespace RavenfieldVR.Net
             _lobbyResend = true;
             _nextLobbyTell = 0f;
             _matchTold = 0; // (the newcomer is told the flags and the end at the next telling)
+            if (_session != null && _session.IsHost)
+            {
+                NetMods.Tell(_session, p.Id); // (the workshop mods he may lack: he is asked whether to fetch them)
+            }
             if (_session != null && _session.IsHost && _lastStart != null && InMatch)
             {
                 Out.Reset();
@@ -567,6 +572,9 @@ namespace RavenfieldVR.Net
                         break;
                     case Thrown:
                         ShowThrow(sender, ref r);
+                        break;
+                    case NetMods.Kind:
+                        NetMods.Take(sender, ref r, sender == 0 && _session != null && !_session.IsHost);
                         break;
                     case BackToMenu:
                         // The host left the match for the menu: so does everyone ("just follow what he does").

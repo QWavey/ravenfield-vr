@@ -140,6 +140,31 @@ namespace RavenfieldVR.Sandbox
                 report($"sandbox friendlies: NOT MADE (mine: {problem}; random: {problem2})");
             }
 
+            // 5a. Where a soldier stands after he was made: at the spot, and still near it seconds later (user, 2026-11-10: "when I
+            // spawn people they spawn on spawnpoints and not in the place i want to spawn them").
+            Core.Log.Info("[sandbox check] step: placement");
+            {
+                Vector3 spot = Vector3.zero;
+                List<Actor> placed1 = Make(player, SoldierSide.Enemy, SoldierBehaviour.Normal, SoldierWeapons.None, SoldierHealth.Invulnerable, 1, 9f, -10f, out string placeProblem);
+                if (placed1.Count == 1)
+                {
+                    own.Add(placed1[0]);
+                    spot = placed1[0].Position();
+                    yield return Core.AutoTest.GameSeconds(0.5f, report);
+                    float soon = Vector3.Distance(spot, placed1[0].Position());
+                    yield return Core.AutoTest.GameSeconds(4f, report);
+                    float afterFour = Vector3.Distance(spot, placed1[0].Position());
+                    SpawnPoint nearest = ActorManager.instance.spawnPoints.OrderBy(sp => Vector3.Distance(sp.transform.position, placed1[0].Position())).FirstOrDefault();
+                    report($"sandbox placement: a normal enemy {soon:0.0} m from his spot after 0.5 s{(soon > 4f ? " NOT WHERE HE WAS PUT" : "")}, {afterFour:0.0} m after 4.5 s{(afterFour > 35f ? " NOT NEAR ANY MORE" : "")}; "
+                           + $"the nearest spawn point {(nearest != null ? Vector3.Distance(nearest.transform.position, placed1[0].Position()).ToString("0") + " m from him" : "none")}; dead {placed1[0].dead}");
+                    Sandbox.SetBehaviour(placed1[0], SoldierBehaviour.Frozen);
+                }
+                else
+                {
+                    report($"sandbox placement: NOT MADE ({placeProblem})");
+                }
+            }
+
             Core.Log.Info("[sandbox check] step: follower");
             // 5b. A dead sandbox soldier: his body lies for its time, then he is off the field, and no spawn wave brings him back.
             if (random.Count == 1 && random[0].dead)
