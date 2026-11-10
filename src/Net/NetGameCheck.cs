@@ -285,9 +285,17 @@ namespace RavenfieldVR.Net
                 Vector3 at = body.Position();
                 float offL = boneL != null ? Vector3.Distance(boneL.position, at + handL) : -1f, offR = boneR != null ? Vector3.Distance(boneR.position, at + handR) : -1f;
                 Transform mz = body.activeWeapon != null ? body.activeWeapon.CurrentMuzzle() : null;
+                // (The gun hand is on the gun's grip as this soldier holds this gun, wherever the told palm is: measured against the
+                // hand's place on the gun at rest, carried to where the gun is now.)
+                float gripOff = -1f;
+                NetAvatar.Pose pose = remote.Pose;
+                if (pose != null && pose.Model != null && boneR != null && pose.TargetR != null)
+                {
+                    gripOff = Vector3.Distance(boneR.position, pose.TargetR.position);
+                }
                 float gunOff = mz != null ? Vector3.Distance(mz.position, at + muzzleAt) : -1f, gunTurn = mz != null ? Quaternion.Angle(mz.rotation, muzzleLook) : -1f;
                 report($"multiplayer VR player's arms and gun: his soldier's arms set {NetAvatar.ArmsSet - armsBefore} time(s){(NetAvatar.ArmsSet == armsBefore ? " NOT SET" : "")}; "
-                       + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, right hand {offR * 100f:0} cm{(offR < 0f || offR > 0.2f ? " NOT THERE" : "")}; "
+                       + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, gun hand {gripOff * 100f:0} cm from where his soldier grips this gun{(gripOff < 0f || gripOff > 0.08f ? " NOT ON THE GRIP" : "")}; "
                        + $"his gun's muzzle {gunOff * 100f:0} cm off and {gunTurn:0} degrees off his{(gunOff < 0f || gunOff > 0.05f || gunTurn > 5f ? " NOT WHERE HE HOLDS IT" : "")}");
                 yield return For(1f);
             }

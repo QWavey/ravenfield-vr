@@ -18,7 +18,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetAvatar
     {
-        internal const int HasGun = 1, LeftHand = 2, RightHand = 4;
+        internal const int HasGun = 1, LeftHand = 2, RightHand = 4, GunInLeft = 8;
         private const float SendEvery = 1f / 30f, FreshFor = 0.6f;
 
         /// <summary>What a VR player's game told last, and where the stand-in's hands and gun are being eased to.</summary>
@@ -35,6 +35,19 @@ namespace RavenfieldVR.Net
             public Quaternion MuzzleRotNow = Quaternion.identity;
             public bool Eased;
             public Transform TargetL, TargetR;
+
+            /// <summary>The gun model being moved, and where it sat in the soldier's hand before (given back when no pose is told).</summary>
+            public Transform Model;
+            public Vector3 ModelLocalPosition;
+            public Quaternion ModelLocalRotation;
+            public Vector3 MuzzleInModel;
+            public Quaternion MuzzleRotInModel;
+            public bool GunPlaced;
+
+            /// <summary>The game's own left-hand target on this gun (kept while ours stands in for it).</summary>
+            public Transform OwnLeft;
+            public Vector3 ModelPosition;
+            public Quaternion ModelRotation;
 
             public bool Fresh => Time.unscaledTime - Heard < FreshFor;
             public bool Is(int flag) => (Flags & flag) != 0;
@@ -59,6 +72,7 @@ namespace RavenfieldVR.Net
         {
             if (remote.Pose != null)
             {
+                GiveBack(remote.Pose);
                 if (remote.Pose.TargetL != null)
                 {
                     Object.Destroy(remote.Pose.TargetL.gameObject);
@@ -116,7 +130,7 @@ namespace RavenfieldVR.Net
             }
             Vector3 origin = player.Position();
             VRHand left = rig.Hand(Input.Hand.Left), right = rig.Hand(Input.Hand.Right);
-            int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0);
+            int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0);
             Vector3 muzzle = Vector3.zero;
             Quaternion muzzleRot = Quaternion.identity;
             Weapon gun = player.activeWeapon;
@@ -189,23 +203,120 @@ namespace RavenfieldVR.Net
             {
                 p.Eased = true;
                 ease = 1f;
+                p.MuzzleNow = p.Muzzle;
+                p.MuzzleRotNow = p.MuzzleRot;
             }
             p.LeftNow = Vector3.Lerp(p.LeftNow, p.Left, ease);
             p.RightNow = Vector3.Lerp(p.RightNow, p.Right, ease);
-            // The hand bones' own turn is kept (the told palm's axes are the glove's, not the soldier's hand bone's): the arms
-            // reach, the wrists stay as the soldier's animation has them.
+            p.MuzzleNow = Vector3.Lerp(p.MuzzleNow, p.Muzzle, ease);
+            p.MuzzleRotNow = Quaternion.Slerp(p.MuzzleRotNow, p.MuzzleRot, ease);
             Animator animator = a.animator;
             Transform boneL = animator != null ? animator.GetBoneTransform(HumanBodyBones.LeftHand) : null;
             Transform boneR = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
-            p.TargetL.SetPositionAndRotation(origin + p.LeftNow, boneL != null ? boneL.rotation : Quaternion.identity);
-            p.TargetR.SetPositionAndRotation(origin + p.RightNow, boneR != null ? boneR.rotation : Quaternion.identity);
-            __instance.handTargetL = p.TargetL;
-            __instance.handTargetR = p.TargetR;
-            __instance.SetHandIkEnabled(p.Is(LeftHand), p.Is(RightHand));
+            // The hand he does not hold the gun with (or, with no gun, each hand where it is): its own turn is the soldier's.
+            Vector3 freeAt = origin + (p.Is(GunInLeft) ? p.RightNow : p.LeftNow);
+            bool freeTold = p.Is(GunInLeft) ? p.Is(RightHand) : p.Is(LeftHand);
+            p.GunPlaced = false;
+            if (p.Is(HasGun) && FindGun(a, p) && boneR != null)
+            {
+                // Where the gun goes (its muzzle on the told one), and the soldier's gun hand on its grip exactly as his own
+                // animation holds this gun: the hand bone's place and turn against the gun at rest in his hand, carried over to
+                // the gun's told place. So the wrist is right without knowing the glove's axes.
+                Transform parent = p.Model.parent;
+                Vector3 restAt = parent != null ? parent.TransformPoint(p.ModelLocalPosition) : p.ModelLocalPosition;
+                Quaternion restTurn = parent != null ? parent.rotation * p.ModelLocalRotation : p.ModelLocalRotation;
+                Quaternion inRest = Quaternion.Inverse(restTurn);
+                p.ModelRotation = p.MuzzleRotNow * Quaternion.Inverse(p.MuzzleRotInModel);
+                p.ModelPosition = origin + p.MuzzleNow - p.ModelRotation * p.MuzzleInModel;
+                p.GunPlaced = true;
+                p.TargetR.SetPositionAndRotation(p.ModelPosition + p.ModelRotation * (inRest * (boneR.position - restAt)), p.ModelRotation * (inRest * boneR.rotation));
+                __instance.handTargetR = p.TargetR;
+                // The other hand: on the gun as the game has it (its own left-hand target rides on the gun's model) while his
+                // free hand is near the gun; off it, where his free hand is.
+                Transform own = __instance.handTargetL == p.TargetL ? p.OwnLeft : __instance.handTargetL; // (ours stands in for it from the second frame on)
+                bool onGun = own != null && own != p.TargetL && own.IsChildOf(p.Model);
+                Vector3 gunHold = onGun ? p.ModelPosition + p.ModelRotation * (inRest * (own.position - restAt)) : Vector3.zero;
+                if (onGun && (!freeTold || Vector3.Distance(gunHold, freeAt) < 0.22f))
+                {
+                    p.TargetL.SetPositionAndRotation(gunHold, p.ModelRotation * (inRest * own.rotation));
+                    p.OwnLeft = own;
+                    __instance.handTargetL = p.TargetL;
+                    __instance.SetHandIkEnabled(true, true);
+                }
+                else
+                {
+                    if (onGun)
+                    {
+                        p.OwnLeft = own;
+                    }
+                    p.TargetL.SetPositionAndRotation(freeAt, boneL != null ? boneL.rotation : Quaternion.identity);
+                    __instance.handTargetL = p.TargetL;
+                    __instance.SetHandIkEnabled(freeTold, true);
+                }
+            }
+            else
+            {
+                p.TargetL.SetPositionAndRotation(origin + p.LeftNow, boneL != null ? boneL.rotation : Quaternion.identity);
+                p.TargetR.SetPositionAndRotation(origin + p.RightNow, boneR != null ? boneR.rotation : Quaternion.identity);
+                __instance.handTargetL = p.TargetL;
+                __instance.handTargetR = p.TargetR;
+                __instance.SetHandIkEnabled(p.Is(LeftHand), p.Is(RightHand));
+            }
             __instance.aimPoint = a.CenterPosition() + Vector3.up * 0.6f + p.HeadForward.normalized * 100f;
             __instance.turnBody = false; // (the head looks there; the body stays as the walk has it)
             __instance.weight = 1f;
             ArmsSet++;
+        }
+
+        /// <summary>
+        /// The gun model in the stand-in's hands taken note of (where it rests in the hand, where its muzzle is in it); a model
+        /// held before is given back to its hand first. False with no gun, no model or no muzzle on it.
+        /// </summary>
+        private static bool FindGun(Actor a, Pose p)
+        {
+            Weapon gun = a.activeWeapon;
+            Transform model = gun != null ? gun.thirdPersonTransform : null;
+            if (model != p.Model)
+            {
+                GiveBack(p);
+                if (model == null)
+                {
+                    return false;
+                }
+                Transform muzzle;
+                try
+                {
+                    muzzle = gun.CurrentMuzzle();
+                }
+                catch (System.Exception)
+                {
+                    return false;
+                }
+                if (muzzle == null || !muzzle.IsChildOf(model))
+                {
+                    return false;
+                }
+                p.Model = model;
+                p.ModelLocalPosition = model.localPosition;
+                p.ModelLocalRotation = model.localRotation;
+                Quaternion inModel = Quaternion.Inverse(model.rotation);
+                p.MuzzleInModel = inModel * (muzzle.position - model.position);
+                p.MuzzleRotInModel = inModel * muzzle.rotation;
+                p.OwnLeft = null;
+            }
+            return p.Model != null;
+        }
+
+        /// <summary>The gun back where the soldier's hand has it, and the game's own left-hand target back (no pose told any more).</summary>
+        private static void GiveBack(Pose p)
+        {
+            if (p.Model != null)
+            {
+                p.Model.localPosition = p.ModelLocalPosition;
+                p.Model.localRotation = p.ModelLocalRotation;
+            }
+            p.Model = null;
+            p.GunPlaced = false;
         }
 
         /// <summary>Before the eyes are drawn: each VR player's gun put where he holds it (its muzzle on the told one).</summary>
@@ -217,36 +328,29 @@ namespace RavenfieldVR.Net
             }
             foreach (KeyValuePair<ActorIk, NetGame.Remote> kv in ByIk)
             {
-                if (!Usable(kv.Value, out Actor a, out Pose p) || !p.Is(HasGun))
+                Pose p = kv.Value.Pose;
+                if (p == null)
                 {
                     continue;
                 }
-                Weapon gun = a.activeWeapon;
-                Transform model = gun != null ? gun.thirdPersonTransform : null;
-                if (model == null)
+                if (!Usable(kv.Value, out Actor _, out Pose _) || !p.Is(HasGun))
                 {
+                    if (p.Model != null)
+                    {
+                        // (No pose told any more, or he is down: the gun is the soldier's own again, and his left hand's hold.)
+                        GiveBack(p);
+                        if (kv.Key != null && p.OwnLeft != null && kv.Key.handTargetL == p.TargetL)
+                        {
+                            kv.Key.handTargetL = p.OwnLeft;
+                        }
+                        p.Eased = false;
+                    }
                     continue;
                 }
-                Transform muzzle = null;
-                try
+                if (p.GunPlaced && p.Model != null)
                 {
-                    muzzle = gun.CurrentMuzzle();
+                    p.Model.SetPositionAndRotation(p.ModelPosition, p.ModelRotation);
                 }
-                catch (System.Exception)
-                {
-                    continue;
-                }
-                if (muzzle == null || !muzzle.IsChildOf(model))
-                {
-                    continue;
-                }
-                float ease = 1f - Mathf.Exp(-25f * Time.deltaTime);
-                p.MuzzleNow = Vector3.Lerp(p.MuzzleNow, p.Muzzle, p.MuzzleNow == Vector3.zero ? 1f : ease);
-                p.MuzzleRotNow = Quaternion.Slerp(p.MuzzleRotNow, p.MuzzleRot, p.MuzzleRotNow == Quaternion.identity ? 1f : ease);
-                // The model turned so its muzzle looks as told, then moved so the muzzle is where told.
-                Quaternion turn = p.MuzzleRotNow * Quaternion.Inverse(muzzle.rotation);
-                model.rotation = turn * model.rotation;
-                model.position += a.Position() + p.MuzzleNow - muzzle.position;
             }
         }
     }
