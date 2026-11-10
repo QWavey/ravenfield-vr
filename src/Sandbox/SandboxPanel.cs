@@ -82,7 +82,23 @@ namespace RavenfieldVR.Sandbox
             Title("Sandbox", GameContext.InGame
                 ? "Soldiers, vehicles and weapons made on the spot. The tool is in your empty hand: point, pull its trigger."
                 : "Sandbox is a game mode: choose it where the game's modes are. It starts with no soldier on either side.");
-            Choice("", TabNames, (int)_tab, i => _tab = (Tab)i);
+            Choice("", TabNames, (int)_tab, i =>
+            {
+                _tab = (Tab)i;
+                // The tool in the hand follows the page: on Vehicles it makes the chosen vehicle, on Soldiers the soldier (it had
+                // to be put away and taken again on the other page: "not very handy", user 2026-11-10).
+                if (Sandbox.Armed != Sandbox.ToolKind.None)
+                {
+                    if (_tab == Tab.Soldiers)
+                    {
+                        Sandbox.Armed = Sandbox.ToolKind.Soldier;
+                    }
+                    else if (_tab == Tab.Vehicles)
+                    {
+                        Sandbox.Armed = Sandbox.ToolKind.Vehicle;
+                    }
+                }
+            });
             switch (_tab)
             {
                 case Tab.Soldiers:
