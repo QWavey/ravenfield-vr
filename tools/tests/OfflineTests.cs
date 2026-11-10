@@ -190,6 +190,16 @@ namespace RavenfieldVR.Tests
             float At(float[] s) => (float)split.Invoke(null, new object[] { s, 2, hz });
             float two = At(Clip(0.5f, new[] { 0.02f, 0.12f, 0.9f }, new[] { 0.22f, 0.3f, 0.8f }));
             Check(two > 0.12f && two < 0.22f, $"Rack split: pull, 100 ms gap, home: cut in the gap ({two:0.000} s)");
+            System.Reflection.MethodInfo noGap = split.DeclaringType.GetMethod("SplitNoGap", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Check(noGap != null, "Rack split: RackSplit.SplitNoGap found");
+            if (noGap != null)
+            {
+                float Both(float[] s) => (float)noGap.Invoke(null, new object[] { s, 2, hz });
+                float touching = Both(Clip(0.68f, new[] { 0.03f, 0.3f, 0.8f }, new[] { 0.3f, 0.36f, 0.3f }, new[] { 0.36f, 0.6f, 0.9f }));
+                Check(touching > 0.29f && touching < 0.37f, $"Rack split (one clip for both): pull and home with no gap, a dip between: cut in the dip ({touching:0.000} s)");
+                float single = Both(Clip(0.6f, new[] { 0.02f, 0.15f, 0.9f }, new[] { 0.15f, 0.6f, 0.1f }));
+                Check(single < 0f, $"Rack split (one clip for both): one stroke and its tail: not cut ({single:0.000})");
+            }
             float one = At(Clip(0.4f, new[] { 0.02f, 0.15f, 0.9f }));
             Check(one < 0f, $"Rack split: one stroke: not cut ({one:0.000})");
             float rattle = At(Clip(0.4f, new[] { 0.02f, 0.12f, 0.9f }, new[] { 0.2f, 0.3f, 0.15f }));

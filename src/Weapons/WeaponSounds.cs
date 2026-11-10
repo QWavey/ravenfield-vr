@@ -156,6 +156,97 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// For ONE clip that a gun plays for its pull and for its slide going home (so it holds both) in which <see cref="Split"/>
+        /// heard no gap (a handle pulled and let go at once: the vanilla S-IND7's 0.68 s charging handle, lent to the Glock 17 mod
+        /// for both, played whole on the pull and whole again on the release; the user's log, 2026-11-10): the quietest 10 ms
+        /// between 30% and 70% of it, when a stroke of at least 30% of the peak stands on either side. -1: one stroke and its
+        /// tail. Pure over the samples: the offline tests check it.
+        /// </summary>
+        internal static float SplitNoGap(float[] samples, int channels, int frequency)
+        {
+            int ch = Mathf.Max(1, channels);
+            int win = Mathf.Max(1, frequency / 100);
+            int n = samples.Length / ch / win;
+            if (n < 8)
+            {
+                return -1f;
+            }
+            var env = new float[n];
+            float peak = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float m = 0f;
+                for (int k = i * win * ch, end = (i + 1) * win * ch; k < end; k++)
+                {
+                    m = Math.Max(m, Math.Abs(samples[k]));
+                }
+                env[i] = m;
+                peak = Math.Max(peak, m);
+            }
+            if (peak < 1e-4f)
+            {
+                return -1f;
+            }
+            int from = (int)(n * 0.3f), to = (int)(n * 0.7f), best = from;
+            for (int i = from; i <= to; i++)
+            {
+                if (env[i] < env[best])
+                {
+                    best = i;
+                }
+            }
+            float before = 0f, after = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                if (i < best)
+                {
+                    before = Math.Max(before, env[i]);
+                }
+                else if (i > best)
+                {
+                    after = Math.Max(after, env[i]);
+                }
+            }
+            return before >= 0.3f * peak && after >= 0.3f * peak ? (best + 0.5f) * win / frequency : -1f;
+        }
+
+        private static readonly Dictionary<int, float> KnownBoth = new Dictionary<int, float>();
+
+        /// <summary>Where one clip bound to both strokes turns from the pull to the slide going home (<see cref="SplitNoGap"/>; a clip
+        /// that cannot be read: after its first 55%), or -1.</summary>
+        internal static float OfBoth(AudioClip clip)
+        {
+            if (clip == null || clip.length < 0.3f || clip.length >= WeaponAnalyzer.WholeReloadSeconds)
+            {
+                return -1f;
+            }
+            int id = clip.GetInstanceID();
+            if (KnownBoth.TryGetValue(id, out float at))
+            {
+                return at;
+            }
+            at = -1f;
+            try
+            {
+                if (Readable(clip))
+                {
+                    var data = new float[clip.samples * Mathf.Max(1, clip.channels)];
+                    at = clip.GetData(data, 0) ? SplitNoGap(data, clip.channels, clip.frequency) : -1f;
+                }
+                else if (clip.length > 0.35f)
+                {
+                    at = clip.length * 0.55f;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("rackboth-x:" + clip.name, $"Sound '{clip.name}' could not be read for its two strokes: {e.Message}");
+            }
+            KnownBoth[id] = at;
+            return at;
+        }
+
+        /// <summary>
         /// For a pull's slice of a clip that cannot be read: where to cut it so it does not run on into the slide going home. The
         /// slice starts 0.06 s before its action's moment (<paramref name="sourceTime"/>, in the reload animation's seconds:
         /// WeaponAnalyzer.BuildSoundMap); the animation's slide-home moment, when it falls inside the slice, is the cut (20 ms
@@ -352,6 +443,18 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             float split = RackSplit.Of(clip);
+            if (split <= 0f && clip.length > 0.3f && BoundTo(MechSound.SlideBack, clip) && BoundTo(MechSound.SlideForward, clip))
+            {
+                // One clip for the pull and for the slide going home, its own or lent, with no gap heard in it: it holds both.
+                float cut = RackSplit.OfBoth(clip);
+                if (cut > 0.03f && cut < clip.length - 0.03f)
+                {
+                    Log.InfoOnce("rackboth:" + _rig.Data.Key + ":" + clip.name, $"{_rig.Data.Key}: one sound '{clip.name}' ({clip.length:0.00} s) is its pull and its slide going home: the pull plays it to {cut:0.00} s, home the rest.");
+                    return _kind == MechSound.SlideBack
+                        ? PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = cut }, volume)
+                        : PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = cut, Length = clip.length - cut }, volume);
+                }
+            }
             if (split <= 0f && !RackSplit.Readable(clip) && _kind == MechSound.SlideBack && clip.length > 0.25f && HasOwnHomeApart(clip))
             {
                 split = clip.length * 0.55f;
@@ -401,6 +504,26 @@ namespace RavenfieldVR.Weapons
             }
             return false;
         }
+
+        /// <summary>Whether this action of the gun plays <paramref name="clip"/> whole: by its own cue, or with none of its own by the lent one.</summary>
+        private bool BoundTo(MechSound kind, AudioClip clip)
+        {
+            if (_rig.Data.Cues.TryGetValue(kind, out List<SoundCue> cues) && cues.Count > 0)
+            {
+                foreach (SoundCue c in cues)
+                {
+                    if (Uses(c, clip))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return Uses(SoundDonors.Find(_rig.Data, kind), clip);
+        }
+
+        private static bool Uses(SoundCue c, AudioClip clip) =>
+            c != null && (c.Kind != CueKind.ClipSlice && c.Clip == clip || c.Clips != null && Array.IndexOf(c.Clips, clip) >= 0);
 
         private bool HasOwnHomeApart(AudioClip back)
         {
