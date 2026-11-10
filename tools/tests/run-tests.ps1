@@ -55,6 +55,9 @@ Invoke-Csc @('-nologo', '-target:exe', '-langversion:latest', '-nostdlib', '-noc
     (Join-Path $PSScriptRoot 'AmmoFuzz.cs'), (Join-Path $Root 'src/Weapons/AmmoState.cs'))
 & $fuzz
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# The multiplayer's layers without the game: wire format, reliable channel, session, UDP over loopback (tools/tests/NetTests.cs).
+& (Join-Path $PSScriptRoot 'net-tests.ps1')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The picture tool's restore after a killed run, on temporary copies (tools/tests/vrshots_restore_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_restore_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
