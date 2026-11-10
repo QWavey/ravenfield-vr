@@ -229,6 +229,7 @@ namespace RavenfieldVR.Sandbox
                       "All", () => Say($"{Sandbox.RemoveAll()} removed."), 150f);
             ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),
                       "Load", () => Say(Sandbox.LoadSet()), 150f);
+            ActionRow("The remover: point at a soldier or a vehicle, pull.", Sandbox.Armed == Sandbox.ToolKind.Remove ? "Put away" : "Take it", () => TakeOrPutAway(Sandbox.ToolKind.Remove));
             ActionRow(Sandbox.Armed == Sandbox.ToolKind.None ? "The spawn tool is put away (take it on the Soldiers or Vehicles page)." : "The spawn tool is in your hand.", Sandbox.Armed == Sandbox.ToolKind.None ? "Away" : "Put away", () =>
             {
                 Sandbox.Armed = Sandbox.ToolKind.None;

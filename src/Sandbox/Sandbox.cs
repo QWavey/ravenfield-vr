@@ -66,7 +66,9 @@ namespace RavenfieldVR.Sandbox
         {
             None,
             Soldier,
-            Vehicle
+            Vehicle,
+            /// <summary>What it points at is taken off the field: a soldier (the sandbox's or the match's), a vehicle.</summary>
+            Remove
         }
 
         internal static readonly SoldierSpec Soldier = new SoldierSpec();
@@ -515,6 +517,45 @@ namespace RavenfieldVR.Sandbox
                 }
                 UnityEngine.Object.Destroy(v.gameObject);
             }
+        }
+
+        /// <summary>
+        /// One soldier taken off the field by the remover (pointed at): the sandbox's own is put away at once; one of the match's
+        /// is taken off silently and comes back with the match's next wave, as any of its dead.
+        /// </summary>
+        internal static string RemoveSoldier(Actor a)
+        {
+            if (a == null || a.dead || !a.aiControlled)
+            {
+                return "Nothing to remove there.";
+            }
+            if (Net.NetGame.IsRemote(a))
+            {
+                return "That one is another PC's: he cannot be removed here.";
+            }
+            string name = a.name;
+            bool mine = Made.Contains(a);
+            Spawned.Remove(a);
+            Remove(a);
+            if (!mine && !a.dead)
+            {
+                a.KillSilently();
+            }
+            Sweep();
+            return mine ? "Removed." : $"{name} taken off the field (the match brings him back).";
+        }
+
+        /// <summary>One vehicle taken off the field by the remover, its crew put out first.</summary>
+        internal static string RemoveVehicle(Vehicle v)
+        {
+            if (v == null)
+            {
+                return "Nothing to remove there.";
+            }
+            Eject(v);
+            Spawned.Remove(v);
+            Remove(v);
+            return "Vehicle removed.";
         }
 
         /// <summary>

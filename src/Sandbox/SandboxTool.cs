@@ -53,6 +53,7 @@ namespace RavenfieldVR.Sandbox
         private bool _pulled, _aiming, _onGround;
         private Vector3 _from, _to, _normal;
         private Actor _pointed;
+        private Vehicle _pointedVehicle;
 
         internal SandboxTool(VRRig rig)
         {
@@ -144,6 +145,7 @@ namespace RavenfieldVR.Sandbox
         {
             _aiming = false;
             _pointed = null;
+            _pointedVehicle = null;
             _gunShown = false;
             if (Sandbox.Armed == Sandbox.ToolKind.None)
             {
@@ -184,9 +186,13 @@ namespace RavenfieldVR.Sandbox
             {
                 Hitbox box = best.collider.GetComponent<Hitbox>();
                 // (Only the soldier tool changes a soldier: with the vehicle tool the beam went yellow on one and the pull made a vehicle on him.)
-                if (Sandbox.Armed == Sandbox.ToolKind.Soldier && box != null && box.parent is Actor soldier && !soldier.dead && soldier.aiControlled)
+                if (Sandbox.Armed != Sandbox.ToolKind.Vehicle && box != null && box.parent is Actor soldier && !soldier.dead && soldier.aiControlled)
                 {
                     _pointed = soldier;
+                }
+                else if (Sandbox.Armed == Sandbox.ToolKind.Remove)
+                {
+                    _pointedVehicle = best.collider.GetComponentInParent<Vehicle>();
                 }
             }
 
@@ -204,7 +210,11 @@ namespace RavenfieldVR.Sandbox
             }
             _pulled = true;
             string said;
-            if (_pointed != null && Sandbox.Armed == Sandbox.ToolKind.Soldier)
+            if (Sandbox.Armed == Sandbox.ToolKind.Remove)
+            {
+                said = _pointed != null ? Sandbox.RemoveSoldier(_pointed) : _pointedVehicle != null ? Sandbox.RemoveVehicle(_pointedVehicle) : "Point at a soldier or a vehicle.";
+            }
+            else if (_pointed != null && Sandbox.Armed == Sandbox.ToolKind.Soldier)
             {
                 Sandbox.SetBehaviour(_pointed, Sandbox.Soldier.Behaviour);
                 said = "That soldier: " + Sandbox.Soldier.Behaviour + ".";
@@ -241,7 +251,8 @@ namespace RavenfieldVR.Sandbox
                 _kick = Mathf.MoveTowards(_kick, 0f, Time.unscaledDeltaTime * 6f);
                 var pose = hand.TrackedPointer;
                 _gun.transform.SetPositionAndRotation(pose.position - pose.Forward * (0.012f * _kick), pose.rotation * Quaternion.Euler(-7f * _kick, 0f, 0f));
-                Color lamp = _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
+                Color lamp = Sandbox.Armed == Sandbox.ToolKind.Remove ? (_pointed != null || _pointedVehicle != null ? new Color(1f, 0.55f, 0.1f) : Color.white)
+                    : _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
                     : Sandbox.Soldier.Side == SoldierSide.Friendly ? new Color(0.35f, 0.75f, 1f) : new Color(1f, 0.4f, 0.35f);
                 if (_gunLamp.color != lamp)
                 {
@@ -253,7 +264,8 @@ namespace RavenfieldVR.Sandbox
                 return;
             }
             Vector3 from = _muzzle.position;
-            Color c = _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
+            Color c = Sandbox.Armed == Sandbox.ToolKind.Remove ? (_pointed != null || _pointedVehicle != null ? new Color(1f, 0.55f, 0.1f) : Color.white)
+                : _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
                 : Sandbox.Soldier.Side == SoldierSide.Friendly ? new Color(0.35f, 0.75f, 1f) : new Color(1f, 0.4f, 0.35f);
             Color start = c, end = c;
             start.a = 0.85f;
@@ -262,7 +274,7 @@ namespace RavenfieldVR.Sandbox
             _beam.endColor = end;
             _beam.SetPosition(0, from);
             _beam.SetPosition(1, _to);
-            bool ring = _onGround && _pointed == null;
+            bool ring = _onGround && _pointed == null && Sandbox.Armed != Sandbox.ToolKind.Remove;
             if (_ring.gameObject.activeSelf != ring)
             {
                 _ring.gameObject.SetActive(ring);

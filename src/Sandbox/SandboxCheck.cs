@@ -277,6 +277,11 @@ namespace RavenfieldVR.Sandbox
                     Sandbox.Armed = Sandbox.ToolKind.None;
                 }
                 int madeByPull = Sandbox.SpawnedCount - madeBefore;
+                // The remover: the soldier the pull made, pointed at by its own word (the hand's beam is not aimed at him here).
+                Actor justMade = ActorManager.instance.actors.Where(a => Sandbox.IsSandboxSoldier(a) && !a.dead && Sandbox.BehaviourOf(a) == SoldierBehaviour.Frozen && a.team != player.team)
+                    .OrderBy(a => (a.Position() - target).sqrMagnitude).FirstOrDefault(); // (the frozen enemy nearest where the gun pointed)
+                string removed = justMade != null ? Sandbox.RemoveSoldier(justMade) : "no soldier";
+                string removerNote = justMade != null && justMade.dead && justMade.isDeactivated ? "the remover took him off at once" : "THE REMOVER DID NOT TAKE HIM (" + removed + ")";
                 foreach (Actor a in ActorManager.instance.actors)
                 {
                     if (Sandbox.IsSandboxSoldier(a))
@@ -285,7 +290,7 @@ namespace RavenfieldVR.Sandbox
                     }
                 }
                 report($"sandbox spawn gun: {(shown ? $"in the free hand (its mouth {gunFromHand * 100f:0} cm from the hand's pointer)" : "NOT IN THE HAND")}, "
-                       + $"a pull of its trigger made {madeByPull} soldier(s){(madeByPull != 1 ? " NOT ONE" : "")}");
+                       + $"a pull of its trigger made {madeByPull} soldier(s){(madeByPull != 1 ? " NOT ONE" : "")}; {removerNote}");
             }
 
             // 10. The panel: every page built, with buttons on it.
