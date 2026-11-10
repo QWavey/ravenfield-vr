@@ -212,6 +212,38 @@ namespace RavenfieldVR.Net
                 report($"multiplayer hit on the host's soldier: {(hits == 1 && hitVictim == 1 ? "sent to the host" : $"NOT SENT ({hits} message(s), victim {hitVictim})")}");
             }
 
+            // 5b. The host's flags and the host's end: a flag held otherwise here is given to who holds it there; this game's own
+            // victory is held back, the host's is shown.
+            {
+                SpawnPoint[] points = ActorManager.instance.spawnPoints;
+                if (points != null && points.Length > 0)
+                {
+                    int flag = 0, was = points[0].owner, told = was == 0 ? 1 : 0;
+                    void Tell(bool ended, int winner)
+                    {
+                        w.Reset();
+                        w.Byte((byte)points.Length);
+                        for (int i = 0; i < points.Length; i++)
+                        {
+                            w.Byte((byte)((i == flag ? told : points[i].owner) + 2));
+                        }
+                        w.Bool(ended);
+                        w.Byte((byte)(winner + 2));
+                        host.Send(NetGame.MatchState, w, true);
+                    }
+                    Tell(false, -1);
+                    yield return For(0.8f);
+                    bool flagTaken = points[flag].owner == told;
+                    VictoryUi.EndGame(1 - team); // (this game's own counting calls an end: held back on a PC that joined)
+                    yield return For(0.3f);
+                    bool held = !VictoryUi.GameHasEnded();
+                    Tell(true, team);
+                    yield return For(0.8f);
+                    report($"multiplayer match state from the host: flag '{points[flag].name}' held by team {was} here, told {told}: {(flagTaken ? "given over" : "NOT GIVEN OVER")}; "
+                           + $"this game's own end {(held ? "held back" : "NOT HELD BACK")}; the host's end {(VictoryUi.GameHasEnded() && NetGame.EndTaken ? "shown" : "NOT SHOWN")}");
+                }
+            }
+
             // 6. The host leaves: the game here ends in words, his soldiers go.
             host.Leave();
             line.Dispose();

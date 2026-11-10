@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -180,6 +180,7 @@ namespace RavenfieldVR.Net
             }
             _lobbyResend = true;
             _nextLobbyTell = 0f;
+            _matchTold = 0; // (the newcomer is told the flags and the end at the next telling)
             if (_session != null && _session.IsHost && _lastStart != null && InMatch)
             {
                 Out.Reset();
@@ -216,6 +217,7 @@ namespace RavenfieldVR.Net
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteProne)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.Damage), new[] { typeof(DamageInfo) }), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnDamage)));
             _harmony.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(NetGame), nameof(HoldRemotes)));
+            _harmony.Patch(AccessTools.Method(typeof(VictoryUi), nameof(VictoryUi.EndGame)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnEndGame)));
             _harmony.Patch(AccessTools.Method(typeof(ActorIk), "OnAnimatorIK"), prefix: new HarmonyMethod(typeof(NetAvatar), nameof(NetAvatar.BeforeIk)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.KnockOver)), postfix: new HarmonyMethod(typeof(NetGame), nameof(OnKnockOver)));
             _harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.StartLevel)), postfix: new HarmonyMethod(typeof(NetGame), nameof(OnStartLevel)));
@@ -449,6 +451,12 @@ namespace RavenfieldVR.Net
                     case Hit:
                         TakeHit(sender, ref r);
                         break;
+                    case MatchState:
+                        if (sender == 0 && _session != null && !_session.IsHost)
+                        {
+                            TakeMatchState(ref r);
+                        }
+                        break;
                     case VrPose:
                         NetAvatar.Read(Get(sender, 0), ref r);
                         break;
@@ -611,7 +619,105 @@ namespace RavenfieldVR.Net
                 }
             }
             NetAvatar.Tell(session);
+            if (session.IsHost && Time.unscaledTime >= _nextMatchTell)
+            {
+                _nextMatchTell = Time.unscaledTime + 1f;
+                TellMatchState(session);
+            }
             KeepRemotes();
+        }
+
+        // ---- the match's state: the host's flags and the host's end --------------------------------------------------
+
+        private static float _nextMatchTell, _matchToldAt;
+        private static int _matchTold;
+        private static bool _ended, _takingEnd;
+        private static int _winner;
+
+        /// <summary>The check's: how often the host's flags were put on this PC's, and whether the host's end was taken.</summary>
+        internal static int FlagsTaken;
+        internal static bool EndTaken;
+
+        /// <summary>
+        /// The match's end is the host's (each PC counted its own flags and losses, and could call a victory nobody else saw):
+        /// on a PC that joined, the game's own end is held back; the host's is told and shown here.
+        /// </summary>
+        private static bool OnEndGame(int winner)
+        {
+            if (_session == null || _takingEnd)
+            {
+                return true;
+            }
+            if (!_session.IsHost)
+            {
+                return false;
+            }
+            _ended = true;
+            _winner = winner;
+            _nextMatchTell = 0f;
+            return true;
+        }
+
+        /// <summary>Who holds each flag and whether the match is over, once a second from the host; sent when changed, and every five seconds.</summary>
+        private static void TellMatchState(NetSession session)
+        {
+            SpawnPoint[] points = ActorManager.instance.spawnPoints;
+            if (points == null || session.PlayerCount < 2)
+            {
+                return;
+            }
+            int hash = _ended ? 7 + _winner : 3;
+            foreach (SpawnPoint point in points)
+            {
+                hash = hash * 31 + (point != null ? point.owner + 2 : 0);
+            }
+            if (hash == _matchTold && Time.unscaledTime - _matchToldAt < 5f)
+            {
+                return;
+            }
+            _matchTold = hash;
+            _matchToldAt = Time.unscaledTime;
+            Out.Reset();
+            Out.Byte((byte)Mathf.Min(points.Length, 255));
+            for (int i = 0; i < points.Length && i < 255; i++)
+            {
+                Out.Byte((byte)(points[i] != null ? points[i].owner + 2 : 0));
+            }
+            Out.Bool(_ended);
+            Out.Byte((byte)Mathf.Clamp(_winner + 2, 0, 255));
+            session.Send(MatchState, Out, true);
+        }
+
+        private static void TakeMatchState(ref NetReader r)
+        {
+            int n = r.Byte();
+            SpawnPoint[] points = InMatch && !_loading ? ActorManager.instance.spawnPoints : null;
+            for (int i = 0; i < n; i++)
+            {
+                int owner = r.Byte() - 2;
+                // (The same map on both PCs has the same flags in the same order. A flag held differently here is given to who
+                // holds it on the host's PC: this PC's own counting is only a guess between two tellings.)
+                if (points != null && i < points.Length && points[i] != null && owner >= -1 && owner <= 1 && points[i].owner != owner)
+                {
+                    points[i].SetOwner(owner);
+                    FlagsTaken++;
+                }
+            }
+            bool ended = r.Bool();
+            int winner = r.Byte() - 2;
+            if (ended && points != null && !VictoryUi.GameHasEnded())
+            {
+                _takingEnd = true;
+                try
+                {
+                    VictoryUi.EndGame(winner);
+                    EndTaken = true;
+                }
+                finally
+                {
+                    _takingEnd = false;
+                }
+            }
         }
 
         private static float _nextAsk, _nextLobbyTell;
@@ -1229,6 +1335,8 @@ namespace RavenfieldVR.Net
         internal static void OnSceneChanged()
         {
             _loading = false;
+            _ended = false;
+            _matchTold = 0;
             StoppedSpawners.Clear(); // (they went with the old scene)
             Clear(false);
         }
