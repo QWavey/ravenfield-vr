@@ -100,13 +100,16 @@ namespace RavenfieldVR.Net
             Vector3 forward = Vector3.ProjectOnPlane(player.transform.forward, Vector3.up).normalized;
             Vector3 side = Vector3.Cross(Vector3.up, forward);
             Vector3 start = player.Position() + forward * 7f;
-            if (Physics.Raycast(start + Vector3.up * 4f, Vector3.down, out RaycastHit ground, 12f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
+            // (From chest height, not from above: seven metres ahead stood a wall of barriers, and the second player was put on top of it, walked off its edge and fell, run after run.)
+            if (Physics.Raycast(start + Vector3.up * 1.2f, Vector3.down, out RaycastHit ground, 12f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2), QueryTriggerInteraction.Ignore))
             {
                 start = ground.point;
             }
             int enemyTeam = 1 - player.team;
             string weapon = player.activeWeapon != null && player.activeWeapon.weaponEntry != null ? player.activeWeapon.weaponEntry.name
                 : WeaponManager.instance.allWeapons.First(e => e != null && e.prefab != null && !e.hidden && e.slot == WeaponManager.WeaponSlot.Primary).name;
+            string sidearm = WeaponManager.instance.allWeapons.First(e => e != null && e.prefab != null && !e.hidden && e.slot == WeaponManager.WeaponSlot.Secondary).name;
+            int ghostSlot = 0;
             bool ghostAlive = true;
             Vector3 ghostAt = start, ghostVelocity = Vector3.zero;
             float nextSend = 0f;
@@ -125,7 +128,14 @@ namespace RavenfieldVR.Net
                     w.Reset();
                     w.UShort(0);
                     w.String("Ghost");
+                    w.String(ghostSlot == 0 ? weapon : sidearm);
+                    w.Byte((byte)ghostSlot);
+                    w.Byte(5);
                     w.String(weapon);
+                    w.String(sidearm);
+                    w.String("");
+                    w.String("");
+                    w.String("");
                     ghost.Send(NetGame.ActorInfo, w, true);
                 }
                 w.Reset();
@@ -138,7 +148,7 @@ namespace RavenfieldVR.Net
                 float until = Time.unscaledTime + seconds;
                 while (Time.unscaledTime < until)
                 {
-                    if (Time.timeScale == 0f)
+                    if (Time.timeScale == 0f && !Multiplayer.Active) // (in a session the match itself keeps time running)
                     {
                         report("the game's time stood still under the check (" + Core.AutoTest.WhyPaused() + "): set running again, NOT A RESULT OF THE CHECK");
                         GameManager.UnpauseGame();
@@ -223,11 +233,34 @@ namespace RavenfieldVR.Net
             report($"multiplayer stand-in walking 8 m as told: {(knocked ? "knocked over on the way by the match (lies, then stands where told), before that " : "")}at most {worst:0.00} m behind{(worst > 1.5f ? " NOT FOLLOWING" : "")}, {rest.magnitude:0.00} m off at rest{(rest.magnitude > 0.5f ? " NOT THERE" : "")}"
                    + $" (his speed asked {NetGame.VelocityAsked - askedBefore} time(s), answered up to {fastest:0.0} m/s, last {NetGame.LastVelocity.magnitude:0.0}; moving {body.moving}, fallen {body.fallenOver}, frozen {body.isFrozen}, auto-move {body.autoMoveActor})");
 
+            // 2b. All he carries is on his soldier, and the weapon in his hands follows his: he draws his sidearm.
+            string CarriedBy(Actor a) => string.Join(", ", a.weapons.Where(x => x != null && x.weaponEntry != null).Select(x => x.weaponEntry.name).ToArray());
+            string carriedAll = CarriedBy(body);
+            ghostSlot = 1;
+            infoSent = false;
+            yield return For(2.5f);
+            string inHands = body.activeWeapon != null && body.activeWeapon.weaponEntry != null ? body.activeWeapon.weaponEntry.name : "nothing";
+            report($"multiplayer stand-in's loadout: carries [{carriedAll}] (told {weapon}, {sidearm}){(carriedAll.Contains(weapon) && carriedAll.Contains(sidearm) ? "" : " NOT ALL HE CARRIES")}; "
+                   + $"he drew his sidearm: in the stand-in's hands {inHands}{(inHands == sidearm ? "" : " NOT THE SIDEARM")}");
+            ghostSlot = 0;
+            infoSent = false;
+            yield return For(1.5f);
+
             // 3. A hit on him by the player: passed to his PC, not taken here.
             float bodyHealth = body.health;
             body.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, player, player.activeWeapon) { healthDamage = 30f, point = body.CenterPosition(), direction = forward });
             yield return For(0.6f);
             report($"multiplayer hit on the stand-in: {(hitsGot == 1 ? $"passed to his PC ({hitDamage:0} damage)" : $"NOT PASSED ({hitsGot} message(s))")}, {othersHits} more by the host's soldiers, health here {bodyHealth:0} -> {body.health:0}{(body.health < bodyHealth - 0.1f ? " NOT LEFT TO HIS PC" : "")}");
+
+            // 3b. No slow motion and no pause in a shared match.
+            GameManager.SetTimeScale(0.2f);
+            yield return For(0.3f);
+            float afterSlow = Time.timeScale;
+            GameManager.PauseGame();
+            yield return For(0.3f);
+            float afterPause = Time.timeScale;
+            report($"multiplayer one speed for everyone: slow motion asked for: time scale {afterSlow:0.##}{(Mathf.Abs(afterSlow - 1f) > 0.01f ? " NOT REFUSED" : " (refused)")}; "
+                   + $"a pause asked for: {afterPause:0.##}{(Mathf.Abs(afterPause - 1f) > 0.01f ? " NOT REFUSED" : " (refused)")}");
 
             // 4. A hit by him on the player: taken.
             bool wasInvulnerable = player.isInvulnerable;

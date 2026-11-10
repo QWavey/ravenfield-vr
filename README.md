@@ -145,12 +145,13 @@ With the tool in your hand the menu button opens the sandbox panel; put the tool
 
 ## Multiplayer (early)
 
-Open the VR settings and press **Multiplayer**.
+Each time the game starts, a choice stands over the main menu: **Single player** or **Multiplayer**. The multiplayer panel can also be opened later from the VR settings.
 
 - **Host:** Public (your game shows in everyone's list), Friends (only friends see it; "Invite" opens Steam's friends list), or LAN. Then start a match from the game's own menu: everyone in your game loads the same map and mode.
-- **Join:** press Join on a game in the list, accept a friend's invitation in Steam, or type a LAN address.
+- **Join:** press Join on a game in the list, accept a friend's invitation in Steam, or type a LAN address. Once you are in, the host chooses: your own game menu is hidden, your panel shows the map, mode and numbers he is picking, and the match starts for you when he starts it.
+- No slow motion and no pause in a shared match.
 - Everyone needs this mod in the same version, and for a workshop map the map itself. A game on another version is shown in the list with the reason and cannot be joined.
-- You see the other players and the host's soldiers; everyone fights the same soldiers. A shared match is on foot for now: vehicles are taken off the map. Scores and flags are still counted by each PC on its own, and the other player is shown as a soldier with his name over him, without his VR hands.
+- You see the other players and the host's soldiers; everyone fights the same soldiers. A shared match is on foot for now: vehicles are taken off the map. Scores and flags are still counted by each PC on its own, and the other player is shown as a soldier with his name over him, carrying what he carries with the same weapon in his hands (the exact pose of his VR hands is not shown yet). Hitting him, throwing things at him or strapping a grenade to him works as on any soldier.
 - Played over Steam it needs no open port. It has been checked with a second player simulated on one PC; a real session between two PCs is its first full test.
 
 ## Graphics

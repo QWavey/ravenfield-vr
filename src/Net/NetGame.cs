@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -35,6 +35,11 @@ namespace RavenfieldVR.Net
             public ushort Id;
             public Actor Actor;
             public string Name = "", Weapon = "";
+
+            /// <summary>Everything he carries, by slot (null: only the weapon in his hands was told), and the slot in his hands.</summary>
+            public string[] Loadout;
+            public int Slot = -1;
+            public float NextSlotCheck;
             public int Flags;
             public Vector3 Position, Velocity;
             public float Yaw, Pitch;
@@ -56,6 +61,7 @@ namespace RavenfieldVR.Net
         {
             public ushort Id;
             public string Weapon;
+            public int Carried;
             public int Team = -1;
             public bool Told;
         }
@@ -106,7 +112,15 @@ namespace RavenfieldVR.Net
             session.Message += OnMessage;
             session.Joined += OnJoined;
             session.Left += OnLeft;
+            // (What every player tells of his soldiers goes on unreliably through the host too: relayed reliably, one lost packet
+            // held every later hit and match start back on that line. Review of 2026-11-10.)
+            session.ReliableKind = k => k != ActorStates;
             Patch();
+            // A game hosted from inside a running match: who joins is told that match (it was only told at a level's start).
+            if (session.IsHost && InMatch && GameManager.instance.lastMapEntry != null)
+            {
+                RememberStart(GameManager.instance.lastMapEntry, GameManager.instance.gameModeParameters);
+            }
         }
 
         private static void Detach(NetSession session)
@@ -116,7 +130,42 @@ namespace RavenfieldVR.Net
             session.Left -= OnLeft;
             _session = null;
             _lastStart = null;
+            _loading = false;
+            _lobbyTold = "";
             Clear(true);
+            // The match goes on alone: its vehicles come again (their spawners were stopped for the shared match).
+            foreach (VehicleSpawner spawner in StoppedSpawners)
+            {
+                if (spawner != null)
+                {
+                    spawner.enabled = true;
+                    spawner.SpawnVehicleWhenClear();
+                }
+            }
+            StoppedSpawners.Clear();
+            Multiplayer.Map = "";
+            Multiplayer.Mode = "";
+        }
+
+        private static readonly List<VehicleSpawner> StoppedSpawners = new List<VehicleSpawner>();
+        private static bool _loading;
+
+        /// <summary>The match that is on, as it is told to who joins (and what the list shows of it).</summary>
+        private static void RememberStart(MapEntryData entry, GameModeParameters p)
+        {
+            string scene = entry.isCustomMap ? Path.GetFileName(entry.sceneName) : entry.sceneName;
+            string mode = p != null && p.gameMode != null ? p.gameMode.name : "";
+            Out.Reset();
+            Out.Bool(entry.isCustomMap);
+            Out.String(scene);
+            Out.String(mode);
+            Out.Bool(p != null && p.nightMode);
+            Out.Byte((byte)(p != null ? Mathf.Clamp(p.playerTeam, 0, 1) : 0));
+            Out.Float(p != null ? p.GetRespawnTime() : 5f);
+            Out.Byte((byte)(p != null ? Mathf.Clamp(p.GetGameLength(), 0, 255) : 1));
+            _lastStart = Out.ToArray();
+            Multiplayer.Map = !string.IsNullOrEmpty(entry.metaData.displayName) ? entry.metaData.displayName : Path.GetFileNameWithoutExtension(scene);
+            Multiplayer.Mode = mode;
         }
 
         private static void OnJoined(NetPlayer p)
@@ -126,6 +175,8 @@ namespace RavenfieldVR.Net
             {
                 own.Told = false;
             }
+            _lobbyResend = true;
+            _nextLobbyTell = 0f;
             if (_session != null && _session.IsHost && _lastStart != null && InMatch)
             {
                 Out.Reset();
@@ -250,22 +301,11 @@ namespace RavenfieldVR.Net
             }
             try
             {
-                GameModeParameters p = parameters ?? GameManager.instance.gameModeParameters;
-                string scene = entry.isCustomMap ? Path.GetFileName(entry.sceneName) : entry.sceneName;
-                string mode = p != null && p.gameMode != null ? p.gameMode.name : "";
-                Out.Reset();
-                Out.Bool(entry.isCustomMap);
-                Out.String(scene);
-                Out.String(mode);
-                Out.Bool(p != null && p.nightMode);
-                Out.Byte((byte)(p != null ? Mathf.Clamp(p.playerTeam, 0, 1) : 0));
-                Out.Float(p != null ? p.GetRespawnTime() : 5f);
-                Out.Byte((byte)(p != null ? Mathf.Clamp(p.GetGameLength(), 0, 255) : 1));
-                _lastStart = Out.ToArray();
+                RememberStart(entry, parameters ?? GameManager.instance.gameModeParameters);
                 _session.Send(MatchStart, Out, true);
-                Multiplayer.Map = !string.IsNullOrEmpty(entry.metaData.displayName) ? entry.metaData.displayName : Path.GetFileNameWithoutExtension(scene);
-                Multiplayer.Mode = mode;
                 Clear(false);
+                // (Until the new scene is there the old one's soldiers are still in the game's lists: not told as the new match's.)
+                _loading = true;
             }
             catch (Exception e)
             {
@@ -317,6 +357,7 @@ namespace RavenfieldVR.Net
             p.nightMode = night;
             p.playerTeam = team;
             Clear(false);
+            _loading = true;
             _startingFromNet = true;
             try
             {
@@ -350,6 +391,20 @@ namespace RavenfieldVR.Net
                         string weapon = r.String(128);
                         remote.WeaponChanged |= remote.HasInfo && weapon != remote.Weapon;
                         remote.Weapon = weapon;
+                        if (r.Remaining > 0)
+                        {
+                            // All he carries (the user, 2026-11-10: "gun hands with then gun models etc and inventory ... should be seen").
+                            int slot = r.Byte();
+                            int n = Mathf.Min(r.Byte(), 5);
+                            var carried = new string[5];
+                            for (int i = 0; i < n; i++)
+                            {
+                                carried[i] = r.String(128);
+                            }
+                            remote.WeaponChanged |= remote.HasInfo && (remote.Loadout == null || slot != remote.Slot || !carried.SequenceEqual(remote.Loadout));
+                            remote.Loadout = carried;
+                            remote.Slot = slot < 5 ? slot : -1;
+                        }
                         remote.HasInfo = true;
                         break;
                     }
@@ -372,6 +427,18 @@ namespace RavenfieldVR.Net
                     case Hit:
                         TakeHit(sender, ref r);
                         break;
+                    case LobbyState:
+                        if (sender == 0 && _session != null && !_session.IsHost)
+                        {
+                            int n = Mathf.Min(r.Byte(), 12);
+                            var lines = new string[n];
+                            for (int i = 0; i < n; i++)
+                            {
+                                lines[i] = r.String(200);
+                            }
+                            Multiplayer.SetHostLines(lines);
+                        }
+                        break;
                     case NeedInfo:
                         // Someone sees my soldiers move and does not know what they are (he loaded the map after I told it,
                         // and a new scene forgets the old one's soldiers): each is told again.
@@ -385,6 +452,12 @@ namespace RavenfieldVR.Net
             catch (NetFormatException e)
             {
                 Log.WarnOnce("net-format-" + kind, $"Multiplayer: a message of kind {kind} from player {sender} could not be read: {e.Message}");
+            }
+            catch (Exception e)
+            {
+                // (The game's own code under a message, a hit's damage or a level's start: its throw ended the session's update
+                // for the frame and, over Steam, lost the rest of the batch. Review of 2026-11-10.)
+                Log.WarnOnce("net-handler-" + kind, $"Multiplayer: acting on a message of kind {kind} from player {sender} threw: {e}");
             }
         }
 
@@ -455,8 +528,20 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            Multiplayer.InMatch = InMatch;
-            if (!InMatch)
+            // The match runs at one speed for everyone: no slow motion, no pause (a pause on one PC left its soldiers standing
+            // still on all the others). (The user, 2026-11-10: "Slowmotion shouldnt work in multiplayer.")
+            if (Time.timeScale != 1f && session.PlayerCount > 0)
+            {
+                GameManager.UnpauseGame();
+                GameManager.SetTimeScale(1f);
+            }
+            if (session.IsHost && Time.unscaledTime >= _nextLobbyTell)
+            {
+                _nextLobbyTell = Time.unscaledTime + 0.5f;
+                TellLobby(session);
+            }
+            Multiplayer.InMatch = InMatch && !_loading;
+            if (!InMatch || _loading)
             {
                 if (Remotes.Count > 0 || Owned.Count > 0)
                 {
@@ -483,7 +568,73 @@ namespace RavenfieldVR.Net
             KeepRemotes();
         }
 
-        private static float _nextAsk;
+        private static float _nextAsk, _nextLobbyTell;
+        private static string _lobbyTold = "";
+
+        /// <summary>
+        /// What the host is doing, in a few lines, for the players who joined (they see it in their panel and cannot choose
+        /// themselves; the user, 2026-11-10: "only lobby host etc can change stuff ... they ... see what the lobby host changes
+        /// but not tip anything (just follow what he does)"). Read from the game's own match menu twice a second, sent when changed.
+        /// </summary>
+        private static void TellLobby(NetSession session)
+        {
+            var lines = new List<string>();
+            try
+            {
+                if (InMatch && !_loading)
+                {
+                    lines.Add("In a match: " + Multiplayer.Map + (string.IsNullOrEmpty(Multiplayer.Mode) ? "" : ", " + Multiplayer.Mode));
+                }
+                else if (_loading)
+                {
+                    lines.Add("Starting: " + Multiplayer.Map + (string.IsNullOrEmpty(Multiplayer.Mode) ? "" : ", " + Multiplayer.Mode));
+                }
+                else
+                {
+                    InstantActionConfigMenu menu = InstantActionConfigMenu.instance;
+                    if (menu != null && menu.isActiveAndEnabled && menu.selectedMap != null)
+                    {
+                        MapEntryData map = menu.selectedMap;
+                        string name = !string.IsNullOrEmpty(map.metaData.displayName) ? map.metaData.displayName : Path.GetFileNameWithoutExtension(map.sceneName);
+                        lines.Add("Map: " + name + (map.isCustomMap ? "   (a workshop map: you need it too)" : ""));
+                        lines.Add("Mode: " + (menu.selectedGameMode != null ? menu.selectedGameMode.name : "?"));
+                        string eagle = menu.botAmountEagleIF != null ? menu.botAmountEagleIF.text : "?", raven = menu.botAmountRavenIF != null ? menu.botAmountRavenIF.text : "?";
+                        lines.Add($"Soldiers: {eagle} against {raven}");
+                        lines.Add("Time of day: " + (PreviewTerrain.instance != null && PreviewTerrain.instance.isNight ? "night" : "day"));
+                        if (menu.respawnTimeIF != null)
+                        {
+                            lines.Add("Respawn: " + menu.respawnTimeIF.text + " s");
+                        }
+                    }
+                    else
+                    {
+                        lines.Add("In the main menu, not choosing a match yet.");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-lobby", "Multiplayer: the host's menu could not be read: " + e.Message);
+                lines.Add("In the menu.");
+            }
+            string all = string.Join("\n", lines.ToArray());
+            if (all == _lobbyTold && !_lobbyResend)
+            {
+                return;
+            }
+            _lobbyTold = all;
+            _lobbyResend = false;
+            Out.Reset();
+            Out.Byte((byte)lines.Count);
+            foreach (string line in lines)
+            {
+                Out.String(line.Length > 180 ? line.Substring(0, 180) : line);
+            }
+            session.Send(LobbyState, Out, true);
+            Multiplayer.SetHostLines(lines.ToArray());
+        }
+
+        private static bool _lobbyResend;
         private static Actor _vehiclesOffFor;
         private static float _nextVehicleSweep;
 
@@ -513,6 +664,7 @@ namespace RavenfieldVR.Net
                         spawner.CancelInvoke();
                         spawner.StopAllCoroutines();
                         spawner.enabled = false;
+                        StoppedSpawners.Add(spawner);
                     }
                 }
                 int removed = 0;
@@ -590,14 +742,37 @@ namespace RavenfieldVR.Net
             {
                 Own own = OwnOf(a, a == player);
                 string weapon = !a.dead && a.activeWeapon != null && a.activeWeapon.weaponEntry != null ? a.activeWeapon.weaponEntry.name : "";
-                if (!own.Told || (weapon != own.Weapon && !a.dead))
+                // What he carries in each slot and which is in his hands: one number for "changed" (no string built each time).
+                int slot = 255, carriedHash = 17;
+                if (!a.dead && a.weapons != null)
+                {
+                    for (int i = 0; i < a.weapons.Length && i < 5; i++)
+                    {
+                        Weapon w = a.weapons[i];
+                        carriedHash = carriedHash * 31 + (w != null && w.weaponEntry != null ? w.weaponEntry.name.GetHashCode() : 0);
+                        if (w != null && w == a.activeWeapon)
+                        {
+                            slot = i;
+                        }
+                    }
+                }
+                carriedHash = carriedHash * 31 + slot;
+                if (!own.Told || (!a.dead && (weapon != own.Weapon || carriedHash != own.Carried)))
                 {
                     own.Told = true;
                     own.Weapon = weapon;
+                    own.Carried = carriedHash;
                     Out.Reset();
                     Out.UShort(own.Id);
                     Out.String(a == player ? session.LocalInfo.Name : a.name ?? "");
                     Out.String(weapon);
+                    Out.Byte((byte)slot);
+                    Out.Byte(5);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        Weapon w = !a.dead && a.weapons != null && i < a.weapons.Length ? a.weapons[i] : null;
+                        Out.String(w != null && w.weaponEntry != null ? w.weaponEntry.name : "");
+                    }
                     session.Send(ActorInfo, Out, true);
                 }
             }
@@ -665,8 +840,28 @@ namespace RavenfieldVR.Net
             }
         }
 
+        private static WeaponManager.WeaponEntry EntryNamed(string name) =>
+            string.IsNullOrEmpty(name) || WeaponManager.instance == null ? null
+            : WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == name);
+
         private static WeaponManager.LoadoutSet LoadoutOf(Remote r)
         {
+            if (r.Loadout != null)
+            {
+                // (A weapon of a mod this PC does not have leaves its slot empty; with nothing known at all the game picks.)
+                var all = new WeaponManager.LoadoutSet
+                {
+                    primary = EntryNamed(r.Loadout[0]), secondary = EntryNamed(r.Loadout[1]), gear1 = EntryNamed(r.Loadout[2]),
+                    gear2 = EntryNamed(r.Loadout[3]), gear3 = EntryNamed(r.Loadout[4])
+                };
+                bool told = r.Loadout.Any(n => !string.IsNullOrEmpty(n));
+                bool any = all.primary != null || all.secondary != null || all.gear1 != null || all.gear2 != null || all.gear3 != null;
+                if (any || !told)
+                {
+                    return all;
+                }
+                return null;
+            }
             if (string.IsNullOrEmpty(r.Weapon) || WeaponManager.instance == null)
             {
                 return string.IsNullOrEmpty(r.Weapon) && r.HasInfo ? new WeaponManager.LoadoutSet() : null;
@@ -722,6 +917,10 @@ namespace RavenfieldVR.Net
                     }
                     try
                     {
+                        if (!ReferenceEquals(r.Actor, null))
+                        {
+                            ByActor.Remove(r.Actor); // (destroyed under us: its key goes with it)
+                        }
                         a = ActorManager.instance.CreateAIActor(r.Team);
                         r.Actor = a;
                         ByActor[a] = r;
@@ -745,6 +944,7 @@ namespace RavenfieldVR.Net
                     }
                     a.SpawnAt(r.Position, Quaternion.Euler(0f, r.Yaw, 0f), LoadoutOf(r));
                     r.WeaponChanged = false;
+                    r.NextSlotCheck = 0f;
                     if (a.controller is AiActorController ai && ai.squad == null)
                     {
                         new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
@@ -774,10 +974,36 @@ namespace RavenfieldVR.Net
                     if (r.WeaponChanged)
                     {
                         r.WeaponChanged = false;
-                        WeaponManager.WeaponEntry entry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == r.Weapon);
-                        if (entry != null)
+                        r.NextSlotCheck = 0f;
+                        if (r.Loadout != null)
                         {
-                            a.EquipNewWeaponEntry(entry, 0, true);
+                            for (int i = 0; i < 5 && i < a.weapons.Length; i++)
+                            {
+                                WeaponManager.WeaponEntry want = EntryNamed(r.Loadout[i]);
+                                WeaponManager.WeaponEntry has = a.weapons[i] != null ? a.weapons[i].weaponEntry : null;
+                                if (want != null && want != has)
+                                {
+                                    a.EquipNewWeaponEntry(want, i, false);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            WeaponManager.WeaponEntry entry = EntryNamed(r.Weapon);
+                            if (entry != null)
+                            {
+                                a.EquipNewWeaponEntry(entry, 0, true);
+                            }
+                        }
+                    }
+                    // The weapon in his hands is the one his owner has in his (the stand-in's own AI would pick another for
+                    // what it sees): looked at twice a second.
+                    if (r.Slot >= 0 && now >= r.NextSlotCheck && !a.fallenOver)
+                    {
+                        r.NextSlotCheck = now + 0.5f;
+                        if (r.Slot < a.weapons.Length && a.weapons[r.Slot] != null && a.activeWeapon != a.weapons[r.Slot])
+                        {
+                            a.SwitchWeapon(r.Slot);
                         }
                     }
                     // Knocked over here only (a blast, a blow, a hand: none of that is told yet, his owner has him on his feet):
@@ -925,6 +1151,11 @@ namespace RavenfieldVR.Net
             _nextId = 1;
         }
 
-        internal static void OnSceneChanged() => Clear(false);
+        internal static void OnSceneChanged()
+        {
+            _loading = false;
+            StoppedSpawners.Clear(); // (they went with the old scene)
+            Clear(false);
+        }
     }
 }
