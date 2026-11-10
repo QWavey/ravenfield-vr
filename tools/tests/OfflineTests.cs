@@ -3145,14 +3145,17 @@ namespace RavenfieldVR.Tests
                 Check(first && SteamPlayEntry.IsPresent(copy) == !present.Value, "Play entry: " + (present.Value ? "removed" : "added") + " on a copy (" + string.Join(" / ", log) + ")");
                 bool back = SteamPlayEntry.Change(copy, present.Value, log.Add);
                 Check(back && SteamPlayEntry.IsPresent(copy) == present.Value, "Play entry: put back as it was");
-                // Asked again with the entry there: the file does not change, and that is no failure (Setup said so on every run after the first).
-                SteamPlayEntry.Change(copy, true, log.Add);
-                Check(!SteamPlayEntry.Change(copy, true, log.Add) && SteamPlayEntry.Ensure(copy, log.Add), "Play entry: already there counts as there");
+                // Compared here, with the entry taken out again: below it is added once more for the "already there" check, and
+                // compared after that the copy is one entry longer than the original (86 bytes: this check failed on every PC
+                // whose Steam had no entry, and was skipped on the others; seen 2026-11-10).
                 if (!present.Value)
                 {
                     byte[] after = System.IO.File.ReadAllBytes(copy);
                     Check(SameBytes(original, after), "Play entry: the cache is byte for byte as before after add + remove (" + FirstDifference(original, after) + ")");
                 }
+                // Asked again with the entry there: the file does not change, and that is no failure (Setup said so on every run after the first).
+                SteamPlayEntry.Change(copy, true, log.Add);
+                Check(!SteamPlayEntry.Change(copy, true, log.Add) && SteamPlayEntry.Ensure(copy, log.Add), "Play entry: already there counts as there");
             }
             finally
             {
