@@ -134,14 +134,14 @@ Get in by holding your grip on a vehicle for half a second with an empty hand (o
 
 ## Sandbox
 
-Open the VR settings (double press of the left stick) and press **Sandbox**. It works in any match.
+**Sandbox is a game mode:** choose it where the game's modes are (next to Point Match, Battle ...). It starts with no soldier on either side, only you, and has no end by score. The spawn tool is in your hand from the first life, and the menu button opens the sandbox panel. (Inside any other match the panel opens from the VR settings' **Sandbox** button.)
 
-- **Soldiers:** pick the side (enemy, friendly), the behaviour (normal, neutral = never shoots, stand still, frozen, follow me), the weapons (their own, random, none, yours), the health (normal, no damage, one hit) and how many. "Take the tool" puts the spawn gun in your free hand (its lamp shows what the next pull makes: red an enemy, blue a friendly or a vehicle): point it at the ground and pull that hand's trigger. Pointed at a soldier who is already there, the pull gives him the chosen behaviour instead. "Here" makes them three metres in front of you without the tool.
-- **Weapons:** every weapon of the game and of your loaded mods; "Give me" puts it in your hands.
+- **The tool** looks like one of the game's pistols with a lamp at its mouth (red: the next pull makes an enemy, blue: a friendly or a vehicle, yellow: it points at a soldier). It is in your gun hand while that hand holds nothing, else in your other hand. Point it at the ground and pull that hand's trigger. Pointed at a soldier who is already there, the pull gives him the chosen behaviour instead.
+- **Soldiers:** the side (enemy, friendly), the behaviour (normal, neutral = never shoots, stand still, frozen, follow me), the weapons (their own, random, none, yours), the health (normal, no damage, one hit) and how many. "Here" makes them three metres in front of you without the tool.
+- **Weapons:** every weapon of the game and of your loaded mods as a tile with its picture; a press puts it in your hands.
 - **Vehicles:** any of the map's vehicle kinds, for either side.
-- **Field:** quiet battlefield (none of the match's own soldiers, until you turn it off), no damage for you, fill up health and ammunition, kill every enemy, remove what you made (the last, or all; or take the remover and point at one soldier or vehicle), and save what you placed on this map to set it up again later. A soldier you made never comes back by himself: once he is dead his body lies for the time you choose here (5 seconds to 5 minutes), then it is taken off the field.
-
-With the tool in your hand the menu button opens the sandbox panel; put the tool away on the Field page.
+- **World:** pause and play (every soldier holds still and holds fire), quiet battlefield (none of the match's own soldiers), kill every enemy, remove what you made (the last, or all; or take the remover and point at one soldier or vehicle), and save what you placed on this map to set it up again later. A soldier you made never comes back by himself: once he is dead his body lies for the time you choose here (5 seconds to 5 minutes), then it is taken off the field.
+- **Me:** no damage for you, flying (the walking stick moves you where you look; look up to rise), fill up health and ammunition, put the tool away or take it, and the way to the VR settings.
 
 ## Multiplayer (early)
 
