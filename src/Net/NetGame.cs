@@ -357,7 +357,20 @@ namespace RavenfieldVR.Net
                 return;
             }
             Vector3 dir = velocity.sqrMagnitude > 1e-6f ? velocity.normalized : a.transform.forward;
-            Projectile p = weapon.SpawnProjectile(dir, from, false);
+            // (The weapon knows its thrower before the projectile starts: the projectile takes its side and what it may hit
+            // from the weapon as it starts travelling, and a stand-in's weapon with no thrower set made one of nobody's side
+            // that could hit its own; scout, 2026-11-10.)
+            Actor creditBefore = weapon.killCredit;
+            weapon.killCredit = a;
+            Projectile p;
+            try
+            {
+                p = weapon.SpawnProjectile(dir, from, false);
+            }
+            finally
+            {
+                weapon.killCredit = creditBefore;
+            }
             if (p == null)
             {
                 return;
