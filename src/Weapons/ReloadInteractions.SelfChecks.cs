@@ -2833,7 +2833,8 @@ namespace RavenfieldVR.Weapons
             {
                 Ammo.EjectMagazine();
             }
-            // The bolt shut on a round, no clip: a clip cannot go in.
+            // The bolt shut on a round, no clip: a clip goes in there too (2026-11-10: the release throws the clip out with the bolt
+            // home on a round, and the next one was refused until the rod was pulled).
             Ammo.Chambered = true;
             Ammo.SlideLocked = false;
             Ammo.Sync();
@@ -2841,7 +2842,7 @@ namespace RavenfieldVR.Weapons
             clip.Owner = Ammo;
             clip.Attach(off);
             clip.FollowHand();
-            bool refusedShut = !AcceptsNow(clip);
+            bool takenShut = AcceptsNow(clip);
             // As after the last round: the bolt locked back over an empty chamber. The clip goes in and releases the bolt.
             Ammo.Chambered = false;
             Ammo.SlideLocked = true;
@@ -2875,7 +2876,7 @@ namespace RavenfieldVR.Weapons
             empty.Owner = Ammo;
             bool emptyRefused = !AcceptsNow(empty);
             empty.Destroy();
-            report($"en-bloc: bolt shut on a round: {(refusedShut ? "clip refused" : "CLIP TAKEN WITH THE BOLT SHUT")}; through the open action: "
+            report($"en-bloc: bolt shut on a round: {(takenShut ? "a clip is taken" : "CLIP REFUSED WITH THE BOLT SHUT")}; through the open action: "
                    + $"{(accepted && seated ? "clip in" : "CLIP NOT SEATED")}, {(released ? "bolt home on its own" : "BOLT NOT RELEASED")}, {(fed ? "chambered" : "NOTHING CHAMBERED")}; "
                    + $"an empty clip at the open action: {(emptyRefused ? "refused" : "EMPTY CLIP NOT REFUSED")}; "
                    + $"{shots} shot(s): {(thrown ? "empty clip thrown out" : "EMPTY CLIP NOT THROWN OUT")}, {(lockedOpen ? "bolt locked open" : "BOLT NOT LOCKED OPEN")}{(_pingSource != null ? $", ping '{_pingSource.clip.name}'" : "")}");
