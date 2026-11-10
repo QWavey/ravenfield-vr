@@ -108,10 +108,27 @@ namespace RavenfieldVR.Net
             if (!ReferenceEquals(gone, null))
             {
                 ByIk.Remove(gone);
+                if (gone != null)
+                {
+                    // (Our targets are destroyed above: the soldier's IK does not keep them.)
+                    gone.handTargetL = null;
+                    gone.handTargetR = null;
+                    gone.SetHandIkEnabled(false, false);
+                }
             }
         }
 
         internal static void Clear() => ByIk.Clear();
+
+        /// <summary>
+        /// The muzzle a gun's place is told by and put by: its first, always. The one it fires from next changes with every shot
+        /// of a gun with two barrels, and the gun on the other PCs jumped by the barrels' spacing at each shot.
+        /// </summary>
+        internal static Transform FirstMuzzle(Weapon gun)
+        {
+            Transform[] all = gun.configuration != null ? gun.configuration.muzzles : null;
+            return all != null && all.Length > 0 && all[0] != null ? all[0] : gun.CurrentMuzzle();
+        }
 
         /// <summary>One pose as it goes over the line (the check's second player writes the same).</summary>
         internal static void Put(NetWriter w, int flags, Vector3 headForward, Vector3 left, Quaternion leftRot, Vector3 right, Quaternion rightRot,
@@ -153,7 +170,7 @@ namespace RavenfieldVR.Net
                 Transform m = null;
                 try
                 {
-                    m = gun.CurrentMuzzle();
+                    m = FirstMuzzle(gun);
                 }
                 catch (System.Exception)
                 {
@@ -318,7 +335,7 @@ namespace RavenfieldVR.Net
                 Transform muzzle;
                 try
                 {
-                    muzzle = gun.CurrentMuzzle();
+                    muzzle = FirstMuzzle(gun);
                 }
                 catch (System.Exception)
                 {
@@ -392,6 +409,23 @@ namespace RavenfieldVR.Net
                         Quaternion turn = left ? p.LeftRot : p.RightRot;
                         Vector3 at = kv.Value.Actor.Position() + (left ? p.LeftNow : p.RightNow);
                         p.MagazineBox.transform.SetPositionAndRotation(at, turn);
+                    }
+                }
+                if (!Usable(kv.Value, out Actor _, out Pose _) && p.Eased)
+                {
+                    // (No pose told any more: the soldier's arms are his own again, with a gun or without.)
+                    p.Eased = false;
+                    if (kv.Key != null)
+                    {
+                        if (kv.Key.handTargetL == p.TargetL)
+                        {
+                            kv.Key.handTargetL = p.OwnLeft;
+                        }
+                        if (kv.Key.handTargetR == p.TargetR)
+                        {
+                            kv.Key.handTargetR = p.OwnRight;
+                        }
+                        kv.Key.SetHandIkEnabled(kv.Key.handTargetL != null && p.OwnLeft != null, kv.Key.handTargetR != null && p.OwnRight != null);
                     }
                 }
                 if (!Usable(kv.Value, out Actor _, out Pose _) || !p.Is(HasGun))

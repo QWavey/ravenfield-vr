@@ -209,6 +209,13 @@ namespace RavenfieldVR.Net
             yield return For(1.5f);
             NetGame.Remote remote = Standin();
             Actor body = remote != null ? remote.Actor : null;
+            // (Until his gun is in his hands: animated like a soldier in view, he draws it in the gun's own time, not at once.)
+            float drawnBy = Time.unscaledTime + 4f;
+            while (body != null && body.activeWeapon == null && Time.unscaledTime < drawnBy)
+            {
+                Pump();
+                yield return null;
+            }
             string carried = body != null && body.activeWeapon != null && body.activeWeapon.weaponEntry != null ? body.activeWeapon.weaponEntry.name : "nothing";
             report($"multiplayer stand-in: {(body != null && !body.dead ? $"on the field, team {body.team} (told {enemyTeam}), carrying {carried} (told {weapon})" : "NOT ON THE FIELD")}"
                    + (body != null && body.team != enemyTeam ? " NOT HIS SIDE" : "") + (body != null && !body.dead && carried != weapon ? " NOT HIS WEAPON" : "")
@@ -327,7 +334,7 @@ namespace RavenfieldVR.Net
                 Transform boneL = anim != null ? anim.GetBoneTransform(HumanBodyBones.LeftHand) : null, boneR = anim != null ? anim.GetBoneTransform(HumanBodyBones.RightHand) : null;
                 Vector3 at = body.Position();
                 float offL = boneL != null ? Vector3.Distance(boneL.position, at + handL) : -1f, offR = boneR != null ? Vector3.Distance(boneR.position, at + handR) : -1f;
-                Transform mz = body.activeWeapon != null ? body.activeWeapon.CurrentMuzzle() : null;
+                Transform mz = body.activeWeapon != null ? NetAvatar.FirstMuzzle(body.activeWeapon) : null;
                 // (The gun hand is on the gun's grip as this soldier holds this gun, wherever the told palm is: measured against the
                 // hand's place on the gun at rest, carried to where the gun is now.)
                 float gripOff = -1f;
@@ -369,7 +376,7 @@ namespace RavenfieldVR.Net
             bool down = body.fallenOver;
             yield return For(4f);
             report($"multiplayer stand-in knocked over: {(down ? "down here" : "NOT DOWN")}, his PC {(knocksGot >= 1 ? "told" : "NOT TOLD")}, "
-                   + $"back on his feet after his time: {(!body.fallenOver && !body.dead ? "yes" : "NOT UP")}");
+                   + $"back on his feet after his time: {(!body.fallenOver && !body.dead ? "yes" : $"NOT UP (fallen {body.fallenOver}, dead {body.dead}, {Vector3.Distance(body.Position(), ghostAt):0.0} m from where told, told alive {ghostAlive})")}");
 
             // 3b. No slow motion and no pause in a shared match.
             GameManager.SetTimeScale(0.2f);

@@ -364,6 +364,8 @@ namespace RavenfieldVR.UI
 
         public void OnSceneChanged()
         {
+            // (First, and on its own: a throw further down left a multiplayer PC waiting for a scene change that had already come.)
+            Log.Guard("Net.OnSceneChanged", Net.NetGame.OnSceneChanged);
             // A panel opened in the menu or while loading does not stay up in the match (its laser and pointer hand with it).
             if (Settings.IsOpen)
             {
@@ -385,7 +387,6 @@ namespace RavenfieldVR.UI
             {
                 StartChoice.Close();
             }
-            Net.NetGame.OnSceneChanged();
             Sandbox.Sandbox.OnSceneChanged();
             _sandboxTool.OnSceneChanged();
             Canvases.OnSceneChanged();

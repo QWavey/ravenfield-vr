@@ -77,7 +77,7 @@ namespace RavenfieldVR.Net
         private readonly Action<ulong> _lost;
         private readonly ulong _hostPeer;
         private double _now, _startedAt = -1;
-        private bool _helloSent;
+        private double _nextHello;
 
         public bool IsHost { get; }
         public byte LocalId { get; private set; }
@@ -136,9 +136,12 @@ namespace RavenfieldVR.Net
             {
                 _startedAt = now;
             }
-            if (!IsHost && !_helloSent)
+            // Said again every two seconds until the host answers: over Steam the host takes a line only from a member of his
+            // lobby, and a hello that came before Steam had told him of the new member was left unanswered for good (the join
+            // then ended "no answer from the host"). A hello from someone already in is ignored on his side.
+            if (!IsHost && State == NetState.Connecting && now >= _nextHello)
             {
-                _helloSent = true;
+                _nextHello = now + 2.0;
                 _out.Reset();
                 _out.Byte(Hello);
                 _out.VarInt(ProtocolVersion);

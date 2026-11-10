@@ -146,6 +146,15 @@ namespace RavenfieldVR.Net
                 }
             }
             StoppedSpawners.Clear();
+            foreach (CapturePoint capture in HeldFlags)
+            {
+                if (capture != null)
+                {
+                    capture.canCapture = true; // (the match goes on alone: its flags are its own again)
+                }
+            }
+            HeldFlags.Clear();
+            _ended = false;
             Multiplayer.Map = "";
             Multiplayer.Mode = "";
         }
@@ -217,6 +226,7 @@ namespace RavenfieldVR.Net
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteProne)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.Damage), new[] { typeof(DamageInfo) }), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnDamage)));
             _harmony.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(NetGame), nameof(HoldRemotes)));
+            _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchWeapon)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnSwitchWeapon)));
             _harmony.Patch(AccessTools.Method(typeof(VictoryUi), nameof(VictoryUi.EndGame)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnEndGame)));
             _harmony.Patch(AccessTools.Method(typeof(ActorIk), "OnAnimatorIK"), prefix: new HarmonyMethod(typeof(NetAvatar), nameof(NetAvatar.BeforeIk)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.KnockOver)), postfix: new HarmonyMethod(typeof(NetGame), nameof(OnKnockOver)));
@@ -287,6 +297,18 @@ namespace RavenfieldVR.Net
             Out.UShort(r.Id);
             Out.Vector(Vector3.ClampMagnitude(force, 5000f));
             _session.SendTo(r.Owner, Knock, Out, true);
+        }
+
+        private static bool _switching;
+
+        /// <summary>
+        /// A stand-in holds the weapon its owner holds: its own AI's choice of another (for what it sees here) is not taken. Both
+        /// switched it back and forth twice a second, and which gun was in its hands at a given moment was chance (net check,
+        /// 2026-11-10: "he drew his sidearm: in the stand-in's hands 76 EAGLE" in two runs of five).
+        /// </summary>
+        private static bool OnSwitchWeapon(Actor __instance)
+        {
+            return _switching || !_anyRemote || !ByActor.TryGetValue(__instance, out Remote r) || r.Slot < 0;
         }
 
         /// <summary>The shooter's PC decides (see the class's summary). False: the game's own damage is not run here.</summary>
@@ -629,6 +651,7 @@ namespace RavenfieldVR.Net
 
         // ---- the match's state: the host's flags and the host's end --------------------------------------------------
 
+        private static readonly List<CapturePoint> HeldFlags = new List<CapturePoint>();
         private static float _nextMatchTell, _matchToldAt;
         private static int _matchTold;
         private static bool _ended, _takingEnd;
@@ -697,6 +720,13 @@ namespace RavenfieldVR.Net
                 int owner = r.Byte() - 2;
                 // (The same map on both PCs has the same flags in the same order. A flag held differently here is given to who
                 // holds it on the host's PC: this PC's own counting is only a guess between two tellings.)
+                if (points != null && i < points.Length && points[i] is CapturePoint capture && capture.canCapture)
+                {
+                    // (This PC's own counting of who stands at a flag took it neutral and back between two tellings, with the
+                    // "captured" banner each time: flags change hands here only when the host says so.)
+                    capture.canCapture = false;
+                    HeldFlags.Add(capture);
+                }
                 if (points != null && i < points.Length && points[i] != null && owner >= -1 && owner <= 1 && points[i].owner != owner)
                 {
                     points[i].SetOwner(owner);
@@ -1112,6 +1142,12 @@ namespace RavenfieldVR.Net
                         new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
                     }
                 }
+                else if (!alive && a.dead && !a.isScheduledToSpawn)
+                {
+                    // (Marked as waiting for a spawn: a map's own scripts take any dead soldier that is not, and would bring a
+                    // stand-in back as their own. Actor.SpawnAt clears the mark when its owner has it alive again.)
+                    a.isScheduledToSpawn = true;
+                }
                 else if (!alive && !a.dead)
                 {
                     _applying = true;
@@ -1165,7 +1201,15 @@ namespace RavenfieldVR.Net
                         r.NextSlotCheck = now + 0.5f;
                         if (r.Slot < a.weapons.Length && a.weapons[r.Slot] != null && a.activeWeapon != a.weapons[r.Slot])
                         {
-                            a.SwitchWeapon(r.Slot);
+                            _switching = true;
+                            try
+                            {
+                                a.SwitchWeapon(r.Slot);
+                            }
+                            finally
+                            {
+                                _switching = false;
+                            }
                         }
                     }
                     // Knocked over here only (a blast, a blow, a hand: none of that is told yet, his owner has him on his feet):
@@ -1180,9 +1224,28 @@ namespace RavenfieldVR.Net
                         else if (now - r.FallenSince > 2.5f)
                         {
                             r.FallenSince = -1f;
+                            // (Onto the ground under where he was told: stood up in the air over a slope, the game found no ground
+                            // within its reach under him and dropped him again, for as long as he was told there.)
+                            Vector3 stand = r.Position;
+                            if (Physics.Raycast(stand + Vector3.up * 1.5f, Vector3.down, out RaycastHit under, 8f, 2232321, QueryTriggerInteraction.Ignore))
+                            {
+                                stand = under.point;
+                            }
+                            a.InstantGetUpAtPosition(stand);
+                        }
+                        continue;
+                    }
+                    r.FallenSince = -1f;
                     // A player's soldier stands turned the way the player does (his head's way when he is in VR, else his aim's): the
                     // game turns a soldier's body only into his walk, so one who had walked sideways stood sideways to his own gun,
                     // and the gun hand could not reach its grip across the chest (10 cm short in the check, 2026-11-10).
+                    // A player's soldier is animated also where no camera sees him (the game stops an unseen soldier's
+                    // animation: his arms were then set twice in two seconds instead of every frame and a weapon he drew stayed
+                    // undrawn, until he stepped into view with the wrong gun and his arms catching up; the game's spawn resets it).
+                    if (r.Id == 0)
+                    {
+                        a.forceAnimatorNeverCull = true;
+                    }
                     if (r.Id == 0 && !a.IsSeated() && !a.IsOnLadder())
                     {
                         Vector3 way = r.Pose != null && r.Pose.Fresh ? r.Pose.HeadForward : r.Facing;
@@ -1197,11 +1260,6 @@ namespace RavenfieldVR.Net
                             }
                         }
                     }
-                            a.InstantGetUpAtPosition(r.Position);
-                        }
-                        continue;
-                    }
-                    r.FallenSince = -1f;
                     // Far from where he was told to be (a jump, a vehicle, a fall): put there. Near: he walks it himself.
                     Vector3 off = r.Position - a.Position();
                     float flat = new Vector2(off.x, off.z).magnitude;
@@ -1285,12 +1343,19 @@ namespace RavenfieldVR.Net
             if (!ReferenceEquals(a, null))
             {
                 ByActor.Remove(a);
+                if (a != null && a.dead)
+                {
+                    a.isScheduledToSpawn = true;
+                }
                 if (a != null && !a.dead)
                 {
                     _applying = true;
                     try
                     {
                         a.KillSilently();
+                        // (And never a soldier of the match again: the next spawn wave took a leaver's soldier for one of the
+                        // match's dead and brought him back as a plain bot, which the host then told to everyone as his own.)
+                        a.isScheduledToSpawn = true;
                     }
                     catch (Exception)
                     {
@@ -1337,6 +1402,7 @@ namespace RavenfieldVR.Net
             _loading = false;
             _ended = false;
             _matchTold = 0;
+            HeldFlags.Clear(); // (they went with the old scene)
             StoppedSpawners.Clear(); // (they went with the old scene)
             Clear(false);
         }
