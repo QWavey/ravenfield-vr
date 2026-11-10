@@ -402,6 +402,12 @@ namespace RavenfieldVR.UI
             }, out _);
             MakeButton(row, "Sandbox", 606f, 140f, () =>
             {
+                // (A game mode now, chosen where the game's modes are: user, 2026-11-10. In a match it still opens.)
+                if (!Util.GameContext.InGame)
+                {
+                    UISystem.Instance?.Notice?.Show("Sandbox is a game mode: choose it where the game's modes are.", 6f);
+                    return;
+                }
                 Close();
                 UISystem.Instance?.SandboxPanel.Open();
             }, out _);

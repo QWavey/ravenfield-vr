@@ -140,9 +140,24 @@ namespace RavenfieldVR.Sandbox
             return player != null && c.transform.IsChildOf(player.transform);
         }
 
+        /// <summary>The hand the tool is in (the user, 2026-11-10: "the tool is also stuck to one hand only"): the gun hand while it
+        /// holds nothing, else the other one.</summary>
+        private Hand _side;
+
+        private VRHand ToolHand()
+        {
+            VRHand main = _rig.Dominant, other = _rig.Off;
+            bool mainEmpty = main.Tracked && (main.Role == HandRole.Free || main.Role == HandRole.Pointer) && main.Held == null
+                             && (Weapons.WeaponSystem.Instance == null || Weapons.WeaponSystem.Instance.Held == null);
+            VRHand hand = mainEmpty ? main : other;
+            _side = hand.Side;
+            return hand;
+        }
+
         /// <summary>Each frame of the game from the UI's update (<paramref name="menu"/>: a panel or menu has the laser).</summary>
         internal void Update(bool menu)
         {
+            Sandbox.FlyTick(_rig.Head);
             _aiming = false;
             _pointed = null;
             _pointedVehicle = null;
@@ -153,7 +168,7 @@ namespace RavenfieldVR.Sandbox
                 return;
             }
             Actor player = LocalPlayer.actor;
-            VRHand hand = _rig.Off;
+            VRHand hand = ToolHand();
             if (menu || !GameContext.InGame || player == null || player.dead || !hand.Tracked || hand.Role != HandRole.Free)
             {
                 _pulled = hand.Trigger > ReleaseAt; // (a pull begun elsewhere, on a panel's button, is not the tool's)
@@ -198,6 +213,7 @@ namespace RavenfieldVR.Sandbox
 
             // The free hand's trigger is the game's Use: while the tool points, the pull is the tool's.
             VRInput.Consume(DigitalAction.Use, hand.Side);
+            VRInput.Consume(DigitalAction.Fire, hand.Side); // (in the emptied gun hand the trigger is the game's Fire)
             float pull = hand.Trigger;
             if (_pulled)
             {
@@ -238,6 +254,7 @@ namespace RavenfieldVR.Sandbox
             hand.Haptic(0.03f, 140f, 0.6f);
             _kick = 1f;
             UISystem.Instance?.Notice?.Show(said, 2.5f);
+            Log.Info($"Sandbox tool ({Sandbox.Armed}, {hand.Side} hand): {said} Pointed at {(any ? best.point.ToString("F1") + " on '" + best.collider.name + "'" : "nothing")}.");
         }
 
         /// <summary>The beam and the ring from this frame's hand (the same pose the eyes are drawn from).</summary>
@@ -251,7 +268,7 @@ namespace RavenfieldVR.Sandbox
             {
                 _gun.SetActive(_gunShown);
             }
-            VRHand hand = _rig.Off;
+            VRHand hand = _rig.Hand(_side);
             if (_gunShown)
             {
                 // In the hand's pointing frame, tipped back a little by each pull.

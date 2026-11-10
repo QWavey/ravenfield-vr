@@ -22,10 +22,11 @@ namespace RavenfieldVR.Sandbox
             Soldiers,
             Weapons,
             Vehicles,
-            Field
+            Field,
+            Me
         }
 
-        private static readonly string[] TabNames = { "Soldiers", "Weapons", "Vehicles", "Field" };
+        private static readonly string[] TabNames = { "Soldiers", "Weapons", "Vehicles", "World", "Me" };
         private static readonly string[] SideNames = { "Enemy", "Friendly" };
         private static readonly string[] BehaviourNames = { "Normal", "Neutral", "Stand still", "Frozen", "Follow me" };
         private static readonly string[] WeaponNames = { "Their own", "Random", "None", "Mine" };
@@ -34,7 +35,7 @@ namespace RavenfieldVR.Sandbox
         private static readonly string[] SlotNames = { "All", "Primary", "Secondary", "Gear" };
         private static readonly string[] BodyNames = { "5 s", "20 s", "1 min", "5 min" };
         private static readonly float[] BodyTimes = { 5f, 20f, 60f, 300f };
-        private const int WeaponsPerPage = 8;
+        private const int WeaponsPerPage = 12, WeaponsPerRow = 4;
 
         private Tab _tab;
         private int _weaponPage, _weaponSlot;
@@ -67,7 +68,8 @@ namespace RavenfieldVR.Sandbox
         protected override int Shown() =>
             // (Each in bits of its own: added up, two states could give one number and a change went unseen.)
             (Sandbox.Quiet ? 1 : 0) | (Sandbox.PlayerInvulnerable ? 2 : 0) | ((int)Sandbox.Armed << 2) | (GameContext.InGame ? 16 : 0)
-            | (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 32 : 0) | ((Sandbox.SpawnedCount & 0xFFF) << 6) | ((Sandbox.PlacedCount & 0xFFF) << 18);
+            | (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 32 : 0) | ((Sandbox.SpawnedCount & 0xFFF) << 6) | ((Sandbox.PlacedCount & 0xFFF) << 18)
+            | (Sandbox.Paused ? 1 << 30 : 0) | (Sandbox.Fly ? int.MinValue : 0);
 
         private void Say(string status)
         {
@@ -78,8 +80,8 @@ namespace RavenfieldVR.Sandbox
         protected override void Build()
         {
             Title("Sandbox", GameContext.InGame
-                ? "Soldiers, vehicles and weapons made on the spot. Take the tool, point with the free hand, pull its trigger."
-                : "For a match: start any game mode, then open this panel from the VR settings.");
+                ? "Soldiers, vehicles and weapons made on the spot. The tool is in your empty hand: point, pull its trigger."
+                : "Sandbox is a game mode: choose it where the game's modes are. It starts with no soldier on either side.");
             Choice("", TabNames, (int)_tab, i => _tab = (Tab)i);
             switch (_tab)
             {
@@ -91,6 +93,9 @@ namespace RavenfieldVR.Sandbox
                     break;
                 case Tab.Vehicles:
                     Vehicles();
+                    break;
+                case Tab.Me:
+                    Me();
                     break;
                 default:
                     Field();
@@ -165,14 +170,48 @@ namespace RavenfieldVR.Sandbox
             List<WeaponManager.WeaponEntry> list = WeaponList();
             int pages = Mathf.Max(1, (list.Count + WeaponsPerPage - 1) / WeaponsPerPage);
             _weaponPage = Mathf.Clamp(_weaponPage, 0, pages - 1);
-            for (int i = _weaponPage * WeaponsPerPage; i < Mathf.Min(list.Count, (_weaponPage + 1) * WeaponsPerPage); i++)
+            // Tiles with the weapon's own picture (the game's loadout sprite), four to a row (the user, 2026-11-10: "there are no
+            // images of the guns ... we need images its important so we see what we spawn"). A press gives it.
+            const float tileHeight = 150f, gap = 8f;
+            float tileWidth = Mathf.Floor((CanvasWidth - 68f - gap * (WeaponsPerRow - 1)) / WeaponsPerRow);
+            int first = _weaponPage * WeaponsPerPage, last = Mathf.Min(list.Count, first + WeaponsPerPage);
+            for (int from = first; from < last; from += WeaponsPerRow)
             {
-                WeaponManager.WeaponEntry entry = list[i];
-                ActionRow(entry.name, "Give me", () =>
+                RectTransform row = Row(tileHeight + 10f);
+                for (int c = 0; c < WeaponsPerRow && from + c < last; c++)
                 {
-                    string name = Sandbox.Give(entry, out string problem);
-                    Say(name != null ? name + " is yours." : "No weapon: " + problem + ".");
-                }, null, null, 170f);
+                    WeaponManager.WeaponEntry entry = list[from + c];
+                    Button tile = ButtonIn(row, entry.name, 34f + (WeaponsPerRow - 1 - c) * (tileWidth + gap), tileWidth, () =>
+                    {
+                        string name = Sandbox.Give(entry, out string problem);
+                        Say(name != null ? name + " is yours." : "No weapon: " + problem + ".");
+                    });
+                    var tileRect = (RectTransform)tile.transform;
+                    tileRect.sizeDelta = new Vector2(tileWidth, tileHeight);
+                    Text name = tile.GetComponentInChildren<Text>();
+                    if (name != null)
+                    {
+                        name.fontSize = 17;
+                        name.alignment = entry.uiSprite != null ? TextAnchor.LowerCenter : TextAnchor.MiddleCenter;
+                        name.horizontalOverflow = HorizontalWrapMode.Wrap;
+                        name.rectTransform.offsetMin = new Vector2(6f, 5f);
+                    }
+                    if (entry.uiSprite != null)
+                    {
+                        var picture = new GameObject("Picture", typeof(RectTransform));
+                        picture.layer = 5;
+                        var pictureRect = (RectTransform)picture.transform;
+                        pictureRect.SetParent(tileRect, false);
+                        pictureRect.anchorMin = Vector2.zero;
+                        pictureRect.anchorMax = Vector2.one;
+                        pictureRect.offsetMin = new Vector2(10f, 46f);
+                        pictureRect.offsetMax = new Vector2(-10f, -8f);
+                        Image image = picture.AddComponent<Image>();
+                        image.sprite = entry.uiSprite;
+                        image.preserveAspect = true;
+                        image.raycastTarget = false;
+                    }
+                }
             }
             if (list.Count == 0)
             {
@@ -217,10 +256,9 @@ namespace RavenfieldVR.Sandbox
 
         private void Field()
         {
-            Section("The field");
+            Section("The soldiers");
+            ActionRow($"Every soldier: {(Sandbox.Paused ? "PAUSED (no step, no shot)" : "running")}.", Sandbox.Paused ? "Play" : "Pause", () => Say(Sandbox.SetPaused(!Sandbox.Paused)));
             ActionRow($"Quiet battlefield (none of the match's own soldiers): {(Sandbox.Quiet ? "on" : "off")}.", Sandbox.Quiet ? "Turn off" : "Turn on", () => Say(Sandbox.SetQuiet(!Sandbox.Quiet)));
-            ActionRow($"You take no damage: {(Sandbox.PlayerInvulnerable ? "on" : "off")}.", Sandbox.PlayerInvulnerable ? "Turn off" : "Turn on", () => Sandbox.SetPlayerInvulnerable(!Sandbox.PlayerInvulnerable));
-            ActionRow("Health and ammunition.", "Fill up", () => Say(Sandbox.Refill() ? "Filled up." : "Not on your feet."));
             ActionRow("Every enemy soldier.", "Kill", () => Say(Sandbox.HostsField ? $"{Sandbox.KillEnemies()} enemy soldier(s) killed." : "In a shared match the field is the host's to change."));
             Section("What the sandbox made");
             Choice("A dead one's body lies", BodyNames, Array.IndexOf(BodyTimes, Sandbox.BodySeconds), i => Sandbox.BodySeconds = BodyTimes[i]);
@@ -230,9 +268,32 @@ namespace RavenfieldVR.Sandbox
             ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),
                       "Load", () => Say(Sandbox.LoadSet()), 150f);
             ActionRow("The remover: point at a soldier or a vehicle, pull.", Sandbox.Armed == Sandbox.ToolKind.Remove ? "Put away" : "Take it", () => TakeOrPutAway(Sandbox.ToolKind.Remove));
-            ActionRow(Sandbox.Armed == Sandbox.ToolKind.None ? "The spawn tool is put away (take it on the Soldiers or Vehicles page)." : "The spawn tool is in your hand.", Sandbox.Armed == Sandbox.ToolKind.None ? "Away" : "Put away", () =>
+        }
+
+        /// <summary>What is the player's own: no damage, flying, health and ammunition, the tool, the way to the VR settings.</summary>
+        private void Me()
+        {
+            Section("You");
+            ActionRow($"You take no damage: {(Sandbox.PlayerInvulnerable ? "on" : "off")}.", Sandbox.PlayerInvulnerable ? "Turn off" : "Turn on", () => Sandbox.SetPlayerInvulnerable(!Sandbox.PlayerInvulnerable));
+            ActionRow($"Flying: {(Sandbox.Fly ? "on (the walking stick moves you where you look)" : "off")}.", Sandbox.Fly ? "Land" : "Fly", () => Say(Sandbox.SetFly(!Sandbox.Fly)));
+            ActionRow("Health and ammunition.", "Fill up", () => Say(Sandbox.Refill() ? "Filled up." : "Not on your feet."));
+            Section("The tool");
+            Label("It is in your gun hand while that hand holds nothing, else in the other hand.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
+            ActionRow(Sandbox.Armed == Sandbox.ToolKind.None ? "The tool is put away." : "The tool is in your hand.", Sandbox.Armed == Sandbox.ToolKind.None ? "Take it" : "Put away", () =>
             {
-                Sandbox.Armed = Sandbox.ToolKind.None;
+                if (Sandbox.Armed == Sandbox.ToolKind.None)
+                {
+                    Take(Sandbox.ToolKind.Soldier);
+                }
+                else
+                {
+                    Sandbox.Armed = Sandbox.ToolKind.None;
+                }
+            });
+            ActionRow("The mod's own settings.", "VR settings", () =>
+            {
+                Close();
+                UISystem.Instance?.Settings.Open();
             });
         }
 
@@ -256,7 +317,7 @@ namespace RavenfieldVR.Sandbox
             }
             Sandbox.Armed = kind;
             Close();
-            UISystem.Instance?.Notice?.Show("Sandbox tool: point with the free hand, pull its trigger. Menu button: the panel.", 5f);
+            UISystem.Instance?.Notice?.Show("Sandbox tool: point with the empty hand, pull its trigger. Menu button: the panel.", 5f);
         }
 
         /// <summary>The panel's own spawn, without the tool: three (a vehicle: eight) metres in front of the player, on the ground there.</summary>

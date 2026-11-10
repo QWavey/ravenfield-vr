@@ -130,7 +130,7 @@ namespace RavenfieldVR.Sandbox
         // The patches (bodies kept to a flag test when the sandbox holds no such soldier).
         private static void HoldFire(AiActorController __instance, ref bool __result)
         {
-            if (__result && _anyBehaviour && Passive(__instance.actor))
+            if (__result && (Paused || _anyBehaviour && Passive(__instance.actor)))
             {
                 __result = false;
             }
@@ -138,7 +138,7 @@ namespace RavenfieldVR.Sandbox
 
         private static void StandStill(AiActorController __instance, ref Vector3 __result)
         {
-            if (_anyBehaviour && Still(__instance.actor))
+            if (Paused || _anyBehaviour && Still(__instance.actor))
             {
                 __result = Vector3.zero;
             }
@@ -306,6 +306,10 @@ namespace RavenfieldVR.Sandbox
                     }
                     a.SpawnAt(spot, Quaternion.LookRotation(facing, Vector3.up), Loadout(spec.Weapons));
                     Made.Add(a);
+                    // (Said in the log for every soldier: "spawning enemys on a modded map ... doesnt spawn them", user 2026-11-10,
+                    // and nothing in the log told what the pull had done.)
+                    Log.Info($"Sandbox: a soldier made at {spot:F1} (asked {at:F1}), team {a.team} (the player's {player.team}), {spec.Behaviour}, {spec.Weapons}: "
+                             + $"{(a.dead ? "DEAD" : "alive")}, {(a.gameObject.activeInHierarchy ? "shown" : "NOT SHOWN")}, stands at {a.Position():F1}.");
                 }
                 catch (Exception e)
                 {
@@ -327,7 +331,15 @@ namespace RavenfieldVR.Sandbox
                     else if (ai.squad == null)
                     {
                         // (A soldier with no squad: the game's AI reads the missing squad every frame, autotest 2026-10-24.)
-                        new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
+                        // (Guarded: on a map where his side holds no spawn point the squad's making threw out of the whole pull.)
+                        try
+                        {
+                            new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.WarnOnce("sandbox-squad", "Sandbox: a soldier's squad could not be made: " + e);
+                        }
                     }
                     ai.facingDirectionVector = facing;
                 }
@@ -532,6 +544,10 @@ namespace RavenfieldVR.Sandbox
         /// </summary>
         internal static string RemoveSoldier(Actor a)
         {
+            if (!HostsField)
+            {
+                return "In a shared match the field is the host's to change.";
+            }
             if (a == null || a.dead || !a.aiControlled)
             {
                 return "Nothing to remove there.";
@@ -555,6 +571,10 @@ namespace RavenfieldVR.Sandbox
         /// <summary>One vehicle taken off the field by the remover, its crew put out first.</summary>
         internal static string RemoveVehicle(Vehicle v)
         {
+            if (!HostsField)
+            {
+                return "In a shared match the field is the host's to change.";
+            }
             if (v == null)
             {
                 return "Nothing to remove there.";
@@ -766,6 +786,21 @@ namespace RavenfieldVR.Sandbox
         /// <summary>Once a frame from the UI's update: the lists kept clean (twice a second), the player's own invulnerability held.</summary>
         internal static void Update()
         {
+            if (!_modeGreeted && InMode)
+            {
+                Actor me = LocalPlayer.actor;
+                if (me != null && !me.dead)
+                {
+                    // In the mode the tool is in the hand from the first life, and the menu button is the sandbox's panel.
+                    _modeGreeted = true;
+                    PatchWave();
+                    if (Armed == ToolKind.None)
+                    {
+                        Armed = ToolKind.Soldier;
+                    }
+                    UI.UISystem.Instance?.Notice?.Show("Sandbox: the tool is in your free hand. Point, pull its trigger. Menu button: the sandbox panel.", 7f);
+                }
+            }
             if (PlayerInvulnerable)
             {
                 // (Every frame: the game's spawn clears it, and half a second of a fresh life could be hurt.)
@@ -928,9 +963,143 @@ namespace RavenfieldVR.Sandbox
             }
         }
 
+        // ---- pause and play ----------------------------------------------------------------------------------------
+
+        /// <summary>Every soldier of the match holds still and holds fire (the user, 2026-11-10: "add pause and play buttons so i can pause npc behavior").</summary>
+        internal static bool Paused { get; private set; }
+
+        internal static string SetPaused(bool paused)
+        {
+            if (!HostsField)
+            {
+                return "In a shared match the field is the host's to change.";
+            }
+            if (paused)
+            {
+                PatchBehaviours();
+            }
+            Paused = paused;
+            return paused ? "The soldiers are paused: no step, no shot." : "The soldiers go on.";
+        }
+
+        // ---- flying ------------------------------------------------------------------------------------------------
+
+        /// <summary>The player flies: no fall, the walking stick moves him along his look (the user, 2026-11-10: "a fly tool to fly around").</summary>
+        internal static bool Fly { get; private set; }
+        private static bool _flyHolds;
+        private const float FlySpeed = 9f;
+
+        internal static string SetFly(bool on)
+        {
+            Fly = on;
+            return on ? "Flying: the walking stick moves you where you look. Look up to rise." : "On your feet again.";
+        }
+
+        /// <summary>Each frame (from the tool's update, which has the head): the game's own walking is off while flying, and the stick moves the body.</summary>
+        internal static void FlyTick(Transform head)
+        {
+            FpsActorController fps = FpsActorController.instance;
+            Actor player = LocalPlayer.actor;
+            bool can = Fly && fps != null && fps.controller != null && player != null && !player.dead && !player.IsSeated() && !player.fallenOver && Util.GameContext.InGame;
+            if (_flyHolds != can && fps != null && fps.controller != null)
+            {
+                fps.controller.enabled = !can; // (the game's walking and its gravity: off while flying, back at once after)
+                _flyHolds = can;
+            }
+            if (!can || head == null)
+            {
+                return;
+            }
+            CharacterController body = fps.GetComponent<CharacterController>();
+            if (body == null || !body.enabled)
+            {
+                return;
+            }
+            Vector2 stick = Input.VRGameInput.MoveStick;
+            if (stick.sqrMagnitude < 0.01f)
+            {
+                return;
+            }
+            Vector3 right = Vector3.ProjectOnPlane(head.right, Vector3.up).normalized;
+            body.Move((head.forward * stick.y + right * stick.x) * (FlySpeed * Time.deltaTime));
+        }
+
+        // ---- the game mode -----------------------------------------------------------------------------------------
+
+        // Sandbox is one of the game's modes (the user, 2026-11-10: "sandbox should be a mode in game mode not in the UI. when sandbox
+        // mdoe is launched we start on both sides with 0 bots except me"): an entry in the game's own mode picker, made from Point
+        // Match (its rules and its flags), started with no soldier on either side and never ended by its score.
+        private static GameModeInfo _modeInfo;
+        private static bool _modePatched, _modeGreeted;
+
+        /// <summary>This match was started as the Sandbox mode.</summary>
+        internal static bool InMode => _modeInfo != null && Util.GameContext.InGame && GameManager.instance != null && GameManager.instance.gameModeParameters != null
+                                       && GameManager.instance.gameModeParameters.gameMode == _modeInfo;
+
+        internal static void InitMode()
+        {
+            if (_modePatched)
+            {
+                return;
+            }
+            _modePatched = true;
+            Patcher.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.AvailableGameModes)), postfix: new HarmonyMethod(typeof(Sandbox), nameof(AddMode)));
+            Patcher.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.StartLevel)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(OnStartLevel)));
+            Patcher.Patch(AccessTools.Method(typeof(VictoryUi), nameof(VictoryUi.EndGame)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldEnd)));
+        }
+
+        private static void AddMode(ref IEnumerable<GameModeInfo> __result)
+        {
+            try
+            {
+                if (_modeInfo == null)
+                {
+                    GameModeInfo basis = GameManager.GetBuiltInGameModeByName("Point Match") ?? GameManager.GetDefaultGameMode();
+                    if (basis == null)
+                    {
+                        return;
+                    }
+                    _modeInfo = UnityEngine.Object.Instantiate(basis);
+                    _modeInfo.hideFlags = HideFlags.HideAndDontSave;
+                    _modeInfo.name = "Sandbox";
+                    _modeInfo.sourceMod = basis.sourceMod;
+                    Log.Info($"Sandbox: added to the game's modes (made from {basis.name}).");
+                }
+                if (__result != null && !__result.Contains(_modeInfo))
+                {
+                    __result = __result.Concat(new[] { _modeInfo }).ToList();
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("sandbox-mode", "Sandbox: the mode could not be added to the game's list: " + e);
+            }
+        }
+
+        private static void OnStartLevel(GameModeParameters parameters)
+        {
+            if (parameters != null && _modeInfo != null && parameters.gameMode == _modeInfo && parameters.configuration != null)
+            {
+                parameters.configuration.SetInt("countTeam0", 0);
+                parameters.configuration.SetInt("countTeam1", 0);
+                Log.Info("Sandbox: the mode starts, no soldier on either side.");
+            }
+        }
+
+        /// <summary>The sandbox has no end: its score is nobody's to win.</summary>
+        private static bool HoldEnd() => !InMode;
+
+        /// <summary>The game's mode by name, ours among them (a joined PC looks the host's mode up).</summary>
+        internal static GameModeInfo ModeByName(string name) =>
+            _modeInfo != null && string.Equals(name, _modeInfo.name, StringComparison.OrdinalIgnoreCase) ? _modeInfo : null;
+
         /// <summary>A new scene: what was spawned went with the old one; the quiet battlefield and the tool are for one match.</summary>
         internal static void OnSceneChanged()
         {
+            Paused = false;
+            Fly = false;
+            _flyHolds = false;
+            _modeGreeted = false;
             Behaviours.Clear();
             Spawned.Clear();
             Placed.Clear();

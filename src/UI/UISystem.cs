@@ -125,6 +125,7 @@ namespace RavenfieldVR.UI
                 ModKeys = new ModKeysPanel(rig, EventCamera);
                 Canvases.RegisterOwn(ModKeys.Canvas);
                 SandboxPanel = new Sandbox.SandboxPanel(rig, EventCamera);
+                Sandbox.Sandbox.InitMode();
                 Canvases.RegisterOwn(SandboxPanel.Canvas);
                 _sandboxTool = new Sandbox.SandboxTool(rig);
                 Net.NetGame.Init();

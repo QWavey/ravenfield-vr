@@ -107,11 +107,15 @@ namespace RavenfieldVR.Net
             _initialised = true;
             Multiplayer.Started += Attach;
             Multiplayer.Ended += Detach;
+            // (Here too, not only from the VR side's scene handler: a flat player has none, his "loading" never ended and nothing
+            // of the match was told or shown after the first level; scout, 2026-11-10. Run twice in VR, it only clears again.)
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged += (from, to) => OnSceneChanged();
         }
 
         private static void Attach(NetSession session)
         {
             _session = session;
+            _hostWasInMatch = false; // (left over from a game hosted before, it sent a joined player's own match back to the menu; scout)
             session.Message += OnMessage;
             session.Joined += OnJoined;
             session.Left += OnLeft;
@@ -463,7 +467,8 @@ namespace RavenfieldVR.Net
                 Log.Warn("Multiplayer: the host's map is not on this PC: " + scene);
                 return;
             }
-            GameModeInfo mode = GameManager.instance.officialGameModes.FirstOrDefault(m => m != null && string.Equals(m.name, modeName, StringComparison.OrdinalIgnoreCase));
+            GameModeInfo mode = Sandbox.Sandbox.ModeByName(modeName)
+                                ?? GameManager.instance.officialGameModes.FirstOrDefault(m => m != null && string.Equals(m.name, modeName, StringComparison.OrdinalIgnoreCase));
             GameModeParameters p = mode != null ? GameModeParameters.CreateForGameMode(mode) : GameModeParameters.GetDefault();
             // None of this PC's own soldiers: the host's are shown here.
             p.configuration.SetInt("countTeam0", 0);
