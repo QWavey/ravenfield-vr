@@ -1000,7 +1000,12 @@ namespace RavenfieldVR.Sandbox
         {
             FpsActorController fps = FpsActorController.instance;
             Actor player = LocalPlayer.actor;
-            bool can = Fly && fps != null && fps.controller != null && player != null && !player.dead && !player.IsSeated() && !player.fallenOver && Util.GameContext.InGame;
+            if (Fly && player != null && player.dead)
+            {
+                Fly = false; // (a new life starts on its feet; review, 2026-11-10)
+            }
+            // (Not in a pause or under the game's menu: the stick moved the body through them.)
+            bool can = Fly && !GameManager.IsPaused() && !Input.VRGameInput.GunInputBlocked && fps != null && fps.controller != null && player != null && !player.dead && !player.IsSeated() && !player.fallenOver && Util.GameContext.InGame;
             if (_flyHolds != can && fps != null && fps.controller != null)
             {
                 fps.controller.enabled = !can; // (the game's walking and its gravity: off while flying, back at once after)

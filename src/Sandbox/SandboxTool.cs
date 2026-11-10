@@ -292,6 +292,15 @@ namespace RavenfieldVR.Sandbox
                 _gunShown = GameContext.InGame && player != null && !player.dead && hand.Tracked && (hand.Role == HandRole.Free || hand.Role == HandRole.Pointer);
                 return;
             }
+            // With a gun drawn the tool is in the other hand, whose trigger is also the gun's (the pump, the launcher under the
+            // barrel, the light): near the gun that hand is the gun's, and the tool waits (it took every press; review, 2026-11-10).
+            if (Weapons.WeaponSystem.Instance != null && Weapons.WeaponSystem.Instance.Held != null
+                && Vector3.Distance(hand.Palm.position, _rig.Dominant.Palm.position) < 0.35f)
+            {
+                _gunShown = false;
+                _pulled = hand.Trigger > ReleaseAt;
+                return;
+            }
             _gunShown = true;
 
             _from = hand.TrackedPointer.position;
