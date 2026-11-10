@@ -2833,6 +2833,55 @@ namespace RavenfieldVR.Weapons
             {
                 Ammo.EjectMagazine();
             }
+            // By the hand, as in play: a clip brought down over the open action, turned 120 degrees in the fist from the way it
+            // seats (a hand does not hold a clip lined up with its way in; "putting a new one in doesnt work still", user,
+            // 2026-11-10): taken onto its way in and pressed home.
+            {
+                Ammo.Chambered = false;
+                Ammo.SlideLocked = true;
+                Ammo.Sync();
+                int side = (int)off.Side;
+                MagazineProp byHand = MagazineProp.Create(Rig, PropKind.Magazine, Ammo.Capacity);
+                byHand.Owner = Ammo;
+                byHand.Attach(off);
+                byHand.FollowHand();
+                RigidPose palmFromProp = byHand.HoldPose(off).Inverse().Multiply(off.Palm);
+                RigidPose rawFromPalm = off.Palm.Inverse().Multiply(off.Raw);
+                Vector3 into = SeatPose.TransformDirection(byHand.InsertDirLocal);
+                Vector3 aside = Vector3.Cross(into, Rig.AimWorld).normalized;
+                bool taken = false;
+                float from = 0.2f;
+                VRInput.SimulatedGrab[side] = true;
+                try
+                {
+                    for (int k = 0; k <= 60 && !Ammo.MagInserted; k++)
+                    {
+                        float d = Mathf.Lerp(from, -0.01f, k / 60f); // (metres short of the seat, along the way in)
+                        var prop = new RigidPose(SeatPose.position - into * d, Quaternion.AngleAxis(120f, aside) * SeatPose.rotation);
+                        VRHand.Scripted[side] = prop.Multiply(palmFromProp).Multiply(rawFromPalm);
+                        yield return null;
+                        taken |= byHand.Go != null && byHand.OnRail;
+                    }
+                    yield return null;
+                }
+                finally
+                {
+                    VRHand.Scripted[side] = null;
+                    VRInput.SimulatedGrab[side] = false;
+                }
+                bool inByHand = Ammo.MagInserted;
+                report($"en-bloc by hand (the clip turned 120 degrees in the fist, brought down 20 cm onto the open action): {(taken || inByHand ? "taken onto its way in" : "NOT TAKEN ONTO ITS WAY IN")}, "
+                       + $"{(inByHand ? $"pressed home, {Ammo.MagRounds} round(s) and {(Ammo.Chambered ? "one chambered" : "NOTHING CHAMBERED")}" : "NOT SEATED")}");
+                if (off.Held is MagazineProp stillHeld)
+                {
+                    stillHeld.Destroy();
+                }
+                yield return null;
+                if (Ammo.MagInserted)
+                {
+                    Ammo.EjectMagazine();
+                }
+            }
             // The bolt shut on a round, no clip: a clip goes in there too (2026-11-10: the release throws the clip out with the bolt
             // home on a round, and the next one was refused until the rod was pulled).
             Ammo.Chambered = true;

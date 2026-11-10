@@ -455,6 +455,8 @@ namespace RavenfieldVR.Net
             int mine = ActorManager.instance.actors.Count(a => a != null && a.aiControlled && !NetGame.IsRemote(a));
             report($"multiplayer host's soldiers told to the second player: {told.Count} of {mine + 1} (the player and {mine} soldier(s)), {statesGot} message(s){(told.Count < mine + 1 ? " NOT ALL TOLD" : "")}");
 
+            report($"multiplayer telling: {NetGame.LastTold} of {NetGame.LastOwned} soldiers' places went out in the last telling (the dead and the far ones go out less often)");
+
             int vehicles = ActorManager.instance.vehicles.Count(v => v != null && !v.isTurret);
             report($"multiplayer vehicles in the shared match: {vehicles} on the field ({NetGame.VehiclesRemoved} taken off){(vehicles > 0 ? " NOT TAKEN OFF" : "")}");
 
