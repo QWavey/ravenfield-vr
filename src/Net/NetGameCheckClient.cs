@@ -229,18 +229,27 @@ namespace RavenfieldVR.Net
                         }
                         w.Bool(ended);
                         w.Byte((byte)(winner + 2));
+                        w.Byte(1); // (the Battle mode's score: two battalions and 41 tickets, three and 77)
+                        w.Byte(2);
+                        w.VarInt(41);
+                        w.Byte(3);
+                        w.VarInt(77);
                         host.Send(NetGame.MatchState, w, true);
                     }
                     Tell(false, -1);
                     yield return For(0.8f);
                     bool flagTaken = points[flag].owner == told;
+                    var battle = GameModeBase.activeGameMode as BattleMode;
+                    string score = battle == null ? "not a Battle match: no score told"
+                        : battle.tickets[0] == 41 && battle.tickets[1] == 77 && battle.remainingBattalions[0] == 2 && battle.remainingBattalions[1] == 3 ? "the host's score shown (2 battalions and 41 tickets, 3 and 77)"
+                        : $"SCORE NOT TAKEN ({battle.remainingBattalions[0]}/{battle.tickets[0]}, {battle.remainingBattalions[1]}/{battle.tickets[1]})";
                     VictoryUi.EndGame(1 - team); // (this game's own counting calls an end: held back on a PC that joined)
                     yield return For(0.3f);
                     bool held = !VictoryUi.GameHasEnded();
                     Tell(true, team);
                     yield return For(0.8f);
                     report($"multiplayer match state from the host: flag '{points[flag].name}' held by team {was} here, told {told}: {(flagTaken ? "given over" : "NOT GIVEN OVER")}; "
-                           + $"this game's own end {(held ? "held back" : "NOT HELD BACK")}; the host's end {(VictoryUi.GameHasEnded() && NetGame.EndTaken ? "shown" : "NOT SHOWN")}");
+                           + $"this game's own end {(held ? "held back" : "NOT HELD BACK")}; the host's end {(VictoryUi.GameHasEnded() && NetGame.EndTaken ? "shown" : "NOT SHOWN")}; {score}");
                 }
             }
 

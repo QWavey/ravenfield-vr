@@ -226,6 +226,7 @@ namespace RavenfieldVR.Net
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteProne)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.Damage), new[] { typeof(DamageInfo) }), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnDamage)));
             _harmony.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(NetGame), nameof(HoldRemotes)));
+            _harmony.Patch(AccessTools.Method(typeof(BattleMode), nameof(BattleMode.DrainTicket)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnDrainTicket)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchWeapon)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnSwitchWeapon)));
             _harmony.Patch(AccessTools.Method(typeof(VictoryUi), nameof(VictoryUi.EndGame)), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnEndGame)));
             _harmony.Patch(AccessTools.Method(typeof(ActorIk), "OnAnimatorIK"), prefix: new HarmonyMethod(typeof(NetAvatar), nameof(NetAvatar.BeforeIk)));
@@ -658,7 +659,10 @@ namespace RavenfieldVR.Net
         private static int _winner;
 
         /// <summary>The check's: how often the host's flags were put on this PC's, and whether the host's end was taken.</summary>
-        internal static int FlagsTaken;
+        internal static int FlagsTaken, ScoreTaken;
+
+        /// <summary>On a PC that joined, the fallen are counted by the host: its own count of tickets is held back (the host's is shown).</summary>
+        private static bool OnDrainTicket() => _session == null || _session.IsHost;
         internal static bool EndTaken;
 
         /// <summary>
@@ -690,6 +694,10 @@ namespace RavenfieldVR.Net
                 return;
             }
             int hash = _ended ? 7 + _winner : 3;
+            if (GameModeBase.activeGameMode is BattleMode scored && scored.tickets != null)
+            {
+                hash = hash * 31 + scored.tickets[0] * 7 + scored.tickets[1] * 13 + scored.remainingBattalions[0] * 101 + scored.remainingBattalions[1] * 1009;
+            }
             foreach (SpawnPoint point in points)
             {
                 hash = hash * 31 + (point != null ? point.owner + 2 : 0);
@@ -708,6 +716,20 @@ namespace RavenfieldVR.Net
             }
             Out.Bool(_ended);
             Out.Byte((byte)Mathf.Clamp(_winner + 2, 0, 255));
+            // The score, for the mode that has one known here (Battle: battalions and tickets a side).
+            if (GameModeBase.activeGameMode is BattleMode battle && battle.tickets != null)
+            {
+                Out.Byte(1);
+                for (int team = 0; team < 2; team++)
+                {
+                    Out.Byte((byte)Mathf.Clamp(battle.remainingBattalions[team], 0, 255));
+                    Out.VarInt(battle.tickets[team]);
+                }
+            }
+            else
+            {
+                Out.Byte(0);
+            }
             session.Send(MatchState, Out, true);
         }
 
@@ -735,6 +757,34 @@ namespace RavenfieldVR.Net
             }
             bool ended = r.Bool();
             int winner = r.Byte() - 2;
+            if (r.Remaining > 0 && r.Byte() == 1)
+            {
+                int[] battalions = new int[2], tickets = new int[2];
+                for (int team = 0; team < 2; team++)
+                {
+                    battalions[team] = r.Byte();
+                    tickets[team] = r.VarInt();
+                }
+                // The host's score shown here: this PC's own counting of the fallen is held back (OnDrainTicket).
+                if (points != null && GameModeBase.activeGameMode is BattleMode battle && battle.tickets != null)
+                {
+                    for (int team = 0; team < 2; team++)
+                    {
+                        bool newWave = battle.remainingBattalions[team] != Mathf.Clamp(battalions[team], 0, 3);
+                        battle.remainingBattalions[team] = Mathf.Clamp(battalions[team], 0, 3);
+                        battle.tickets[team] = tickets[team];
+                        if (newWave)
+                        {
+                            battle.UpdateInfantryPanels(team);
+                        }
+                        if (battle.remainingBattalions[team] > 0)
+                        {
+                            battle.UpdateTicketLabel(team);
+                        }
+                    }
+                    ScoreTaken++;
+                }
+            }
             if (ended && points != null && !VictoryUi.GameHasEnded())
             {
                 _takingEnd = true;
