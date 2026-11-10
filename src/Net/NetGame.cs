@@ -67,7 +67,20 @@ namespace RavenfieldVR.Net
             public int Carried;
             public int Team = -1;
             public bool Told;
+            /// <summary>Tellings of his place since he died (the first second in full, then one in thirty).</summary>
+            public int DeadTicks;
         }
+
+        // Who is told how often (the user, 2026-11-10: "make sure we optimize multiplayer playing"). Every soldier's place went out
+        // fifteen times a second, the dead and the far ones too: a host with sixty soldiers sent 17 kB a second to every player,
+        // most of it about soldiers nobody could see. Now: a dead one for a second after his death, then every two seconds (so he
+        // stays known); a living one farther than 150 m from every player, and not firing, five times a second; the rest as before.
+        private static readonly List<Actor> ToTell = new List<Actor>();
+        private static readonly List<Vector3> Eyes = new List<Vector3>();
+        private static int _tellTick;
+        private const float FarMetres = 150f;
+        /// <summary>The check's: soldiers' places told in the last telling, of how many owned.</summary>
+        internal static int LastTold, LastOwned;
 
         private static readonly Dictionary<int, Remote> Remotes = new Dictionary<int, Remote>();
         private static readonly Dictionary<Actor, Remote> ByActor = new Dictionary<Actor, Remote>();
@@ -1148,17 +1161,64 @@ namespace RavenfieldVR.Net
                     session.Send(ActorInfo, Out, true);
                 }
             }
+            // Whose place is told this time (see ToTell).
+            _tellTick++;
+            Eyes.Clear();
+            if (player != null)
+            {
+                Eyes.Add(player.Position());
+            }
+            foreach (Remote r in Remotes.Values)
+            {
+                if (r.Id == 0 && r.Actor != null)
+                {
+                    Eyes.Add(r.Actor.Position());
+                }
+            }
+            ToTell.Clear();
+            foreach (Actor a in Scratch)
+            {
+                Own own = Owned[a];
+                if (a.dead)
+                {
+                    own.DeadTicks++;
+                    if (own.DeadTicks > 15 && own.DeadTicks % 30 != 0)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    own.DeadTicks = 0;
+                    if (a != player && (_tellTick + own.Id) % 3 != 0)
+                    {
+                        Vector3 p = a.Position();
+                        bool near = false;
+                        for (int e = 0; e < Eyes.Count && !near; e++)
+                        {
+                            near = (Eyes[e] - p).sqrMagnitude < FarMetres * FarMetres;
+                        }
+                        if (!near && !FiredJustNow(a))
+                        {
+                            continue;
+                        }
+                    }
+                }
+                ToTell.Add(a);
+            }
+            LastTold = ToTell.Count;
+            LastOwned = Scratch.Count;
             // Where each is: as many to a message as fit one packet.
             const int most = 60; // (19 bytes each)
             int at = 0;
-            while (at < Scratch.Count)
+            while (at < ToTell.Count)
             {
-                int n = Mathf.Min(most, Scratch.Count - at);
+                int n = Mathf.Min(most, ToTell.Count - at);
                 Out.Reset();
                 Out.Byte((byte)n);
                 for (int i = 0; i < n; i++)
                 {
-                    Actor a = Scratch[at + i];
+                    Actor a = ToTell[at + i];
                     ActorController c = a.controller;
                     bool alive = !a.dead;
                     int flags = (alive ? Alive : 0) | (a.team == 1 ? TeamOne : 0);

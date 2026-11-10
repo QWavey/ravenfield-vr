@@ -167,7 +167,8 @@ namespace RavenfieldVR.UI
         {
             Choice("Sprint button", VRConfig.Sprint, new[] { SprintMode.Toggle, SprintMode.Hold }, new[] { "Toggle", "Hold" });
             Choice("Mounted guns aim with", VRConfig.TurretAim, new[] { TurretAimMode.Head, TurretAimMode.Hand }, new[] { "Head", "Weapon hand" });
-            Choice("Hands in slow motion", VRConfig.SlowHands, new[] { SlowMotionHands.Normal, SlowMotionHands.Slowed }, new[] { "Normal", "Slowed" });
+            Choice("Hands in slow motion", VRConfig.SlowHands, new[] { SlowMotionHands.Normal, SlowMotionHands.Slowed }, new[] { "Normal", "Slowed" },
+                   () => Net.Multiplayer.Active); // (no slow motion in a shared match)
             Stepper("Stick dead zone", () => $"{VRConfig.StickDeadzone.Value * 100f:0}%",
                 d => VRConfig.StickDeadzone.Value = Mathf.Clamp(Mathf.Round((VRConfig.StickDeadzone.Value + d * 0.05f) * 20f) / 20f, 0f, 0.6f));
             Stepper("Crouch below (of eye height)", () => $"{VRConfig.PhysicalCrouchRatio.Value * 100f:0}%",
@@ -308,9 +309,43 @@ namespace RavenfieldVR.UI
             text.color = on ? AccentText : TextColor;
         }
 
+        // greyed: while it says so the row's buttons are shown dim and do not answer (a setting with no effect in a shared match:
+        // "in multiplayer some things need to be greyed out", user 2026-11-10). Everything else in this panel is this PC's own,
+        // also in a shared match: the graphics preset, the render scale and the rest are never sent to the others.
+        private void Choice<T>(string label, ConfigEntry<T> entry, T[] values, string[] names, System.Func<bool> greyed)
+        {
+            int before = _refreshers.Count;
+            Choice(label, entry, values, names);
+            RectTransform row = _lastRow;
+            _refreshers.Add(() =>
+            {
+                bool dim = greyed();
+                if (row == null)
+                {
+                    return;
+                }
+                foreach (Button b in row.GetComponentsInChildren<Button>(true))
+                {
+                    if (b.interactable == dim)
+                    {
+                        b.interactable = !dim;
+                    }
+                }
+                CanvasGroup group = row.GetComponent<CanvasGroup>();
+                if (group == null)
+                {
+                    group = row.gameObject.AddComponent<CanvasGroup>();
+                }
+                group.alpha = dim ? 0.4f : 1f;
+            });
+        }
+
+        private RectTransform _lastRow;
+
         private void Choice<T>(string label, ConfigEntry<T> entry, T[] values, string[] names)
         {
             RectTransform row = LabeledRow(label);
+            _lastRow = row;
             float width = Mathf.Min(150f, 450f / values.Length - 8f);
             var buttons = new Button[values.Length];
             var texts = new Text[values.Length];
