@@ -146,8 +146,40 @@ namespace RavenfieldVR.Core
         /// <summary>-rfvr-perfbench (with -rfvr-autotest -vr): only the graphics bench, then quit.</summary>
         private static readonly bool PerfBenchRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perfbench", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>-rfvr-lobbycheck (with -vr, no map): the main menu's part of multiplayer (Net.NetLobbyCheck), then quit.</summary>
+        private static readonly bool LobbyCheckRequested = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-lobbycheck", StringComparison.OrdinalIgnoreCase));
+        private static bool _lobbyChecked;
+
+        private static IEnumerator LobbyCheck()
+        {
+            _context = "lobby check";
+            yield return Net.NetLobbyCheck.Run(l =>
+            {
+                if (Failure.IsMatch(l))
+                {
+                    Problem("[multiplayer] " + l);
+                }
+                Log.Info("[lobby check] " + l);
+                Results.Add(l);
+            });
+            Write();
+            Application.Quit();
+        }
+
         public static void Install()
         {
+            if (LobbyCheckRequested)
+            {
+                Application.runInBackground = true;
+                UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
+                {
+                    if (scene.buildIndex == 1 && !_lobbyChecked)
+                    {
+                        _lobbyChecked = true;
+                        VRManager.Instance?.StartCoroutine(LobbyCheck());
+                    }
+                };
+            }
             if (MenuTestRequested)
             {
                 Application.runInBackground = true;

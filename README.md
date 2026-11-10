@@ -136,10 +136,10 @@ Get in by holding your grip on a vehicle for half a second with an empty hand (o
 
 Open the VR settings (double press of the left stick) and press **Sandbox**. It works in any match.
 
-- **Soldiers:** pick the side (enemy, friendly), the behaviour (normal, neutral = never shoots, stand still, frozen, follow me), the weapons (their own, random, none, yours), the health (normal, no damage, one hit) and how many. "Take the tool" puts the spawn tool in your free hand: point it at the ground and pull that hand's trigger. Pointed at a soldier who is already there, the pull gives him the chosen behaviour instead. "Here" makes them three metres in front of you without the tool.
+- **Soldiers:** pick the side (enemy, friendly), the behaviour (normal, neutral = never shoots, stand still, frozen, follow me), the weapons (their own, random, none, yours), the health (normal, no damage, one hit) and how many. "Take the tool" puts the spawn gun in your free hand (its lamp shows what the next pull makes: red an enemy, blue a friendly or a vehicle): point it at the ground and pull that hand's trigger. Pointed at a soldier who is already there, the pull gives him the chosen behaviour instead. "Here" makes them three metres in front of you without the tool.
 - **Weapons:** every weapon of the game and of your loaded mods; "Give me" puts it in your hands.
 - **Vehicles:** any of the map's vehicle kinds, for either side.
-- **Field:** quiet battlefield (none of the match's own soldiers, until you turn it off), no damage for you, fill up health and ammunition, kill every enemy, remove what you made (the last, or all), and save what you placed on this map to set it up again later.
+- **Field:** quiet battlefield (none of the match's own soldiers, until you turn it off), no damage for you, fill up health and ammunition, kill every enemy, remove what you made (the last, or all), and save what you placed on this map to set it up again later. A soldier you made never comes back by himself: once he is dead his body lies for the time you choose here (5 seconds to 5 minutes), then it is taken off the field.
 
 With the tool in your hand the menu button opens the sandbox panel; put the tool away on the Field page.
 

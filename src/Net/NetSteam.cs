@@ -116,7 +116,15 @@ namespace RavenfieldVR.Net
                                 _buffer = new byte[Math.Max(size, _buffer.Length * 2)];
                             }
                             Marshal.Copy(message.m_pData, _buffer, 0, size);
-                            received(from, _buffer, size);
+                            try
+                            {
+                                received(from, _buffer, size);
+                            }
+                            catch (Exception e)
+                            {
+                                // (One message's handler must not cost the rest of the batch their release and their turn.)
+                                Log.WarnOnce("steam-received", "Multiplayer: a message's handler threw: " + e);
+                            }
                         }
                     }
                     finally

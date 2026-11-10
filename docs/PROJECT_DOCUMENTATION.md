@@ -606,6 +606,14 @@ Soldiers, vehicles and weapons made on the spot in any match, for testing. Opene
   takes a null entry), mine (the player's five slots). **Health:** normal, no damage (`isInvulnerable`), one hit (health 1).
 - **Quiet battlefield.** The match's own soldiers are taken off (`KillSilently`) and a prefix on `GameModeBase.SpawnActorListDeferred`
   empties each spawn wave's list of AI (the list is a fresh one from `SpawnDeadActorsOfTeam`); switched off, the next wave brings them back.
+- **A sandbox soldier's life.** `Made` holds every soldier the sandbox made in this match; the wave filter keeps them out of every spawn
+  wave (so the first sentence above no longer holds: a dead one is NOT the match's again). Dead, he is noted in `DiedAt`; after
+  `BodySeconds` (panel: 5 s to 5 min) `PutAway` calls `Actor.Deactivate` (hidden, frozen, hitboxes off) and puts him in `Pool`;
+  `TakeFromPool(team)` gives him back (`Activate`) for the next spawn of that side. Why a pool and not `Destroy`: `ActorManager.Register`
+  numbers each actor (`actorIndex`, `teamActorIndex`) into tables that only grow (`actorsCanSeeEachOther`, `actorData`), and nothing in
+  the game takes an actor out of them.
+- **The spawn gun** is primitives parented to one object placed at the free hand's `TrackedPointer` each frame before render; its lamp
+  material's colour is the mode's; the beam starts at the lamp. `VRHand.Scripted` + `VRInput.SimulatedTrigger` drive it in the check.
 - **Removing a vehicle:** `ActorManager.DropVehicle` before `Destroy`. A destroyed vehicle left in the game's lists threw every frame
   (`VehicleParticleManager.UpdateMonitoredVehicles`, the minimap's "Could not blit vehicle"; found by the sandbox check, 2026-11-10).
 - **The tool (`SandboxTool`).** While taken, the free hand (role Free only) points a beam; a ring lies where it ends; a pull of that

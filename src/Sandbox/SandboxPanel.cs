@@ -65,8 +65,9 @@ namespace RavenfieldVR.Sandbox
         }
 
         protected override int Shown() =>
-            Sandbox.SpawnedCount * 31 + Sandbox.PlacedCount * 977 + (Sandbox.Quiet ? 1 : 0) + (Sandbox.PlayerInvulnerable ? 2 : 0) + ((int)Sandbox.Armed << 2)
-            + (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 16 : 0) + (GameContext.InGame ? 8 : 0);
+            // (Each in bits of its own: added up, two states could give one number and a change went unseen.)
+            (Sandbox.Quiet ? 1 : 0) | (Sandbox.PlayerInvulnerable ? 2 : 0) | ((int)Sandbox.Armed << 2) | (GameContext.InGame ? 16 : 0)
+            | (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 32 : 0) | ((Sandbox.SpawnedCount & 0xFFF) << 6) | ((Sandbox.PlacedCount & 0xFFF) << 18);
 
         private void Say(string status)
         {
@@ -112,7 +113,7 @@ namespace RavenfieldVR.Sandbox
             Choice("Health", HealthNames, (int)s.Health, i => s.Health = (SoldierHealth)i);
             Choice("How many", Counts.Select(c => c.ToString()).ToArray(), Array.IndexOf(Counts, s.Count), i => s.Count = Counts[i]);
             Gap(6f);
-            ActionRow("On a soldier, the tool sets his behaviour.", "Take the tool", () => Take(Sandbox.ToolKind.Soldier),
+            ActionRow("On a soldier, the tool sets his behaviour.", Sandbox.Armed == Sandbox.ToolKind.Soldier ? "Put away" : "Take the tool", () => TakeOrPutAway(Sandbox.ToolKind.Soldier),
                       "Here", () => SpawnInFront(false), 190f);
         }
 
@@ -194,7 +195,7 @@ namespace RavenfieldVR.Sandbox
                 Choice("", row.Select(VehicleName).ToArray(), chosen, i => Sandbox.Vehicle = row[i], 180f);
             }
             Gap(6f);
-            ActionRow("Empty, for that side: its soldiers get in on their own.", "Take the tool", () => Take(Sandbox.ToolKind.Vehicle),
+            ActionRow("Empty, for that side: its soldiers get in on their own.", Sandbox.Armed == Sandbox.ToolKind.Vehicle ? "Put away" : "Take the tool", () => TakeOrPutAway(Sandbox.ToolKind.Vehicle),
                       "Here", () => SpawnInFront(true), 190f);
         }
 
@@ -232,6 +233,17 @@ namespace RavenfieldVR.Sandbox
             {
                 Sandbox.Armed = Sandbox.ToolKind.None;
             });
+        }
+
+        private void TakeOrPutAway(Sandbox.ToolKind kind)
+        {
+            if (Sandbox.Armed == kind)
+            {
+                Sandbox.Armed = Sandbox.ToolKind.None; // (and the menu button opens the VR settings again)
+                Say("The spawn gun is put away.");
+                return;
+            }
+            Take(kind);
         }
 
         private void Take(Sandbox.ToolKind kind)

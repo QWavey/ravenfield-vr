@@ -183,7 +183,8 @@ namespace RavenfieldVR.Sandbox
             if (any)
             {
                 Hitbox box = best.collider.GetComponent<Hitbox>();
-                if (box != null && box.parent is Actor soldier && !soldier.dead && soldier.aiControlled)
+                // (Only the soldier tool changes a soldier: with the vehicle tool the beam went yellow on one and the pull made a vehicle on him.)
+                if (Sandbox.Armed == Sandbox.ToolKind.Soldier && box != null && box.parent is Actor soldier && !soldier.dead && soldier.aiControlled)
                 {
                     _pointed = soldier;
                 }

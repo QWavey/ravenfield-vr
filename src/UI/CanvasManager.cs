@@ -81,12 +81,55 @@ namespace RavenfieldVR.UI
         /// </summary>
         public void CollectVisible(List<Canvas> into, bool menusOnly = false)
         {
+            if (HideMenus && menusOnly)
+            {
+                return; // (hidden menus are not pointed at)
+            }
             foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
             {
                 if (kv.Value.Visible && kv.Value.Canvas != null && (!menusOnly || kv.Value.Role == CanvasRole.Menu))
                 {
                     into.Add(kv.Value.Canvas);
                 }
+            }
+        }
+
+        /// <summary>
+        /// The game's own menus not drawn and not pointed at (a player who joined a multiplayer game waits in an empty place
+        /// while the host chooses). Set each frame by the UI; what it hid is shown again when it is off.
+        /// </summary>
+        public bool HideMenus;
+
+        private readonly List<Canvas> _hiddenMenus = new List<Canvas>();
+
+        /// <summary>How many of the game's menus are hidden now (the check's).</summary>
+        internal int HiddenMenuCount => _hiddenMenus.Count;
+
+        /// <summary>Once a frame after <see cref="Update"/>: the menus hidden or given back.</summary>
+        public void ApplyHideMenus()
+        {
+            if (HideMenus)
+            {
+                foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
+                {
+                    Canvas c = kv.Key;
+                    if (c != null && kv.Value.Role == CanvasRole.Menu && c.enabled && !_own.Contains(c))
+                    {
+                        c.enabled = false;
+                        _hiddenMenus.Add(c);
+                    }
+                }
+            }
+            else if (_hiddenMenus.Count > 0)
+            {
+                foreach (Canvas c in _hiddenMenus)
+                {
+                    if (c != null)
+                    {
+                        c.enabled = true;
+                    }
+                }
+                _hiddenMenus.Clear();
             }
         }
 

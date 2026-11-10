@@ -42,6 +42,10 @@ namespace RavenfieldVR.UI
                     shown = shown * 31 + p.Id * 7 + (p.Ping >= 0 ? (int)(p.Ping * 100) : -1);
                 }
                 shown = shown * 31 + (int)Multiplayer.Session.State;
+                foreach (string line in Multiplayer.HostLines)
+                {
+                    shown = shown * 31 + line.GetHashCode();
+                }
             }
             return shown;
         }
@@ -83,6 +87,21 @@ namespace RavenfieldVR.UI
             {
                 Label("Waiting for the host's answer ...");
             }
+            else if (!session.IsHost)
+            {
+                Section("The host chooses, you follow");
+                string[] lines = Multiplayer.HostLines;
+                if (lines.Length == 0)
+                {
+                    Label("Waiting for word from the host ...");
+                }
+                foreach (string line in lines)
+                {
+                    Label(line, 24, FontStyle.Normal, UiKit.TextColor);
+                }
+                Label("When the host starts the match, it starts here by itself.", 19, FontStyle.Italic);
+            }
+            Label("No slow motion and no pause in a shared match: it runs at one speed for everyone.", 19, FontStyle.Italic);
             Label("On foot for now: vehicles are not shared between the PCs yet, so a shared match has none.", 19, FontStyle.Italic);
             Gap(8f);
             if (session.IsHost && Multiplayer.OverSteam)

@@ -107,7 +107,9 @@ namespace RavenfieldVR.Sandbox
 
         /// <summary>One pull of the tool as it was made (what a saved set holds): a line of the set's file.</summary>
         private static readonly List<string> Placed = new List<string>();
-        private static bool _loadingSet;
+
+        /// <summary>What each pull made, beside its line in <see cref="Placed"/> (a pull of four soldiers is one line and four soldiers).</summary>
+        private static readonly List<List<UnityEngine.Object>> PlacedThings = new List<List<UnityEngine.Object>>();
         private static Harmony _harmony;
         private static bool _behaviourPatched;
         private static float _nextSweep;
@@ -287,7 +289,6 @@ namespace RavenfieldVR.Sandbox
                 try
                 {
                     a = TakeFromPool(team) ?? ActorManager.instance.CreateAIActor(team);
-                    Made.Add(a);
                     Vector3 spot = at + side * ((i - (count - 1) * 0.5f) * 1.5f);
                     const int mask = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2);
                     if (i > 0 && Physics.Raycast(spot + Vector3.up * 2f, Vector3.down, out RaycastHit g, 6f, mask, QueryTriggerInteraction.Ignore))
@@ -295,6 +296,7 @@ namespace RavenfieldVR.Sandbox
                         spot = g.point;
                     }
                     a.SpawnAt(spot, Quaternion.LookRotation(facing, Vector3.up), Loadout(spec.Weapons));
+                    Made.Add(a);
                 }
                 catch (Exception e)
                 {
@@ -307,7 +309,8 @@ namespace RavenfieldVR.Sandbox
                 {
                     Squad players = spec.Behaviour == SoldierBehaviour.Follow && spec.Side == SoldierSide.Friendly && FpsActorController.instance != null
                         ? FpsActorController.instance.playerSquad : null;
-                    if (players != null)
+                    // (The player dead and alone: his squad is disbanded until he is back, and a soldier put into it followed nobody.)
+                    if (players != null && !players.disbanded && !player.dead)
                     {
                         ai.modifier.canJoinPlayerSquad = true;
                         ai.ChangeToSquad(players);
@@ -342,8 +345,9 @@ namespace RavenfieldVR.Sandbox
                 Spawned.Add(a);
                 made.Add(a);
             }
-            if (made.Count > 0 && !_loadingSet)
+            if (made.Count > 0)
             {
+                PlacedThings.Add(made.Cast<UnityEngine.Object>().ToList());
                 Placed.Add(string.Join(";", new[]
                 {
                     "S", ((int)spec.Side).ToString(), ((int)spec.Behaviour).ToString(), ((int)spec.Weapons).ToString(), ((int)spec.Health).ToString(), made.Count.ToString(),
@@ -388,8 +392,8 @@ namespace RavenfieldVR.Sandbox
                     return null;
                 }
                 Spawned.Add(v);
-                if (!_loadingSet)
                 {
+                    PlacedThings.Add(new List<UnityEngine.Object> { v });
                     Placed.Add(string.Join(";", new[] { "V", ((int)type).ToString(), friendly ? "1" : "0", F(at.x), F(at.y), F(at.z), F(facing.x), F(facing.z) }));
                 }
                 return v;
@@ -449,8 +453,17 @@ namespace RavenfieldVR.Sandbox
         private static void PutAway(Actor a)
         {
             DiedAt.Remove(a);
-            if (a == null || !a.dead || Pool.Contains(a))
+            if (a == null || !a.dead)
             {
+                return;
+            }
+            a.isScheduledToSpawn = true;
+            if (Pool.Contains(a))
+            {
+                if (!a.isDeactivated)
+                {
+                    a.Deactivate(); // (brought back by something else and dead again: off the field as before)
+                }
                 return;
             }
             try
@@ -504,25 +517,35 @@ namespace RavenfieldVR.Sandbox
             }
         }
 
-        /// <summary>The last thing spawned taken away again (a soldier silently, a vehicle with its crew put out). False with nothing left.</summary>
+        /// <summary>
+        /// The last pull of the tool taken away again, all of what it made (soldiers silently, a vehicle with its crew put out),
+        /// and its line of the set with it. False with nothing left. (One soldier of a pull of four had taken the whole pull's line
+        /// out of the set, and the next ones the lines of earlier pulls: review of 2026-11-10.)
+        /// </summary>
         internal static bool RemoveLast()
         {
-            for (int i = Spawned.Count - 1; i >= 0; i--)
+            for (int i = PlacedThings.Count - 1; i >= 0; i--)
             {
-                UnityEngine.Object o = Spawned[i];
-                Spawned.RemoveAt(i);
-                if (o != null && (!(o is Actor a) || !a.dead))
+                List<UnityEngine.Object> things = PlacedThings[i];
+                PlacedThings.RemoveAt(i);
+                Placed.RemoveAt(i);
+                bool any = false;
+                foreach (UnityEngine.Object o in things)
                 {
-                    if (o is Vehicle v)
+                    if (o != null && (!(o is Actor a) || !a.dead))
                     {
-                        Eject(v);
+                        if (o is Vehicle v)
+                        {
+                            Eject(v);
+                        }
+                        Spawned.Remove(o);
+                        Remove(o);
+                        any = true;
                     }
-                    Remove(o);
+                }
+                if (any)
+                {
                     Sweep();
-                    if (Placed.Count > 0)
-                    {
-                        Placed.RemoveAt(Placed.Count - 1);
-                    }
                     return true;
                 }
             }
@@ -561,6 +584,7 @@ namespace RavenfieldVR.Sandbox
             }
             Spawned.Clear();
             Placed.Clear();
+            PlacedThings.Clear();
             Behaviours.Clear();
             _anyBehaviour = false;
             return n;
@@ -598,7 +622,19 @@ namespace RavenfieldVR.Sandbox
             {
                 a.Unfreeze();
             }
-            if (behaviour == SoldierBehaviour.Normal)
+            if (behaviour == SoldierBehaviour.Follow)
+            {
+                // A friendly joins the player's squad now; an enemy (or with no squad to join) fights on as he was.
+                Behaviours.Remove(a);
+                Actor player = LocalPlayer.actor;
+                Squad players = FpsActorController.instance != null ? FpsActorController.instance.playerSquad : null;
+                if (player != null && !player.dead && a.team == player.team && players != null && !players.disbanded && a.controller is AiActorController follower)
+                {
+                    follower.modifier.canJoinPlayerSquad = true;
+                    follower.ChangeToSquad(players);
+                }
+            }
+            else if (behaviour == SoldierBehaviour.Normal)
             {
                 Behaviours.Remove(a);
             }
@@ -636,7 +672,7 @@ namespace RavenfieldVR.Sandbox
             Spawned.RemoveAll(o => o == null || o is Actor a && a.dead);
             _anyBehaviour = Behaviours.Count > 0;
             // The dead of the sandbox: their body lies for its time, then they are put away.
-            if (Made.Count > Pool.Count)
+            if (Made.Count > 0)
             {
                 Scratch.Clear();
                 foreach (Actor a in Made)
@@ -651,7 +687,10 @@ namespace RavenfieldVR.Sandbox
                     }
                     else if (!DiedAt.TryGetValue(a, out float died))
                     {
-                        if (!Pool.Contains(a))
+                        // (Marked as waiting for a spawn: a map's own scripts take any dead soldier that is not, and brought
+                        // sandbox soldiers back, also ones put away; Actor.SpawnAt clears the mark. Review of 2026-11-10.)
+                        a.isScheduledToSpawn = true;
+                        if (!a.isDeactivated)
                         {
                             DiedAt[a] = Time.time;
                         }
@@ -679,22 +718,23 @@ namespace RavenfieldVR.Sandbox
         /// <summary>Once a frame from the UI's update: the lists kept clean (twice a second), the player's own invulnerability held.</summary>
         internal static void Update()
         {
-            if (Time.unscaledTime < _nextSweep)
-            {
-                return;
-            }
-            _nextSweep = Time.unscaledTime + 0.5f;
-            if (Behaviours.Count > 0 || Spawned.Count > 0 || Made.Count > Pool.Count)
-            {
-                Sweep();
-            }
             if (PlayerInvulnerable)
             {
+                // (Every frame: the game's spawn clears it, and half a second of a fresh life could be hurt.)
                 Actor player = LocalPlayer.actor;
                 if (player != null && !player.dead && !player.isInvulnerable)
                 {
                     player.isInvulnerable = true;
                 }
+            }
+            if (Time.unscaledTime < _nextSweep)
+            {
+                return;
+            }
+            _nextSweep = Time.unscaledTime + 0.5f;
+            if (Behaviours.Count > 0 || Spawned.Count > 0 || Made.Count > 0)
+            {
+                Sweep();
             }
         }
 
@@ -768,8 +808,6 @@ namespace RavenfieldVR.Sandbox
                 return "Not loaded: " + e.Message;
             }
             int made = 0, failed = 0;
-            _loadingSet = true;
-            try
             {
                 foreach (string line in lines)
                 {
@@ -800,12 +838,7 @@ namespace RavenfieldVR.Sandbox
                     }
                 }
             }
-            finally
-            {
-                _loadingSet = false;
-            }
-            // (What was loaded is part of this match's set: saved again, it is kept.)
-            Placed.AddRange(lines.Where(l => l.StartsWith("S;") || l.StartsWith("V;")));
+            // (What was loaded is part of this match's set, each as the pull it was: saved again, it is kept.)
             return $"Loaded: {made} placement(s)" + (failed > 0 ? $", {failed} could not be made here." : ".");
         }
 
@@ -841,6 +874,7 @@ namespace RavenfieldVR.Sandbox
             Behaviours.Clear();
             Spawned.Clear();
             Placed.Clear();
+            PlacedThings.Clear();
             Made.Clear();
             DiedAt.Clear();
             Pool.Clear();

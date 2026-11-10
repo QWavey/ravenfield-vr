@@ -27,6 +27,8 @@ namespace RavenfieldVR.UI
         public readonly ModKeysPanel ModKeys;
         internal readonly Sandbox.SandboxPanel SandboxPanel;
         internal readonly MultiplayerPanel MultiplayerPanel;
+        internal readonly StartChoicePanel StartChoice;
+        private static bool _startChoiceShown; // (once each time the game starts: it survives an F6 reload of the mod's VR)
         private readonly Sandbox.SandboxTool _sandboxTool;
         internal Sandbox.SandboxTool SandboxTool => _sandboxTool;
         public readonly LoadingView Loading;
@@ -128,6 +130,8 @@ namespace RavenfieldVR.UI
                 Net.NetGame.Init();
                 MultiplayerPanel = new MultiplayerPanel(rig, EventCamera);
                 Canvases.RegisterOwn(MultiplayerPanel.Canvas);
+                StartChoice = new StartChoicePanel(rig, EventCamera);
+                Canvases.RegisterOwn(StartChoice.Canvas);
                 _keyboard = new VRKeyboard();
                 _laser = new LaserPointer();
                 _wrist = new WristHud(rig);
@@ -180,11 +184,32 @@ namespace RavenfieldVR.UI
             ModKeys.Update(_module != null && _module.PressActive);
             SandboxPanel.Update(_module != null && _module.PressActive);
             MultiplayerPanel.Update(_module != null && _module.PressActive);
+            StartChoice.Update(_module != null && _module.PressActive);
             Net.Multiplayer.Update();
 
-            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen
+            // The choice of single player or multiplayer, over the main menu, once each time the game starts.
+            if (!_startChoiceShown && !AutoTest.Requested && !GameContext.InGame && MainMenu.instance != null && Canvases.AnyMenuVisible)
+            {
+                _startChoiceShown = true;
+                if (!Net.Multiplayer.Active)
+                {
+                    StartChoice.Open();
+                }
+            }
+            // A player who joined a game waits for the host outside a match: the game's own menus are the host's to work, his
+            // are hidden and the multiplayer panel stands open with what the host is choosing.
+            bool following = Net.Multiplayer.Active && !Net.Multiplayer.Hosting && !GameContext.InGame;
+            Canvases.HideMenus = following;
+            Canvases.ApplyHideMenus();
+            if (following && !MultiplayerPanel.IsOpen && !Settings.IsOpen)
+            {
+                StartChoice.Close();
+                MultiplayerPanel.Open();
+            }
+
+            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen || StartChoice.IsOpen
                        || (!GameContext.InGame && Canvases.AnyVisible);
-            VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen;
+            VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen || StartChoice.IsOpen;
             Sandbox.Sandbox.Update();
             _sandboxTool.Update(MenuMode);
 
@@ -218,7 +243,14 @@ namespace RavenfieldVR.UI
             if (_module != null)
             {
                 _targets.Clear();
-                Canvases.CollectVisible(_targets, menusOnly: true);
+                if (StartChoice.IsOpen)
+                {
+                    _targets.Add(StartChoice.Canvas); // (alone: the game's menu waits behind the choice)
+                }
+                else
+                {
+                    Canvases.CollectVisible(_targets, menusOnly: true);
+                }
                 if (Settings.IsOpen)
                 {
                     _targets.Add(Settings.Canvas);
@@ -306,6 +338,7 @@ namespace RavenfieldVR.UI
             ModKeys.BeforeRender();
             SandboxPanel.BeforeRender();
             MultiplayerPanel.BeforeRender();
+            StartChoice.BeforeRender();
             _sandboxTool.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
@@ -347,6 +380,10 @@ namespace RavenfieldVR.UI
             {
                 MultiplayerPanel.Close();
             }
+            if (StartChoice.IsOpen)
+            {
+                StartChoice.Close();
+            }
             Net.NetGame.OnSceneChanged();
             Sandbox.Sandbox.OnSceneChanged();
             _sandboxTool.OnSceneChanged();
@@ -367,6 +404,7 @@ namespace RavenfieldVR.UI
             Log.Guard("UI.ModKeys.Dispose", () => ModKeys?.Dispose());
             Log.Guard("UI.Sandbox.Dispose", () => SandboxPanel?.Dispose());
             Log.Guard("UI.Multiplayer.Dispose", () => MultiplayerPanel?.Dispose());
+            Log.Guard("UI.StartChoice.Dispose", () => StartChoice?.Dispose());
             Log.Guard("Multiplayer.Shutdown", Net.Multiplayer.Shutdown);
             Log.Guard("UI.SandboxTool.Destroy", () => _sandboxTool?.Destroy());
             Log.Guard("UI.Keyboard.Dispose", () => _keyboard?.Dispose());

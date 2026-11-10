@@ -20,6 +20,7 @@ namespace RavenfieldVR.Net
         private static SteamLobbies _lobbies;
         private static float _nextDescribe;
         private static bool _busy, _listening;
+        private static int _request;
         private static float _nextListenTry;
 
         public static NetSession Session { get; private set; }
@@ -165,6 +166,8 @@ namespace RavenfieldVR.Net
             _transport = null;
             _lobbies?.Leave();
             _busy = false;
+            _request++;
+            HostLines = new string[0];
             Say(status);
         }
 
@@ -183,8 +186,18 @@ namespace RavenfieldVR.Net
             }
             End("Opening a lobby ...");
             _busy = true;
+            int request = ++_request;
             Steam.Create(maxPlayers, friendsOnly, (lobby, problem) =>
             {
+                if (request != _request)
+                {
+                    // (Left or started something else while Steam was answering: this lobby is nobody's any more.)
+                    if (lobby != 0 && !Active)
+                    {
+                        _lobbies?.Leave();
+                    }
+                    return;
+                }
                 _busy = false;
                 if (lobby == 0)
                 {
@@ -236,8 +249,17 @@ namespace RavenfieldVR.Net
             }
             End("Joining ...");
             _busy = true;
+            int request = ++_request;
             Steam.Join(lobby, (host, problem) =>
             {
+                if (request != _request)
+                {
+                    if (host != 0 && !Active)
+                    {
+                        _lobbies?.Leave();
+                    }
+                    return;
+                }
                 _busy = false;
                 if (host == 0)
                 {
@@ -312,6 +334,15 @@ namespace RavenfieldVR.Net
         }
 
         public static void InviteFriends() => _lobbies?.InviteFriends();
+
+        /// <summary>What the host is choosing, as his game told it (for a player who joined: he follows, he does not choose).</summary>
+        public static string[] HostLines { get; private set; } = new string[0];
+
+        internal static void SetHostLines(string[] lines)
+        {
+            HostLines = lines ?? new string[0];
+            Changed?.Invoke();
+        }
 
         /// <summary>The Steam lobby this player is in (0: none), and a line of its data as Steam has it.</summary>
         public static ulong Lobby => _lobbies != null ? _lobbies.Current : 0;
