@@ -236,6 +236,13 @@ namespace RavenfieldVR.Sandbox
                 problem = "not in a match";
                 return made;
             }
+            // In a shared match the host's PC owns the soldiers: one made on a PC that joined would stand there only, shot at
+            // by nobody and seen by nobody else. On the host's PC a sandbox soldier is told to everyone like any other.
+            if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
+            {
+                problem = "in a shared match only the host makes soldiers";
+                return made;
+            }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);
             facing = facing.sqrMagnitude > 1e-4f ? facing.normalized : Vector3.forward;
             Vector3 side = Vector3.Cross(Vector3.up, facing);
@@ -324,6 +331,11 @@ namespace RavenfieldVR.Sandbox
             if (player == null || GameManager.instance == null)
             {
                 problem = "not in a match";
+                return null;
+            }
+            if (Net.Multiplayer.Active)
+            {
+                problem = "a shared match is on foot for now (vehicles are not shared yet)";
                 return null;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);
