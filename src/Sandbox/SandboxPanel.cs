@@ -218,6 +218,8 @@ namespace RavenfieldVR.Sandbox
             Section("What the sandbox made");
             ActionRow("Take it off the field again.", "The last", () => Say(Sandbox.RemoveLast() ? "Removed." : "Nothing of the sandbox's is left."),
                       "All", () => Say($"{Sandbox.RemoveAll()} removed."), 150f);
+            ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),
+                      "Load", () => Say(Sandbox.LoadSet()), 150f);
             ActionRow("The spawn tool.", Sandbox.Armed == Sandbox.ToolKind.None ? "In the bag" : "Put away", () =>
             {
                 Sandbox.Armed = Sandbox.ToolKind.None;

@@ -68,6 +68,7 @@ namespace RavenfieldVR.UI
             {
                 Label("Waiting for the host's answer ...");
             }
+            Label("On foot for now: vehicles are not shared between the PCs yet, so a shared match has none.", 19, FontStyle.Italic);
             Gap(8f);
             if (session.IsHost && Multiplayer.OverSteam)
             {

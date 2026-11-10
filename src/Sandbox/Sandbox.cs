@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using HarmonyLib;
 using RavenfieldVR.Core;
@@ -83,6 +85,10 @@ namespace RavenfieldVR.Sandbox
         private static readonly Dictionary<Actor, SoldierBehaviour> Behaviours = new Dictionary<Actor, SoldierBehaviour>();
         private static readonly List<UnityEngine.Object> Spawned = new List<UnityEngine.Object>();
         private static readonly List<Actor> Scratch = new List<Actor>();
+
+        /// <summary>One pull of the tool as it was made (what a saved set holds): a line of the set's file.</summary>
+        private static readonly List<string> Placed = new List<string>();
+        private static bool _loadingSet;
         private static Harmony _harmony;
         private static bool _behaviourPatched, _quietPatched;
         private static float _nextSweep;
@@ -297,6 +303,14 @@ namespace RavenfieldVR.Sandbox
                 Spawned.Add(a);
                 made.Add(a);
             }
+            if (made.Count > 0 && !_loadingSet)
+            {
+                Placed.Add(string.Join(";", new[]
+                {
+                    "S", ((int)spec.Side).ToString(), ((int)spec.Behaviour).ToString(), ((int)spec.Weapons).ToString(), ((int)spec.Health).ToString(), made.Count.ToString(),
+                    F(at.x), F(at.y), F(at.z), F(facing.x), F(facing.z)
+                }));
+            }
             return made;
         }
 
@@ -330,6 +344,10 @@ namespace RavenfieldVR.Sandbox
                     return null;
                 }
                 Spawned.Add(v);
+                if (!_loadingSet)
+                {
+                    Placed.Add(string.Join(";", new[] { "V", ((int)type).ToString(), friendly ? "1" : "0", F(at.x), F(at.y), F(at.z), F(facing.x), F(facing.z) }));
+                }
                 return v;
             }
             catch (Exception e)
@@ -414,6 +432,10 @@ namespace RavenfieldVR.Sandbox
                     }
                     Remove(o);
                     Sweep();
+                    if (Placed.Count > 0)
+                    {
+                        Placed.RemoveAt(Placed.Count - 1);
+                    }
                     return true;
                 }
             }
@@ -451,6 +473,7 @@ namespace RavenfieldVR.Sandbox
                 }
             }
             Spawned.Clear();
+            Placed.Clear();
             Behaviours.Clear();
             _anyBehaviour = false;
             return n;
@@ -549,6 +572,117 @@ namespace RavenfieldVR.Sandbox
             }
         }
 
+        private static string F(float v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private static float P(string s) => float.Parse(s, CultureInfo.InvariantCulture);
+
+        /// <summary>The saved set's file for the map that is running (a set is places on one map).</summary>
+        private static string SetFile()
+        {
+            string map = GameManager.instance != null && GameManager.instance.lastMapEntry != null ? Path.GetFileNameWithoutExtension(GameManager.instance.lastMapEntry.sceneName) : "map";
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                map = map.Replace(c, '_');
+            }
+            return Path.Combine(BepInEx.Paths.ConfigPath, "RavenfieldVR-sandbox-" + map + ".txt");
+        }
+
+        /// <summary>How many pulls of the tool this match's set holds so far (what Save would write).</summary>
+        internal static int PlacedCount => Placed.Count;
+
+        /// <summary>Whether this map has a saved set.</summary>
+        internal static bool HasSavedSet
+        {
+            get
+            {
+                try
+                {
+                    return File.Exists(SetFile());
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>Everything placed in this match written down for this map (soldiers with their settings, vehicles), to set up again.</summary>
+        internal static string SaveSet()
+        {
+            if (Placed.Count == 0)
+            {
+                return "Nothing placed yet: nothing saved.";
+            }
+            try
+            {
+                File.WriteAllLines(SetFile(), Placed.ToArray());
+                return $"Saved: {Placed.Count} placement(s) for this map.";
+            }
+            catch (Exception e)
+            {
+                return "Not saved: " + e.Message;
+            }
+        }
+
+        /// <summary>This map's saved set made again where it stood.</summary>
+        internal static string LoadSet()
+        {
+            string[] lines;
+            try
+            {
+                string file = SetFile();
+                if (!File.Exists(file))
+                {
+                    return "No saved set for this map.";
+                }
+                lines = File.ReadAllLines(file);
+            }
+            catch (Exception e)
+            {
+                return "Not loaded: " + e.Message;
+            }
+            int made = 0, failed = 0;
+            _loadingSet = true;
+            try
+            {
+                foreach (string line in lines)
+                {
+                    string[] p = line.Split(';');
+                    try
+                    {
+                        if (p[0] == "S" && p.Length >= 11)
+                        {
+                            var spec = new SoldierSpec
+                            {
+                                Side = (SoldierSide)int.Parse(p[1]), Behaviour = (SoldierBehaviour)int.Parse(p[2]), Weapons = (SoldierWeapons)int.Parse(p[3]),
+                                Health = (SoldierHealth)int.Parse(p[4]), Count = int.Parse(p[5])
+                            };
+                            int n = SpawnSoldiers(spec, new Vector3(P(p[6]), P(p[7]), P(p[8])), new Vector3(P(p[9]), 0f, P(p[10])), out _).Count;
+                            made += n > 0 ? 1 : 0;
+                            failed += n > 0 ? 0 : 1;
+                        }
+                        else if (p[0] == "V" && p.Length >= 8)
+                        {
+                            Vehicle v = SpawnVehicle((VehicleSpawner.VehicleSpawnType)int.Parse(p[1]), p[2] == "1", new Vector3(P(p[3]), P(p[4]), P(p[5])), new Vector3(P(p[6]), 0f, P(p[7])), out _);
+                            made += v != null ? 1 : 0;
+                            failed += v != null ? 0 : 1;
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        failed++; // (a line from another version of the mod, or edited by hand)
+                    }
+                }
+            }
+            finally
+            {
+                _loadingSet = false;
+            }
+            // (What was loaded is part of this match's set: saved again, it is kept.)
+            Placed.AddRange(lines.Where(l => l.StartsWith("S;") || l.StartsWith("V;")));
+            return $"Loaded: {made} placement(s)" + (failed > 0 ? $", {failed} could not be made here." : ".");
+        }
+
         /// <summary>The player's health full, every weapon's ammunition filled (the game's own resupply). False when not on the feet.</summary>
         internal static bool Refill()
         {
@@ -580,6 +714,7 @@ namespace RavenfieldVR.Sandbox
         {
             Behaviours.Clear();
             Spawned.Clear();
+            Placed.Clear();
             _anyBehaviour = false;
             Quiet = false;
             Armed = ToolKind.None;

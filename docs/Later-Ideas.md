@@ -1,6 +1,6 @@
 # Later ideas
 
-Ideas the user wants built later, written down as they gave them. Not started.
+Ideas the user wanted built later, written down as they gave them. **Both started 2026-11-10 at the user's word ("do the future Ideas NOW"):** multiplayer is Tasks 373, the sandbox Tasks 374 (`docs/Tasks.md`); what each still lacks is listed there.
 
 ## 1. Multiplayer (the user, 2026-11-09)
 

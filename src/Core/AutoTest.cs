@@ -449,6 +449,15 @@ namespace RavenfieldVR.Core
                         Log.Info("[multiplayer check] " + l); // (as it happens: a run that hangs shows how far it came)
                         Results.Add(l);
                     });
+                    yield return Net.NetGameCheckClient.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[multiplayer] " + l);
+                        }
+                        Log.Info("[multiplayer check] " + l); // (as it happens: a run that hangs shows how far it came)
+                        Results.Add(l);
+                    });
                     Write();
                     Application.Quit();
                     yield break;
@@ -6607,6 +6616,9 @@ namespace RavenfieldVR.Core
 
         /// <summary>Why the last <see cref="Deploy"/> left the player dead (for the report), or null.</summary>
         private static string _deployNote;
+
+        /// <summary>The deploy for a check that loaded a match of its own (the multiplayer's joining side).</summary>
+        internal static IEnumerator DeployForCheck() => Deploy();
 
         private static IEnumerator Deploy()
         {

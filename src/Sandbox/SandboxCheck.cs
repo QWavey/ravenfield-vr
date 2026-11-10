@@ -234,11 +234,22 @@ namespace RavenfieldVR.Sandbox
                 report($"sandbox panel: buttons on its four pages: {string.Join(", ", pages.ToArray())}{(empty ? " NOT BUILT" : "")}{(threw != null ? " NOT BUILT (" + threw + ")" : "")}");
             }
 
+            // 10b. The set saved, cleared, loaded: the same number of soldiers stand again.
+            Core.Log.Info("[sandbox check] step: set");
+            int standing = own.Count(a => a != null && !a.dead);
+            int placed = Sandbox.PlacedCount;
+            string saved = Sandbox.SaveSet();
+            Sandbox.RemoveAll();
+            yield return null;
+            string loadedSet = Sandbox.LoadSet();
+            yield return Core.AutoTest.GameSeconds(1f, report);
+            int again = Sandbox.SpawnedCount;
+            report($"sandbox set: {placed} placement(s), {saved} {loadedSet} {again} standing after the load{(placed == 0 || again < placed ? " NOT SET UP AGAIN" : "")} ({standing} stood before)");
             Core.Log.Info("[sandbox check] step: clear");
             // 11. Cleared: nothing of the sandbox's left standing; the match's soldiers back with the next wave.
             int removedAll = Sandbox.RemoveAll();
             yield return null;
-            int left = own.Count(a => a != null && !a.dead);
+            int left = own.Count(a => a != null && !a.dead) + Sandbox.SpawnedCount;
             report($"sandbox cleared: {removedAll} removed, {left} still standing{(left > 0 ? " NOT CLEARED" : "")}");
             Sandbox.SetQuiet(false);
             yield return Core.AutoTest.GameSeconds(wave + 3f, report);

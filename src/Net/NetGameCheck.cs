@@ -41,7 +41,7 @@ namespace RavenfieldVR.Net
 
             UdpTransport line = null;
             NetSession ghost = null;
-            int hitsGot = 0, statesGot = 0;
+            int hitsGot = 0, statesGot = 0, othersHits = 0;
             float hitDamage = 0f;
             var told = new HashSet<ushort>();
             string failed = null;
@@ -56,10 +56,18 @@ namespace RavenfieldVR.Net
                 {
                     if (kind == NetGame.Hit)
                     {
+                        // (The host's own soldiers shoot the stand-in too, and each of their hits is passed on as well: 6 messages
+                        // in the first run with the match running. The player's is the one from soldier 0 with the check's damage.)
                         r.UShort();
-                        r.UShort();
-                        hitDamage = r.Float();
-                        hitsGot++;
+                        ushort shooter = r.UShort();
+                        float damage = r.Float();
+                        othersHits++;
+                        if (shooter == 0 && Mathf.Abs(damage - 30f) < 0.01f)
+                        {
+                            hitDamage = damage;
+                            hitsGot++;
+                            othersHits--;
+                        }
                     }
                     else if (kind == NetGame.ActorStates)
                     {
@@ -199,7 +207,7 @@ namespace RavenfieldVR.Net
             float bodyHealth = body.health;
             body.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, player, player.activeWeapon) { healthDamage = 30f, point = body.CenterPosition(), direction = forward });
             yield return For(0.6f);
-            report($"multiplayer hit on the stand-in: {(hitsGot == 1 ? $"passed to his PC ({hitDamage:0} damage)" : $"NOT PASSED ({hitsGot} message(s))")}, health here {bodyHealth:0} -> {body.health:0}{(body.health < bodyHealth - 0.1f ? " NOT LEFT TO HIS PC" : "")}");
+            report($"multiplayer hit on the stand-in: {(hitsGot == 1 ? $"passed to his PC ({hitDamage:0} damage)" : $"NOT PASSED ({hitsGot} message(s))")}, {othersHits} more by the host's soldiers, health here {bodyHealth:0} -> {body.health:0}{(body.health < bodyHealth - 0.1f ? " NOT LEFT TO HIS PC" : "")}");
 
             // 4. A hit by him on the player: taken.
             bool wasInvulnerable = player.isInvulnerable;
@@ -234,6 +242,9 @@ namespace RavenfieldVR.Net
             // 6. The host's soldiers told to him.
             int mine = ActorManager.instance.actors.Count(a => a != null && a.aiControlled && !NetGame.IsRemote(a));
             report($"multiplayer host's soldiers told to the second player: {told.Count} of {mine + 1} (the player and {mine} soldier(s)), {statesGot} message(s){(told.Count < mine + 1 ? " NOT ALL TOLD" : "")}");
+
+            int vehicles = ActorManager.instance.vehicles.Count(v => v != null && !v.isTurret);
+            report($"multiplayer vehicles in the shared match: {vehicles} on the field ({NetGame.VehiclesRemoved} taken off){(vehicles > 0 ? " NOT TAKEN OFF" : "")}");
 
             // 7. He leaves: his soldier goes with him.
             ghost.Leave();

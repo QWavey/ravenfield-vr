@@ -526,7 +526,7 @@ namespace RavenfieldVR.Core
         private void PauseAfterLoad()
         {
             bool dashboard = OpenVRRuntime.DashboardOpen, off = _headsetOff;
-            if (!dashboard && !off)
+            if (AutoTest.Requested || (!dashboard && !off)) // (a test run is never paused for them: OnDashboard)
             {
                 _pauseAfterLoad = false;
                 return;
@@ -555,7 +555,9 @@ namespace RavenfieldVR.Core
         {
             if (open)
             {
-                if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
+                // A test run plays on behind it: nobody wears the test's headset, and SteamVR opening its dashboard by itself stood the
+                // sandbox check at its first wait for eight minutes, twice ("time scale 0, SteamVR's dashboard is open", 2026-11-10).
+                if (!AutoTest.Requested && GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
                 {
                     _speedBeforePause = Time.timeScale;
                     GameManager.PauseGame();
@@ -603,7 +605,7 @@ namespace RavenfieldVR.Core
             _headsetOff = !worn;
             if (!worn)
             {
-                if (GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
+                if (!AutoTest.Requested && GameContext.InGame && GameManager.instance != null && !GameManager.IsPaused())
                 {
                     _speedBeforePause = Time.timeScale;
                     GameManager.PauseGame();

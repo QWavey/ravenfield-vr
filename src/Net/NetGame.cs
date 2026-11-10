@@ -447,6 +447,12 @@ namespace RavenfieldVR.Net
                 }
                 return;
             }
+            if (!ReferenceEquals(_vehiclesOffIn, ActorManager.instance) || Time.unscaledTime >= _nextVehicleSweep)
+            {
+                _vehiclesOffIn = ActorManager.instance;
+                _nextVehicleSweep = Time.unscaledTime + 5f;
+                NoVehicles();
+            }
             if (Time.unscaledTime >= _nextSend)
             {
                 _nextSend = Time.unscaledTime + SendEvery;
@@ -456,6 +462,68 @@ namespace RavenfieldVR.Net
                 }
             }
             KeepRemotes();
+        }
+
+        private static ActorManager _vehiclesOffIn;
+        private static float _nextVehicleSweep;
+
+        /// <summary>Vehicles taken off the field in this match by the multiplayer (the check's and the log's count).</summary>
+        internal static int VehiclesRemoved;
+
+        /// <summary>
+        /// A shared match is on foot for now: vehicles are not carried between the PCs, and a host's soldier driving one was a
+        /// soldier sliding over the ground on every other PC, shot at from a tank nobody else saw. So in a session the map's
+        /// vehicles are taken away on every PC and their spawners stopped (the fixed guns stay: a soldier at one stands at it).
+        /// At the match's start, when a session begins in a running match, and every five seconds for what a script brings.
+        /// </summary>
+        private static void NoVehicles()
+        {
+            try
+            {
+                foreach (VehicleSpawner spawner in UnityEngine.Object.FindObjectsOfType<VehicleSpawner>())
+                {
+                    if (spawner.enabled)
+                    {
+                        spawner.CancelInvoke();
+                        spawner.StopAllCoroutines();
+                        spawner.enabled = false;
+                    }
+                }
+                int removed = 0;
+                foreach (Vehicle v in ActorManager.instance.vehicles.ToArray())
+                {
+                    if (v == null || v.isTurret)
+                    {
+                        continue;
+                    }
+                    if (v.seats != null)
+                    {
+                        foreach (Seat seat in v.seats)
+                        {
+                            if (seat != null && seat.occupant != null)
+                            {
+                                seat.occupant.LeaveSeat(false);
+                            }
+                        }
+                    }
+                    ActorManager.DropVehicle(v);
+                    UnityEngine.Object.Destroy(v.gameObject);
+                    removed++;
+                }
+                foreach (VehicleSpawner spawner in UnityEngine.Object.FindObjectsOfType<VehicleSpawner>())
+                {
+                    spawner.CancelInvoke(); // (a removed vehicle's spawner counts down to the next one)
+                }
+                if (removed > 0)
+                {
+                    VehiclesRemoved += removed;
+                    Log.Info($"Multiplayer: {removed} vehicle(s) taken off the field (a shared match is on foot for now).");
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicles", "Multiplayer: the vehicles could not be taken off the field: " + e);
+            }
         }
 
         private static Own OwnOf(Actor a, bool player)
