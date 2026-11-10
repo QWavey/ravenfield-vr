@@ -169,7 +169,8 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>A game hosted over Steam: a lobby the list shows (or only friends see), the players' messages relayed by Steam.</summary>
-        public static void HostSteam(bool friendsOnly, int maxPlayers = 8)
+        /// <param name="hidden">A lobby nobody sees or can find (the self-check's: made, read back and left again).</param>
+        public static void HostSteam(bool friendsOnly, int maxPlayers = 8, bool hidden = false)
         {
             if (_busy)
             {
@@ -196,7 +197,7 @@ namespace RavenfieldVR.Net
                 Begin(session, transport);
                 _nextDescribe = 0f;
                 Say(friendsOnly ? "Hosting for friends. Invite them, or they join from their friends list." : "Hosting: the game is in the list.");
-            });
+            }, hidden);
         }
 
         /// <summary>A game hosted on a UDP port: for the LAN, a forwarded port, or two games on one PC.</summary>
@@ -311,6 +312,10 @@ namespace RavenfieldVR.Net
         }
 
         public static void InviteFriends() => _lobbies?.InviteFriends();
+
+        /// <summary>The Steam lobby this player is in (0: none), and a line of its data as Steam has it.</summary>
+        public static ulong Lobby => _lobbies != null ? _lobbies.Current : 0;
+        public static string LobbyData(string key) => _lobbies != null ? _lobbies.Get(key) : "";
 
         /// <summary>What the hosted game shows in Steam's list (the game layer names the map and mode; before a match: the menu).</summary>
         public static string Map = "", Mode = "";

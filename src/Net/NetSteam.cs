@@ -232,7 +232,7 @@ namespace RavenfieldVR.Net
         private ulong _host;
 
         /// <summary>A lobby made for a game this player hosts. <paramref name="done"/>: the lobby, or 0 and why not.</summary>
-        public void Create(int maxPlayers, bool friendsOnly, Action<ulong, string> done)
+        public void Create(int maxPlayers, bool friendsOnly, Action<ulong, string> done, bool hidden = false)
         {
             if (!Available)
             {
@@ -240,7 +240,8 @@ namespace RavenfieldVR.Net
                 return;
             }
             Leave();
-            SteamAPICall_t call = SteamMatchmaking.CreateLobby(friendsOnly ? ELobbyType.k_ELobbyTypeFriendsOnly : ELobbyType.k_ELobbyTypePublic, maxPlayers);
+            SteamAPICall_t call = SteamMatchmaking.CreateLobby(
+                hidden ? ELobbyType.k_ELobbyTypePrivate : friendsOnly ? ELobbyType.k_ELobbyTypeFriendsOnly : ELobbyType.k_ELobbyTypePublic, maxPlayers);
             _created.Set(call, (result, ioFailure) =>
             {
                 if (ioFailure || result.m_eResult != EResult.k_EResultOK)
@@ -277,6 +278,9 @@ namespace RavenfieldVR.Net
             Set("mod", PluginInfo.Version);
             Set("match", inMatch ? "1" : "0");
         }
+
+        /// <summary>A line of the lobby this player is in, as Steam has it now ("" with none).</summary>
+        public string Get(string key) => Current != 0 ? SteamMatchmaking.GetLobbyData(new CSteamID(Current), key) : "";
 
         private static int Number(CSteamID lobby, string key) => int.TryParse(SteamMatchmaking.GetLobbyData(lobby, key), out int v) ? v : 0;
 

@@ -31,6 +31,21 @@ namespace RavenfieldVR.UI
             Multiplayer.Changed += () => Changed = true;
         }
 
+        protected override int Shown()
+        {
+            // (Pings to the nearest 10 ms: a ping moving by a millisecond is no reason to build the panel again.)
+            int shown = Multiplayer.Active ? 1 : 0;
+            if (Multiplayer.Active)
+            {
+                foreach (NetPlayer p in Multiplayer.Session.Players)
+                {
+                    shown = shown * 31 + p.Id * 7 + (p.Ping >= 0 ? (int)(p.Ping * 100) : -1);
+                }
+                shown = shown * 31 + (int)Multiplayer.Session.State;
+            }
+            return shown;
+        }
+
         public override void Open()
         {
             base.Open();

@@ -277,6 +277,36 @@ namespace RavenfieldVR.Net
             report($"multiplayer second player left: {(NetGame.RemoteCount == 0 && (body == null || body.dead) ? "his soldier went with him" : "HIS SOLDIER NOT REMOVED")}, {Multiplayer.Session.PlayerCount} in the game");
             Multiplayer.Leave();
             report($"multiplayer closed: {(Multiplayer.Active ? "NOT CLOSED" : "closed")}");
+            // 8. Steam itself, as far as one account goes: a lobby nobody can see made, its data read back from Steam, the list
+            // asked for, the lobby left. (Two accounts are needed for the rest: a join and the relayed messages.)
+            if (SteamLobbies.Available)
+            {
+                Multiplayer.HostSteam(true, 4, hidden: true);
+                float steamBy = Time.unscaledTime + 12f;
+                while (Multiplayer.Busy && Time.unscaledTime < steamBy)
+                {
+                    yield return null;
+                }
+                bool hosting = Multiplayer.Hosting && Multiplayer.OverSteam && Multiplayer.Lobby != 0;
+                yield return new WaitForSecondsRealtime(1.5f); // (the lobby's lines are written at the next update, Steam takes them at once)
+                string proto = Multiplayer.LobbyData("proto"), build = Multiplayer.LobbyData("build"), mod = Multiplayer.LobbyData("mod"), name = Multiplayer.LobbyData("name");
+                bool data = proto == NetSession.ProtocolVersion.ToString() && build == Multiplayer.GameBuild.ToString() && mod == PluginInfo.Version && name.Length > 0;
+                report($"multiplayer over Steam: a hidden lobby {(hosting ? "made" : "NOT MADE (" + Multiplayer.Status + ")")}"
+                       + (hosting ? $", its data read back from Steam: protocol {proto}, game build {build}, mod {mod}{(data ? "" : " NOT AS WRITTEN")}" : ""));
+                Multiplayer.RefreshLobbies();
+                steamBy = Time.unscaledTime + 12f;
+                while (Multiplayer.Listing && Time.unscaledTime < steamBy)
+                {
+                    yield return null;
+                }
+                report($"multiplayer over Steam: the list of open games: {(Multiplayer.Listing ? "NOT ANSWERED in 12 s" : Multiplayer.Lobbies != null ? "answered (" + Multiplayer.ListStatus + ")" : "NOT GIVEN (" + Multiplayer.ListStatus + ")")}");
+                Multiplayer.Leave();
+                report($"multiplayer over Steam: the lobby {(Multiplayer.Lobby == 0 && !Multiplayer.Active ? "left" : "NOT LEFT")}");
+            }
+            else
+            {
+                report("multiplayer over Steam: not checked (Steam is not running under the game)");
+            }
             if (panel != null)
             {
                 panel.Open(); // (not in a game: host, the list, the address)

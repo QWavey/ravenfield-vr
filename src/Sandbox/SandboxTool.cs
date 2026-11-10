@@ -37,6 +37,19 @@ namespace RavenfieldVR.Sandbox
         private readonly GameObject _go;
         private readonly LineRenderer _beam, _ring;
         private readonly Material _material;
+
+        // The spawn gun (the user, 2026-11-10: "we need a spawngun too yk?"): a small tool in the free hand while the tool is
+        // taken, built from plain shapes (no model file, no Unity editor on this PC): a body, a grip, a barrel and a lamp at its
+        // mouth in the colour of what the next pull makes. The beam leaves from the lamp.
+        private readonly GameObject _gun;
+        private readonly Material _gunBody, _gunLamp;
+        private readonly Transform _muzzle;
+        private bool _gunShown;
+        private float _kick;
+
+        /// <summary>The check's: whether the spawn gun is drawn in the hand now, and where its mouth is.</summary>
+        internal bool GunShown => _gunShown;
+        internal Vector3 Muzzle => _muzzle.position;
         private bool _pulled, _aiming, _onGround;
         private Vector3 _from, _to, _normal;
         private Actor _pointed;
@@ -54,6 +67,35 @@ namespace RavenfieldVR.Sandbox
             ring.transform.SetParent(_go.transform, false);
             _ring = Line(ring, RingPoints, 0.02f, true);
             _go.SetActive(false);
+
+            _gun = new GameObject("RavenfieldVR Spawn Gun");
+            UnityEngine.Object.DontDestroyOnLoad(_gun);
+            Shader lit = Shader.Find("Standard");
+            _gunBody = new Material(lit != null ? lit : Shader.Find("Sprites/Default")) { color = new Color(0.16f, 0.17f, 0.19f) };
+            _gunBody.SetFloat("_Glossiness", 0.35f);
+            _gunLamp = new Material(Shader.Find("Sprites/Default")) { color = Color.white };
+            // (In the hand's pointing frame: z along the pointing direction, the grip at the origin, in metres.)
+            Part(PrimitiveType.Cube, new Vector3(0f, 0.012f, 0.055f), new Vector3(0.034f, 0.046f, 0.15f), Vector3.zero, _gunBody);       // body
+            Part(PrimitiveType.Cube, new Vector3(0f, -0.04f, 0.0f), new Vector3(0.028f, 0.085f, 0.036f), new Vector3(-14f, 0f, 0f), _gunBody); // grip
+            Part(PrimitiveType.Cylinder, new Vector3(0f, 0.016f, 0.165f), new Vector3(0.022f, 0.04f, 0.022f), new Vector3(90f, 0f, 0f), _gunBody); // barrel
+            Part(PrimitiveType.Cube, new Vector3(0f, 0.045f, 0.03f), new Vector3(0.026f, 0.02f, 0.07f), Vector3.zero, _gunBody);          // top rail
+            Part(PrimitiveType.Cube, new Vector3(0f, 0.0565f, 0.03f), new Vector3(0.02f, 0.003f, 0.05f), Vector3.zero, _gunLamp);          // the strip of light on top
+            _muzzle = Part(PrimitiveType.Sphere, new Vector3(0f, 0.016f, 0.21f), Vector3.one * 0.03f, Vector3.zero, _gunLamp);            // the lamp at the mouth
+            _gun.SetActive(false);
+        }
+
+        private Transform Part(PrimitiveType kind, Vector3 at, Vector3 size, Vector3 euler, Material material)
+        {
+            GameObject part = GameObject.CreatePrimitive(kind);
+            UnityEngine.Object.Destroy(part.GetComponent<Collider>());
+            part.transform.SetParent(_gun.transform, false);
+            part.transform.localPosition = at;
+            part.transform.localRotation = Quaternion.Euler(euler);
+            part.transform.localScale = size;
+            var renderer = part.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return part.transform;
         }
 
         private LineRenderer Line(GameObject on, int points, float width, bool loop)
@@ -102,6 +144,7 @@ namespace RavenfieldVR.Sandbox
         {
             _aiming = false;
             _pointed = null;
+            _gunShown = false;
             if (Sandbox.Armed == Sandbox.ToolKind.None)
             {
                 _pulled = false;
@@ -112,8 +155,11 @@ namespace RavenfieldVR.Sandbox
             if (menu || !GameContext.InGame || player == null || player.dead || !hand.Tracked || hand.Role != HandRole.Free)
             {
                 _pulled = hand.Trigger > ReleaseAt; // (a pull begun elsewhere, on a panel's button, is not the tool's)
+                // (With a panel up the gun stays in the hand, lowered work aside: only the beam and the pull wait.)
+                _gunShown = GameContext.InGame && player != null && !player.dead && hand.Tracked && (hand.Role == HandRole.Free || hand.Role == HandRole.Pointer);
                 return;
             }
+            _gunShown = true;
 
             _from = hand.TrackedPointer.position;
             Vector3 direction = hand.TrackedPointer.Forward;
@@ -172,6 +218,7 @@ namespace RavenfieldVR.Sandbox
                 said = Make(Sandbox.Armed, at, _rig.Head.position - at);
             }
             hand.Haptic(0.03f, 140f, 0.6f);
+            _kick = 1f;
             UISystem.Instance?.Notice?.Show(said, 2.5f);
         }
 
@@ -182,12 +229,29 @@ namespace RavenfieldVR.Sandbox
             {
                 _go.SetActive(_aiming);
             }
+            if (_gun.activeSelf != _gunShown)
+            {
+                _gun.SetActive(_gunShown);
+            }
+            VRHand hand = _rig.Off;
+            if (_gunShown)
+            {
+                // In the hand's pointing frame, tipped back a little by each pull.
+                _kick = Mathf.MoveTowards(_kick, 0f, Time.unscaledDeltaTime * 6f);
+                var pose = hand.TrackedPointer;
+                _gun.transform.SetPositionAndRotation(pose.position - pose.Forward * (0.012f * _kick), pose.rotation * Quaternion.Euler(-7f * _kick, 0f, 0f));
+                Color lamp = _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
+                    : Sandbox.Soldier.Side == SoldierSide.Friendly ? new Color(0.35f, 0.75f, 1f) : new Color(1f, 0.4f, 0.35f);
+                if (_gunLamp.color != lamp)
+                {
+                    _gunLamp.color = lamp;
+                }
+            }
             if (!_aiming)
             {
                 return;
             }
-            VRHand hand = _rig.Off;
-            Vector3 from = hand.TrackedPointer.position;
+            Vector3 from = _muzzle.position;
             Color c = _pointed != null ? new Color(1f, 0.8f, 0.2f) : Sandbox.Armed == Sandbox.ToolKind.Vehicle ? new Color(0.35f, 0.75f, 1f)
                 : Sandbox.Soldier.Side == SoldierSide.Friendly ? new Color(0.35f, 0.75f, 1f) : new Color(1f, 0.4f, 0.35f);
             Color start = c, end = c;
@@ -223,6 +287,7 @@ namespace RavenfieldVR.Sandbox
             _aiming = false;
             _pointed = null;
             _pulled = false;
+            _gunShown = false;
         }
 
         internal void Destroy()
@@ -230,6 +295,18 @@ namespace RavenfieldVR.Sandbox
             if (_go != null)
             {
                 UnityEngine.Object.Destroy(_go);
+            }
+            if (_gun != null)
+            {
+                UnityEngine.Object.Destroy(_gun);
+            }
+            if (_gunBody != null)
+            {
+                UnityEngine.Object.Destroy(_gunBody);
+            }
+            if (_gunLamp != null)
+            {
+                UnityEngine.Object.Destroy(_gunLamp);
             }
             if (_material != null)
             {

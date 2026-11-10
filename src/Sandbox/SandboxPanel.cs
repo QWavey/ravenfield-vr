@@ -32,6 +32,8 @@ namespace RavenfieldVR.Sandbox
         private static readonly string[] HealthNames = { "Normal", "No damage", "One hit" };
         private static readonly int[] Counts = { 1, 2, 4, 8 };
         private static readonly string[] SlotNames = { "All", "Primary", "Secondary", "Gear" };
+        private static readonly string[] BodyNames = { "5 s", "20 s", "1 min", "5 min" };
+        private static readonly float[] BodyTimes = { 5f, 20f, 60f, 300f };
         private const int WeaponsPerPage = 8;
 
         private Tab _tab;
@@ -61,6 +63,10 @@ namespace RavenfieldVR.Sandbox
             }
             return Canvas.GetComponentsInChildren<Button>(true).Count(b => b != null && b.gameObject.activeInHierarchy);
         }
+
+        protected override int Shown() =>
+            Sandbox.SpawnedCount * 31 + Sandbox.PlacedCount * 977 + (Sandbox.Quiet ? 1 : 0) + (Sandbox.PlayerInvulnerable ? 2 : 0) + ((int)Sandbox.Armed << 2)
+            + (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 16 : 0) + (GameContext.InGame ? 8 : 0);
 
         private void Say(string status)
         {
@@ -216,6 +222,8 @@ namespace RavenfieldVR.Sandbox
             ActionRow("Health and ammunition.", "Fill up", () => Say(Sandbox.Refill() ? "Filled up." : "Not on your feet."));
             ActionRow("Every enemy soldier.", "Kill", () => Say($"{Sandbox.KillEnemies()} enemy soldier(s) killed."));
             Section("What the sandbox made");
+            Choice("A dead one's body lies", BodyNames, Array.IndexOf(BodyTimes, Sandbox.BodySeconds), i => Sandbox.BodySeconds = BodyTimes[i]);
+            Label("Then he is taken off the field with it. A sandbox soldier never comes back by himself.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
             ActionRow("Take it off the field again.", "The last", () => Say(Sandbox.RemoveLast() ? "Removed." : "Nothing of the sandbox's is left."),
                       "All", () => Say($"{Sandbox.RemoveAll()} removed."), 150f);
             ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),

@@ -86,11 +86,30 @@ namespace RavenfieldVR.Sandbox
         private static readonly List<UnityEngine.Object> Spawned = new List<UnityEngine.Object>();
         private static readonly List<Actor> Scratch = new List<Actor>();
 
+        // A sandbox soldier is the sandbox's for good (the user, 2026-11-10: "if a bot is killed and the body timer has expired
+        // ... the body and he himself also gets removed from the match and doesnt respawn"): the match's spawn waves never take
+        // him, his body lies for BodySeconds and is then taken off the field with him. He is kept, hidden and switched off, for
+        // the next spawn of his side: the game numbers every soldier it makes into tables that only grow (see-each-other,
+        // distances), so a hundred spawns from a pool of a few cost the match nothing, a hundred new soldiers would.
+        private static readonly HashSet<Actor> Made = new HashSet<Actor>();
+        private static readonly Dictionary<Actor, float> DiedAt = new Dictionary<Actor, float>();
+        private static readonly List<Actor> Pool = new List<Actor>();
+        private static bool _wavePatched;
+
+        /// <summary>Seconds a dead sandbox soldier's body lies before it is taken off the field (the panel's choice).</summary>
+        internal static float BodySeconds = 20f;
+
+        /// <summary>The check's: sandbox soldiers there are in this match (standing, lying dead, or put away), and how many are put away.</summary>
+        internal static int MadeCount => Made.Count;
+        internal static int PooledCount => Pool.Count;
+
+        internal static bool IsSandboxSoldier(Actor a) => a != null && Made.Contains(a);
+
         /// <summary>One pull of the tool as it was made (what a saved set holds): a line of the set's file.</summary>
         private static readonly List<string> Placed = new List<string>();
         private static bool _loadingSet;
         private static Harmony _harmony;
-        private static bool _behaviourPatched, _quietPatched;
+        private static bool _behaviourPatched;
         private static float _nextSweep;
 
         /// <summary>Any soldier of the sandbox with a behaviour of its own alive (the patches' first, cheapest question).</summary>
@@ -124,9 +143,9 @@ namespace RavenfieldVR.Sandbox
         /// <summary>The game's spawn wave (a fresh list of the dead of one team): on a quiet battlefield its soldiers stay out, the player stays in.</summary>
         private static void HoldWave(List<Actor> actorsToSpawn)
         {
-            if (Quiet && actorsToSpawn != null)
+            if (actorsToSpawn != null && (Quiet || Made.Count > 0))
             {
-                actorsToSpawn.RemoveAll(a => a != null && a.aiControlled);
+                actorsToSpawn.RemoveAll(a => a != null && (Quiet ? a.aiControlled : Made.Contains(a)));
             }
         }
 
@@ -141,13 +160,22 @@ namespace RavenfieldVR.Sandbox
             Patcher.Patch(AccessTools.Method(typeof(AiActorController), nameof(AiActorController.Velocity)), postfix: new HarmonyMethod(typeof(Sandbox), nameof(StandStill)));
         }
 
+        private static void PatchWave()
+        {
+            if (_wavePatched)
+            {
+                return;
+            }
+            _wavePatched = true;
+            Patcher.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldWave)));
+        }
+
         /// <summary>The battlefield made quiet (its soldiers taken off, none coming) or given back to the match (the next wave brings them).</summary>
         internal static string SetQuiet(bool quiet)
         {
-            if (quiet && !_quietPatched)
+            if (quiet)
             {
-                _quietPatched = true;
-                Patcher.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldWave)));
+                PatchWave();
             }
             Quiet = quiet;
             if (!quiet || ActorManager.instance == null)
@@ -157,7 +185,7 @@ namespace RavenfieldVR.Sandbox
             int taken = 0;
             foreach (Actor a in ActorManager.instance.actors.ToArray())
             {
-                if (a != null && a.aiControlled && !a.dead && !Behaviours.ContainsKey(a) && !Spawned.Contains(a))
+                if (a != null && a.aiControlled && !a.dead && !Made.Contains(a))
                 {
                     if (a.IsSeated())
                     {
@@ -251,13 +279,15 @@ namespace RavenfieldVR.Sandbox
             {
                 PatchBehaviours();
             }
+            PatchWave();
             int count = Mathf.Clamp(spec.Count, 1, 12);
             for (int i = 0; i < count; i++)
             {
                 Actor a;
                 try
                 {
-                    a = ActorManager.instance.CreateAIActor(team);
+                    a = TakeFromPool(team) ?? ActorManager.instance.CreateAIActor(team);
+                    Made.Add(a);
                     Vector3 spot = at + side * ((i - (count - 1) * 0.5f) * 1.5f);
                     const int mask = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2);
                     if (i > 0 && Physics.Raycast(spot + Vector3.up * 2f, Vector3.down, out RaycastHit g, 6f, mask, QueryTriggerInteraction.Ignore))
@@ -395,6 +425,45 @@ namespace RavenfieldVR.Sandbox
             }
         }
 
+        private static Actor TakeFromPool(int team)
+        {
+            for (int i = Pool.Count - 1; i >= 0; i--)
+            {
+                Actor a = Pool[i];
+                if (a == null)
+                {
+                    Pool.RemoveAt(i);
+                }
+                else if (a.team == team && a.dead)
+                {
+                    Pool.RemoveAt(i);
+                    a.Activate();
+                    a.isInvulnerable = false;
+                    return a;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>A dead sandbox soldier off the field: his body hidden, himself switched off and kept for the next spawn.</summary>
+        private static void PutAway(Actor a)
+        {
+            DiedAt.Remove(a);
+            if (a == null || !a.dead || Pool.Contains(a))
+            {
+                return;
+            }
+            try
+            {
+                a.Deactivate();
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("sandbox-put-away", "Sandbox: a dead soldier could not be put away: " + e.Message);
+            }
+            Pool.Add(a);
+        }
+
         private static void Remove(UnityEngine.Object o)
         {
             if (o is Actor a)
@@ -409,6 +478,10 @@ namespace RavenfieldVR.Sandbox
                     a.Unfreeze();
                     a.isInvulnerable = false;
                     a.KillSilently();
+                }
+                if (a != null && Made.Contains(a))
+                {
+                    PutAway(a); // (removed by the panel: gone at once, body and all)
                 }
             }
             else if (o is Vehicle v && v != null)
@@ -562,6 +635,45 @@ namespace RavenfieldVR.Sandbox
             // (Unity's own null for a destroyed vehicle or actor: the list's entries are compared as objects.)
             Spawned.RemoveAll(o => o == null || o is Actor a && a.dead);
             _anyBehaviour = Behaviours.Count > 0;
+            // The dead of the sandbox: their body lies for its time, then they are put away.
+            if (Made.Count > Pool.Count)
+            {
+                Scratch.Clear();
+                foreach (Actor a in Made)
+                {
+                    if (a == null)
+                    {
+                        Scratch.Add(a);
+                    }
+                    else if (!a.dead)
+                    {
+                        DiedAt.Remove(a);
+                    }
+                    else if (!DiedAt.TryGetValue(a, out float died))
+                    {
+                        if (!Pool.Contains(a))
+                        {
+                            DiedAt[a] = Time.time;
+                        }
+                    }
+                    else if (Time.time - died >= BodySeconds)
+                    {
+                        Scratch.Add(a);
+                    }
+                }
+                foreach (Actor a in Scratch)
+                {
+                    if (a == null)
+                    {
+                        Made.Remove(a);
+                        DiedAt.Remove(a);
+                    }
+                    else
+                    {
+                        PutAway(a);
+                    }
+                }
+            }
         }
 
         /// <summary>Once a frame from the UI's update: the lists kept clean (twice a second), the player's own invulnerability held.</summary>
@@ -572,7 +684,7 @@ namespace RavenfieldVR.Sandbox
                 return;
             }
             _nextSweep = Time.unscaledTime + 0.5f;
-            if (Behaviours.Count > 0 || Spawned.Count > 0)
+            if (Behaviours.Count > 0 || Spawned.Count > 0 || Made.Count > Pool.Count)
             {
                 Sweep();
             }
@@ -729,6 +841,9 @@ namespace RavenfieldVR.Sandbox
             Behaviours.Clear();
             Spawned.Clear();
             Placed.Clear();
+            Made.Clear();
+            DiedAt.Clear();
+            Pool.Clear();
             _anyBehaviour = false;
             Quiet = false;
             Armed = ToolKind.None;

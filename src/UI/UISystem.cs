@@ -28,6 +28,7 @@ namespace RavenfieldVR.UI
         internal readonly Sandbox.SandboxPanel SandboxPanel;
         internal readonly MultiplayerPanel MultiplayerPanel;
         private readonly Sandbox.SandboxTool _sandboxTool;
+        internal Sandbox.SandboxTool SandboxTool => _sandboxTool;
         public readonly LoadingView Loading;
         private readonly VRKeyboard _keyboard;
         private readonly LaserPointer _laser;

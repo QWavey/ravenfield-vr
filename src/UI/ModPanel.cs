@@ -66,11 +66,30 @@ namespace RavenfieldVR.UI
 
         public virtual void Update(bool pressing)
         {
-            if (IsOpen && !pressing && (Changed || RefreshSeconds > 0f && Time.unscaledTime - _lastBuild > RefreshSeconds))
+            if (!IsOpen || pressing)
+            {
+                return;
+            }
+            if (Changed)
             {
                 Rebuild();
             }
+            else if (RefreshSeconds > 0f && Time.unscaledTime - _lastBuild > RefreshSeconds)
+            {
+                // Looked at again, rebuilt only when what it shows is different: rebuilt every second the button under the laser
+                // was a new one each time (its highlight blinked) and forty objects were thrown away a second for nothing.
+                _lastBuild = Time.unscaledTime;
+                if (Shown() != _shown)
+                {
+                    Rebuild();
+                }
+            }
         }
+
+        /// <summary>A number that changes when what the panel shows from outside changes (counts, states): the periodic look compares it.</summary>
+        protected virtual int Shown() => 0;
+
+        private int _shown;
 
         /// <summary>The rows, top down (Title, Section, Label, Choice, ActionRow ...).</summary>
         protected abstract void Build();
@@ -79,6 +98,7 @@ namespace RavenfieldVR.UI
         {
             Changed = false;
             _lastBuild = Time.unscaledTime;
+            _shown = Shown();
             for (int i = _content.childCount - 1; i >= 0; i--)
             {
                 UnityEngine.Object.Destroy(_content.GetChild(i).gameObject);

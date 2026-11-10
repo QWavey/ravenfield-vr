@@ -141,6 +141,32 @@ namespace RavenfieldVR.Sandbox
             }
 
             Core.Log.Info("[sandbox check] step: follower");
+            // 5b. A dead sandbox soldier: his body lies for its time, then he is off the field, and no spawn wave brings him back.
+            if (random.Count == 1 && random[0].dead)
+            {
+                Actor dead = random[0];
+                float was = Sandbox.BodySeconds;
+                Sandbox.BodySeconds = 3f;
+                bool lying = dead.isRendered && !dead.isDeactivated;
+                float waveTime = Mathf.Clamp(GameManager.GameParameters().GetRespawnTime(), 1f, 120f);
+                Sandbox.SetQuiet(false); // (the match's waves run: they must not take him)
+                yield return Core.AutoTest.GameSeconds(Mathf.Max(5f, waveTime * 2f + 2f), report);
+                Sandbox.SetQuiet(true);
+                Sandbox.BodySeconds = was;
+                report($"sandbox dead soldier: body {(lying ? "lay" : "NOT LYING")} at first, after its time {(dead.isDeactivated && !dead.isRendered ? "taken off the field" : "NOT TAKEN OFF")}, "
+                       + $"{(dead.dead ? "not brought back by two spawn waves" : "NOT DEAD ANY MORE (a spawn wave took him)")}; put away: {Sandbox.PooledCount}");
+                // The next friendly of the sandbox is the same soldier again, not a new one.
+                int madeBefore = Sandbox.MadeCount;
+                List<Actor> anew = Make(player, SoldierSide.Friendly, SoldierBehaviour.Frozen, SoldierWeapons.Default, SoldierHealth.Normal, 1, 6f, 12f, out _);
+                foreach (Actor a in anew)
+                {
+                    own.Add(a);
+                }
+                yield return Core.AutoTest.GameSeconds(0.5f, report);
+                bool reused = anew.Count == 1 && ReferenceEquals(anew[0], dead) && Sandbox.MadeCount == madeBefore;
+                report($"sandbox soldier made again from the one put away: {(reused && !dead.dead && dead.isRendered && !dead.isDeactivated ? "the same soldier, standing and seen" : "NOT REUSED")}");
+            }
+
             // 6. A friendly that follows: in the player's squad.
             List<Actor> follow = Make(player, SoldierSide.Friendly, SoldierBehaviour.Follow, SoldierWeapons.Default, SoldierHealth.Normal, 1, 4f, -3f, out problem);
             foreach (Actor a in follow)
@@ -209,6 +235,59 @@ namespace RavenfieldVR.Sandbox
             }
 
             Core.Log.Info("[sandbox check] step: panel");
+            // 9b. The spawn gun itself: taken, the free hand held out and pointed at the ground ahead, its trigger pulled.
+            Core.Log.Info("[sandbox check] step: tool");
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            SandboxTool tool = UISystem.Instance != null ? UISystem.Instance.SandboxTool : null;
+            if (rig != null && tool != null)
+            {
+                int side = (int)rig.Off.Side;
+                Transform head = rig.Head;
+                Vector3 ahead = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
+                Vector3 hold = head.position + ahead * 0.38f - Vector3.up * 0.28f + Vector3.Cross(Vector3.up, ahead) * (rig.Off.IsLeft ? -0.16f : 0.16f);
+                Vector3 target = Spot(player, 6f, rig.Off.IsLeft ? -1.5f : 1.5f);
+                Sandbox.Soldier.Side = SoldierSide.Enemy;
+                Sandbox.Soldier.Behaviour = SoldierBehaviour.Frozen;
+                Sandbox.Soldier.Weapons = SoldierWeapons.Default;
+                Sandbox.Soldier.Health = SoldierHealth.Normal;
+                Sandbox.Soldier.Count = 1;
+                Sandbox.Armed = Sandbox.ToolKind.Soldier;
+                int madeBefore = Sandbox.SpawnedCount;
+                bool shown = false;
+                float gunFromHand = -1f;
+                try
+                {
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(hold, Quaternion.LookRotation(target - hold, Vector3.up));
+                    yield return new WaitForSecondsRealtime(0.8f);
+                    shown = tool.GunShown;
+                    gunFromHand = Vector3.Distance(tool.Muzzle, rig.Off.TrackedPointer.position);
+                    yield return new WaitForEndOfFrame();
+                    Core.Shots.Capture("sandbox-spawn-gun");
+                    Input.VRInput.SimulatedTrigger[side] = 1f;
+                    yield return new WaitForSecondsRealtime(0.4f);
+                    Input.VRInput.SimulatedTrigger[side] = 0f;
+                    yield return new WaitForSecondsRealtime(0.6f);
+                    yield return new WaitForEndOfFrame();
+                    Core.Shots.Capture("sandbox-spawn-gun-after");
+                }
+                finally
+                {
+                    Input.VRInput.SimulatedTrigger[side] = 0f;
+                    Rig.VRHand.Scripted[side] = null;
+                    Sandbox.Armed = Sandbox.ToolKind.None;
+                }
+                int madeByPull = Sandbox.SpawnedCount - madeBefore;
+                foreach (Actor a in ActorManager.instance.actors)
+                {
+                    if (Sandbox.IsSandboxSoldier(a))
+                    {
+                        own.Add(a);
+                    }
+                }
+                report($"sandbox spawn gun: {(shown ? $"in the free hand (its mouth {gunFromHand * 100f:0} cm from the hand's pointer)" : "NOT IN THE HAND")}, "
+                       + $"a pull of its trigger made {madeByPull} soldier(s){(madeByPull != 1 ? " NOT ONE" : "")}");
+            }
+
             // 10. The panel: every page built, with buttons on it.
             SandboxPanel panel = UISystem.Instance != null ? UISystem.Instance.SandboxPanel : null;
             if (panel != null)
