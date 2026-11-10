@@ -132,6 +132,27 @@ Holding A on a weapon with its own fire-mode script presses that script's key (i
 
 Get in by holding your grip on a vehicle for half a second with an empty hand (or the left trigger as before); get out by holding the trigger of the hand on your seat's side for a second; click the left stick to move to the next seat. Grab the steering wheel of a car or Humvee with one or both hands and turn it; the car steers with it. Let go and the left stick steers again. While driving, reach to a holster to draw that weapon and shoot with one hand while steering with the other; put it back to get the horn again. Tanks, helicopters and planes use the sticks (helicopters and planes also have a grabbable flight stick).
 
+## Sandbox
+
+Open the VR settings (double press of the left stick) and press **Sandbox**. It works in any match.
+
+- **Soldiers:** pick the side (enemy, friendly), the behaviour (normal, neutral = never shoots, stand still, frozen, follow me), the weapons (their own, random, none, yours), the health (normal, no damage, one hit) and how many. "Take the tool" puts the spawn tool in your free hand: point it at the ground and pull that hand's trigger. Pointed at a soldier who is already there, the pull gives him the chosen behaviour instead. "Here" makes them three metres in front of you without the tool.
+- **Weapons:** every weapon of the game and of your loaded mods; "Give me" puts it in your hands.
+- **Vehicles:** any of the map's vehicle kinds, for either side.
+- **Field:** quiet battlefield (none of the match's own soldiers, until you turn it off), no damage for you, fill up health and ammunition, kill every enemy, remove what you made (the last, or all), and save what you placed on this map to set it up again later.
+
+With the tool in your hand the menu button opens the sandbox panel; put the tool away on the Field page.
+
+## Multiplayer (early)
+
+Open the VR settings and press **Multiplayer**.
+
+- **Host:** Public (your game shows in everyone's list), Friends (only friends see it; "Invite" opens Steam's friends list), or LAN. Then start a match from the game's own menu: everyone in your game loads the same map and mode.
+- **Join:** press Join on a game in the list, accept a friend's invitation in Steam, or type a LAN address.
+- Everyone needs this mod in the same version, and for a workshop map the map itself. A game on another version is shown in the list with the reason and cannot be joined.
+- You see the other players and the host's soldiers; everyone fights the same soldiers. A shared match is on foot for now: vehicles are taken off the map. Scores and flags are still counted by each PC on its own, and the other player is shown as a soldier with his name over him, without his VR hands.
+- Played over Steam it needs no open port. It has been checked with a second player simulated on one PC; a real session between two PCs is its first full test.
+
 ## Graphics
 
 Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("Graphics"). A preset sets the render resolution, MSAA, shadow distance and quality, level of detail, per-pixel lights, texture size, vegetation and view distance, layered on top of the game's own options. "Game" leaves graphics to the game's options menu. Render scale stays adjustable after picking a preset. The presets are tuned for VR, where shadows, MSAA and per-pixel lights are paid once per eye: Low has no shadows (about the game's "Fast" quality), Medium hard shadows to 30 m ("Simple"), High soft shadows to 60 m ("Good"), Ultra to 100 m with 4x MSAA ("Beautiful"). If you see ghosting or things lagging in front of you, the frame rate is below the headset's: pick a lower preset (or "Game" with a low quality in the game's options).

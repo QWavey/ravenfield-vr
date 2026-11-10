@@ -464,11 +464,13 @@ namespace RavenfieldVR.Net
                 }
                 return;
             }
-            if (!ReferenceEquals(_vehiclesOffIn, ActorManager.instance) || Time.unscaledTime >= _nextVehicleSweep)
+            // (A new match is told by its new player: the actor manager is the same object in every match.)
+            bool newMatch = !ReferenceEquals(_vehiclesOffFor, LocalPlayer.actor);
+            if (newMatch || Time.unscaledTime >= _nextVehicleSweep)
             {
-                _vehiclesOffIn = ActorManager.instance;
+                _vehiclesOffFor = LocalPlayer.actor;
                 _nextVehicleSweep = Time.unscaledTime + 5f;
-                NoVehicles();
+                NoVehicles(newMatch);
             }
             if (Time.unscaledTime >= _nextSend)
             {
@@ -482,7 +484,7 @@ namespace RavenfieldVR.Net
         }
 
         private static float _nextAsk;
-        private static ActorManager _vehiclesOffIn;
+        private static Actor _vehiclesOffFor;
         private static float _nextVehicleSweep;
 
         /// <summary>Vehicles taken off the field in this match by the multiplayer (the check's and the log's count).</summary>
@@ -493,11 +495,17 @@ namespace RavenfieldVR.Net
         /// soldier sliding over the ground on every other PC, shot at from a tank nobody else saw. So in a session the map's
         /// vehicles are taken away on every PC and their spawners stopped (the fixed guns stay: a soldier at one stands at it).
         /// At the match's start, when a session begins in a running match, and every five seconds for what a script brings.
+        /// The spawners are looked for once a match (a search of the whole scene: not every five seconds in the headset);
+        /// the later looks only read the game's own list of vehicles.
         /// </summary>
-        private static void NoVehicles()
+        private static void NoVehicles(bool newMatch)
         {
             try
             {
+                if (!newMatch && !ActorManager.instance.vehicles.Any(v => v != null && !v.isTurret))
+                {
+                    return;
+                }
                 foreach (VehicleSpawner spawner in UnityEngine.Object.FindObjectsOfType<VehicleSpawner>())
                 {
                     if (spawner.enabled)
@@ -855,7 +863,7 @@ namespace RavenfieldVR.Net
                 // (About 1.1 degrees tall at any distance, never smaller than at 4 m. The letters are 0.64 units tall unscaled:
                 // character size 0.1 at font size 64. At 0.0045 a unit of distance the name was 2.6 cm tall at 9 m and not to be
                 // found in the check's picture, 2026-11-10.)
-                t.localScale = Vector3.one * (Mathf.Max(far, 4f) * 0.03f);
+                t.localScale = Vector3.one * (Mathf.Max(far, 4f) * 0.05f); // (0.03 read 0.4 degrees in the next picture: small letters are half the line)
             }
         }
 

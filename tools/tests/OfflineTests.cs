@@ -3150,13 +3150,30 @@ namespace RavenfieldVR.Tests
                 Check(!SteamPlayEntry.Change(copy, true, log.Add) && SteamPlayEntry.Ensure(copy, log.Add), "Play entry: already there counts as there");
                 if (!present.Value)
                 {
-                    Check(SameBytes(original, System.IO.File.ReadAllBytes(copy)), "Play entry: the cache is byte for byte as before after add + remove");
+                    byte[] after = System.IO.File.ReadAllBytes(copy);
+                    Check(SameBytes(original, after), "Play entry: the cache is byte for byte as before after add + remove (" + FirstDifference(original, after) + ")");
                 }
             }
             finally
             {
                 System.IO.File.Delete(copy);
             }
+        }
+
+        /// <summary>Where two files part, for a failure line: lengths, the first differing offset and eight bytes of each from there.</summary>
+        private static string FirstDifference(byte[] a, byte[] b)
+        {
+            int at = 0;
+            while (at < a.Length && at < b.Length && a[at] == b[at])
+            {
+                at++;
+            }
+            if (at == a.Length && at == b.Length)
+            {
+                return "the same";
+            }
+            string Hex(byte[] d) => BitConverter.ToString(d, Math.Min(at, d.Length), Math.Max(0, Math.Min(8, d.Length - at)));
+            return $"{a.Length} bytes before, {b.Length} after, first difference at {at}: {Hex(a)} against {Hex(b)}";
         }
 
         private static bool SameBytes(byte[] a, byte[] b)
