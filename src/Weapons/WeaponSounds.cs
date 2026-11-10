@@ -365,6 +365,14 @@ namespace RavenfieldVR.Weapons
                 Log.InfoOnce("rackguess-w:" + clip.name, $"{_rig.Data.Key}: its pull's sound '{clip.name}' ({clip.length:0.00} s) cannot be read and is the gun's only slide sound: its first 55% for the pull.");
                 return PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = clip.length * 0.55f }, volume);
             }
+            if (split <= 0f && !RackSplit.Readable(clip) && _kind == MechSound.SlideForward && clip.length > 0.35f && IsPullClip(clip))
+            {
+                // The gun binds the SAME unreadable clip to its pull and to its slide going home (the QBZ-191/192's 0.36 s
+                // bolt clip, seen in the user's log, 2026-11-10): the pull played its first 55% above, and home played all
+                // of it again, pull and all. Home is the rest of it.
+                float from = clip.length * 0.55f;
+                return PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = from, Length = clip.length - from }, volume);
+            }
             if (split <= 0f)
             {
                 return false;
@@ -375,6 +383,23 @@ namespace RavenfieldVR.Weapons
                 return PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = 0f, Length = split }, volume);
             }
             return clip == _rackClip && PlaySlice(new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = split, Length = clip.length - split }, volume);
+        }
+
+        /// <summary>Whether the gun's own pull is bound to this clip (as a whole clip, not a slice of it).</summary>
+        private bool IsPullClip(AudioClip clip)
+        {
+            if (!_rig.Data.Cues.TryGetValue(MechSound.SlideBack, out List<SoundCue> pull))
+            {
+                return false;
+            }
+            foreach (SoundCue c in pull)
+            {
+                if (c != null && (c.Kind != CueKind.ClipSlice && c.Clip == clip || c.Clips != null && Array.IndexOf(c.Clips, clip) >= 0))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool HasOwnHomeApart(AudioClip back)
