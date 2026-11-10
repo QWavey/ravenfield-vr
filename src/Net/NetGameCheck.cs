@@ -480,6 +480,62 @@ namespace RavenfieldVR.Net
                 report($"multiplayer over Steam: the list of open games: {(Multiplayer.Listing ? "NOT ANSWERED in 12 s" : Multiplayer.Lobbies != null ? "answered (" + Multiplayer.ListStatus + ")" : "NOT GIVEN (" + Multiplayer.ListStatus + ")")}");
                 Multiplayer.Leave();
                 report($"multiplayer over Steam: the lobby {(Multiplayer.Lobby == 0 && !Multiplayer.Active ? "left" : "NOT LEFT")}");
+                // Steam's own sending and receiving, with the one account there is: a reliable and an unreliable message to this
+                // account itself, through the same calls a game between two players uses.
+                SteamTransport steam = null;
+                string steamFailed = null;
+                int gotReliable = 0, gotUnreliable = 0;
+                bool intact = true;
+                try
+                {
+                    steam = new SteamTransport { Accept = id => true, AllowSelf = true };
+                    var payload = new byte[300];
+                    for (int i = 0; i < payload.Length; i++)
+                    {
+                        payload[i] = (byte)(i * 7 + 3);
+                    }
+                    payload[0] = 1;
+                    steam.Send(steam.LocalId, payload, payload.Length, true);
+                    Steamworks.EResult sentReliable = steam.LastSend;
+                    payload[0] = 2;
+                    steam.Send(steam.LocalId, payload, 40, false);
+                    steamFailed = sentReliable != Steamworks.EResult.k_EResultOK ? "Steam answered " + sentReliable : null;
+                }
+                catch (Exception e)
+                {
+                    steamFailed = e.GetType().Name + ": " + e.Message;
+                }
+                if (steam != null && steamFailed == null)
+                {
+                    float until = Time.unscaledTime + 5f;
+                    ulong self = steam.LocalId;
+                    while (Time.unscaledTime < until && (gotReliable == 0 || gotUnreliable == 0))
+                    {
+                        steam.Poll(Time.realtimeSinceStartupAsDouble, (from, data, length) =>
+                        {
+                            bool good = from == self && (data[0] == 1 ? length == 300 : length == 40);
+                            for (int i = 1; i < length && good; i++)
+                            {
+                                good = data[i] == (byte)(i * 7 + 3);
+                            }
+                            intact &= good;
+                            if (data[0] == 1)
+                            {
+                                gotReliable++;
+                            }
+                            else
+                            {
+                                gotUnreliable++;
+                            }
+                        }, lost => { });
+                        yield return null;
+                    }
+                }
+                steam?.Dispose();
+                report("multiplayer over Steam: a message to this account itself through Steam's networking: "
+                       + (steamFailed != null ? "NOT SENT (" + steamFailed + ")"
+                           : gotReliable == 1 && gotUnreliable <= 1 && intact ? $"the reliable one came back whole (300 bytes){(gotUnreliable == 1 ? ", the unreliable one too (40 bytes)" : "; the unreliable one did not come (it may be lost)")}"
+                           : $"NOT RECEIVED RIGHT (reliable {gotReliable}, unreliable {gotUnreliable}, {(intact ? "whole" : "bytes changed")})"));
             }
             else
             {

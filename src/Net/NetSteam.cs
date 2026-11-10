@@ -25,6 +25,12 @@ namespace RavenfieldVR.Net
         private byte[] _buffer = new byte[4096];
         private bool _disposed;
 
+        /// <summary>The self-check's: a message to this account itself is sent (Steam hands it straight back), to try the sending and receiving with one account.</summary>
+        internal bool AllowSelf;
+
+        /// <summary>What Steam said to the last send (the check's).</summary>
+        internal EResult LastSend { get; private set; } = EResult.k_EResultNone;
+
         /// <summary>Who may open a line to this player (by Steam id).</summary>
         public Func<ulong, bool> Accept;
 
@@ -62,7 +68,7 @@ namespace RavenfieldVR.Net
 
         public void Send(ulong peer, byte[] data, int length, bool reliable)
         {
-            if (_disposed || peer == 0 || peer == LocalId)
+            if (_disposed || peer == 0 || (peer == LocalId && !AllowSelf))
             {
                 return;
             }
@@ -75,7 +81,7 @@ namespace RavenfieldVR.Net
             GCHandle pin = GCHandle.Alloc(data, GCHandleType.Pinned);
             try
             {
-                SteamNetworkingMessages.SendMessageToUser(ref to, pin.AddrOfPinnedObject(), (uint)length, flags, Channel);
+                LastSend = SteamNetworkingMessages.SendMessageToUser(ref to, pin.AddrOfPinnedObject(), (uint)length, flags, Channel);
             }
             finally
             {
