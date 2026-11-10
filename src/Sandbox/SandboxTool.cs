@@ -216,8 +216,15 @@ namespace RavenfieldVR.Sandbox
             }
             else if (_pointed != null && Sandbox.Armed == Sandbox.ToolKind.Soldier)
             {
-                Sandbox.SetBehaviour(_pointed, Sandbox.Soldier.Behaviour);
-                said = "That soldier: " + Sandbox.Soldier.Behaviour + ".";
+                if (Net.NetGame.IsRemote(_pointed))
+                {
+                    said = "That one is another PC's soldier: the host sets what he does.";
+                }
+                else
+                {
+                    Sandbox.SetBehaviour(_pointed, Sandbox.Soldier.Behaviour);
+                    said = "That soldier: " + Sandbox.Soldier.Behaviour + ".";
+                }
             }
             else if (!any)
             {

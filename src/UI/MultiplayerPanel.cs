@@ -31,10 +31,16 @@ namespace RavenfieldVR.UI
             Multiplayer.Changed += () => Changed = true;
         }
 
+        /// <summary>A joined player outside a match follows the host: his panel stays (its Close only made it jump back).</summary>
+        internal static bool Following => Multiplayer.Active && !Multiplayer.Hosting && !RavenfieldVR.Util.GameContext.InGame
+                                          && UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex <= 1;
+
+        protected override bool HasClose => !Following;
+
         protected override int Shown()
         {
             // (Pings to the nearest 10 ms: a ping moving by a millisecond is no reason to build the panel again.)
-            int shown = Multiplayer.Active ? 1 : 0;
+            int shown = (Multiplayer.Active ? 1 : 0) | (Following ? 2 : 0);
             if (Multiplayer.Active)
             {
                 foreach (NetPlayer p in Multiplayer.Session.Players)

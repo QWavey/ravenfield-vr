@@ -175,8 +175,15 @@ namespace RavenfieldVR.Sandbox
         }
 
         /// <summary>The battlefield made quiet (its soldiers taken off, none coming) or given back to the match (the next wave brings them).</summary>
+        /// <summary>In a shared match this PC is not the host's: the field and its soldiers are his to change.</summary>
+        internal static bool HostsField => !Net.Multiplayer.Active || Net.Multiplayer.Hosting;
+
         internal static string SetQuiet(bool quiet)
         {
+            if (!HostsField)
+            {
+                return "In a shared match the field is the host's to change.";
+            }
             if (quiet)
             {
                 PatchWave();
@@ -635,7 +642,7 @@ namespace RavenfieldVR.Sandbox
         internal static int KillEnemies()
         {
             Actor player = LocalPlayer.actor;
-            if (player == null || ActorManager.instance == null)
+            if (player == null || ActorManager.instance == null || !HostsField)
             {
                 return 0;
             }
@@ -655,9 +662,9 @@ namespace RavenfieldVR.Sandbox
         /// <summary>A behaviour for a soldier already there (pointed at with the tool): any soldier of the match, not only the sandbox's.</summary>
         internal static void SetBehaviour(Actor a, SoldierBehaviour behaviour)
         {
-            if (a == null || a.dead || !a.aiControlled)
+            if (a == null || a.dead || !a.aiControlled || Net.NetGame.IsRemote(a))
             {
-                return;
+                return; // (another PC's soldier is told what to do by that PC)
             }
             if (behaviour != SoldierBehaviour.Frozen && Behaviours.TryGetValue(a, out SoldierBehaviour was) && was == SoldierBehaviour.Frozen)
             {

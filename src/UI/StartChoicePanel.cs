@@ -18,6 +18,8 @@ namespace RavenfieldVR.UI
         {
         }
 
+        protected override bool HasClose => false; // (two choices, no third)
+
         protected override void Build()
         {
             Title("Ravenfield VR", "How do you want to play?");

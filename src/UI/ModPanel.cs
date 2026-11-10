@@ -31,6 +31,11 @@ namespace RavenfieldVR.UI
         /// <summary>Seconds between rebuilds while open with nothing pressed (0: only when marked changed).</summary>
         protected virtual float RefreshSeconds => 0f;
 
+        /// <summary>Whether the panel has its own Close at the bottom (not one that is a choice to make, or that the game keeps open).</summary>
+        protected virtual bool HasClose => true;
+
+        private bool _placeWhenTracked;
+
         /// <summary>Set by every button of the panel: rebuilt at the next update without a press held.</summary>
         protected bool Changed;
 
@@ -106,8 +111,15 @@ namespace RavenfieldVR.UI
             _height = 24f;
             Build();
             _height += 16f;
-            RectTransform footer = Row(UiKit.RowHeight + 10f);
-            UiKit.MakeButton(footer, "Close", 34f, 160f, Close, out _);
+            if (HasClose)
+            {
+                RectTransform footer = Row(UiKit.RowHeight + 10f);
+                UiKit.MakeButton(footer, "Close", 34f, 160f, Close, out _);
+            }
+            else
+            {
+                _height += 10f;
+            }
             var rect = (RectTransform)_root.transform;
             rect.sizeDelta = new Vector2(CanvasWidth, _height + 30f);
             _content.sizeDelta = new Vector2(0f, _height);
@@ -169,8 +181,7 @@ namespace RavenfieldVR.UI
             Button b = UiKit.MakeButton(row, label, x, width, () =>
             {
                 onClick();
-                Changed = true;
-                Rig.Hand(Input.VRInput.Dominant).Haptic(0.012f, 180f, 0.3f);
+                Changed = true; // (the laser's hand has its own buzz for the press: a second one here went to the gun hand)
             }, out Text text);
             if (chosen)
             {
@@ -219,6 +230,9 @@ namespace RavenfieldVR.UI
 
         private void Place()
         {
+            // (Opened before the headset's first pose, at the game's start: placed for a head at the floor's origin, and brought
+            // back only by looking away from it. Placed again once the head is tracked.)
+            _placeWhenTracked = !Rig.HeadTracked;
             Transform head = Rig.Head;
             Vector3 forward = head.forward;
             forward.y = 0f;
@@ -235,6 +249,10 @@ namespace RavenfieldVR.UI
             {
                 _awaySince = -1f;
                 return;
+            }
+            if (_placeWhenTracked && Rig.HeadTracked)
+            {
+                Place();
             }
             // Looked away from it (more than 75 degrees) for 2 s: it comes back in front, as the game's menus do.
             Vector3 toPanel = _root.transform.position - Rig.Head.position;

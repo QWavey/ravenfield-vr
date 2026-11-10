@@ -159,7 +159,13 @@ namespace RavenfieldVR.UI
                 ModKeys.Close(); // (one panel at a time: the two overlapped, the nearer taking the laser; panels scout, 2026-11-06)
                 MultiplayerPanel.Close();
                 // With the sandbox's tool in hand (or its panel up) the menu button is the sandbox's: the panel is where the tool is set.
-                if (SandboxPanel.IsOpen || (Sandbox.Sandbox.Armed != Sandbox.Sandbox.ToolKind.None && !Settings.IsOpen))
+                if (SandboxPanel.IsOpen && Sandbox.Sandbox.Armed == Sandbox.Sandbox.ToolKind.None)
+                {
+                    // (The tool put away with the panel still up: the button is the settings' again at once, not after a second press.)
+                    SandboxPanel.Close();
+                    Settings.Open();
+                }
+                else if (SandboxPanel.IsOpen || (Sandbox.Sandbox.Armed != Sandbox.Sandbox.ToolKind.None && !Settings.IsOpen))
                 {
                     SandboxPanel.Toggle();
                 }
@@ -198,13 +204,20 @@ namespace RavenfieldVR.UI
             }
             // A player who joined a game waits for the host outside a match: the game's own menus are the host's to work, his
             // are hidden and the multiplayer panel stands open with what the host is choosing.
-            bool following = Net.Multiplayer.Active && !Net.Multiplayer.Hosting && !GameContext.InGame;
+            // (Only in the menu's own scene: in the first frames of the host's match the player is not there yet, the panel was
+            // opened again right after the scene change had shut it, and stood in the match with the laser on.)
+            bool following = MultiplayerPanel.Following;
             Canvases.HideMenus = following;
             Canvases.ApplyHideMenus();
-            if (following && !MultiplayerPanel.IsOpen && !Settings.IsOpen)
+            if (following && !MultiplayerPanel.IsOpen && !Settings.IsOpen && !ModKeys.IsOpen && !SandboxPanel.IsOpen)
             {
                 StartChoice.Close();
                 MultiplayerPanel.Open();
+            }
+            // One panel at a time: the start's choice gives way to any other that is opened over it.
+            if (StartChoice.IsOpen && (Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen))
+            {
+                StartChoice.Close();
             }
 
             MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen || StartChoice.IsOpen

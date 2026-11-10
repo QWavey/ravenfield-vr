@@ -221,7 +221,7 @@ namespace RavenfieldVR.Sandbox
             ActionRow($"Quiet battlefield (none of the match's own soldiers): {(Sandbox.Quiet ? "on" : "off")}.", Sandbox.Quiet ? "Turn off" : "Turn on", () => Say(Sandbox.SetQuiet(!Sandbox.Quiet)));
             ActionRow($"You take no damage: {(Sandbox.PlayerInvulnerable ? "on" : "off")}.", Sandbox.PlayerInvulnerable ? "Turn off" : "Turn on", () => Sandbox.SetPlayerInvulnerable(!Sandbox.PlayerInvulnerable));
             ActionRow("Health and ammunition.", "Fill up", () => Say(Sandbox.Refill() ? "Filled up." : "Not on your feet."));
-            ActionRow("Every enemy soldier.", "Kill", () => Say($"{Sandbox.KillEnemies()} enemy soldier(s) killed."));
+            ActionRow("Every enemy soldier.", "Kill", () => Say(Sandbox.HostsField ? $"{Sandbox.KillEnemies()} enemy soldier(s) killed." : "In a shared match the field is the host's to change."));
             Section("What the sandbox made");
             Choice("A dead one's body lies", BodyNames, Array.IndexOf(BodyTimes, Sandbox.BodySeconds), i => Sandbox.BodySeconds = BodyTimes[i]);
             Label("Then he is taken off the field with it. A sandbox soldier never comes back by himself.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
