@@ -510,6 +510,7 @@ namespace RavenfieldVR.Core
 
         /// <summary>The headset is off (its last worn edge said so).</summary>
         private bool _headsetOff;
+        internal bool HeadsetOff => _headsetOff;
 
         /// <summary>A level loaded: a pause for the dashboard or the headset is put back once the player is in the match.</summary>
         private bool _pauseAfterLoad;

@@ -25,6 +25,9 @@ namespace RavenfieldVR.UI
         public readonly CanvasManager Canvases;
         public readonly VRSettingsPanel Settings;
         public readonly ModKeysPanel ModKeys;
+        internal readonly Sandbox.SandboxPanel SandboxPanel;
+        internal readonly MultiplayerPanel MultiplayerPanel;
+        private readonly Sandbox.SandboxTool _sandboxTool;
         public readonly LoadingView Loading;
         private readonly VRKeyboard _keyboard;
         private readonly LaserPointer _laser;
@@ -118,6 +121,12 @@ namespace RavenfieldVR.UI
                 Canvases.RegisterOwn(Settings.Canvas);
                 ModKeys = new ModKeysPanel(rig, EventCamera);
                 Canvases.RegisterOwn(ModKeys.Canvas);
+                SandboxPanel = new Sandbox.SandboxPanel(rig, EventCamera);
+                Canvases.RegisterOwn(SandboxPanel.Canvas);
+                _sandboxTool = new Sandbox.SandboxTool(rig);
+                Net.NetGame.Init();
+                MultiplayerPanel = new MultiplayerPanel(rig, EventCamera);
+                Canvases.RegisterOwn(MultiplayerPanel.Canvas);
                 _keyboard = new VRKeyboard();
                 _laser = new LaserPointer();
                 _wrist = new WristHud(rig);
@@ -143,12 +152,23 @@ namespace RavenfieldVR.UI
             {
                 VRInput.Consume(DigitalAction.VRMenu);
                 ModKeys.Close(); // (one panel at a time: the two overlapped, the nearer taking the laser; panels scout, 2026-11-06)
-                Settings.Toggle();
+                MultiplayerPanel.Close();
+                // With the sandbox's tool in hand (or its panel up) the menu button is the sandbox's: the panel is where the tool is set.
+                if (SandboxPanel.IsOpen || (Sandbox.Sandbox.Armed != Sandbox.Sandbox.ToolKind.None && !Settings.IsOpen))
+                {
+                    SandboxPanel.Toggle();
+                }
+                else
+                {
+                    Settings.Toggle();
+                }
             }
             if (VRInput.GetPressed(DigitalAction.ModKeys))
             {
                 VRInput.Consume(DigitalAction.ModKeys);
                 Settings.Close();
+                SandboxPanel.Close();
+                MultiplayerPanel.Close();
                 ModKeys.Toggle();
             }
             if (Settings.IsOpen && (Settings.Changed || Time.unscaledTime >= _nextSettingsRefresh))
@@ -157,9 +177,15 @@ namespace RavenfieldVR.UI
                 Settings.Refresh();
             }
             ModKeys.Update(_module != null && _module.PressActive);
+            SandboxPanel.Update(_module != null && _module.PressActive);
+            MultiplayerPanel.Update(_module != null && _module.PressActive);
+            Net.Multiplayer.Update();
 
-            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || (!GameContext.InGame && Canvases.AnyVisible);
-            VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen;
+            MenuMode = Canvases.AnyMenuVisible || Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen
+                       || (!GameContext.InGame && Canvases.AnyVisible);
+            VRGameInput.PanelOpen = Settings.IsOpen || ModKeys.IsOpen || SandboxPanel.IsOpen || MultiplayerPanel.IsOpen;
+            Sandbox.Sandbox.Update();
+            _sandboxTool.Update(MenuMode);
 
             // Whichever hand pulls its trigger becomes the pointer.
             if (_module != null && MenuMode)
@@ -199,6 +225,14 @@ namespace RavenfieldVR.UI
                 if (ModKeys.IsOpen)
                 {
                     _targets.Add(ModKeys.Canvas);
+                }
+                if (SandboxPanel.IsOpen)
+                {
+                    _targets.Add(SandboxPanel.Canvas);
+                }
+                if (MultiplayerPanel.IsOpen)
+                {
+                    _targets.Add(MultiplayerPanel.Canvas);
                 }
                 _module.Targets = _targets;
                 _module.PointerActive = MenuMode && pointer.Tracked;
@@ -269,6 +303,9 @@ namespace RavenfieldVR.UI
             _sights.BeforeRender(_rig.Head);
             Notice?.BeforeRender(_rig.Head);
             ModKeys.BeforeRender();
+            SandboxPanel.BeforeRender();
+            MultiplayerPanel.BeforeRender();
+            _sandboxTool.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
             Vector3 end = Vector3.zero;
@@ -301,6 +338,17 @@ namespace RavenfieldVR.UI
             {
                 ModKeys.Close();
             }
+            if (SandboxPanel.IsOpen)
+            {
+                SandboxPanel.Close();
+            }
+            if (MultiplayerPanel.IsOpen)
+            {
+                MultiplayerPanel.Close();
+            }
+            Net.NetGame.OnSceneChanged();
+            Sandbox.Sandbox.OnSceneChanged();
+            _sandboxTool.OnSceneChanged();
             Canvases.OnSceneChanged();
             _squad.OnSceneChanged(); // the capture points' flags and any hand sign in progress belong to the old scene
             _eventSystem = null;
@@ -316,6 +364,10 @@ namespace RavenfieldVR.UI
             Log.Guard("UI.Settings.Dispose", () => Settings?.Dispose());
             Log.Guard("UI.Sights.Restore", () => _sights?.Restore());
             Log.Guard("UI.ModKeys.Dispose", () => ModKeys?.Dispose());
+            Log.Guard("UI.Sandbox.Dispose", () => SandboxPanel?.Dispose());
+            Log.Guard("UI.Multiplayer.Dispose", () => MultiplayerPanel?.Dispose());
+            Log.Guard("Multiplayer.Shutdown", Net.Multiplayer.Shutdown);
+            Log.Guard("UI.SandboxTool.Destroy", () => _sandboxTool?.Destroy());
             Log.Guard("UI.Keyboard.Dispose", () => _keyboard?.Dispose());
             Log.Guard("UI.Laser.Destroy", () => _laser?.Destroy());
             Log.Guard("UI.Wrist.Destroy", () => _wrist?.Destroy());

@@ -68,6 +68,66 @@ namespace RavenfieldVR.Core
         /// too? and hitting them with any weapon/fists? ... only focus on that").
         /// </summary>
         private static readonly bool GrabCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-grabcheck", StringComparison.OrdinalIgnoreCase));
+        /// <summary>-rfvr-sandboxcheck (with -rfvr-autotest -vr): only the sandbox's check (Sandbox.SandboxCheck), about two minutes.</summary>
+        private static readonly bool SandboxCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-sandboxcheck", StringComparison.OrdinalIgnoreCase));
+        /// <summary>What holds the game's time still, in words (a check that waits on game time says it and goes on).</summary>
+        internal static string WhyPaused()
+        {
+            var why = new List<string>();
+            if (Runtime.OpenVRRuntime.DashboardOpen)
+            {
+                why.Add("SteamVR's dashboard is open");
+            }
+            if (VRManager.Instance != null && VRManager.Instance.HeadsetOff)
+            {
+                why.Add("the headset counts as taken off");
+            }
+            if (IngameMenuUi.instance != null && IngameMenuUi.IsOpen())
+            {
+                why.Add("the pause menu is open");
+            }
+            if (LoadoutUi.instance != null && LoadoutUi.IsOpen())
+            {
+                why.Add("the loadout is open");
+            }
+            if (FpsActorController.instance != null && FpsActorController.instance.inPhotoMode)
+            {
+                why.Add("photo mode");
+            }
+            return $"time scale {Time.timeScale:0.##}" + (why.Count > 0 ? ", " + string.Join(", ", why.ToArray()) : ", nothing of the known causes");
+        }
+
+        /// <summary>
+        /// Seconds of the game's own time for a check (what soldiers do in it is measured). A game paused under the check (the
+        /// dashboard opened, the headset counted as off) is said in the report and set running again: the sandbox check stood at
+        /// its first wait for eight minutes, twice, with nothing in the log (2026-11-10).
+        /// </summary>
+        internal static IEnumerator GameSeconds(float seconds, Action<string> report)
+        {
+            float left = seconds, still = 0f;
+            while (left > 0f)
+            {
+                yield return null;
+                left -= Time.deltaTime;
+                if (Time.timeScale > 0f)
+                {
+                    still = 0f;
+                    continue;
+                }
+                still += Time.unscaledDeltaTime;
+                if (still > 2f)
+                {
+                    still = 0f;
+                    report("the game's time stood still under the check (" + WhyPaused() + "): set running again, NOT A RESULT OF THE CHECK");
+                    GameManager.UnpauseGame();
+                }
+            }
+        }
+
+        /// <summary>A check that measures a hit on the player lifts the autotest's shield for it (AutoTestInvulnerablePatch).</summary>
+        internal static bool PlayerCanBeHurt;
+        /// <summary>-rfvr-netcheck (with -rfvr-autotest -vr): only the multiplayer's check in a match (Net.NetGameCheck), under a minute.</summary>
+        private static readonly bool NetCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-netcheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
         private static readonly bool WalkCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-walkcheck", StringComparison.OrdinalIgnoreCase));
 
@@ -373,6 +433,38 @@ namespace RavenfieldVR.Core
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (VRManager.Active && NetCheckOnly)
+                {
+                    _context = "net check";
+                    yield return Net.NetGameCheck.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[multiplayer] " + l);
+                        }
+                        Log.Info("[multiplayer check] " + l); // (as it happens: a run that hangs shows how far it came)
+                        Results.Add(l);
+                    });
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (VRManager.Active && SandboxCheckOnly)
+                {
+                    _context = "sandbox check";
+                    yield return Sandbox.SandboxCheck.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[sandbox] " + l);
+                        }
+                        Log.Info("[sandbox check] " + l); // (as it happens: a run that hangs shows how far it came)
+                        Results.Add(l);
+                    });
                     Write();
                     Application.Quit();
                     yield break;
@@ -7567,7 +7659,7 @@ namespace RavenfieldVR.Core
     {
         private static bool Prefix(Actor __instance, ref bool __result)
         {
-            if (AutoTest.Requested && __instance != null && !__instance.aiControlled)
+            if (AutoTest.Requested && !AutoTest.PlayerCanBeHurt && __instance != null && !__instance.aiControlled)
             {
                 __result = false;
                 return false;

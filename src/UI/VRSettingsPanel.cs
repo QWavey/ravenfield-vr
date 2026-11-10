@@ -388,14 +388,24 @@ namespace RavenfieldVR.UI
         private void Footer()
         {
             RectTransform row = Row(RowHeight + 10f);
-            MakeButton(row, "Close", 34f, 140f, Close, out _);
-            MakeButton(row, "SteamVR bindings", 186f, 230f, VRInput.OpenBindingUI, out _);
-            MakeButton(row, "Mod keys", 428f, 150f, () =>
+            MakeButton(row, "Close", 34f, 120f, Close, out _);
+            MakeButton(row, "Bindings", 162f, 140f, VRInput.OpenBindingUI, out _);
+            MakeButton(row, "Mod keys", 310f, 140f, () =>
             {
                 Close(); // in its place, not half over it
                 UISystem.Instance?.ModKeys.Open();
             }, out _);
-            MakeButton(row, "Recenter", 590f, 150f, () =>
+            MakeButton(row, "Multiplayer", 754f, 170f, () =>
+            {
+                Close();
+                UISystem.Instance?.MultiplayerPanel.Open();
+            }, out _);
+            MakeButton(row, "Sandbox", 606f, 140f, () =>
+            {
+                Close();
+                UISystem.Instance?.SandboxPanel.Open();
+            }, out _);
+            MakeButton(row, "Recenter", 458f, 140f, () =>
             {
                 _rig.Recenter();
                 UISystem.Instance?.Canvases.RecenterMenus();

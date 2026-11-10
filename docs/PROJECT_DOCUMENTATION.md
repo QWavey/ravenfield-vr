@@ -590,6 +590,69 @@ Tools (`tools/`, Python, local files only):
   sheets into folders by kind (action, pistol grip, machine gun) for review; `inspect_weapon_bundles.py`: prints how the
   guns in workshop `.rfc` bundles are rigged and which transforms each reload animation moves.
 
+### 3.11 Sandbox (`Sandbox/Sandbox.cs`, `Sandbox/SandboxPanel.cs`, `Sandbox/SandboxTool.cs`, `Sandbox/SandboxCheck.cs`; Tasks 374)
+
+Soldiers, vehicles and weapons made on the spot in any match, for testing. Opened from the VR settings' footer ("Sandbox").
+
+- **Core (`Sandbox`).** The game's own ways throughout: `ActorManager.CreateAIActor(team)` + `Actor.SpawnAt(pos, rot, loadout)` for a
+  soldier (a squad of his own when he has none: the AI reads its squad every frame), `VehicleSpawner.SpawnVehicleAt` for a vehicle
+  (`RollPrefab` first: a map's side may have none of a kind), `Actor.EquipNewWeaponEntry` for a weapon into the player's hands. What is
+  spawned fights, dies and is counted as any other soldier; once dead it leaves the sandbox's lists and the match respawns it as its own.
+- **Behaviours.** Normal; Neutral (never fires); Stand still (no step, fights from there); Frozen (`Actor.Freeze`, no step, no shot);
+  Follow me (a friendly put into the player's squad). Two Harmony postfixes on the AI's answers, `AiActorController.WantsToFire` and
+  `.Velocity`, put on at the first soldier that needs them (`Harmony(PluginInfo.Guid + ".sandbox")`); their bodies are one flag test
+  while no such soldier lives. Any soldier of the match can be given a behaviour (`SetBehaviour`), not only the sandbox's.
+- **Weapons:** the side's own (null loadout), random (one usable-by-AI entry per slot), none (an empty `LoadoutSet`: `Actor.SpawnWeapon`
+  takes a null entry), mine (the player's five slots). **Health:** normal, no damage (`isInvulnerable`), one hit (health 1).
+- **Quiet battlefield.** The match's own soldiers are taken off (`KillSilently`) and a prefix on `GameModeBase.SpawnActorListDeferred`
+  empties each spawn wave's list of AI (the list is a fresh one from `SpawnDeadActorsOfTeam`); switched off, the next wave brings them back.
+- **Removing a vehicle:** `ActorManager.DropVehicle` before `Destroy`. A destroyed vehicle left in the game's lists threw every frame
+  (`VehicleParticleManager.UpdateMonitoredVehicles`, the minimap's "Could not blit vehicle"; found by the sandbox check, 2026-11-10).
+- **The tool (`SandboxTool`).** While taken, the free hand (role Free only) points a beam; a ring lies where it ends; a pull of that
+  hand's trigger (0.7 on, 0.35 off, the game's Use consumed) spawns there facing the player. Pointed at a soldier (a `Hitbox` whose
+  parent is an AI actor) the pull gives him the panel's behaviour. With the tool taken, the menu button opens the sandbox panel.
+- **The panels' base (`UI/ModPanel.cs`).** Rows built top down and rebuilt whole when marked changed, never under a held press
+  (the pressed button would be gone at release). `SandboxPanel` and `MultiplayerPanel` derive from it. Note for new files outside
+  `RavenfieldVR.UI`: the game has a global class `ModPanel`; write `UI.ModPanel`.
+- **Check:** `python -I tools/vrshots.py --sandboxcheck --fast` (in the game, about a minute): every behaviour measured (metres moved,
+  shots fired, the player's health), weapons compared by name, health by damage dealt, the quiet field over two spawn waves, a vehicle
+  made and removed, a weapon given, the panel's four pages built, the clearing.
+
+### 3.12 Multiplayer (`Net/*`, `UI/MultiplayerPanel.cs`; Tasks 373)
+
+Opened from the VR settings' footer ("Multiplayer"): host over Steam (public or friends) or on a UDP port, Steam's list of open games,
+join from the list, by a friend's invitation, or by address.
+
+- **Layers.** `NetWire` (writer/reader: varints, floats, 4-byte rotations, strings) -> `INetTransport` (`SteamTransport`:
+  SteamNetworkingMessages on channel 7133, relayed by Valve, reliable kept by Steam; `UdpTransport` with its own `ReliableChannel`;
+  `LoopbackNetwork` for tests) -> `NetSession` (host = player 0, a star: clients talk to the host, who relays; hello/welcome/refuse,
+  pings, players joined and left; message kinds from 16 on are the game's) -> `Multiplayer` (what the panel calls: `HostSteam`,
+  `HostLan`, `JoinLobby`, `JoinAddress`, `Leave`, `RefreshLobbies`) -> `NetGame` (the match).
+- **No fixed game build.** RavenM compared the game's build with a constant and refused every other build, which is what broke it on
+  each update. Here the lobby carries the host's build number and `NetSession.ProtocolVersion`; the list shows a game of another build
+  or protocol as not joinable with the reason, and the session's hello compares the two players' builds with each other.
+- **Lobbies (`SteamLobbies`).** Lobby data: `rfvr=1` (the list's filter), `name`, `map`, `mode`, `players`, `proto`, `build`, `mod`,
+  `match`. Only lobby members may open a line (`SteamTransport.Accept`). `GameLobbyJoinRequested_t` (invitation, "Join game" in
+  Steam) joins at once. The game runs Steam's callbacks itself (`SteamworksWrapper`); the Steamworks.NET it ships has all of this.
+- **The match (`NetGame`).** Each PC owns soldiers: its player; the host also every soldier of the match. An owner sends
+  `ActorInfo` (reliable: id, name, weapon in hand) when new or changed and `ActorStates` (unreliable, 15 Hz, 19 bytes a soldier, 60 to
+  a packet: flags, position, flat velocity, yaw, pitch). Every other PC shows each as a real soldier of the game (a stand-in:
+  `CreateAIActor` + `SpawnAt`) steered by postfixes on the AI's answers (`Velocity`: toward the told position; `FacingDirection`;
+  `WantsToFire`; `Crouch`; `Prone`), put where told when more than 4 m off. A PC that joined starts the match with no soldiers of
+  its own (`countTeam0/1 = 0`); the spawn wave never respawns a stand-in (prefix on `SpawnActorListDeferred`).
+- **Hits: the shooter's PC decides.** A prefix on `Actor.Damage`: a hit on a stand-in by one of my soldiers is sent to its owner
+  (`Hit`, reliable) and not taken here; a hit by a stand-in on one of mine is dropped (its owner's PC sends what it hit there); a
+  received `Hit` is applied with the shooter's stand-in as the source, so the kill is his on every PC.
+- **Match start.** A postfix on `GameManager.StartLevel` on the host sends map (built-in scene name, or a workshop map's file name),
+  mode, night, team, respawn time and length; clients find the map in `ModManager.AllBuiltInMaps/AllCustomMaps` and start it; a
+  missing map is said in the headset. Sent again to whoever joins during the match.
+- **Not carried yet:** vehicles (a soldier in one is shown at his seat's place), scores, flags and the match's end (each PC counts its
+  own), VR hands on the stand-in (the state has head yaw and pitch only), thrown things.
+- **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
+  `run-tests.ps1`); in the game `python -I tools/vrshots.py --netcheck --fast`: the game hosts on UDP port 7141 and a second player made
+  in the same process joins and sends what a real one does (join, stand-in made and following, a hit passed out, a hit taken, death and
+  return, the host's soldiers told, leaving).
+
 ---
 
 **The mods' own files (`tools/bundles/`).** The analyser's report only shows what its sampler saw, so what it missed cannot be read there.
