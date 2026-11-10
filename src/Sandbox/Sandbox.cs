@@ -1046,6 +1046,16 @@ namespace RavenfieldVR.Sandbox
             Patcher.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.AvailableGameModes)), postfix: new HarmonyMethod(typeof(Sandbox), nameof(AddMode)));
             Patcher.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.StartLevel)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(OnStartLevel)));
             Patcher.Patch(AccessTools.Method(typeof(VictoryUi), nameof(VictoryUi.EndGame)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldEnd)));
+            Patcher.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.GetBuiltInGameModeByName)), postfix: new HarmonyMethod(typeof(Sandbox), nameof(FindMode)));
+        }
+
+        /// <summary>The game looks a mode up by its name (a saved game configuration that names ours): ours is found too.</summary>
+        private static void FindMode(string name, ref GameModeInfo __result)
+        {
+            if (__result == null && _modeInfo != null && string.Equals(name, _modeInfo.name, StringComparison.InvariantCultureIgnoreCase))
+            {
+                __result = _modeInfo;
+            }
         }
 
         private static void AddMode(ref IEnumerable<GameModeInfo> __result)
@@ -1078,6 +1088,8 @@ namespace RavenfieldVR.Sandbox
 
         private static void OnStartLevel(GameModeParameters parameters)
         {
+            // (A restart passes none: the game then takes the ones it holds.)
+            parameters = parameters ?? (GameManager.instance != null ? GameManager.instance.gameModeParameters : null);
             if (parameters != null && _modeInfo != null && parameters.gameMode == _modeInfo && parameters.configuration != null)
             {
                 parameters.configuration.SetInt("countTeam0", 0);
