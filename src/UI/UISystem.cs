@@ -339,6 +339,7 @@ namespace RavenfieldVR.UI
             SandboxPanel.BeforeRender();
             MultiplayerPanel.BeforeRender();
             StartChoice.BeforeRender();
+            Net.NetAvatar.BeforeRender();
             _sandboxTool.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;

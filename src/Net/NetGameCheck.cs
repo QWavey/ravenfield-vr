@@ -41,7 +41,7 @@ namespace RavenfieldVR.Net
 
             UdpTransport line = null;
             NetSession ghost = null;
-            int hitsGot = 0, statesGot = 0, othersHits = 0;
+            int hitsGot = 0, statesGot = 0, othersHits = 0, knocksGot = 0;
             float hitDamage = 0f;
             var told = new HashSet<ushort>();
             string failed = null;
@@ -68,6 +68,10 @@ namespace RavenfieldVR.Net
                             hitsGot++;
                             othersHits--;
                         }
+                    }
+                    else if (kind == NetGame.Knock)
+                    {
+                        knocksGot++;
                     }
                     else if (kind == NetGame.ActorStates)
                     {
@@ -246,11 +250,61 @@ namespace RavenfieldVR.Net
             infoSent = false;
             yield return For(1.5f);
 
+            // 2c. He is a VR player: his hands and his gun are where he tells them (30 times a second, for two seconds).
+            {
+                Vector3 up = Vector3.up, toMe = -forward;
+                Vector3 handR = up * 1.35f + toMe * 0.45f + side * 0.15f, handL = up * 1.75f - side * 0.45f; // gun hand out front, the other raised
+                Vector3 muzzleAt = up * 1.4f + toMe * 0.85f + side * 0.15f;
+                Quaternion muzzleLook = Quaternion.LookRotation((toMe + up * 0.35f).normalized, up); // the gun pointed up a little, at the player
+                var vr = new NetWriter(128);
+                int armsBefore = NetAvatar.ArmsSet;
+                float until = Time.unscaledTime + 2f, nextPose = 0f;
+                while (Time.unscaledTime < until)
+                {
+                    if (Time.unscaledTime >= nextPose)
+                    {
+                        nextPose = Time.unscaledTime + 1f / 30f;
+                        vr.Reset();
+                        NetAvatar.Put(vr, NetAvatar.HasGun | NetAvatar.LeftHand | NetAvatar.RightHand, toMe, handL, Quaternion.identity, handR, Quaternion.identity, muzzleAt, muzzleLook);
+                        ghost.Send(NetGame.VrPose, vr, false);
+                    }
+                    Pump();
+                    yield return null;
+                }
+                yield return new WaitForEndOfFrame();
+                // (From beside him, two metres off: from the player's own eyes he stood behind a wall of barriers.)
+                Vector3 chest = body.CenterPosition() + Vector3.up * 0.25f;
+                (Vector3? position, Quaternion? rotation) View(Vector3 from) => (chest + from, Quaternion.LookRotation(-from, Vector3.up));
+                Core.Shots.CaptureFirstClear("multiplayer-vr-player", new[]
+                {
+                    View((toMe + side * 0.7f).normalized * 2.2f + Vector3.up * 0.3f), View((toMe - side * 0.7f).normalized * 2.2f + Vector3.up * 0.3f),
+                    View(side * 2.2f + Vector3.up * 0.3f), View(-side * 2.2f + Vector3.up * 0.3f), View(Vector3.up * 2.5f + toMe * 0.5f)
+                }, 60f);
+                Animator anim = body.animator;
+                Transform boneL = anim != null ? anim.GetBoneTransform(HumanBodyBones.LeftHand) : null, boneR = anim != null ? anim.GetBoneTransform(HumanBodyBones.RightHand) : null;
+                Vector3 at = body.Position();
+                float offL = boneL != null ? Vector3.Distance(boneL.position, at + handL) : -1f, offR = boneR != null ? Vector3.Distance(boneR.position, at + handR) : -1f;
+                Transform mz = body.activeWeapon != null ? body.activeWeapon.CurrentMuzzle() : null;
+                float gunOff = mz != null ? Vector3.Distance(mz.position, at + muzzleAt) : -1f, gunTurn = mz != null ? Quaternion.Angle(mz.rotation, muzzleLook) : -1f;
+                report($"multiplayer VR player's arms and gun: his soldier's arms set {NetAvatar.ArmsSet - armsBefore} time(s){(NetAvatar.ArmsSet == armsBefore ? " NOT SET" : "")}; "
+                       + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, right hand {offR * 100f:0} cm{(offR < 0f || offR > 0.2f ? " NOT THERE" : "")}; "
+                       + $"his gun's muzzle {gunOff * 100f:0} cm off and {gunTurn:0} degrees off his{(gunOff < 0f || gunOff > 0.05f || gunTurn > 5f ? " NOT WHERE HE HOLDS IT" : "")}");
+                yield return For(1f);
+            }
+
             // 3. A hit on him by the player: passed to his PC, not taken here.
             float bodyHealth = body.health;
             body.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, player, player.activeWeapon) { healthDamage = 30f, point = body.CenterPosition(), direction = forward });
             yield return For(0.6f);
             report($"multiplayer hit on the stand-in: {(hitsGot == 1 ? $"passed to his PC ({hitDamage:0} damage)" : $"NOT PASSED ({hitsGot} message(s))")}, {othersHits} more by the host's soldiers, health here {bodyHealth:0} -> {body.health:0}{(body.health < bodyHealth - 0.1f ? " NOT LEFT TO HIS PC" : "")}");
+
+            // 3a. Knocked over by the player (a blow, a thrown body): his PC is told; here he lies, then stands where told.
+            body.KnockOver(forward * 150f);
+            yield return For(0.5f);
+            bool down = body.fallenOver;
+            yield return For(4f);
+            report($"multiplayer stand-in knocked over: {(down ? "down here" : "NOT DOWN")}, his PC {(knocksGot >= 1 ? "told" : "NOT TOLD")}, "
+                   + $"back on his feet after his time: {(!body.fallenOver && !body.dead ? "yes" : "NOT UP")}");
 
             // 3b. No slow motion and no pause in a shared match.
             GameManager.SetTimeScale(0.2f);

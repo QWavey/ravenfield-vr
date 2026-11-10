@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -48,6 +48,9 @@ namespace RavenfieldVR.Net
             /// <summary>Since when his stand-in here lies knocked over while he is told on his feet (-1: it stands).</summary>
             public float FallenSince = -1f;
             public bool HasState, HasInfo, WeaponChanged;
+
+            /// <summary>A VR player's head, hands and gun as his game tells them (null: none told; NetAvatar).</summary>
+            public NetAvatar.Pose Pose;
 
             /// <summary>Another player's name over his soldier (players only: id 0 of each owner).</summary>
             public TextMesh Tag;
@@ -114,7 +117,7 @@ namespace RavenfieldVR.Net
             session.Left += OnLeft;
             // (What every player tells of his soldiers goes on unreliably through the host too: relayed reliably, one lost packet
             // held every later hit and match start back on that line. Review of 2026-11-10.)
-            session.ReliableKind = k => k != ActorStates;
+            session.ReliableKind = k => k != ActorStates && k != VrPose;
             Patch();
             // A game hosted from inside a running match: who joins is told that match (it was only told at a level's start).
             if (session.IsHost && InMatch && GameManager.instance.lastMapEntry != null)
@@ -213,6 +216,8 @@ namespace RavenfieldVR.Net
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteProne)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.Damage), new[] { typeof(DamageInfo) }), prefix: new HarmonyMethod(typeof(NetGame), nameof(OnDamage)));
             _harmony.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(NetGame), nameof(HoldRemotes)));
+            _harmony.Patch(AccessTools.Method(typeof(ActorIk), "OnAnimatorIK"), prefix: new HarmonyMethod(typeof(NetAvatar), nameof(NetAvatar.BeforeIk)));
+            _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.KnockOver)), postfix: new HarmonyMethod(typeof(NetGame), nameof(OnKnockOver)));
             _harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.StartLevel)), postfix: new HarmonyMethod(typeof(NetGame), nameof(OnStartLevel)));
         }
 
@@ -263,6 +268,23 @@ namespace RavenfieldVR.Net
             {
                 __result = r.Is(Proned);
             }
+        }
+
+        /// <summary>
+        /// A stand-in knocked over here (a blow with the stock, a thrown body, a blast: the user, 2026-11-10, "all functions should
+        /// work the same same as with npcs like when I hit the other player with my stock"): its owner is told and his soldier
+        /// goes down there too, with the same push.
+        /// </summary>
+        private static void OnKnockOver(Actor __instance, Vector3 force)
+        {
+            if (!_anyRemote || _applying || _session == null || !ByActor.TryGetValue(__instance, out Remote r))
+            {
+                return;
+            }
+            Out.Reset();
+            Out.UShort(r.Id);
+            Out.Vector(Vector3.ClampMagnitude(force, 5000f));
+            _session.SendTo(r.Owner, Knock, Out, true);
         }
 
         /// <summary>The shooter's PC decides (see the class's summary). False: the game's own damage is not run here.</summary>
@@ -427,6 +449,29 @@ namespace RavenfieldVR.Net
                     case Hit:
                         TakeHit(sender, ref r);
                         break;
+                    case VrPose:
+                        NetAvatar.Read(Get(sender, 0), ref r);
+                        break;
+                    case Knock:
+                    {
+                        ushort id = r.UShort();
+                        Vector3 force = r.Vector();
+                        Actor mine = id == 0 ? LocalPlayer.actor : OwnedById.TryGetValue(id, out Actor own) ? own : null;
+                        bool sane = !float.IsNaN(force.x) && !float.IsNaN(force.y) && !float.IsNaN(force.z) && force.sqrMagnitude <= 5000f * 5000f + 1f;
+                        if (mine != null && !mine.dead && !mine.fallenOver && sane)
+                        {
+                            _applying = true;
+                            try
+                            {
+                                mine.KnockOver(force);
+                            }
+                            finally
+                            {
+                                _applying = false;
+                            }
+                        }
+                        break;
+                    }
                     case LobbyState:
                         if (sender == 0 && _session != null && !_session.IsHost)
                         {
@@ -565,6 +610,7 @@ namespace RavenfieldVR.Net
                     TellMine(session);
                 }
             }
+            NetAvatar.Tell(session);
             KeepRemotes();
         }
 
@@ -797,6 +843,12 @@ namespace RavenfieldVR.Net
                                  | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0);
                         velocity = a.Velocity();
                         facing = c.FacingDirection();
+                        // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
+                        // the gun hand points it (he looked where the head looked, and shot "sideways" out of a level gun).
+                        if (a == player && VRManager.Active && a.activeWeapon != null && Rig.VRRig.Instance != null && Rig.VRRig.Instance.Dominant.Tracked)
+                        {
+                            facing = Rig.VRRig.Instance.Dominant.TrackedPointer.Forward;
+                        }
                     }
                     PutState(Out, Owned[a].Id, flags, a.Position(), velocity, facing);
                 }
@@ -924,6 +976,10 @@ namespace RavenfieldVR.Net
                         a = ActorManager.instance.CreateAIActor(r.Team);
                         r.Actor = a;
                         ByActor[a] = r;
+                        if (r.Id == 0)
+                        {
+                            NetAvatar.Register(a, r);
+                        }
                         _anyRemote = true;
                         if (!string.IsNullOrEmpty(r.Name))
                         {
@@ -1100,6 +1156,7 @@ namespace RavenfieldVR.Net
                 UnityEngine.Object.Destroy(r.Tag.gameObject);
                 r.Tag = null;
             }
+            NetAvatar.Forget(r);
             Remotes.Remove(r.Owner << 16 | r.Id);
             Actor a = r.Actor;
             if (!ReferenceEquals(a, null))
@@ -1143,6 +1200,7 @@ namespace RavenfieldVR.Net
                     r.Tag = null;
                 }
             }
+            NetAvatar.Clear();
             Remotes.Clear();
             ByActor.Clear();
             Owned.Clear();
