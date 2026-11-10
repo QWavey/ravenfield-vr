@@ -462,6 +462,8 @@ namespace RavenfieldVR.Weapons
             }
             _rackedBack = false;
             _returning = !Ammo.SlideLocked;
+            // Let go short of the back with the slide still caught: it runs back onto its catch (it jumped there in one frame; scout, 2026-11-10).
+            _toCatch = Ammo.SlideLocked && Fraction < 0.97f;
         }
 
         private void ReleaseSlide()

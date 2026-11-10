@@ -41,6 +41,8 @@ namespace RavenfieldVR.Weapons
         private bool _atBackStop;
         /// <summary>The slide was caught back last frame, and a frame has been seen (no click for a gun drawn already caught back).</summary>
         private bool _wasLocked, _lockSeen;
+        /// <summary>The caught slide was let go short of the back: it runs back onto its catch instead of jumping there.</summary>
+        private bool _toCatch;
         /// <summary>The frame of the last shot (OnShot).</summary>
         private int _shotFrame = -10;
         private Vector3 _rackStartGun;
@@ -985,7 +987,15 @@ namespace RavenfieldVR.Weapons
             }
             if (Ammo != null && Ammo.SlideLocked && !_racking)
             {
-                _held.SlideOffset = Travel;
+                if (_toCatch && _held.SlideOffset < Travel)
+                {
+                    _held.SlideOffset = Mathf.MoveTowards(_held.SlideOffset, Travel, Mathf.Max(Travel, 0.02f) * dt / 0.05f); // (its whole travel in a twentieth of a second)
+                }
+                else
+                {
+                    _toCatch = false;
+                    _held.SlideOffset = Travel;
+                }
                 _returning = false;
             }
             else if (Ammo != null && Ammo.BoltOpen && !_racking)
