@@ -148,6 +148,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static void Launch(Projectile p, Vector3 velocity, Vector3 dir, Vector3 spin)
         {
+            Net.NetGame.OnThrown(p, velocity); // (in a multiplayer game the others see it fly)
             p.velocity = velocity;
             p.transform.rotation = Quaternion.LookRotation(dir);
             if (p is RigidbodyProjectile)

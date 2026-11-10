@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -300,6 +300,75 @@ namespace RavenfieldVR.Net
             _session.SendTo(r.Owner, Knock, Out, true);
         }
 
+        /// <summary>The check's: thrown things of other players shown here.</summary>
+        internal static int ThrowsShown;
+
+        /// <summary>
+        /// A thing thrown by this game's own player with his hand (a grenade, an ammo bag, a medic kit): the others are told which
+        /// of his slots it came from, from where and how fast, and see it fly from his soldier's hand. What it hits is decided here,
+        /// on the thrower's PC, as for every shot.
+        /// </summary>
+        internal static void OnThrown(Projectile p, Vector3 velocity)
+        {
+            NetSession session = _session;
+            Actor player = LocalPlayer.actor;
+            if (session == null || session.State != NetState.Connected || session.PlayerCount < 2 || p == null || player == null || p.sourceWeapon == null
+                || player.weapons == null || _applying)
+            {
+                return;
+            }
+            int slot = Array.IndexOf(player.weapons, p.sourceWeapon);
+            if (slot < 0)
+            {
+                return;
+            }
+            Out.Reset();
+            Out.Byte((byte)slot);
+            Out.Vector(p.transform.position);
+            Out.SmallVector(Vector3.ClampMagnitude(velocity, 60f));
+            session.Send(Thrown, Out, true);
+        }
+
+        private static void ShowThrow(byte sender, ref NetReader r)
+        {
+            int slot = r.Byte();
+            Vector3 from = r.Vector(), velocity = r.SmallVector();
+            if (!Remotes.TryGetValue(sender << 16, out Remote thrower) || thrower.Actor == null || thrower.Actor.dead || !InMatch
+                || float.IsNaN(velocity.x) || float.IsNaN(from.x) || velocity.sqrMagnitude > 61f * 61f)
+            {
+                return;
+            }
+            Actor a = thrower.Actor;
+            // (From near his soldier, wherever the told place is: a made-up message does not drop grenades across the map.)
+            if ((from - a.CenterPosition()).sqrMagnitude > 3f * 3f)
+            {
+                from = a.CenterPosition() + Vector3.up * 0.4f;
+            }
+            Weapon weapon = a.weapons != null && slot < a.weapons.Length ? a.weapons[slot] : null;
+            if (weapon == null || weapon.configuration == null || weapon.configuration.projectilePrefab == null)
+            {
+                return;
+            }
+            Vector3 dir = velocity.sqrMagnitude > 1e-6f ? velocity.normalized : a.transform.forward;
+            Projectile p = weapon.SpawnProjectile(dir, from, false);
+            if (p == null)
+            {
+                return;
+            }
+            p.killCredit = a; // (his: what it does to this PC's soldiers is dropped here and decided on his PC)
+            p.velocity = velocity;
+            p.transform.rotation = Quaternion.LookRotation(dir);
+            if (p is RigidbodyProjectile)
+            {
+                Rigidbody body = p.GetComponent<Rigidbody>();
+                if (body != null && !body.isKinematic)
+                {
+                    body.velocity = velocity;
+                }
+            }
+            ThrowsShown++;
+        }
+
         private static bool _switching;
 
         /// <summary>
@@ -473,6 +542,9 @@ namespace RavenfieldVR.Net
                     }
                     case Hit:
                         TakeHit(sender, ref r);
+                        break;
+                    case Thrown:
+                        ShowThrow(sender, ref r);
                         break;
                     case BackToMenu:
                         // The host left the match for the menu: so does everyone ("just follow what he does").

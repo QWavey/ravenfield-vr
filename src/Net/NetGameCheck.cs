@@ -127,6 +127,10 @@ namespace RavenfieldVR.Net
             string weapon = player.activeWeapon != null && player.activeWeapon.weaponEntry != null ? player.activeWeapon.weaponEntry.name
                 : WeaponManager.instance.allWeapons.First(e => e != null && e.prefab != null && !e.hidden && e.slot == WeaponManager.WeaponSlot.Primary).name;
             string sidearm = WeaponManager.instance.allWeapons.First(e => e != null && e.prefab != null && !e.hidden && e.slot == WeaponManager.WeaponSlot.Secondary).name;
+            WeaponManager.WeaponEntry grenadeEntry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && !e.hidden
+                && e.prefab.GetComponent<ThrowableWeapon>() != null && e.prefab.GetComponent<Weapon>().configuration.projectilePrefab != null
+                && e.prefab.GetComponent<Weapon>().configuration.projectilePrefab.GetComponent<GrenadeProjectile>() != null);
+            string grenade = grenadeEntry != null ? grenadeEntry.name : "";
             int ghostSlot = 0;
             bool ghostAlive = true;
             Vector3 ghostAt = start, ghostVelocity = Vector3.zero;
@@ -151,7 +155,7 @@ namespace RavenfieldVR.Net
                     w.Byte(5);
                     w.String(weapon);
                     w.String(sidearm);
-                    w.String("");
+                    w.String(grenade);
                     w.String("");
                     w.String("");
                     ghost.Send(NetGame.ActorInfo, w, true);
@@ -362,6 +366,21 @@ namespace RavenfieldVR.Net
                        + (posesGot > 0 ? $": hands {((poseFlags & NetAvatar.LeftHand) != 0 ? "left " : "")}{((poseFlags & NetAvatar.RightHand) != 0 ? "right " : "")}tracked, "
                                          + $"{((poseFlags & NetAvatar.HasGun) != 0 ? GunTold() : "no gun in hand")}" : ""));
                 yield return For(1f);
+            }
+
+            // 2d. He throws a grenade with his hand: it flies from his soldier here.
+            if (grenade.Length > 0)
+            {
+                int shownBefore = NetGame.ThrowsShown, flyingBefore = UnityEngine.Object.FindObjectsOfType<GrenadeProjectile>().Length;
+                w.Reset();
+                w.Byte(2);
+                w.Vector(body.CenterPosition() + Vector3.up * 0.5f);
+                w.SmallVector(side * 4f + Vector3.up * 4f); // (off to the side, away from everyone)
+                ghost.Send(NetGame.Thrown, w, true);
+                yield return For(0.4f);
+                int flying = UnityEngine.Object.FindObjectsOfType<GrenadeProjectile>().Length;
+                report($"multiplayer thrown grenade ({grenade}): {(NetGame.ThrowsShown > shownBefore && flying > flyingBefore ? "flies from his soldier here" : $"NOT SHOWN ({NetGame.ThrowsShown - shownBefore} shown, {flying - flyingBefore} more in the air)")}");
+                yield return For(4f); // (it goes off: nobody of this PC's is hurt by it, its damage is his PC's to tell)
             }
 
             // 3. A hit on him by the player: passed to his PC, not taken here.
