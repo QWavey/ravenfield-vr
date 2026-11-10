@@ -804,7 +804,7 @@ namespace RavenfieldVR.Sandbox
                     {
                         Armed = ToolKind.Soldier;
                     }
-                    UI.UISystem.Instance?.Notice?.Show("Sandbox: the tool is in your free hand. Point, pull its trigger. Menu button: the sandbox panel.", 7f);
+                    UI.UISystem.Instance?.Notice?.Show("Sandbox: the tool is in your empty hand. Point, pull its trigger. Menu button: the sandbox panel.", 7f);
                 }
             }
             if (PlayerInvulnerable)
@@ -1077,14 +1077,17 @@ namespace RavenfieldVR.Sandbox
             {
                 Fly = false; // (a new life starts on its feet; review, 2026-11-10)
             }
-            // (Not in a pause or under the game's menu: the stick moved the body through them.)
-            bool can = Fly && !GameManager.IsPaused() && !Input.VRGameInput.GunInputBlocked && fps != null && fps.controller != null && player != null && !player.dead && !player.IsSeated() && !player.fallenOver && Util.GameContext.InGame;
+            // Held in the air (the game's walking and gravity off) as long as he flies on his feet; MOVED only outside a pause, the
+            // game's menu and a panel under the laser (the stick moved the body through them). Held also then: with the hold
+            // tied to the same test, pointing at the sandbox panel in mid-air gave gravity back and he fell (own review).
+            bool can = Fly && fps != null && fps.controller != null && player != null && !player.dead && !player.IsSeated() && !player.fallenOver && Util.GameContext.InGame;
+            bool move = can && !GameManager.IsPaused() && !Input.VRGameInput.GunInputBlocked;
             if (_flyHolds != can && fps != null && fps.controller != null)
             {
                 fps.controller.enabled = !can; // (the game's walking and its gravity: off while flying, back at once after)
                 _flyHolds = can;
             }
-            if (!can || head == null)
+            if (!move || head == null)
             {
                 return;
             }
