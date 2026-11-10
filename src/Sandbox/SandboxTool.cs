@@ -47,6 +47,121 @@ namespace RavenfieldVR.Sandbox
         private bool _gunShown;
         private float _kick;
 
+        // Its model: one of the game's own pistols (the user, 2026-11-10: "the tool looks bad, could you use a default gun for the
+        // toolgun from ravenfield? (secondary)"): a copy of a vanilla secondary's third-person model, looked for once in a match;
+        // the blocks stay as the fallback, the lamp at its mouth stays as the light of what the next pull makes.
+        private readonly List<GameObject> _blocks = new List<GameObject>();
+        private GameObject _model;
+        private bool _modelTried;
+
+        private void TryModel()
+        {
+            if (WeaponManager.instance == null || WeaponManager.instance.allWeapons == null)
+            {
+                return; // (asked again at the next showing)
+            }
+            _modelTried = true;
+            try
+            {
+                foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
+                {
+                    if (e == null || e.prefab == null || e.hidden || e.slot != WeaponManager.WeaponSlot.Secondary || e.sourceMod == null || !e.sourceMod.isOfficialContent)
+                    {
+                        continue;
+                    }
+                    Weapon w = e.prefab.GetComponent<Weapon>();
+                    if (w == null || w.thirdPersonTransform == null)
+                    {
+                        continue;
+                    }
+                    Transform source = w.thirdPersonTransform, root = e.prefab.transform;
+                    GameObject copy = UnityEngine.Object.Instantiate(source.gameObject);
+                    copy.name = "RavenfieldVR Spawn Gun Model";
+                    foreach (MonoBehaviour script in copy.GetComponentsInChildren<MonoBehaviour>(true))
+                    {
+                        UnityEngine.Object.Destroy(script);
+                    }
+                    foreach (Collider collider in copy.GetComponentsInChildren<Collider>(true))
+                    {
+                        UnityEngine.Object.Destroy(collider);
+                    }
+                    foreach (AudioSource audio in copy.GetComponentsInChildren<AudioSource>(true))
+                    {
+                        UnityEngine.Object.Destroy(audio);
+                    }
+                    foreach (Light light in copy.GetComponentsInChildren<Light>(true))
+                    {
+                        UnityEngine.Object.Destroy(light);
+                    }
+                    foreach (ParticleSystem particles in copy.GetComponentsInChildren<ParticleSystem>(true))
+                    {
+                        particles.gameObject.SetActive(false);
+                    }
+                    copy.SetActive(true);
+                    // As it sits in the weapon's own frame, whose forward is the barrel's (the game hangs its muzzles on this model).
+                    Transform t = copy.transform;
+                    t.SetParent(_gun.transform, false);
+                    t.localRotation = Quaternion.Inverse(root.rotation) * source.rotation;
+                    Vector3 ls = source.lossyScale, rs = root.lossyScale;
+                    t.localScale = new Vector3(ls.x / Mathf.Max(1e-4f, Mathf.Abs(rs.x)), ls.y / Mathf.Max(1e-4f, Mathf.Abs(rs.y)), ls.z / Mathf.Max(1e-4f, Mathf.Abs(rs.z)));
+                    t.localPosition = Vector3.zero;
+                    // Its box in the tool's frame, from its meshes (a renderer's own bounds are not kept while the tool is hidden).
+                    bool any = false;
+                    var box = new Bounds();
+                    Matrix4x4 toTool = _gun.transform.worldToLocalMatrix;
+                    foreach (MeshFilter filter in copy.GetComponentsInChildren<MeshFilter>(false))
+                    {
+                        if (filter.sharedMesh == null)
+                        {
+                            continue;
+                        }
+                        Bounds mesh = filter.sharedMesh.bounds;
+                        Matrix4x4 m = toTool * filter.transform.localToWorldMatrix;
+                        for (int corner = 0; corner < 8; corner++)
+                        {
+                            Vector3 point = m.MultiplyPoint3x4(mesh.center + Vector3.Scale(mesh.extents, new Vector3((corner & 1) == 0 ? -1f : 1f, (corner & 2) == 0 ? -1f : 1f, (corner & 4) == 0 ? -1f : 1f)));
+                            if (!any)
+                            {
+                                box = new Bounds(point, Vector3.zero);
+                                any = true;
+                            }
+                            else
+                            {
+                                box.Encapsulate(point);
+                            }
+                        }
+                    }
+                    Vector3 size = box.size;
+                    // A pistol lying along the pointing line: 8 to 45 cm long, and no longer any other way.
+                    bool fits = any && size.z > 0.08f && size.z < 0.45f && size.z >= Mathf.Max(size.x, size.y) * 0.9f && !float.IsNaN(size.x + size.y + size.z);
+                    if (!fits)
+                    {
+                        UnityEngine.Object.Destroy(copy);
+                        continue;
+                    }
+                    // In the hand: its middle 5 cm ahead of the hand, its top 4.5 cm over the pointing line's start.
+                    t.localPosition = new Vector3(-box.center.x, 0.045f - box.max.y, 0.05f - box.center.z);
+                    _muzzle.localPosition = new Vector3(0f, 0.03f, 0.05f + size.z * 0.5f + 0.012f);
+                    _muzzle.localScale = Vector3.one * 0.018f;
+                    foreach (GameObject block in _blocks)
+                    {
+                        if (block != null && block.transform != _muzzle)
+                        {
+                            block.SetActive(false);
+                        }
+                    }
+                    _model = copy;
+                    Log.Info($"Sandbox tool: its model is the game's {e.name} ({size.z * 100f:0} cm long, {size.y * 100f:0} cm high).");
+                    return;
+                }
+                Log.Info("Sandbox tool: none of the game's pistols has a model that fits the hand; the tool stays the one made from blocks.");
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("sandbox-tool-model", "Sandbox tool: a game pistol could not be taken as its model (the blocks stay): " + e);
+            }
+        }
+
         /// <summary>The check's: whether the spawn gun is drawn in the hand now, and where its mouth is.</summary>
         internal bool GunShown => _gunShown;
         internal Vector3 Muzzle => _muzzle.position;
@@ -88,6 +203,7 @@ namespace RavenfieldVR.Sandbox
         private Transform Part(PrimitiveType kind, Vector3 at, Vector3 size, Vector3 euler, Material material)
         {
             GameObject part = GameObject.CreatePrimitive(kind);
+            _blocks.Add(part);
             UnityEngine.Object.Destroy(part.GetComponent<Collider>());
             part.transform.SetParent(_gun.transform, false);
             part.transform.localPosition = at;
@@ -269,6 +385,10 @@ namespace RavenfieldVR.Sandbox
                 _gun.SetActive(_gunShown);
             }
             VRHand hand = _rig.Hand(_side);
+            if (_gunShown && !_modelTried)
+            {
+                TryModel();
+            }
             if (_gunShown)
             {
                 // In the hand's pointing frame, tipped back a little by each pull.
