@@ -106,7 +106,7 @@ namespace RavenfieldVR.Sandbox
             Choice("Health", HealthNames, (int)s.Health, i => s.Health = (SoldierHealth)i);
             Choice("How many", Counts.Select(c => c.ToString()).ToArray(), Array.IndexOf(Counts, s.Count), i => s.Count = Counts[i]);
             Gap(6f);
-            ActionRow("Pointed at a soldier, the tool gives him this behaviour instead.", "Take the tool", () => Take(Sandbox.ToolKind.Soldier),
+            ActionRow("On a soldier, the tool sets his behaviour.", "Take the tool", () => Take(Sandbox.ToolKind.Soldier),
                       "Here", () => SpawnInFront(false), 190f);
         }
 
@@ -211,8 +211,8 @@ namespace RavenfieldVR.Sandbox
         private void Field()
         {
             Section("The field");
-            ActionRow("Quiet battlefield: none of the match's own soldiers.", Sandbox.Quiet ? "On" : "Off", () => Say(Sandbox.SetQuiet(!Sandbox.Quiet)));
-            ActionRow("You take no damage.", Sandbox.PlayerInvulnerable ? "On" : "Off", () => Sandbox.SetPlayerInvulnerable(!Sandbox.PlayerInvulnerable));
+            ActionRow($"Quiet battlefield (none of the match's own soldiers): {(Sandbox.Quiet ? "on" : "off")}.", Sandbox.Quiet ? "Turn off" : "Turn on", () => Say(Sandbox.SetQuiet(!Sandbox.Quiet)));
+            ActionRow($"You take no damage: {(Sandbox.PlayerInvulnerable ? "on" : "off")}.", Sandbox.PlayerInvulnerable ? "Turn off" : "Turn on", () => Sandbox.SetPlayerInvulnerable(!Sandbox.PlayerInvulnerable));
             ActionRow("Health and ammunition.", "Fill up", () => Say(Sandbox.Refill() ? "Filled up." : "Not on your feet."));
             ActionRow("Every enemy soldier.", "Kill", () => Say($"{Sandbox.KillEnemies()} enemy soldier(s) killed."));
             Section("What the sandbox made");
@@ -220,7 +220,7 @@ namespace RavenfieldVR.Sandbox
                       "All", () => Say($"{Sandbox.RemoveAll()} removed."), 150f);
             ActionRow($"This map's set: {Sandbox.PlacedCount} placed{(Sandbox.HasSavedSet ? ", one saved" : "")}.", "Save", () => Say(Sandbox.SaveSet()),
                       "Load", () => Say(Sandbox.LoadSet()), 150f);
-            ActionRow("The spawn tool.", Sandbox.Armed == Sandbox.ToolKind.None ? "In the bag" : "Put away", () =>
+            ActionRow(Sandbox.Armed == Sandbox.ToolKind.None ? "The spawn tool is put away (take it on the Soldiers or Vehicles page)." : "The spawn tool is in your hand.", Sandbox.Armed == Sandbox.ToolKind.None ? "Away" : "Put away", () =>
             {
                 Sandbox.Armed = Sandbox.ToolKind.None;
             });

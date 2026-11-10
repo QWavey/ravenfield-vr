@@ -183,7 +183,13 @@ namespace RavenfieldVR.Net
             Actor body = remote != null ? remote.Actor : null;
             string carried = body != null && body.activeWeapon != null && body.activeWeapon.weaponEntry != null ? body.activeWeapon.weaponEntry.name : "nothing";
             report($"multiplayer stand-in: {(body != null && !body.dead ? $"on the field, team {body.team} (told {enemyTeam}), carrying {carried} (told {weapon})" : "NOT ON THE FIELD")}"
-                   + (body != null && body.team != enemyTeam ? " NOT HIS SIDE" : "") + (body != null && !body.dead && carried != weapon ? " NOT HIS WEAPON" : ""));
+                   + (body != null && body.team != enemyTeam ? " NOT HIS SIDE" : "") + (body != null && !body.dead && carried != weapon ? " NOT HIS WEAPON" : "")
+                   + (remote != null && remote.Tag != null && remote.Tag.gameObject.activeSelf && remote.Tag.text == "Ghost" ? ", his name over him" : " HIS NAME NOT SHOWN"));
+            if (body != null)
+            {
+                yield return new WaitForEndOfFrame();
+                Core.Shots.Capture("multiplayer-other-player");
+            }
             if (body == null)
             {
                 ghost.Dispose();
@@ -193,13 +199,15 @@ namespace RavenfieldVR.Net
             }
             ghostVelocity = side * 2f;
             float worst = 0f;
+            bool knocked = false;
             int askedBefore = NetGame.VelocityAsked;
             float fastest = 0f;
             float walkStart = Time.unscaledTime;
             yield return For(4f, () =>
             {
                 ghostAt = start + side * (2f * (Time.unscaledTime - walkStart));
-                if (Time.unscaledTime - walkStart > 1f)
+                knocked |= body.fallenOver;
+                if (Time.unscaledTime - walkStart > 1f && !knocked)
                 {
                     Vector3 off = body.Position() - ghostAt;
                     off.y = 0f;
@@ -208,10 +216,11 @@ namespace RavenfieldVR.Net
                 }
             });
             ghostVelocity = Vector3.zero;
-            yield return For(1f);
+            // (Knocked over on the way by the match's own soldiers, a blast or a blow: he lies 2.5 s, then stands where told.)
+            yield return For(knocked ? 5f : 1f);
             Vector3 rest = body.Position() - ghostAt;
             rest.y = 0f;
-            report($"multiplayer stand-in walking 8 m as told: at most {worst:0.00} m behind{(worst > 1.5f ? " NOT FOLLOWING" : "")}, {rest.magnitude:0.00} m off at rest{(rest.magnitude > 0.5f ? " NOT THERE" : "")}"
+            report($"multiplayer stand-in walking 8 m as told: {(knocked ? "knocked over on the way by the match (lies, then stands where told), before that " : "")}at most {worst:0.00} m behind{(worst > 1.5f ? " NOT FOLLOWING" : "")}, {rest.magnitude:0.00} m off at rest{(rest.magnitude > 0.5f ? " NOT THERE" : "")}"
                    + $" (his speed asked {NetGame.VelocityAsked - askedBefore} time(s), answered up to {fastest:0.0} m/s, last {NetGame.LastVelocity.magnitude:0.0}; moving {body.moving}, fallen {body.fallenOver}, frozen {body.isFrozen}, auto-move {body.autoMoveActor})");
 
             // 3. A hit on him by the player: passed to his PC, not taken here.

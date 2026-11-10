@@ -646,7 +646,14 @@ join from the list, by a friend's invitation, or by address.
 - **Match start.** A postfix on `GameManager.StartLevel` on the host sends map (built-in scene name, or a workshop map's file name),
   mode, night, team, respawn time and length; clients find the map in `ModManager.AllBuiltInMaps/AllCustomMaps` and start it; a
   missing map is said in the headset. Sent again to whoever joins during the match.
-- **Not carried yet:** vehicles (a soldier in one is shown at his seat's place), scores, flags and the match's end (each PC counts its
+- **On foot for now.** In a session every PC takes the map's vehicles off and stops their spawners (`NetGame.NoVehicles`: at the match's
+  start, when a session begins in a running match, and every 5 s); the fixed guns stay. **A PC that loaded late** has state for soldiers
+  it has no info for (a new scene forgets the old one's) and asks the owner (`NeedInfo`), who tells all of his again. **Shots** are told
+  by the controller's answer or the gun's own last shot (`lastFiredTimestamp` within 0.2 s: the VR hand fires the gun itself). **A
+  stand-in knocked over** locally stands up where its owner has it after 2.5 s (`InstantGetUpAtPosition`). **A player's name** is a
+  `TextMesh` over his stand-in (id 0 of each owner), scaled with the distance. Note: `ActorManager.instance` is the same object in
+  every match; a new match is told by its new player actor.
+- **Not carried yet:** vehicles (none in a shared match, see above), a soldier knocked over or held (ragdolls are each PC's own), scores, flags and the match's end (each PC counts its
   own), VR hands on the stand-in (the state has head yaw and pitch only), thrown things.
 - **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
   `run-tests.ps1`); in the game `python -I tools/vrshots.py --netcheck --fast`: the game hosts on UDP port 7141 and a second player made

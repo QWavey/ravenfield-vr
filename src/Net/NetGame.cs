@@ -39,7 +39,13 @@ namespace RavenfieldVR.Net
             public Vector3 Position, Velocity;
             public float Yaw, Pitch;
             public float Heard = -1f;
+
+            /// <summary>Since when his stand-in here lies knocked over while he is told on his feet (-1: it stands).</summary>
+            public float FallenSince = -1f;
             public bool HasState, HasInfo, WeaponChanged;
+
+            /// <summary>Another player's name over his soldier (players only: id 0 of each owner).</summary>
+            public TextMesh Tag;
 
             public bool Is(int flag) => (Flags & flag) != 0;
             public int Team => Is(TeamOne) ? 1 : 0;
@@ -748,7 +754,14 @@ namespace RavenfieldVR.Net
                         _applying = false;
                     }
                 }
-                else if (alive)
+                if (r.Id == 0)
+                {
+                    KeepTag(r, a, alive);
+                }
+                if (!alive || a.dead)
+                {
+                    continue;
+                }
                 {
                     if (r.WeaponChanged)
                     {
@@ -759,6 +772,23 @@ namespace RavenfieldVR.Net
                             a.EquipNewWeaponEntry(entry, 0, true);
                         }
                     }
+                    // Knocked over here only (a blast, a blow, a hand: none of that is told yet, his owner has him on his feet):
+                    // he lies for two and a half seconds, then stands where his owner has him. Without it he lay behind, 1.8 m
+                    // off and getting up in the game's own time, while his owner's soldier walked on (net check, 2026-11-10).
+                    if (a.fallenOver)
+                    {
+                        if (r.FallenSince < 0f)
+                        {
+                            r.FallenSince = now;
+                        }
+                        else if (now - r.FallenSince > 2.5f)
+                        {
+                            r.FallenSince = -1f;
+                            a.InstantGetUpAtPosition(r.Position);
+                        }
+                        continue;
+                    }
+                    r.FallenSince = -1f;
                     // Far from where he was told to be (a jump, a vehicle, a fall): put there. Near: he walks it himself.
                     Vector3 off = r.Position - a.Position();
                     float flat = new Vector2(off.x, off.z).magnitude;
@@ -773,8 +803,69 @@ namespace RavenfieldVR.Net
             }
         }
 
+        /// <summary>
+        /// The other player's name over his soldier's head, turned to the eyes, the size held as seen (so it reads at 5 m and at
+        /// 80): among thirty soldiers of the same side he could not be told apart. Hidden while he is dead.
+        /// </summary>
+        private static void KeepTag(Remote r, Actor a, bool alive)
+        {
+            bool show = alive && !a.dead && !string.IsNullOrEmpty(r.Name);
+            if (r.Tag == null)
+            {
+                if (!show)
+                {
+                    return;
+                }
+                var go = new GameObject("RavenfieldVR Player Name");
+                r.Tag = go.AddComponent<TextMesh>();
+                Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                r.Tag.font = font;
+                go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                r.Tag.anchor = TextAnchor.LowerCenter;
+                r.Tag.alignment = TextAlignment.Center;
+                r.Tag.fontSize = 64;
+                r.Tag.characterSize = 0.1f;
+                r.Tag.color = new Color(1f, 1f, 1f, 0.9f);
+            }
+            GameObject tag = r.Tag.gameObject;
+            if (tag.activeSelf != show)
+            {
+                tag.SetActive(show);
+            }
+            if (!show)
+            {
+                return;
+            }
+            if (r.Tag.text.Length != r.Name.Length || r.Tag.text != r.Name)
+            {
+                r.Tag.text = r.Name;
+            }
+            Camera eyes = Camera.main;
+            Vector3 at = a.CenterPosition() + Vector3.up * 1.15f;
+            Transform t = tag.transform;
+            t.position = at;
+            if (eyes != null)
+            {
+                Vector3 away = at - eyes.transform.position;
+                float far = away.magnitude;
+                if (far > 0.01f)
+                {
+                    t.rotation = Quaternion.LookRotation(away, Vector3.up);
+                }
+                // (About 1.1 degrees tall at any distance, never smaller than at 4 m. The letters are 0.64 units tall unscaled:
+                // character size 0.1 at font size 64. At 0.0045 a unit of distance the name was 2.6 cm tall at 9 m and not to be
+                // found in the check's picture, 2026-11-10.)
+                t.localScale = Vector3.one * (Mathf.Max(far, 4f) * 0.03f);
+            }
+        }
+
         private static void Remove(Remote r)
         {
+            if (r.Tag != null)
+            {
+                UnityEngine.Object.Destroy(r.Tag.gameObject);
+                r.Tag = null;
+            }
             Remotes.Remove(r.Owner << 16 | r.Id);
             Actor a = r.Actor;
             if (!ReferenceEquals(a, null))
@@ -808,6 +899,14 @@ namespace RavenfieldVR.Net
                 foreach (Remote r in Remotes.Values.ToArray())
                 {
                     Remove(r);
+                }
+            }
+            foreach (Remote r in Remotes.Values)
+            {
+                if (r.Tag != null)
+                {
+                    UnityEngine.Object.Destroy(r.Tag.gameObject);
+                    r.Tag = null;
                 }
             }
             Remotes.Clear();
