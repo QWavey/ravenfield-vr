@@ -153,6 +153,27 @@ namespace RavenfieldVR.Weapons
             return -1f;
         }
 
+        /// <summary>
+        /// For a pull's slice of a clip that cannot be read: where to cut it so it does not run on into the slide going home. The
+        /// slice starts 0.06 s before its action's moment (<paramref name="sourceTime"/>, in the reload animation's seconds:
+        /// WeaponAnalyzer.BuildSoundMap); the animation's slide-home moment, when it falls inside the slice, is the cut (20 ms
+        /// before it); with none known, a slice over 0.3 s is cut after its first 55%. -1: left whole. Pure: the offline tests check it.
+        /// </summary>
+        internal static float GuessCut(float start, float length, float sourceTime, float slideHomeTime, out bool byAnimation)
+        {
+            byAnimation = false;
+            if (slideHomeTime >= 0f && slideHomeTime > sourceTime)
+            {
+                float home = start + 0.06f + (slideHomeTime - sourceTime) - 0.02f;
+                if (home > start + 0.05f && home < start + length - 0.03f)
+                {
+                    byAnimation = true;
+                    return home;
+                }
+            }
+            return length > 0.3f ? start + length * 0.55f : -1f;
+        }
+
         private static float Find(AudioClip clip)
         {
             var data = new float[clip.samples * Mathf.Max(1, clip.channels)];
@@ -572,20 +593,8 @@ namespace RavenfieldVR.Weapons
                     // with no such moment known, a slice longer than a single stroke (0.3 s) is taken to run on into the next
                     // one and its first 55% is the pull, as for a whole clip (Stroke).
                     WeaponRigData d = _rig.Data;
-                    float home = -1f;
-                    if (d.TSlideForward >= 0f && d.TSlideForward > cue.SourceTime)
-                    {
-                        // (The slice starts 0.06 s before its action's moment in the clip: WeaponAnalyzer.BuildSoundMap.)
-                        home = cue.Start + 0.06f + (d.TSlideForward - cue.SourceTime) - 0.02f;
-                    }
-                    if (home > cue.Start + 0.05f && home < cue.Start + cue.Length - 0.03f)
-                    {
-                        split = home;
-                    }
-                    else if (cue.Length > 0.3f)
-                    {
-                        split = cue.Start + cue.Length * 0.55f;
-                    }
+                    split = RackSplit.GuessCut(cue.Start, cue.Length, cue.SourceTime, d.TSlideForward, out bool byAnimation);
+                    float home = byAnimation ? split : -1f;
                     if (split > 0f)
                     {
                         Log.InfoOnce($"rackguess-s:{d.Key}:{cue.Clip.name}", $"{d.Key}: its pull's sound (a slice of '{cue.Clip.name}', {cue.Start:0.00}+{cue.Length:0.00} s) cannot be read: "

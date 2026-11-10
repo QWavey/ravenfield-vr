@@ -196,6 +196,31 @@ namespace RavenfieldVR.Tests
             Check(rattle < 0f, $"Rack split: one stroke and a faint rattle: not cut ({rattle:0.000})");
             float close = At(Clip(0.4f, new[] { 0.02f, 0.1f, 0.9f }, new[] { 0.11f, 0.2f, 0.9f }));
             Check(close < 0f, $"Rack split: two strokes with no gap between: not cut ({close:0.000})");
+            // A slice of a clip that cannot be read (a mod's compressed reload sound: the Glock 17's pull, 2026-11-10): cut by the
+            // reload animation's slide-home moment when it falls inside the slice, else after 55% of a long one, else left whole.
+            System.Reflection.MethodInfo guess = mod.GetType("RavenfieldVR.Weapons.RackSplit")?.GetMethod("GuessCut",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(guess != null, "Rack split: RackSplit.GuessCut found");
+            if (guess != null)
+            {
+                float Cut(float start, float length, float source, float home, out bool byAnimation)
+                {
+                    object[] a = { start, length, source, home, false };
+                    float r = (float)guess.Invoke(null, a);
+                    byAnimation = (bool)a[4];
+                    return r;
+                }
+                float inside = Cut(0.50f, 0.56f, 0.56f, 0.80f, out bool anim);
+                Check(anim && Math.Abs(inside - 0.78f) < 0.001f, $"Rack guess: the slide goes home 0.24 s after the pull, inside the slice: cut 20 ms before it ({inside:0.000} s)");
+                float after = Cut(0.50f, 0.20f, 0.56f, 1.40f, out anim);
+                Check(!anim && after < 0f, $"Rack guess: the slide goes home after the slice's end, a short slice: left whole ({after:0.000})");
+                float unknown = Cut(0.50f, 0.50f, 0.56f, -1f, out anim);
+                Check(!anim && Math.Abs(unknown - 0.775f) < 0.001f, $"Rack guess: no slide-home moment known, a long slice: its first 55% ({unknown:0.000} s)");
+                float shortOne = Cut(0.50f, 0.22f, 0.56f, -1f, out anim);
+                Check(shortOne < 0f, $"Rack guess: no moment known, a short slice: left whole ({shortOne:0.000})");
+                float before = Cut(0.50f, 0.50f, 0.90f, 0.40f, out anim);
+                Check(!anim && before > 0.5f, $"Rack guess: the slide's home moment lies before the pull (another part of the reload): not cut by it ({before:0.000} s, the long slice's 55%)");
+            }
         }
 
         /// <summary>
