@@ -306,6 +306,11 @@ namespace RavenfieldVR.Sandbox
                     }
                     a.SpawnAt(spot, Quaternion.LookRotation(facing, Vector3.up), Loadout(spec.Weapons));
                     Made.Add(a);
+                    if (a.dead || !a.gameObject.activeInHierarchy)
+                    {
+                        // (Told to the player too: "made" was said for a soldier the map or its mode took away at once.)
+                        problem = "the game made him, but he is " + (a.dead ? "dead" : "switched off") + " at once (the map or its mode took him)";
+                    }
                     // (Said in the log for every soldier: "spawning enemys on a modded map ... doesnt spawn them", user 2026-11-10,
                     // and nothing in the log told what the pull had done.)
                     Log.Info($"Sandbox: a soldier made at {spot:F1} (asked {at:F1}), team {a.team} (the player's {player.team}), {spec.Behaviour}, {spec.Weapons}: "

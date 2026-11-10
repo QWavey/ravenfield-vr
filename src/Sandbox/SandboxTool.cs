@@ -266,7 +266,7 @@ namespace RavenfieldVR.Sandbox
                 return v != null ? $"{Sandbox.Vehicle} made." : "No vehicle: " + problem + ".";
             }
             List<Actor> made = Sandbox.SpawnSoldiers(Sandbox.Soldier, at, facing, out problem);
-            return made.Count > 0 ? $"{made.Count} soldier(s) made." : "No soldier: " + problem + ".";
+            return made.Count > 0 ? $"{made.Count} soldier(s) made." + (problem != null ? " But: " + problem + "." : "") : "No soldier: " + problem + ".";
         }
 
         private static bool Own(Collider c, Actor player)
