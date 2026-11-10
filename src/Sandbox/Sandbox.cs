@@ -294,7 +294,7 @@ namespace RavenfieldVR.Sandbox
             int count = Mathf.Clamp(spec.Count, 1, 12);
             for (int i = 0; i < count; i++)
             {
-                Actor a;
+                Actor a = null;
                 try
                 {
                     a = TakeFromPool(team) ?? ActorManager.instance.CreateAIActor(team);
@@ -320,6 +320,13 @@ namespace RavenfieldVR.Sandbox
                 {
                     problem = "the game could not make a soldier: " + e.Message;
                     Log.WarnOnce("sandbox-soldier", "Sandbox: a soldier could not be made: " + e);
+                    if (a != null && !Made.Contains(a))
+                    {
+                        // (Taken from the pool or newly made, then the spawn threw: still the sandbox's, so its sweep and
+                        // "remove all" find him; he was left on the field belonging to nothing. Review, 2026-11-10.)
+                        Made.Add(a);
+                        Spawned.Add(a);
+                    }
                     break;
                 }
                 var ai = a.controller as AiActorController;
