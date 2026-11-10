@@ -469,6 +469,23 @@ namespace RavenfieldVR.Core
                     Application.Quit();
                     yield break;
                 }
+                if (!VRManager.Active && NetCheckOnly)
+                {
+                    // Played flat: the joining side only (a flat player comes along by a Steam invitation; here by address).
+                    _context = "net check (flat)";
+                    yield return Net.NetGameCheckClient.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[multiplayer, flat] " + l);
+                        }
+                        Log.Info("[multiplayer check, flat] " + l);
+                        Results.Add(l);
+                    });
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (VRManager.Active && NetCheckOnly)
                 {
                     _context = "net check";

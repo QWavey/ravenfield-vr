@@ -571,6 +571,7 @@ def main():
     ap.add_argument('--sandboxcheck', action='store_true', help='only the sandbox check: soldiers by behaviour, quiet field, vehicle, weapon, panel (two minutes)')
     ap.add_argument('--netcheck', action='store_true', help='only the multiplayer check: a second player in the same game over UDP (a minute)')
     ap.add_argument('--lobbycheck', action='store_true', help="only the main menu's part of multiplayer: the start choice, a joined player following the host (a minute)")
+    ap.add_argument('--netcheck-flat', action='store_true', help='the multiplayer check of the joining side with no headset (a flat player following a host)')
     ap.add_argument('--walkcheck', action='store_true', help="with --grabcheck: only the soldier check's walks with a soldier held")
     ap.add_argument('--list', action='store_true', help='weapon ids and names from the last weapons run')
     ap.add_argument('--restore', action='store_true',
@@ -608,7 +609,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck),
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck), ('netcheck-flat', a.netcheck_flat),
                              ('showcase', a.showcase is not None)) if on]
     if not modes:
         ap.print_help()
@@ -662,6 +663,8 @@ def main():
         elif mode == 'showcase':
             scenes = ','.join(s for s in (a.showcase or []) if s)
             args, timeout = base + ['-rfvr-showcase'] + ([f'-rfvr-showcase-scenes={scenes}'] if scenes else [])                 + ([f'-rfvr-showcase-guns={a.guns}'] if a.guns else []) + (['-rfvr-showcase-night'] if a.night else []), a.timeout or 30
+        elif mode == 'netcheck-flat':
+            args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-netcheck'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 6
         elif mode == 'lobbycheck':
             args, timeout = ['-vr', '-nointro', '-rfvr-lobbycheck'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 5
         elif mode == 'netcheck':
@@ -673,7 +676,7 @@ def main():
         else:
             args, timeout = ['-novr', '-nointro', '-rfvr-handshots'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 10
         since = time.time()
-        if mode == 'hands':
+        if mode in ('hands', 'netcheck-flat'):
             try:
                 ran = run_game(a.game, args, timeout, vr=False)
             finally:

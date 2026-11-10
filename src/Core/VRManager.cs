@@ -355,6 +355,14 @@ namespace RavenfieldVR.Core
             StartCoroutine(Start());
         }
 
+        private static readonly Action FlatTick = FlatMultiplayerTick; // (made once: not a new delegate a frame)
+
+        private static void FlatMultiplayerTick()
+        {
+            Net.NetGame.Init();
+            Net.Multiplayer.Update();
+        }
+
         private void Update()
         {
             if (!_active)
@@ -363,6 +371,10 @@ namespace RavenfieldVR.Core
                 {
                     RetryVR();
                 }
+                // Played flat (no headset): a friend's invitation in Steam is still taken and the game he hosts joined and
+                // followed, so a flat player can come along with a VR one. (The panels are VR's: a flat player joins by
+                // invitation or "Join game" in Steam, and leaves by leaving the game.)
+                Log.Guard("Multiplayer (flat)", FlatTick);
                 return;
             }
             ModTime.Start();
