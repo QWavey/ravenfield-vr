@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -1247,6 +1247,12 @@ namespace RavenfieldVR.Net
                     case VehicleGone:
                     case VehicleSeat:
                     case VehicleOwner:
+                    case Pings:
+                        if (sender == 0 && _session != null && !_session.IsHost)
+                        {
+                            TakePings(ref r);
+                        }
+                        break;
                     case VehicleHit:
                     case VehicleKilled:
                         NetVehicles.OnMessage(kind, sender, ref r);
@@ -1482,6 +1488,30 @@ namespace RavenfieldVR.Net
             {
                 GameManager.UnpauseGame();
                 GameManager.SetTimeScale(1f);
+            }
+            if (session.IsHost && session.PlayerCount > 2 && Time.unscaledTime >= _nextPingTell)
+            {
+                // Each player's ping as the host measures it, for the others: a joined PC measures only its own to the host, and its
+                // panel showed "..." for every other player.
+                _nextPingTell = Time.unscaledTime + 2f;
+                Out.Reset();
+                int count = 0;
+                foreach (NetPlayer p in session.Players)
+                {
+                    count += p.Id != session.LocalId && p.Ping >= 0 ? 1 : 0;
+                }
+                Out.Byte((byte)Mathf.Min(count, 255));
+                int written = 0;
+                foreach (NetPlayer p in session.Players)
+                {
+                    if (p.Id != session.LocalId && p.Ping >= 0 && written < 255)
+                    {
+                        Out.Byte(p.Id);
+                        Out.UShort((ushort)Mathf.Clamp((int)(p.Ping * 1000.0), 0, 65535));
+                        written++;
+                    }
+                }
+                session.Send(Pings, Out, true);
             }
             if (session.IsHost && Time.unscaledTime >= _nextLobbyTell)
             {
@@ -1774,6 +1804,26 @@ namespace RavenfieldVR.Net
                 finally
                 {
                     _takingEnd = false;
+                }
+            }
+        }
+
+        private static float _nextPingTell;
+
+        /// <summary>The host's pings to the others: another joined player's ping here is his to the host and this PC's own to the host.</summary>
+        private static void TakePings(ref NetReader r)
+        {
+            int n = r.Byte();
+            NetPlayer host = _session.Player(0);
+            double mine = host != null ? host.Ping : -1;
+            for (int i = 0; i < n; i++)
+            {
+                byte id = r.Byte();
+                double theirs = r.UShort() / 1000.0;
+                NetPlayer p = _session.Player(id);
+                if (p != null && id != 0 && id != _session.LocalId && mine >= 0)
+                {
+                    p.Ping = theirs + mine;
                 }
             }
         }
