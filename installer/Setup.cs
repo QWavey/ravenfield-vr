@@ -358,7 +358,9 @@ namespace RavenfieldVR.Setup
         /// folders of their own and are not about this PC's game: with the user playing, thirteen of them stopped at "Ravenfield
         /// ... is running" (2026-11-11).
         /// </summary>
+#pragma warning disable 0649 // (set by the offline tests alone, from outside the setup's own build)
         internal static Func<bool> RunningCheck;
+#pragma warning restore 0649
 
         /// <summary>Installed mod version, or null.</summary>
         public static string InstalledVersion(string game)
