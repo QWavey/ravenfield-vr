@@ -1201,7 +1201,7 @@ namespace RavenfieldVR.Net
             foreach (Actor a in Scratch)
             {
                 Own own = OwnOf(a, a == player);
-                string weapon = !a.dead && a.activeWeapon != null && a.activeWeapon.weaponEntry != null ? a.activeWeapon.weaponEntry.name : "";
+                string weapon = !a.dead && a.activeWeapon != null ? WeaponKey(a.activeWeapon.weaponEntry) : "";
                 // What he carries in each slot and which is in his hands: one number for "changed" (no string built each time).
                 int slot = 255, carriedHash = 17;
                 if (!a.dead && a.weapons != null)
@@ -1209,7 +1209,7 @@ namespace RavenfieldVR.Net
                     for (int i = 0; i < a.weapons.Length && i < 5; i++)
                     {
                         Weapon w = a.weapons[i];
-                        carriedHash = carriedHash * 31 + (w != null && w.weaponEntry != null ? w.weaponEntry.name.GetHashCode() : 0);
+                        carriedHash = carriedHash * 31 + (w != null && w.weaponEntry != null && w.weaponEntry.name != null ? w.weaponEntry.name.GetHashCode() : 0);
                         if (w != null && w == a.activeWeapon)
                         {
                             slot = i;
@@ -1231,7 +1231,7 @@ namespace RavenfieldVR.Net
                     for (int i = 0; i < 5; i++)
                     {
                         Weapon w = !a.dead && a.weapons != null && i < a.weapons.Length ? a.weapons[i] : null;
-                        Out.String(w != null && w.weaponEntry != null ? w.weaponEntry.name : "", 128);
+                        Out.String(w != null ? WeaponKey(w.weaponEntry) : "", 128);
                     }
                     session.Send(ActorInfo, Out, true);
                 }
@@ -1354,9 +1354,73 @@ namespace RavenfieldVR.Net
             }
         }
 
-        private static WeaponManager.WeaponEntry EntryNamed(string name) =>
-            string.IsNullOrEmpty(name) || WeaponManager.instance == null ? null
-            : WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == name);
+        /// <summary>
+        /// A weapon as it is told to the other PCs: its name, and for a workshop mod's weapon the mod's number after a separator. Told by
+        /// its name alone, two mods' weapons of one name ("AK-47", "M4A1", "Glock 17": common among workshop packs) were the same to the
+        /// other PC, which took the first it had, often the other mod's gun (2026-11-11, modded multiplayer hunt).
+        /// </summary>
+        internal static string WeaponKey(WeaponManager.WeaponEntry e)
+        {
+            if (e == null || e.name == null)
+            {
+                return "";
+            }
+            ModInformation mod = e.sourceMod;
+            return mod != null && mod.IsWorkshopItem() ? e.name + KeySeparator + mod.workshopItemId.m_PublishedFileId : e.name;
+        }
+
+        private const char KeySeparator = '\u001F';
+
+        /// <summary>
+        /// The weapon told by <see cref="WeaponKey"/>: of that mod when this PC has it, else the first of that name (another mod's gun of the
+        /// same name is closer than none), else null. Asked a few times a second at most; the answer is kept by the told text.
+        /// </summary>
+        private static WeaponManager.WeaponEntry EntryNamed(string key)
+        {
+            if (string.IsNullOrEmpty(key) || WeaponManager.instance == null)
+            {
+                return null;
+            }
+            if (EntryByKey.TryGetValue(key, out WeaponManager.WeaponEntry known) && known != null && known.prefab != null)
+            {
+                return known;
+            }
+            int cut = key.IndexOf(KeySeparator);
+            string name = cut >= 0 ? key.Substring(0, cut) : key;
+            ulong mod = cut >= 0 && ulong.TryParse(key.Substring(cut + 1), out ulong id) ? id : 0ul;
+            WeaponManager.WeaponEntry first = null, exact = null;
+            foreach (WeaponManager.WeaponEntry e in WeaponManager.instance.allWeapons)
+            {
+                if (e == null || e.prefab == null || e.name != name)
+                {
+                    continue;
+                }
+                first = first ?? e;
+                if (mod != 0ul && e.sourceMod != null && e.sourceMod.IsWorkshopItem() && e.sourceMod.workshopItemId.m_PublishedFileId == mod)
+                {
+                    exact = e;
+                    break;
+                }
+            }
+            WeaponManager.WeaponEntry found = exact ?? first;
+            if (found == null)
+            {
+                Log.InfoOnce("net-noweapon:" + key, $"Multiplayer: the weapon '{name}'{(mod != 0ul ? $" (workshop {mod})" : "")} is not on this PC: its holder is shown with another.");
+            }
+            else if (exact == null && mod != 0ul)
+            {
+                Log.InfoOnce("net-otherweapon:" + key, $"Multiplayer: the weapon '{name}' of workshop {mod} is not on this PC: shown with another mod's '{name}'.");
+            }
+            if (EntryByKey.Count > 512)
+            {
+                EntryByKey.Clear();
+            }
+            EntryByKey[key] = found;
+            return found;
+        }
+
+        /// <summary>The weapons found by their told text (cleared with the scene: its weapons are the scene's).</summary>
+        private static readonly Dictionary<string, WeaponManager.WeaponEntry> EntryByKey = new Dictionary<string, WeaponManager.WeaponEntry>();
 
         private static WeaponManager.LoadoutSet LoadoutOf(Remote r)
         {
@@ -1380,7 +1444,7 @@ namespace RavenfieldVR.Net
             {
                 return string.IsNullOrEmpty(r.Weapon) && r.HasInfo ? new WeaponManager.LoadoutSet() : null;
             }
-            WeaponManager.WeaponEntry entry = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == r.Weapon);
+            WeaponManager.WeaponEntry entry = EntryNamed(r.Weapon);
             if (entry == null)
             {
                 return null; // (a weapon of a mod this PC does not have: the game's own pick stands in)
@@ -1731,6 +1795,7 @@ namespace RavenfieldVR.Net
         internal static void OnSceneChanged()
         {
             _loading = false;
+            EntryByKey.Clear(); // (the weapons found by name are the last scene's)
             _ended = false;
             _matchTold = 0;
             HeldFlags.Clear(); // (they went with the old scene)
