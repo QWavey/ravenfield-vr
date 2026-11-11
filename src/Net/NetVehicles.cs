@@ -259,7 +259,7 @@ namespace RavenfieldVR.Net
                 for (int i = 0; i < list.Count; i++)
                 {
                     Vehicle v = list[i];
-                    if (v == null || v.isTurret || ByVehicle.ContainsKey(v))
+                    if (v == null || ByVehicle.ContainsKey(v) || !v.gameObject.activeInHierarchy)
                     {
                         continue;
                     }
@@ -296,6 +296,7 @@ namespace RavenfieldVR.Net
             Out.Bool(s.V.dead);
             Out.Vector(s.V.transform.position);
             Out.Rotation(s.V.transform.rotation);
+            Out.Bool(s.V.isTurret);
             session.SendTo(to, NetGame.VehicleInfo, Out, true);
         }
 
@@ -400,12 +401,16 @@ namespace RavenfieldVR.Net
             }
         }
 
+        private static int _stateTick;
+
         private static void TellStates(NetSession session, byte me)
         {
             Scratch.Clear();
+            _stateTick++;
             foreach (Shared s in ById.Values)
             {
-                if (s.Owner == me && s.V != null)
+                // (A turret nobody sits in stands still: told three times a second, not fifteen; a map has a score of them.)
+                if (s.Owner == me && s.V != null && (!s.V.isTurret || s.V.AnySeatsTaken() || _stateTick % 5 == 0))
                 {
                     Scratch.Add(s);
                 }
@@ -680,9 +685,31 @@ namespace RavenfieldVR.Net
             bool dead = r.Bool();
             Vector3 pos = r.Vector();
             Quaternion rot = r.Rotation();
+            bool turret = r.Remaining > 0 && r.Bool();
             if (sender != 0 || session.IsHost || Gone.Contains(id) || ById.ContainsKey(id) || dead || !Finite(pos) || NetGame.LoadingNow || !NetGame.InMatchNow)
             {
                 return;
+            }
+            if (turret)
+            {
+                // A turret stands on the map on this PC too (the map's own, or its spawner's for the side that holds the point): that
+                // one is taken as the host's, not a second one made beside it. Made only when none has come after three tellings.
+                Vehicle local = LocalTurret(key, pos);
+                if (local != null)
+                {
+                    var adopted = new Shared { Id = id, V = local, Key = key, Owner = owner, WasKinematic = local.rigidbody != null && local.rigidbody.isKinematic, Pos = local.transform.position, Rot = local.transform.rotation, Heard = Time.unscaledTime, HasState = true };
+                    ById[id] = adopted;
+                    ByVehicle[local] = adopted;
+                    TurretTries.Remove(id);
+                    Log.InfoOnce("net-turret-adopt:" + key, $"Multiplayer: the host's turret '{key}' is this PC's own at the same place (number {id}).");
+                    return;
+                }
+                TurretTries.TryGetValue(id, out int tries);
+                TurretTries[id] = tries + 1;
+                if (tries < 3)
+                {
+                    return;
+                }
             }
             GameObject prefab = PrefabOf(key);
             if (prefab == null)
@@ -714,6 +741,10 @@ namespace RavenfieldVR.Net
                 return;
             }
             v.spawner = null;
+            if (turret)
+            {
+                v.isTurret = true;
+            }
             var s = new Shared { Id = id, V = v, Key = key, Owner = owner, Copy = true, WasKinematic = v.rigidbody != null && v.rigidbody.isKinematic, Pos = pos, Rot = rot, Heard = Time.unscaledTime, HasState = true };
             if (v.rigidbody != null)
             {
@@ -723,6 +754,34 @@ namespace RavenfieldVR.Net
             ByVehicle[v] = s;
             CopiesMade++;
             Log.InfoOnce("net-vehicle-copy:" + key, $"Multiplayer: the host's vehicle '{key}' shown here (number {id}).");
+        }
+
+        private static readonly Dictionary<ushort, int> TurretTries = new Dictionary<ushort, int>();
+
+        /// <summary>This PC's own turret of that name standing within 2.5 m of the told place, not yet taken as one of the host's.</summary>
+        private static Vehicle LocalTurret(string key, Vector3 pos)
+        {
+            Vehicle best = null;
+            float bestDistance = 2.5f * 2.5f;
+            List<Vehicle> list = ActorManager.instance != null ? ActorManager.instance.vehicles : null;
+            if (list == null)
+            {
+                return null;
+            }
+            foreach (Vehicle v in list)
+            {
+                if (v == null || !v.isTurret || v.dead || ByVehicle.ContainsKey(v) || !v.gameObject.activeInHierarchy || !string.Equals(KeyOf(v), key, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                float d = (v.transform.position - pos).sqrMagnitude;
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = v;
+                }
+            }
+            return best;
         }
 
         private static void TakeHit(NetSession session, byte sender, ref NetReader r)
@@ -880,6 +939,7 @@ namespace RavenfieldVR.Net
             ByVehicle.Clear();
             Gone.Clear();
             SeatTold.Clear();
+            TurretTries.Clear();
             Missing.Clear();
             Catalog.Clear();
             _catalogAt = -100f;
