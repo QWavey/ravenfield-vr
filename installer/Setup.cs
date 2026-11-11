@@ -852,7 +852,55 @@ namespace RavenfieldVR.Setup
                 }
             }
             DeleteDir(Path.Combine(game, @"BepInEx\plugins\RavenfieldVR"));
-            // The record is gone with that folder: the copies put back go now, then their folders if nothing else is left in them.
+            DeleteDir(Path.Combine(game, @"ravenfield_Data\UnitySubsystems\XRSDKOpenVR"));
+            string subsystems = Path.Combine(game, @"ravenfield_Data\UnitySubsystems");
+            if (Directory.Exists(subsystems) && !Directory.EnumerateFileSystemEntries(subsystems).Any())
+            {
+                Directory.Delete(subsystems);
+            }
+            // The launcher's log goes; its choices (VR or flat, the preset) are settings.
+            string launcherLog = Path.Combine(game, @"BepInEx\RavenfieldVR-launcher.log");
+            if (File.Exists(launcherLog))
+            {
+                File.Delete(launcherLog);
+            }
+            if (!keepSettings)
+            {
+                foreach (string cfg in new[] { "com.qwavey.ravenfieldvr.cfg", "RavenfieldVR.weapons.json", "RavenfieldVR.launcher.ini" })
+                {
+                    string p = Path.Combine(game, @"BepInEx\config", cfg);
+                    if (File.Exists(p))
+                    {
+                        File.Delete(p);
+                    }
+                }
+                DeleteDir(Path.Combine(game, @"BepInEx\config\RavenfieldVR")); // (the sandbox's poses)
+            }
+            if (installedBepInEx)
+            {
+                if (keepBepInEx)
+                {
+                    _log(otherPlugins ? "Other BepInEx plugins are installed, so BepInEx stays." : "BepInEx stays so your Ravenfield VR settings are kept.");
+                }
+                else
+                {
+                    DeleteDir(Path.Combine(game, "BepInEx"));
+                    foreach (string f in LoaderFiles)
+                    {
+                        string p = Path.Combine(game, f);
+                        // (Not one just put back as the game's original: deleted, the other tool lost its loader.)
+                        if (!restoredLoader.Contains(f) && File.Exists(p))
+                        {
+                            File.Delete(p);
+                        }
+                    }
+                    _log("Removed BepInEx (this setup had installed it).");
+                }
+            }
+            // The copies put back go now, LAST, then their folders if nothing else is left in them. They went right after the
+            // record's folder before: an uninstall stopped after that (a file of BepInEx in use) put the record back, and the
+            // second try found no copy to put back, took the restored winhttp.dll of another tool for BepInEx's own and deleted
+            // it, the original gone from the game and from the backups (scout, 2026-11-11).
             foreach (string copy in restoredFrom)
             {
                 try
@@ -898,51 +946,6 @@ namespace RavenfieldVR.Setup
             catch (IOException)
             {
                 // (in use: left)
-            }
-            DeleteDir(Path.Combine(game, @"ravenfield_Data\UnitySubsystems\XRSDKOpenVR"));
-            string subsystems = Path.Combine(game, @"ravenfield_Data\UnitySubsystems");
-            if (Directory.Exists(subsystems) && !Directory.EnumerateFileSystemEntries(subsystems).Any())
-            {
-                Directory.Delete(subsystems);
-            }
-            // The launcher's log goes; its choices (VR or flat, the preset) are settings.
-            string launcherLog = Path.Combine(game, @"BepInEx\RavenfieldVR-launcher.log");
-            if (File.Exists(launcherLog))
-            {
-                File.Delete(launcherLog);
-            }
-            if (!keepSettings)
-            {
-                foreach (string cfg in new[] { "com.qwavey.ravenfieldvr.cfg", "RavenfieldVR.weapons.json", "RavenfieldVR.launcher.ini" })
-                {
-                    string p = Path.Combine(game, @"BepInEx\config", cfg);
-                    if (File.Exists(p))
-                    {
-                        File.Delete(p);
-                    }
-                }
-                DeleteDir(Path.Combine(game, @"BepInEx\config\RavenfieldVR")); // (the sandbox's poses)
-            }
-            if (installedBepInEx)
-            {
-                if (keepBepInEx)
-                {
-                    _log(otherPlugins ? "Other BepInEx plugins are installed, so BepInEx stays." : "BepInEx stays so your Ravenfield VR settings are kept.");
-                }
-                else
-                {
-                    DeleteDir(Path.Combine(game, "BepInEx"));
-                    foreach (string f in LoaderFiles)
-                    {
-                        string p = Path.Combine(game, f);
-                        // (Not one just put back as the game's original: deleted, the other tool lost its loader.)
-                        if (!restoredLoader.Contains(f) && File.Exists(p))
-                        {
-                            File.Delete(p);
-                        }
-                    }
-                    _log("Removed BepInEx (this setup had installed it).");
-                }
             }
             _log($"Uninstalled: {removed} files removed, {restored} original file(s) restored.");
         }

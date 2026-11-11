@@ -38,6 +38,7 @@ namespace RavenfieldVR.Tests
             LauncherTests();
             SetupUninstallTests();
             SetupKeepAndRestoreTests();
+            SetupRetriedUninstallLoaderTests();
             SetupStoppedUninstallTests();
             SetupInstallTests();
             SetupForeignLoaderTests();
@@ -2732,6 +2733,76 @@ namespace RavenfieldVR.Tests
             catch (Exception e)
             {
                 Check(false, "Setup stopped uninstall: threw " + e);
+            }
+            finally
+            {
+                Installer.SteamDirOverride = null;
+                try
+                {
+                    System.IO.Directory.Delete(root, true);
+                }
+                catch (System.IO.IOException)
+                {
+                }
+            }
+        }
+
+        /// <summary>
+        /// An uninstall stopped part way and tried again (2026-11-11): the install had replaced another tool's winhttp.dll. The first
+        /// try puts the original back and stops at a file of BepInEx that is in use; the second must leave that original where it is.
+        /// With the backup copies deleted before the stop, the second try had none to put back, took the file for BepInEx's own and
+        /// deleted it: gone from the game and from the backups.
+        /// </summary>
+        private static void SetupRetriedUninstallLoaderTests()
+        {
+            string root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rfvr-setup-retry-" + Guid.NewGuid().ToString("N"));
+            string game = System.IO.Path.Combine(root, "game"), steam = System.IO.Path.Combine(root, "steam");
+            try
+            {
+                void Write(string rel, string text)
+                {
+                    string p = System.IO.Path.Combine(game, rel);
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(p));
+                    System.IO.File.WriteAllText(p, text);
+                }
+                Write("ravenfield.exe", "");
+                Write("winhttp.dll", "bepinex's loader");
+                Write(@"BepInEx\plugins\RavenfieldVR\RavenfieldVR.dll", "mod");
+                Write(@"BepInEx\core\BepInEx.dll", "loader");
+                Write(@"BepInEx\LogOutput.log", "a log the record does not know of");
+                Write(@"RavenfieldVR-backup\20261111-000000\winhttp.dll", "the other tool's original");
+                Write(Installer.ManifestRelative, "version=test\ninstalledBepInEx=True\nbackup=RavenfieldVR-backup\\20261111-000000\n"
+                                                  + "added=BepInEx\\core\\BepInEx.dll\nadded=BepInEx\\plugins\\RavenfieldVR\\RavenfieldVR.dll\nreplaced=winhttp.dll\n");
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(steam, "userdata"));
+                Installer.SteamDirOverride = steam;
+                var log = new List<string>();
+                bool threw = false;
+                // A file of BepInEx held open, as another tool would hold it: one the record does not list, so the stop comes
+                // late, when BepInEx's folder is taken away (after the originals were put back).
+                using (new System.IO.FileStream(System.IO.Path.Combine(game, @"BepInEx\LogOutput.log"), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None))
+                {
+                    try
+                    {
+                        new Installer(log.Add).Uninstall(game, keepSettings: false);
+                    }
+                    catch (Exception)
+                    {
+                        threw = true;
+                    }
+                }
+                string loader = System.IO.Path.Combine(game, "winhttp.dll");
+                Check(threw && System.IO.File.Exists(System.IO.Path.Combine(game, Installer.ManifestRelative)),
+                      "Setup retried uninstall: the first try stops at the file in use and keeps its record (" + string.Join(" | ", log) + ")");
+                log.Clear();
+                new Installer(log.Add).Uninstall(game, keepSettings: false);
+                Check(System.IO.File.Exists(loader) && System.IO.File.ReadAllText(loader) == "the other tool's original",
+                      "Setup retried uninstall: the other tool's winhttp.dll is there after the second try ("
+                      + (System.IO.File.Exists(loader) ? System.IO.File.ReadAllText(loader) : "GONE") + "; " + string.Join(" | ", log) + ")");
+                Check(!System.IO.Directory.Exists(System.IO.Path.Combine(game, "BepInEx")), "Setup retried uninstall: BepInEx is gone after the second try");
+            }
+            catch (Exception e)
+            {
+                Check(false, "Setup retried uninstall: threw " + e);
             }
             finally
             {
