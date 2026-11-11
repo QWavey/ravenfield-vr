@@ -40,6 +40,8 @@ namespace RavenfieldVR.Net
             public float Heard = -10f, Health = -1f, OwnerSince;
             /// <summary>Where it was shown against where the newest word puts it, faded out (see Follow).</summary>
             public Vector3 Offset;
+            /// <summary>Its told acceleration, averaged (a jolt is the told one against it: VehicleFeel.OnJolt).</summary>
+            public Vector3 AccelAverage;
             public Quaternion TurnOffset = Quaternion.identity;
             public bool ToldDead;
             public int Team = -1;
@@ -674,6 +676,14 @@ namespace RavenfieldVR.Net
                         if (!ById.TryGetValue(id, out Shared s) || s.Owner != sender || s.V == null || !Finite(pos) || !Finite(vel) || !Finite(ang))
                         {
                             continue;
+                        }
+                        // (A passenger feels its crashes and landings from the told speeds: its own rigidbody stands still here.)
+                        float told = Time.unscaledTime - s.Heard;
+                        if (s.HasState && told > 0.03f && told < 0.3f && Finite(vel))
+                        {
+                            Vector3 accel = (vel - s.Vel) / told;
+                            Rig.VehicleFeel.OnJolt(s.V, (accel - s.AccelAverage).magnitude);
+                            s.AccelAverage = Vector3.Lerp(s.AccelAverage, accel, 1f - Mathf.Exp(-told / 0.3f));
                         }
                         Transform shown = s.V.transform;
                         Vector3 offset = shown.position - pos;

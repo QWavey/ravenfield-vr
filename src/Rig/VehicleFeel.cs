@@ -57,6 +57,23 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>
+        /// A jolt read elsewhere (a vehicle another PC drives: from two of its told speeds, 15 a second): felt as a bump when the player
+        /// sits in it. <paramref name="jolt"/>: m/s a second beyond the ride's own.
+        /// </summary>
+        internal static void OnJolt(Vehicle v, float jolt)
+        {
+            VRRig rig = VRRig.Instance;
+            Actor actor = GameContext.PlayerActor;
+            if (rig == null || actor == null || actor.dead || actor.seat == null || actor.seat.vehicle != v || jolt <= 25f || Time.unscaledTime < _nextBump)
+            {
+                return;
+            }
+            float strength = Mathf.Clamp01((jolt - 25f) / 150f);
+            _nextBump = Time.unscaledTime + 0.12f;
+            Rumble(rig, 0.06f + 0.1f * strength, 60f + 60f * strength, 0.25f + 0.6f * strength);
+        }
+
         /// <summary>A hit on the vehicle the player sits in: by the damage, a little for small arms, hard for a rocket.</summary>
         internal static void OnHit(Vehicle v, float damage)
         {
