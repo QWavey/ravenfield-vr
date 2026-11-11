@@ -94,6 +94,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<PouchLocation> Pouch;
         public static ConfigEntry<float> MagPropLifetime;
         public static ConfigEntry<float> MagazineReach;
+        public static ConfigEntry<float> GripLetGoBelow;
         public static ConfigEntry<int> MaxMagProps;
         public static ConfigEntry<float> RecoilStrength;
         public static ConfigEntry<float> TwoHandRecoilReduction;
@@ -295,6 +296,11 @@ namespace RavenfieldVR.Core
                                       + "and squeeze the grip, with nothing else in reach of that hand (as the gravity gloves of Half-Life: Alyx do). "
                                       + "Only one with rounds in it. 0 = off: a magazine is picked up where it lies.",
                                       new AcceptableValueRange<float>(0f, 6f)));
+            GripLetGoBelow = cfg.Bind("Input", "GripLetGoBelow", 0.3f,
+                new ConfigDescription("On controllers with an analog grip (Touch, Index, Reverb): once a squeeze has taken hold, the hand lets go only when "
+                                      + "the grip is released below this (0 to 1). SteamVR's own click lets go a little under where it took hold, so a grip "
+                                      + "that eased off while pushing a magazine in or racking a slide dropped it and took it again. 0 = SteamVR's click alone, "
+                                      + "as before.", new AcceptableValueRange<float>(0f, 0.9f)));
             MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 60f,
                 new ConfigDescription("Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).",
                     new AcceptableValueRange<float>(1f, 3600f)));

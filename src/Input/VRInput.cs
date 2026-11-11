@@ -71,6 +71,8 @@ namespace RavenfieldVR.Input
 
         private static readonly float[] Trigger = new float[2];
         private static readonly float[] Grip = new float[2];
+        /// <summary>The grip tells how far it is squeezed (an analog grip), not only whether it clicked.</summary>
+        private static readonly bool[] GripAnalog = new bool[2];
         public static Vector2 Move { get; private set; }
         public static Vector2 TurnStick { get; private set; }
 
@@ -293,6 +295,21 @@ namespace RavenfieldVR.Input
                 }
                 HandAlive[h] = alive;
             }
+            // A hold on the grip is kept until the grip is clearly released (GripLetGoBelow), on controllers that tell how far it is
+            // squeezed: SteamVR's click lets go just under where it took hold, and a grip easing off while the hand pushed a
+            // magazine in or pulled a slide let go and took hold again ("parts of the hand or mags are glitching around (this
+            // happens randomly with force or smth)", user, 2026-11-11). Last frame's squeeze decides (it is read below).
+            float letGo = Core.VRConfig.GripLetGoBelow != null ? Core.VRConfig.GripLetGoBelow.Value : 0f;
+            if (letGo > 0f)
+            {
+                for (int h = 0; h < 2; h++)
+                {
+                    if (!RawState[(int)DigitalAction.Grab, h] && Held[(int)DigitalAction.Grab, h] && GripAnalog[h] && Grip[h] > letGo && HandAlive[h])
+                    {
+                        RawState[(int)DigitalAction.Grab, h] = true;
+                    }
+                }
+            }
             for (int a = 0; a < DigitalCount; a++)
             {
                 for (int slot = 0; slot < 3; slot++)
@@ -343,7 +360,8 @@ namespace RavenfieldVR.Input
                 {
                     Trigger[h] = 1f; // a trigger that only clicks: held, the finger stayed open between the shots' flashes (hands scout, 2026-11-06)
                 }
-                Grip[h] = input.GetAnalogActionData(_gripPull, ref analog, AnalogSize, HandSource[h]) == EVRInputError.None && analog.bActive ? analog.x : (Held[(int)DigitalAction.Grab, h] ? 1f : 0f);
+                GripAnalog[h] = input.GetAnalogActionData(_gripPull, ref analog, AnalogSize, HandSource[h]) == EVRInputError.None && analog.bActive;
+                Grip[h] = GripAnalog[h] ? analog.x : (Held[(int)DigitalAction.Grab, h] ? 1f : 0f);
             }
             Move = input.GetAnalogActionData(_move, ref analog, AnalogSize, OpenVR.k_ulInvalidInputValueHandle) == EVRInputError.None && analog.bActive
                 ? new Vector2(analog.x, analog.y) : Vector2.zero;
