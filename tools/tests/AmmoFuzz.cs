@@ -151,11 +151,33 @@ namespace RavenfieldVR.Tests
                     }
                 }
             }
+            // A reserve that runs dry in the run (7 rounds), and the game's own -1 (none, never resupplied; 2026-11-11: a shell was
+            // handed out with -1 rounds).
+            foreach (int reserve in new[] { 7, 0, -1 })
+            {
+                foreach (Gun gun in Guns)
+                {
+                    VRConfig.ReloadNow = ReloadMode.Manual;
+                    string fault = Run(gun, 12000 + runs, ref actions, flipSettings: true, reserve: reserve);
+                    runs++;
+                    if (fault != null)
+                    {
+                        faults++;
+                        Console.WriteLine($"FAIL {gun.Name}, a reserve of {reserve}: {fault}");
+                    }
+                }
+            }
             string belt2 = BeltUnderCover();
             if (belt2 != null)
             {
                 faults++;
                 Console.WriteLine("FAIL belt under the cover: " + belt2);
+            }
+            string variant = VariantSharesMagazine();
+            if (variant != null)
+            {
+                faults++;
+                Console.WriteLine("FAIL a fire-mode variant: " + variant);
             }
             Console.WriteLine($"ammo fuzz: {actions} random actions in {runs} runs, {faults} failed");
             return faults == 0 ? 0 : 1;
@@ -163,6 +185,62 @@ namespace RavenfieldVR.Tests
 
         private static readonly System.Reflection.MethodInfo BuildText =
             typeof(AmmoState).GetMethod("BuildCounterText", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        /// <summary>
+        /// A fire-mode variant on the same model (a weapon of its own in the game) shares its parent's magazine in the mod's count,
+        /// and the game's count of each is told when it becomes the one in use, as HeldWeapon does at the switch (2026-11-11:
+        /// fired empty as one, reloaded as the other, switched back: a full counter and a trigger the game refused).
+        /// </summary>
+        private static string VariantSharesMagazine()
+        {
+            VRConfig.ReloadNow = ReloadMode.Manual;
+            var rig = new WeaponRigData { Action = ActionType.SelfLoading, LockOnEmpty = false, MagazinePath = new[] { 0 } };
+            var autoGun = new Weapon { ammo = 30, spareAmmo = 200 };
+            var semiGun = new Weapon { ammo = 30, spareAmmo = 200 };
+            foreach (Weapon w in new[] { autoGun, semiGun })
+            {
+                w.configuration.ammo = 30;
+                w.configuration.spareAmmo = 100000;
+            }
+            var auto = new AmmoState(autoGun, rig);
+            var semi = new AmmoState(semiGun, rig);
+            semi.MagazineOf = auto;
+            // Fired empty as the automatic one.
+            for (int i = 0; i < 100 && auto.CanFire; i++)
+            {
+                autoGun.ammo--;
+                auto.OnShot();
+            }
+            auto.Reconcile();
+            if (auto.Loaded != 0 || autoGun.ammo != 0)
+            {
+                return $"fired empty, the gun holds {auto.Loaded} and the game was told {autoGun.ammo}";
+            }
+            // Switched to the other mode (its count told, as at the switch), a fresh magazine put in and racked there.
+            semi.Sync();
+            semi.EjectMagazine();
+            int fresh = semi.RoundsForFreshMagazine();
+            semi.TakeSpare(fresh);
+            semi.InsertMagazine(fresh);
+            semi.RackBack();
+            semi.RackForward();
+            semi.Reconcile();
+            if (semi.Loaded <= 0 || semiGun.ammo != semi.Loaded)
+            {
+                return $"reloaded as the variant: the gun holds {semi.Loaded}, the game was told {semiGun.ammo}";
+            }
+            // Back to the first: the same rounds, and the game told so.
+            auto.Sync();
+            if (auto.Loaded != semi.Loaded)
+            {
+                return $"the two disagree on the magazine they share ({auto.Loaded} and {semi.Loaded})";
+            }
+            if (autoGun.ammo != auto.Loaded)
+            {
+                return $"switched back, the gun holds {auto.Loaded} and the game was told {autoGun.ammo} (it refuses the trigger at 0)";
+            }
+            return null;
+        }
 
         /// <summary>A look under the cover keeps the belt; a box changed under it does not (Tasks 274, 312, belt scout 2026-11-05).</summary>
         private static string BeltUnderCover()
@@ -204,11 +282,13 @@ namespace RavenfieldVR.Tests
             return a.FeedReady ? null : "a belt laid by hand does not feed";
         }
 
-        private static string Run(Gun gun, int seed, ref long actions, bool flipSettings = false)
+        private static string Run(Gun gun, int seed, ref long actions, bool flipSettings = false, int reserve = 200)
         {
-            var weapon = new Weapon { ammo = 30, spareAmmo = 200 };
+            var weapon = new Weapon { ammo = 30, spareAmmo = reserve };
             weapon.configuration.ammo = 30;
-            weapon.configuration.spareAmmo = 100000; // (no cap: a capped return loses rounds on purpose)
+            // (No cap: a capped return loses rounds on purpose. A reserve of -1 is the game's "none, and never resupplied": it counts
+            // as no rounds, never as one fewer than none.)
+            weapon.configuration.spareAmmo = reserve < 0 ? -1 : 100000;
             var rig = new WeaponRigData { Action = gun.Action, Hinge = gun.Hinge, LockOnEmpty = gun.Lock, CyclesByHand = gun.ByHand, MagazinePath = gun.Magazine ? new int[0] : null };
             var a = new AmmoState(weapon, rig);
             var loose = new List<int>();
@@ -360,7 +440,7 @@ namespace RavenfieldVR.Tests
                 {
                     wrong = $"{sum} rounds of {total} (magazine {a.MagRounds}, chamber {a.Chambered}, reserve {a.SpareAmmo}, loose {held}, gone {gone})";
                 }
-                else if (a.MagRounds < 0 || a.SpareAmmo < 0)
+                else if (a.MagRounds < 0 || a.SpareAmmo < 0 || loose.Exists(r => r < 0) || a.RoundsForFreshMagazine() < 0)
                 {
                     wrong = "a negative count";
                 }
