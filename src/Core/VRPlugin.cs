@@ -64,6 +64,7 @@ namespace RavenfieldVR.Core
             VRManager manager = host.AddComponent<VRManager>();
             manager.RequestVR = wantVR;
             manager.StartProblem = startProblem;
+            host.AddComponent<UI.FlatMultiplayerWindow>(); // (F8 without a headset: Tasks 383.8)
             AutoTest.Install();
             Rig.IntroStage.Install(manager);
             PerfProbe.Enabled |= System.Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-perf", System.StringComparison.OrdinalIgnoreCase));
