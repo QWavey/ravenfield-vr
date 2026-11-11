@@ -1001,6 +1001,9 @@ namespace RavenfieldVR.Weapons
             }
             LastSmoothMag = magWorst;
             LastSmoothHand = handWorst;
+            int[] es = MagazineProp.EaseStats;
+            magWhere += $"; way back paced {es[0]}, refused {es[1]}, unpaced {es[2]}+{es[3]} frame(s)";
+            System.Array.Clear(es, 0, es.Length);
             report($"smoothness through a reload by hand ({frames} frames): the magazine's largest jump {magWorst * 1000f:0} mm ({magWhere}), {magOver} frame(s) over 10 mm"
                    + $"{(magWorst > 0.03f ? " (JUMPED: the magazine)" : "")}; the drawn hand's largest {handWorst * 1000f:0} mm ({handWhere}), {handOver} frame(s) over 10 mm"
                    + $"{(handWorst > 0.03f ? " (JUMPED: the hand)" : "")}; {(seatedAgain ? "seated again" : "not seated again at the end")}");

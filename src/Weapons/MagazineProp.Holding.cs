@@ -536,6 +536,9 @@ namespace RavenfieldVR.Weapons
         private int _easeFrame = -10;
         /// <summary>How fast the keep-out's offset is closing (m/s): it gathers pace from standing.</summary>
         private float _easeVel;
+        /// <summary>Self-check: frames the keep-out's way back was paced, refused (the paced place in the gun), and jumped more than
+        /// 8 mm unpaced (the keep-out had not run the frame before; any other reason).</summary>
+        internal static readonly int[] EaseStats = new int[4];
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
@@ -854,7 +857,9 @@ namespace RavenfieldVR.Weapons
                     paced = offset / has * (had - pace);
                     at = target.position + paced;
                 }
-                if (gun == null || !gun.InsideDrawnGun(at))
+                bool free = gun == null || !gun.InsideDrawnGun(at);
+                EaseStats[free ? 0 : 1]++;
+                if (free)
                 {
                     offset = paced;
                     drawn = at;
@@ -864,6 +869,10 @@ namespace RavenfieldVR.Weapons
                         _drawnFor = gun;
                     }
                 }
+            }
+            else if (has < had - 0.008f)
+            {
+                EaseStats[_easeFrame != Time.frameCount - 1 ? 2 : 3]++;
             }
             _easeFrame = Time.frameCount;
             _keptOut = offset;

@@ -2,6 +2,13 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## PAUSED 2026-11-11 (user had to leave; game and test run stopped mid-run)
+
+- Run was `/work-until-limit 85` (last reading 57%), Tasks 379 (smoothness). Last commit `85f50d1` + one WIP commit after it.
+- OPEN: the keep-out's way back still lets one step through (RK-44: kept out 96 -> 69 mm in ONE frame at 90 Hz, 27 mm jump; was 90 mm at the start). The pacing in `MagazineProp.KeepOffGun` (`_easeVel`) seems not to engage. Counters added to find out why (`MagazineProp.EaseStats`: paced / refused / unpaced, printed in the smoothness line). The run `smooth6` was KILLED before its report: run `python -I tools/vrshots.py --weapon "=RK-44" --out smooth6` and read the "way back paced N, refused N, unpaced N+N" part. Refused high = the paced place is inside the gun (`InsideDrawnGun`); unpaced = the frame test `_easeFrame`.
+- Measured and done this session: snap turn with a gun in one hand 0.0 deg trail (`smooth4`); line switch eased as an offset (S-IND7 26 -> 21 mm); grip grace 0.15 s (`GripLetGoBelow`), unrun in a headset.
+- Not done: `--autotest --fast`, netcheck, sandboxcheck on the final build; setup 1.17.4 not built or installed (installed is 1.17.3; the test runs put a newer DLL into the game folder).
+
 ## Right now
 
 - **2026-11-11: Tasks 379, smoother hands and magazines (1.17.4 in the works).** The measure is `ReloadInteractions.SmoothnessSelfCheck` (in the autotest for six guns; `vrshots --weapon "=RK-44" --weapon "=S-IND7"` runs it on two in about six minutes): the magazine's and the drawn hand's largest jump a frame through a scripted reload that also goes into and through the gun. Before the fixes: 10 to 13 mm on a clean path, 90 mm where the hand comes out of the gun (RK-44). The fixes and what three scouts found are in Tasks 379; new settings `MagazineInsertHelp`, `ShellsPerReach`, `MagazineReach` are unrun in a headset. 1.17.3 is the installed setup (2026-11-10).
