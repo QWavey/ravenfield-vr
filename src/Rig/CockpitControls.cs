@@ -15,6 +15,9 @@ namespace RavenfieldVR.Rig
     public sealed class CockpitControls
     {
         private const float StickThrow = 0.08f;
+        /// <summary>The hand's tilt for a full throw of the stick: sin(25 degrees).</summary>
+        private const float StickTiltFull = 0.4226f;
+        private Quaternion _stickStartTurn = Quaternion.identity;
         /// <summary>The stick's centre zone, as a share of its throw (6 mm of 8 cm).</summary>
         private const float StickDeadzone = 0.075f;
 
@@ -233,6 +236,7 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = palm;
+                    _stickStartTurn = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation;
                     _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
@@ -284,6 +288,14 @@ namespace RavenfieldVR.Rig
                     Vector3 local = palm - _stickStartLocal;
                     _stickLocal = local;
                     var throw01 = new Vector2(Mathf.Clamp(local.x / StickThrow, -1f, 1f), Mathf.Clamp(local.z / StickThrow, -1f, 1f));
+                    // And the hand's tilt since it took the stick, as a real stick is worked from the wrist (the user, 2026-11-11, planes: "I
+                    // need better controlls"): its up leaning forward is nose down, to the right is roll right, 25 degrees a full throw.
+                    // Per axis the larger of the two counts (a push forward tilts the hand too: not added twice).
+                    Quaternion turn = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation * Quaternion.Inverse(_stickStartTurn);
+                    Vector3 up = turn * Vector3.up;
+                    var tilt01 = new Vector2(Mathf.Clamp(up.x / StickTiltFull, -1f, 1f), Mathf.Clamp(up.z / StickTiltFull, -1f, 1f));
+                    throw01 = new Vector2(Mathf.Abs(tilt01.x) > Mathf.Abs(throw01.x) ? tilt01.x : throw01.x,
+                                          Mathf.Abs(tilt01.y) > Mathf.Abs(throw01.y) ? tilt01.y : throw01.y);
                     // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
                     // (2-3 mm) was a steady 2-4% of stick and the aircraft drifted.
                     VehicleInput.FlightStick = Input.VRGameInput.ApplyDeadzoneSquare(throw01, StickDeadzone);
