@@ -1205,6 +1205,7 @@ namespace RavenfieldVR.Rig
         private Camera _restCam;
         private Vector3 _restLocal;
         private bool _restOutside, _eyesAtSeat;
+        private float _restTakenAt;
 
         /// <summary>
         /// Where the eyes sit in a seat whose vehicle has a camera of its own: where that camera rests in the vehicle, taken once as the
@@ -1216,7 +1217,18 @@ namespace RavenfieldVR.Rig
         private Vector3 SeatEyes(Seat seat, Camera cam, Vector3 rest)
         {
             Transform t = seat.transform;
-            if (!ReferenceEquals(_restSeat, seat) || !ReferenceEquals(_restCam, cam))
+            bool fresh = !ReferenceEquals(_restSeat, seat) || !ReferenceEquals(_restCam, cam);
+            if (fresh)
+            {
+                _restTakenAt = Time.unscaledTime;
+            }
+            else if (!_restOutside && Time.unscaledTime - _restTakenAt < 0.5f)
+            {
+                // (Taken again for the first half second: on the first frame a turret may still turn to its rest or a camera settle,
+                // and that one frame's place was kept for the whole ride; scout.)
+                _restLocal = t.InverseTransformPoint(rest);
+            }
+            if (fresh)
             {
                 _restSeat = seat;
                 _restCam = cam;
