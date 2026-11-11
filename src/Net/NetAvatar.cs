@@ -168,7 +168,7 @@ namespace RavenfieldVR.Net
             _nextSend = Time.unscaledTime + SendEvery;
             Actor player = LocalPlayer.actor;
             VRRig rig = VRRig.Instance;
-            if (player == null || player.dead || rig == null || player.fallenOver || player.IsSeated())
+            if (player == null || player.dead || rig == null || player.fallenOver || !HandsFree(player))
             {
                 return;
             }
@@ -233,7 +233,30 @@ namespace RavenfieldVR.Net
         {
             a = r.Actor;
             p = r.Pose;
-            return p != null && p.Fresh && a != null && !a.dead && !a.fallenOver && !a.IsSeated();
+            return p != null && p.Fresh && a != null && !a.dead && !a.fallenOver && HandsFree(a);
+        }
+
+        /// <summary>
+        /// On his feet, or seated where he uses his own gun (a passenger's or gunner's seat with no wheel or stick of its own): his VR
+        /// hands and gun are shown. Left out in every seat, a player in a vehicle sat with the game's still arms and no gun in them (the
+        /// user, 2026-11-11: "make sure that when players are sitting etc I can still see their arms with guns"). A seat whose
+        /// controls hold the hands (a driver's wheel, a turret's handles) keeps the game's own.
+        /// </summary>
+        internal static bool HandsFree(Actor a)
+        {
+            Seat seat = a != null ? a.seat : null;
+            if (seat == null)
+            {
+                return true;
+            }
+            try
+            {
+                return seat.CanUsePersonalWeapons() && !seat.HasHandIkTargets();
+            }
+            catch (System.Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>
