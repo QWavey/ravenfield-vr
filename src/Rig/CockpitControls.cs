@@ -61,6 +61,8 @@ namespace RavenfieldVR.Rig
         /// majors of 2026-10-21).
         /// </summary>
         private readonly Vector3[] _palmInSeat = new Vector3[2];
+        /// <summary>The palm's turn in the seat's frame, from the same render (the stick's tilt reads it with its place).</summary>
+        private readonly Quaternion[] _palmTurnInSeat = { Quaternion.identity, Quaternion.identity };
         private Seat _palmSeat; // the seat the pair was taken in (none yet for a seat just entered: the palm is read as before)
 
         private Hand? _stickHand;
@@ -236,7 +238,7 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = palm;
-                    _stickStartTurn = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation;
+                    _stickStartTurn = PalmTurnInSeat(hand);
                     _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
@@ -303,7 +305,7 @@ namespace RavenfieldVR.Rig
                     // And the hand's tilt since it took the stick, as a real stick is worked from the wrist (the user, 2026-11-11, planes: "I
                     // need better controlls"): its up leaning forward is nose down, to the right is roll right, 25 degrees a full throw.
                     // Per axis the larger of the two counts (a push forward tilts the hand too: not added twice).
-                    Quaternion turn = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation * Quaternion.Inverse(_stickStartTurn);
+                    Quaternion turn = PalmTurnInSeat(hand) * Quaternion.Inverse(_stickStartTurn);
                     Vector3 up = turn * Vector3.up;
                     var tilt01 = new Vector2(Mathf.Clamp(up.x / StickTiltFull, -1f, 1f), Mathf.Clamp(up.z / StickTiltFull, -1f, 1f));
                     throw01 = new Vector2(Mathf.Abs(tilt01.x) > Mathf.Abs(throw01.x) ? tilt01.x : throw01.x,
@@ -324,6 +326,7 @@ namespace RavenfieldVR.Rig
                 foreach (VRHand hand in _rig.Hands)
                 {
                     _palmInSeat[(int)hand.Side] = InSeat(hand.Palm.position);
+                    _palmTurnInSeat[(int)hand.Side] = Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation;
                 }
                 _palmSeat = _seat;
             }
@@ -403,6 +406,10 @@ namespace RavenfieldVR.Rig
 
         /// <summary>The hand's palm in the seat's frame, from the render that posed it (see <see cref="_palmInSeat"/>).</summary>
         private Vector3 PalmInSeat(VRHand hand) => _palmSeat == _seat ? _palmInSeat[(int)hand.Side] : InSeat(hand.Palm.position);
+
+        /// <summary>The palm's turn in the seat's frame from that same render (in a banking aircraft a degree a frame off before; scout).</summary>
+        private Quaternion PalmTurnInSeat(VRHand hand) =>
+            _palmSeat == _seat ? _palmTurnInSeat[(int)hand.Side] : Runtime.RigidPose.Conjugate(_seat.transform.rotation) * hand.Palm.rotation;
 
         /// <summary>The rim's centre and turning axis in the seat's frame (fixed to the vehicle as the seat is: read now).</summary>
         private void WheelInSeat(out Vector3 centre, out Vector3 axis)
