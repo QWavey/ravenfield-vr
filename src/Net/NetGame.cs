@@ -154,6 +154,8 @@ namespace RavenfieldVR.Net
             session.Message += OnMessage;
             session.Joined += OnJoined;
             session.Left += OnLeft;
+            Application.onBeforeRender -= FlatBeforeRender;
+            Application.onBeforeRender += FlatBeforeRender;
             // (What every player tells of his soldiers goes on unreliably through the host too: relayed reliably, one lost packet
             // held every later hit and match start back on that line. Review of 2026-11-10.)
             session.ReliableKind = k => k != ActorStates && k != VrPose;
@@ -170,6 +172,7 @@ namespace RavenfieldVR.Net
             session.Message -= OnMessage;
             session.Joined -= OnJoined;
             session.Left -= OnLeft;
+            Application.onBeforeRender -= FlatBeforeRender;
             _session = null;
             Log.Guard("Multiplayer: own rules back", GiveRulesBack);
             _lastStart = null;
@@ -362,6 +365,19 @@ namespace RavenfieldVR.Net
             }
             _ownMutators = null;
             _ownSkins = null;
+        }
+
+        /// <summary>
+        /// On a PC playing flat: each VR player's gun and magazine put where he holds them, and his hands given back when no pose comes.
+        /// That ran only in the VR eyes' pass, so a flat player saw the VR player's hands reach for the grip of a gun that stayed in the
+        /// soldier's own animated hand (scout, 2026-11-11). In VR the UI's pass does it.
+        /// </summary>
+        private static void FlatBeforeRender()
+        {
+            if (!VRManager.Active)
+            {
+                Log.Guard("Multiplayer: flat VR poses", NetAvatar.BeforeRender);
+            }
         }
 
         private static void OnJoined(NetPlayer p)
