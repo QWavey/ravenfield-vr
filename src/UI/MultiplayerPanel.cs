@@ -22,6 +22,9 @@ namespace RavenfieldVR.UI
         private bool _typing;
         private int _kickArmed = -1;
         private float _kickArmedAt;
+        /// <summary>The player the Kick was armed for: a newcomer given his number within the 4 s is not "Sure?" (panel scout).</summary>
+        private NetPlayer _kickArmedFor;
+        private float _nextListLook;
         private int _page;
 
         protected override float CanvasWidth => 1000f;
@@ -54,6 +57,18 @@ namespace RavenfieldVR.UI
         {
             // (Pings to the nearest 10 ms: a ping moving by a millisecond is no reason to build the panel again.)
             int shown = (Multiplayer.Active ? 1 : 0) | (Following ? 2 : 0);
+            if (!Multiplayer.Active)
+            {
+                // The open games asked for again every 15 s while the panel shows them (a game closed since kept its Join until
+                // Refresh), and the list's own state in what is shown, so it is built again when it changes (panel scout, 2026-11-11).
+                if (SteamLobbies.Available && !Multiplayer.Listing && Time.unscaledTime >= _nextListLook)
+                {
+                    _nextListLook = Time.unscaledTime + 15f;
+                    Multiplayer.RefreshLobbies();
+                }
+                List<LobbyInfo> lobbies = Multiplayer.Lobbies;
+                shown = shown * 31 + (lobbies != null ? lobbies.Count * 7 + lobbies.Sum(l => (int)(l.Id & 0x7fffffff) + l.Players) : 0) + (Multiplayer.ListStatus ?? "").GetHashCode();
+            }
             if (Multiplayer.Active)
             {
                 foreach (NetPlayer p in Multiplayer.Session.Players)
@@ -110,17 +125,24 @@ namespace RavenfieldVR.UI
                 {
                     // The host's Kick, pressed twice (a laser's stray click must not throw a friend out).
                     byte id = p.Id;
-                    bool armed = _kickArmed == id && Time.unscaledTime - _kickArmedAt < 4f;
+                    NetPlayer player = p;
+                    bool armed = _kickArmed == id && ReferenceEquals(_kickArmedFor, player) && Time.unscaledTime - _kickArmedAt < 4f;
                     ActionRow(line, armed ? "Sure?" : "Kick", () =>
                     {
-                        if (_kickArmed == id && Time.unscaledTime - _kickArmedAt < 4f)
+                        if (!ReferenceEquals(Multiplayer.Session, session) || session.Player(id) != player)
+                        {
+                            return; // (the session ended, or he left, while the press was held: nothing to kick)
+                        }
+                        if (_kickArmed == id && ReferenceEquals(_kickArmedFor, player) && Time.unscaledTime - _kickArmedAt < 4f)
                         {
                             _kickArmed = -1;
+                            _kickArmedFor = null;
                             session.Kick(id);
                         }
                         else
                         {
                             _kickArmed = id;
+                            _kickArmedFor = player;
                             _kickArmedAt = Time.unscaledTime;
                             Rebuild(); // (the button reads "Sure?" now)
                         }
@@ -222,10 +244,13 @@ namespace RavenfieldVR.UI
                 LobbyInfo lobby = list[i];
                 string what = string.IsNullOrEmpty(lobby.Map) ? "in the menu" : lobby.Map + (string.IsNullOrEmpty(lobby.Mode) ? "" : ", " + lobby.Mode);
                 string mismatch = lobby.Mismatch(build);
-                string line = $"{(string.IsNullOrEmpty(lobby.Name) ? "A game" : lobby.Name)}   {lobby.Players}/{lobby.MaxPlayers}   {what}";
+                string name = string.IsNullOrEmpty(lobby.Name) ? "A game" : lobby.Name;
+                // (Held to what fits beside the button: a long name ran under Join and the reason was cut off; panel scout.)
+                string line = Cut($"{Cut(name, 32)}   {lobby.Players}/{lobby.MaxPlayers}   {what}", 70);
                 if (mismatch != null)
                 {
-                    Label(line + "   (" + mismatch + ")", 22);
+                    Label(line, 22);
+                    Label("   Cannot join: " + mismatch, 19, FontStyle.Italic, UiKit.MutedText);
                 }
                 else
                 {
@@ -242,6 +267,8 @@ namespace RavenfieldVR.UI
                 ActionRow(under, "Refresh", Multiplayer.RefreshLobbies, null, null, 150f);
             }
         }
+
+        private static string Cut(string s, int most) => s.Length <= most ? s : s.Substring(0, most - 1) + "…";
 
         private void Address()
         {

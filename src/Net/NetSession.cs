@@ -474,7 +474,7 @@ namespace RavenfieldVR.Net
         /// </summary>
         public void Kick(byte id)
         {
-            if (!IsHost || id == LocalId || !_players.TryGetValue(id, out NetPlayer p))
+            if (!IsHost || State == NetState.Closed || id == LocalId || !_players.TryGetValue(id, out NetPlayer p))
             {
                 return;
             }
