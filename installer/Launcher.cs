@@ -507,6 +507,7 @@ namespace RavenfieldVR.Launcher
         /// <summary>A probe that did not answer within its time (SteamVR hung): no other is started until it ends.</summary>
         private System.Threading.Tasks.Task<HeadsetCheck.State> _hungProbe;
         private DateTime _steamVRStartedAt = DateTime.MinValue;
+        private DateTime _noSteamVRSince = DateTime.MinValue; // since when SteamVR has said "not running" in a row
         private PlayMode? _choice;
 
         /// <summary>VR with a headset there (no window), else what the player picks in the window; null to start nothing.</summary>
@@ -649,9 +650,19 @@ namespace RavenfieldVR.Launcher
                         _steamVRStartedAt = DateTime.UtcNow;
                         HeadsetCheck.StartSteamVR();
                     }
-                    _status.Text = "Starting SteamVR...";
+                    // Said after two minutes of it: the window stood on "Starting SteamVR..." for as long as SteamVR did not come up
+                    // (its start window closed, hung in the background), with nothing to tell that it was not coming (scout,
+                    // 2026-11-11). It goes on trying; the buttons below are the way on.
+                    if (_noSteamVRSince == DateTime.MinValue)
+                    {
+                        _noSteamVRSince = DateTime.UtcNow;
+                    }
+                    _status.Text = DateTime.UtcNow - _noSteamVRSince > TimeSpan.FromSeconds(120)
+                        ? "SteamVR has not started. Start it yourself, or play flat."
+                        : "Starting SteamVR...";
                     break;
                 case HeadsetCheck.State.NoHeadset:
+                    _noSteamVRSince = DateTime.MinValue;
                     _status.Text = "SteamVR is running, but no headset is connected.";
                     break;
                 default:
