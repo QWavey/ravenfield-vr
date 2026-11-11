@@ -53,6 +53,13 @@ namespace RavenfieldVR.Net
             /// <summary>The frame the arms were let go to take the grip off the animation (see BeforeIk).</summary>
             public int IkOffFrame = -10;
             public Vector3 GripInModel;
+
+            /// <summary>
+            /// His palm's turn against the soldier's hand bone, each hand (the controller's axes are not the glove's): learnt while the
+            /// hand is on the gun, where the game's own hold gives the bone's turn; with it, a hand off the gun turns with his wrist.
+            /// </summary>
+            public Quaternion PalmToBoneL = Quaternion.identity, PalmToBoneR = Quaternion.identity;
+            public bool PalmKnownL, PalmKnownR;
             public Quaternion GripRotInModel;
 
             /// <summary>The game's own left-hand target on this gun (kept while ours stands in for it).</summary>
@@ -315,6 +322,10 @@ namespace RavenfieldVR.Net
                     p.TargetR.SetPositionAndRotation(p.ModelPosition + p.ModelRotation * p.GripInModel, p.ModelRotation * p.GripRotInModel);
                 }
                 __instance.handTargetR = p.TargetR;
+                if (p.Is(RightHand) && !p.Is(GunInLeft))
+                {
+                    Learn(ref p.PalmToBoneR, ref p.PalmKnownR, p.RightRot, p.TargetR.rotation);
+                }
                 // The other hand: on the gun as the game has it (its own left-hand target rides on the gun's model) while his
                 // free hand is near the gun; off it, where his free hand is.
                 Transform own = __instance.handTargetL == p.TargetL ? p.OwnLeft : __instance.handTargetL; // (ours stands in for it from the second frame on)
@@ -322,7 +333,12 @@ namespace RavenfieldVR.Net
                 Vector3 gunHold = onGun ? p.ModelPosition + p.ModelRotation * (inRest * (own.position - restAt)) : Vector3.zero;
                 if (onGun && (!freeTold || Vector3.Distance(gunHold, freeAt) < 0.22f))
                 {
-                    p.TargetL.SetPositionAndRotation(gunHold, p.ModelRotation * (inRest * own.rotation));
+                    Quaternion hold = p.ModelRotation * (inRest * own.rotation);
+                    if (freeTold && !p.Is(GunInLeft) && Vector3.Distance(gunHold, freeAt) < 0.12f)
+                    {
+                        Learn(ref p.PalmToBoneL, ref p.PalmKnownL, p.LeftRot, hold);
+                    }
+                    p.TargetL.SetPositionAndRotation(gunHold, hold);
                     p.OwnLeft = own;
                     __instance.handTargetL = p.TargetL;
                     __instance.SetHandIkEnabled(true, true);
@@ -333,15 +349,18 @@ namespace RavenfieldVR.Net
                     {
                         p.OwnLeft = own;
                     }
-                    p.TargetL.SetPositionAndRotation(freeAt, boneL != null ? boneL.rotation : Quaternion.identity);
+                    // (His wrist's turn once learnt on the gun; a left-handed player's free hand is his right, the soldier's left: not
+                    // the same hand's axes, so the soldier's own turn stays.)
+                    p.TargetL.SetPositionAndRotation(freeAt, p.PalmKnownL && !p.Is(GunInLeft) ? p.LeftRot * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
                     __instance.handTargetL = p.TargetL;
                     __instance.SetHandIkEnabled(freeTold, true);
                 }
             }
             else
             {
-                p.TargetL.SetPositionAndRotation(origin + p.LeftNow, boneL != null ? boneL.rotation : Quaternion.identity);
-                p.TargetR.SetPositionAndRotation(origin + p.RightNow, boneR != null ? boneR.rotation : Quaternion.identity);
+                // (No gun: each hand where his is, turned with his wrist where that was learnt on a gun.)
+                p.TargetL.SetPositionAndRotation(origin + p.LeftNow, p.PalmKnownL ? p.LeftRot * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
+                p.TargetR.SetPositionAndRotation(origin + p.RightNow, p.PalmKnownR ? p.RightRot * p.PalmToBoneR : boneR != null ? boneR.rotation : Quaternion.identity);
                 __instance.handTargetL = p.TargetL;
                 __instance.handTargetR = p.TargetR;
                 __instance.SetHandIkEnabled(p.Is(LeftHand), p.Is(RightHand));
@@ -391,6 +410,21 @@ namespace RavenfieldVR.Net
                 p.GripKnown = false;
             }
             return p.Model != null;
+        }
+
+        /// <summary>
+        /// The palm's turn against the hand bone, from one moment the hand is on the gun (<paramref name="bone"/>: the bone's turn there):
+        /// taken at once the first time, then eased toward each new reading (a hand never sits on a gun exactly as the game's hold).
+        /// </summary>
+        private static void Learn(ref Quaternion palmToBone, ref bool known, Quaternion palm, Quaternion bone)
+        {
+            Quaternion now = Quaternion.Inverse(palm) * bone;
+            if (float.IsNaN(now.x) || float.IsNaN(now.w))
+            {
+                return;
+            }
+            palmToBone = known ? Quaternion.Slerp(palmToBone, now, 0.05f) : now;
+            known = true;
         }
 
         /// <summary>The gun back where the soldier's hand has it, and the game's own left-hand target back (no pose told any more).</summary>
