@@ -528,6 +528,13 @@ namespace RavenfieldVR.Net
                 {
                     continue;
                 }
+                if (a.seat != null && a.seat.occupant == null)
+                {
+                    // His seat emptied under him (a kick of 1.17.10 refused halfway): it still names him, so his leaving threw in the
+                    // game's own code (the user's log, 2026-11-11: "a stand-in could not be seated: NullReferenceException at
+                    // Vehicle.OccupantLeft"). The seat is his again for the leave to run.
+                    a.seat.occupant = a;
+                }
                 Seat want = null;
                 if (r.SeatVehicle != 0 && ById.TryGetValue(r.SeatVehicle, out Shared s) && s.V != null && !s.V.dead && r.SeatIndex < s.V.seats.Count)
                 {
