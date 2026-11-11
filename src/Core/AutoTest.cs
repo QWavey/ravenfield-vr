@@ -7070,6 +7070,7 @@ namespace RavenfieldVR.Core
                         {
                             int before = lines.Count;
                             yield return held.Reload.SmoothnessSelfCheck(lines.Add); // the magazine's and the hand's jumps through a reload by hand
+                            yield return held.Reload.EmptySlideSelfCheck(lines.Add); // a round into the chamber by hand, the slide of an empty gun (Tasks 381)
                             if (lines.Count > before)
                             {
                                 Metric("reload by hand: the magazine's largest jump (mm)", ReloadInteractions.LastSmoothMag * 1000.0);

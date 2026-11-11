@@ -1006,6 +1006,70 @@ namespace RavenfieldVR.Weapons
                    + $"{(handWorst > 0.03f ? " (JUMPED: the hand)" : "")}; {(seatedAgain ? "seated again" : "not seated again at the end")}");
         }
 
+        /// <summary>
+        /// Autotest (Tasks 381, the user 2026-11-11: "load bullets into chambers", "pull back and forth the slide on a ... gun thats
+        /// empty"): on a gun whose slide locks open on empty, with a magazine. The state is set by hand and put back after. Caught
+        /// back and empty, a round goes into the chamber and the release shuts on it, ready to fire; caught back and empty, the
+        /// release lets the slide home on nothing (no shot, the counter "EMPTY", the slide drawn home); racked and let go at the
+        /// back it is caught again; with the magazine out a rack leaves it home.
+        /// </summary>
+        internal IEnumerator EmptySlideSelfCheck(System.Action<string> report)
+        {
+            if (!Manual || Ammo == null || !Ammo.UsesChamber || !Data.LockOnEmpty || Data.CyclesByHand || !Ammo.UsesDetachableMag || Data.EnBloc || Ammo.HasCover
+                || _racking || !Ammo.MagInserted || _ejecting != null)
+            {
+                yield break;
+            }
+            int mag = Ammo.MagRounds;
+            bool chambered = Ammo.Chambered, locked = Ammo.SlideLocked;
+            void Empty(bool caught)
+            {
+                Ammo.MagRounds = 0;
+                Ammo.Chambered = false;
+                Ammo.SlideLocked = caught;
+                Ammo.Sync();
+            }
+            Empty(true);
+            yield return new WaitForSecondsRealtime(0.4f);
+            bool open = Ammo.ChamberOpenEmpty;
+            bool went = Ammo.ChamberByHand();
+            bool waits = went && Ammo.SlideLocked && !Ammo.CanFire;
+            ReleaseSlide();
+            yield return new WaitForSecondsRealtime(0.5f);
+            bool ready = Ammo.CanFire && !Ammo.SlideLocked && Ammo.Chambered;
+            bool shutRefuses = !Ammo.ChamberByHand(); // (shut on a round: none goes in)
+            Empty(true);
+            yield return new WaitForSecondsRealtime(0.4f);
+            ReleaseSlide();
+            yield return new WaitForSecondsRealtime(0.7f);
+            bool home = Ammo.HomeOnEmpty && !Ammo.SlideLocked && !Ammo.CanFire;
+            string counter = Ammo.CounterText();
+            float drawnBack = Travel > 1e-4f ? _held.SlideOffset / Travel : 0f;
+            Ammo.RackBack();
+            Ammo.RackForward();
+            bool caughtAgain = Ammo.SlideLocked;
+            Ammo.SlideLocked = false;
+            Ammo.MagInserted = false;
+            Ammo.RackBack();
+            Ammo.RackForward();
+            bool bareHome = !Ammo.SlideLocked;
+            // As it was.
+            Ammo.MagInserted = true;
+            Ammo.MagRounds = mag;
+            Ammo.Chambered = chambered;
+            Ammo.SlideLocked = locked;
+            Ammo.Sync();
+            _returning = !locked;
+            yield return new WaitForSecondsRealtime(0.3f);
+            report($"empty gun's slide and chamber: caught back and empty the chamber {(open ? "lies open" : "is NOT OPEN for a round")}, a round by hand "
+                   + $"{(went ? "goes in" : "does NOT GO IN")}{(went && !waits ? " (NOT WAITING for the slide: it could fire caught back)" : "")}, the release "
+                   + $"{(ready ? "shuts on it, ready to fire" : "does NOT MAKE IT READY")}, shut on a round {(shutRefuses ? "none goes in" : "one more went in (NOT REFUSED)")}; "
+                   + $"caught back and empty, the release {(home ? "lets it home on nothing" : "does NOT LET IT HOME")}, the counter '{counter}'"
+                   + $"{(counter == "EMPTY" ? "" : " (NOT SAYING EMPTY)")}, the slide drawn {drawnBack * 100f:0}% back{(drawnBack > 0.15f ? " (NOT DRAWN HOME)" : "")}; "
+                   + $"racked and let go at the back it is {(caughtAgain ? "caught again" : "NOT CAUGHT again")}; with the magazine out a rack leaves it "
+                   + $"{(bareHome ? "home" : "caught (NOT HOME: nothing holds its catch)")}");
+        }
+
         /// <summary>The last smoothness check's largest jumps (metres), for the run's metrics.</summary>
         internal static float LastSmoothMag, LastSmoothHand;
 
