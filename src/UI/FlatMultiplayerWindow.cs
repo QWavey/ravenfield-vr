@@ -35,6 +35,10 @@ namespace RavenfieldVR.UI
                 }
                 return;
             }
+            if (!_open && useGUILayout)
+            {
+                useGUILayout = false;
+            }
             if (UnityEngine.Input.GetKeyDown(KeyCode.F8))
             {
                 _open = !_open;
@@ -99,8 +103,7 @@ namespace RavenfieldVR.UI
             GUILayout.EndScrollView();
             if (GUILayout.Button("Close"))
             {
-                _open = false;
-                useGUILayout = false;
+                _open = false; // (useGUILayout let go in Update: changed inside the window's layout it mismatched the groups)
             }
             GUI.DragWindow();
         }

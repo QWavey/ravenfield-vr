@@ -474,6 +474,7 @@ namespace RavenfieldVR.Rig
                 // (bodycam, cinematic shake) or the third-person toggle must not take the headset with it.
                 if (actor != null && !actor.dead && !actor.fallenOver && !actor.IsSeated() && !actor.IsOnLadder() && !player.playingVictoryAnimation)
                 {
+                    UnshrinkHead();
                     mode = RigMode.OnFoot;
                     key = player;
                     return;
@@ -486,6 +487,7 @@ namespace RavenfieldVR.Rig
                     key = actor.ragdoll;
                     return;
                 }
+                UnshrinkHead(); // (up again, dead, or in a seat: his head as it is drawn)
                 Camera active = player.GetActiveCamera();
                 // actor != null here: without a body (a frame between death and respawn) the actor-based checks below would throw;
                 // the camera fallbacks further down take over instead (review 2026-10-21).
@@ -1214,11 +1216,16 @@ namespace RavenfieldVR.Rig
             {
                 return RigidPose.Identity;
             }
-            if (_anchorKey is ActiveRaggy && player.actor != null)
+            if (_anchorKey is ActiveRaggy)
             {
+                if (player.actor == null)
+                {
+                    return RigidPose.Identity; // (gone between the frame's choice and its placing)
+                }
                 Transform head = FallenHead(player.actor);
                 if (head != null)
                 {
+                    ShrinkHead(head);
                     // (A little above the head bone, at the eyes: inside the skull the face's own mesh filled the view.)
                     return new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
                 }
@@ -1232,12 +1239,44 @@ namespace RavenfieldVR.Rig
             return new RigidPose(root.position, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
         }
 
+        private Transform _shrunkHead;
+        private Vector3 _shrunkHeadScale;
+
+        /// <summary>
+        /// The fallen player's own head (and what hangs on it: a helmet, goggles) drawn as a point while the view is in it: the eyes sat
+        /// inside the skull and its faces and the helmet's filled the view. Given back as he gets up (<see cref="UnshrinkHead"/>).
+        /// </summary>
+        private void ShrinkHead(Transform head)
+        {
+            if (_shrunkHead == head)
+            {
+                return;
+            }
+            UnshrinkHead();
+            _shrunkHead = head;
+            _shrunkHeadScale = head.localScale;
+            head.localScale = _shrunkHeadScale * 0.001f;
+        }
+
+        internal void UnshrinkHead()
+        {
+            if (_shrunkHead != null)
+            {
+                _shrunkHead.localScale = _shrunkHeadScale;
+            }
+            _shrunkHead = null;
+        }
+
         /// <summary>A fallen soldier's head as it lies (the ragdoll's, while it is one), or null.</summary>
         private static Transform FallenHead(Actor actor)
         {
             try
             {
-                return actor.ragdoll != null ? actor.ragdoll.HumanBoneTransformActive(HumanBodyBones.Head) : null;
+                // (The DRAWN head: getting up, the game's animated head is "active" at once while the drawn body still eases out of
+                // the ragdoll's pose for half a second, and the view jumped ahead of it; scout, 2026-11-11.)
+                return actor.ragdoll == null ? null
+                    : actor.ragdoll.IsRenderingRagdollTransforms() ? actor.ragdoll.HumanBoneTransformRagdoll(HumanBodyBones.Head)
+                    : actor.ragdoll.HumanBoneTransformActive(HumanBodyBones.Head);
             }
             catch (Exception)
             {

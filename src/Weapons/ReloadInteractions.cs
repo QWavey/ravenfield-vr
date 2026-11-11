@@ -330,6 +330,7 @@ namespace RavenfieldVR.Weapons
         {
             _sys = sys;
             _held = held;
+            ShowOrphanedRounds(); // (a gun drawn: round pieces an earlier one's release left hidden, it threw before it showed them)
         }
 
         /// <summary>Reload targets follow the firing weapon (parent or sub weapon).</summary>
@@ -352,6 +353,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>The round-shaped pieces of the gun's own magazine switched off while it sits in the gun empty (see KeepEmptyRoundsHidden).</summary>
         private readonly List<Renderer> _hiddenRounds = new List<Renderer>();
+        /// <summary>Every round piece hidden by any gun's reload code: one left by a release that threw is shown again by the next.</summary>
+        private static readonly HashSet<Renderer> HiddenRoundsAll = new HashSet<Renderer>();
         private Transform _hiddenRoundsOf;
         private float _nextRoundsLook;
 
@@ -374,9 +377,9 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
-            if (_hiddenRounds.Count > 0 && Time.unscaledTime < _nextRoundsLook)
+            if (mag == _hiddenRoundsOf && Time.unscaledTime < _nextRoundsLook)
             {
-                return;
+                return; // (twice a second at most, also when this magazine has no round pieces at all)
             }
             _nextRoundsLook = Time.unscaledTime + 0.5f; // (a look twice a second: a model that switches a round on later is caught)
             _hiddenRoundsOf = mag;
@@ -386,6 +389,7 @@ namespace RavenfieldVR.Weapons
                 {
                     r.forceRenderingOff = true;
                     _hiddenRounds.Add(r);
+                    HiddenRoundsAll.Add(r);
                 }
             }
             if (_hiddenRounds.Count > 0)
@@ -402,9 +406,23 @@ namespace RavenfieldVR.Weapons
                 {
                     r.forceRenderingOff = false;
                 }
+                HiddenRoundsAll.Remove(r);
             }
             _hiddenRounds.Clear();
             _hiddenRoundsOf = null;
+        }
+
+        /// <summary>Round pieces hidden by an instance that went without showing them again (its release threw): shown again.</summary>
+        internal static void ShowOrphanedRounds()
+        {
+            foreach (Renderer r in HiddenRoundsAll)
+            {
+                if (r != null)
+                {
+                    r.forceRenderingOff = false;
+                }
+            }
+            HiddenRoundsAll.Clear();
         }
 
         public void Update()

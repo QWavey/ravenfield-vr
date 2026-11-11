@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using UnityEngine;
@@ -107,16 +108,8 @@ namespace RavenfieldVR.Net
                 }
                 remote.Pose = null;
             }
-            ActorIk gone = null;
-            foreach (KeyValuePair<ActorIk, NetGame.Remote> kv in ByIk)
-            {
-                if (ReferenceEquals(kv.Value, remote))
-                {
-                    gone = kv.Key;
-                    break;
-                }
-            }
-            if (!ReferenceEquals(gone, null))
+            // (Every key of his: each new stand-in of his added one, and only the first was taken away.)
+            foreach (ActorIk gone in ByIk.Where(kv => ReferenceEquals(kv.Value, remote)).Select(kv => kv.Key).ToList())
             {
                 ByIk.Remove(gone);
                 if (gone != null)
@@ -489,6 +482,10 @@ namespace RavenfieldVR.Net
                 }
                 if (!Heads.TryGetValue(r, out Head h) || h.Bone == null)
                 {
+                    if (a.IsSeated() || a.IsOnLadder() || a.stance != Actor.Stance.Stand)
+                    {
+                        continue; // (learnt standing only: a head bent in a seat or a crouch would be wrong by that for his life)
+                    }
                     Transform bone = a.animator.GetBoneTransform(HumanBodyBones.Head);
                     if (bone == null)
                     {
@@ -602,7 +599,13 @@ namespace RavenfieldVR.Net
                         {
                             kv.Key.handTargetR = p.OwnRight;
                         }
-                        kv.Key.SetHandIkEnabled(kv.Key.handTargetL != null && p.OwnLeft != null, kv.Key.handTargetR != null && p.OwnRight != null);
+                        // (Only a hand that was ours: in a seat with hand targets of its own (a wheel, a turret's handles) the game set the
+                        // flags itself, and they were written off, his hands left the controls on the other PCs; scout, 2026-11-11.)
+                        bool ownSeat = kv.Value.Actor != null && kv.Value.Actor.seat != null && kv.Value.Actor.seat.HasHandIkTargets();
+                        if (!ownSeat)
+                        {
+                            kv.Key.SetHandIkEnabled(kv.Key.handTargetL != null && p.OwnLeft != null, kv.Key.handTargetR != null && p.OwnRight != null);
+                        }
                     }
                 }
                 if (!Usable(kv.Value, out Actor _, out Pose _) || !p.Is(HasGun))
