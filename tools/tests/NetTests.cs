@@ -253,6 +253,44 @@ namespace RavenfieldVR.Tests
             Check(!a.Lost && !b.Lost, "neither side calls the other lost on a bad but living line");
             Check(line.Now < 60, $"all of it within a minute of line time ({line.Now:0.0} s)");
 
+            // A message of pieces with no end (2026-11-11): one of 1.5 MB is given up by its receiver (the peer counted as lost,
+            // nothing delivered), while one of 300 kB comes through whole.
+            foreach (int size in new[] { 300 * 1024, 1536 * 1024 })
+            {
+                var wide = new BadLine { Loss = 0, Duplicate = 0, Jitter = 0 };
+                ReliableChannel tx = new ReliableChannel((p, n) => wide.Put(p, n, true)), rx = new ReliableChannel((p, n) => wide.Put(p, n, false));
+                var bigMessage = new byte[size];
+                new System.Random(7).NextBytes(bigMessage);
+                tx.Send(bigMessage, bigMessage.Length);
+                byte[] arrived = null;
+                for (wide.Now = 0; wide.Now < 120 && arrived == null && !rx.Lost; wide.Now += 1.0 / 60)
+                {
+                    tx.Update(wide.Now);
+                    rx.Update(wide.Now);
+                    var dueNow = wide.Flying.Where(f => f.due <= wide.Now).ToList();
+                    wide.Flying.RemoveAll(f => f.due <= wide.Now);
+                    foreach ((double _, byte[] packet, bool toB) in dueNow)
+                    {
+                        if (toB)
+                        {
+                            rx.Receive(packet, packet.Length, (d, n) => arrived = d.Take(n).ToArray());
+                        }
+                        else
+                        {
+                            tx.Receive(packet, packet.Length, (d, n) => { });
+                        }
+                    }
+                }
+                if (size < 1024 * 1024)
+                {
+                    Check(arrived != null && arrived.SequenceEqual(bigMessage) && !rx.Lost, $"a message of {size / 1024} kB in pieces arrives whole");
+                }
+                else
+                {
+                    Check(arrived == null && rx.Lost, $"a message of {size / 1024} kB is not joined: its sender is given up ({(arrived != null ? "DELIVERED" : "not delivered")}, lost {rx.Lost})");
+                }
+            }
+
             // Many more than the 16-bit numbers hold (they wrap), on a clean line.
             var clean = new BadLine { Loss = 0, Duplicate = 0, Jitter = 0 };
             ReliableChannel c = new ReliableChannel((p, n) => clean.Put(p, n, true)), d2 = new ReliableChannel((p, n) => clean.Put(p, n, false));
