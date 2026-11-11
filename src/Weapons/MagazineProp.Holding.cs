@@ -534,11 +534,13 @@ namespace RavenfieldVR.Weapons
         private Vector3 _keptOut;
         /// <summary>The frame the keep-out last ran (its pacing needs the frame before).</summary>
         private int _easeFrame = -10;
-        /// <summary>How fast the keep-out's offset is closing (m/s): it gathers pace from standing.</summary>
-        private float _easeVel;
-        /// <summary>Self-check: frames the keep-out's way back was paced, refused (the paced place in the gun), and jumped more than
-        /// 8 mm unpaced (the keep-out had not run the frame before; any other reason).</summary>
-        internal static readonly int[] EaseStats = new int[4];
+        /// <summary>How far the keep-out's sweep took the magazine the last time it ran (metres in that frame).</summary>
+        private float _easeTravel;
+        /// <summary>The magazine's way toward the hand was cut short by the pace the last time (it goes on from where it is drawn,
+        /// and the held-still shortcut is not taken).</summary>
+        private bool _keptShort;
+        /// <summary>The hand's place the last time the keep-out ran.</summary>
+        private Vector3 _easeTarget;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
@@ -758,7 +760,7 @@ namespace RavenfieldVR.Weapons
                 // blocked one: a free one is drawn exactly at the hand.
                 Vector3 targetInGun = gun.Rig.ToGun(target.position);
                 Quaternion rotInGun = Runtime.RigidPose.Conjugate(gun.Rig.GunBody.rotation) * target.rotation;
-                if (ReferenceEquals(_drawnFor, gun) && ReferenceEquals(_keptSolid, solid) && _keptMagShown == gun.MagSolidShown && _keptOut.sqrMagnitude > 1e-6f
+                if (ReferenceEquals(_drawnFor, gun) && ReferenceEquals(_keptSolid, solid) && _keptMagShown == gun.MagSolidShown && _keptOut.sqrMagnitude > 1e-6f && !_keptShort
                     && (targetInGun - _keptTargetInGun).sqrMagnitude < 1e-6f && Quaternion.Angle(rotInGun, _keptRotInGun) < 0.5f)
                 {
                     drawn = from;
@@ -800,7 +802,40 @@ namespace RavenfieldVR.Weapons
                         }
                         from = freed;
                     }
-                    drawn = Advance(from, target.position - from);
+                    // Its way toward the hand at a pace, not all of it in one frame: held out of the gun while the hand went on, it
+                    // slid the whole free way to the hand on the frame the way opened (up to 45 cm; "parts of the hand or mags are
+                    // glitching around (this happens randomly with force or smth)", user, 2026-11-11; 90 mm in the smoothness
+                    // check, and 27 mm still with the offset's length paced after the search: the search itself is what runs
+                    // ahead). Behind the hand, a frame's way is at most 8 mm more than the frame before went (it gathers from
+                    // standing; with the hand's own way allowed on top it still started with that in one step: 87 -> 60 mm,
+                    // measured), and never more than half of what is left, 4 mm at least. At the hand (within 3 mm the frame
+                    // before) it follows freely, not held back at all. 10 cm behind closes in about eight frames.
+                    bool ran = _easeFrame == Time.frameCount - 1;
+                    float behind = (target.position - from).magnitude;
+                    float budget = !ran || _keptOut.sqrMagnitude < 0.003f * 0.003f
+                        ? float.MaxValue
+                        : Mathf.Max(0.004f, Mathf.Min(_easeTravel + 0.008f, Mathf.Max(behind * 0.5f, (target.position - _easeTarget).magnitude)));
+                    // (Or the hand's own way that frame, where that is more than the half: slid along the gun beside a moving hand
+                    // it keeps up with it.)
+                    Vector3 swept = from;
+                    _keptShort = false;
+                    Vector3 Paced(Vector3 start, Vector3 delta)
+                    {
+                        float len = delta.magnitude;
+                        if (len > budget)
+                        {
+                            _keptShort = true;
+                            if (budget <= 1e-5f)
+                            {
+                                return start;
+                            }
+                            delta *= budget / len;
+                        }
+                        Vector3 reached = Advance(start, delta);
+                        budget -= (reached - start).magnitude;
+                        return reached;
+                    }
+                    drawn = Paced(from, target.position - from);
                     Vector3 left = target.position - drawn;
                     if (left.sqrMagnitude > 1e-6f)
                     {
@@ -814,12 +849,13 @@ namespace RavenfieldVR.Weapons
                             Vector3 part = axis * Vector3.Dot(target.position - drawn, axis);
                             if (part.sqrMagnitude > 1e-8f)
                             {
-                                drawn = Advance(drawn, part);
+                                drawn = Paced(drawn, part);
                             }
                         }
                     }
                     // The hand far through or past the gun: the magazine stays outside it, the glove with it (it jumped through the
                     // gun to the hand 30 cm on; user, 2026-10-16). Pulled more than 45 cm from it, the hand lets go of it.
+                    _easeTravel = (drawn - swept).magnitude;
                     LostByHand = (drawn - target.position).sqrMagnitude > 0.45f * 0.45f;
                     _drawnInGun = gun.Rig.ToGun(drawn);
                     _drawnFor = gun;
@@ -830,51 +866,9 @@ namespace RavenfieldVR.Weapons
                 _drawnFor = null;
                 LostByHand = false;
             }
-            // Back to the hand at a pace, not in one frame: held out of the gun while the hand went on into it (up to 45 cm), the
-            // magazine and the glove jumped the whole way to the hand on the frame the way was free again ("parts of the hand or
-            // mags are glitching around (this happens randomly with force or smth)", user, 2026-11-11; the smoothness check). The
-            // offset shrinks by 2.5 m/s at most (3 cm a frame at 90 Hz: 10 cm are closed in four frames). Only shrinking is paced:
-            // meeting the gun stops it at once, as before. Not where the paced place would be inside the gun.
             Vector3 offset = drawn - target.position;
-            float had = _keptOut.magnitude, has = offset.magnitude;
-            // The pace itself sets in and ends softly (measured 2026-11-11: a flat 2.5 m/s was itself a 28 mm step on its first
-            // frame, 33 mm in the smoothness check): it gathers by 60 m/s2 from standing and is never more than half of what is
-            // left, so 9 cm close in about eight frames with no frame's step changing by more than a centimetre.
-            float easeDt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            bool easing = _easeFrame == Time.frameCount - 1 && had > 0.004f;
-            easing &= has < had - 0.0005f; // (only while it closes: held against the gun it gathers no pace)
-            // (No frame's step more than 8 mm over the last one's, at any frame rate: by the time alone a 25 ms frame's first
-            // step was 37 mm; measured 98 -> 63 mm in one frame at 45 frames a second.)
-            _easeVel = easing ? Mathf.Min(_easeVel + Mathf.Min(60f * easeDt, 0.008f / Mathf.Max(easeDt, 0.004f)), 2.5f) : 0f;
-            float pace = Mathf.Min(_easeVel * easeDt, Mathf.Max(had - has, 0f) * 0.5f);
-            if (easing && has < had - pace)
-            {
-                Vector3 paced = Vector3.MoveTowards(_keptOut, offset, pace);
-                Vector3 at = target.position + paced;
-                if (gun != null && gun.InsideDrawnGun(at) && has > 1e-4f)
-                {
-                    // (The way out changed sides: as far out as it was less the pace, on the new way out.)
-                    paced = offset / has * (had - pace);
-                    at = target.position + paced;
-                }
-                bool free = gun == null || !gun.InsideDrawnGun(at);
-                EaseStats[free ? 0 : 1]++;
-                if (free)
-                {
-                    offset = paced;
-                    drawn = at;
-                    if (gun != null && gun.Rig != null && gun.Rig.GunBody != null)
-                    {
-                        _drawnInGun = gun.Rig.ToGun(drawn);
-                        _drawnFor = gun;
-                    }
-                }
-            }
-            else if (has < had - 0.008f)
-            {
-                EaseStats[_easeFrame != Time.frameCount - 1 ? 2 : 3]++;
-            }
             _easeFrame = Time.frameCount;
+            _easeTarget = target.position;
             _keptOut = offset;
             ContactSounds(gun, drawn, _keptOut.sqrMagnitude > 1e-6f);
             if (_keptOut.sqrMagnitude < 1e-8f)
