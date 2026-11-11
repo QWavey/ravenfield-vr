@@ -789,7 +789,17 @@ namespace RavenfieldVR.Input
                 Seat here = actor.seat;
                 bool own = Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null || here.CanUsePersonalWeapons();
                 bool click = VRInput.GetPressed(DigitalAction.WeaponNext) && !own && (here.weapons == null || here.weapons.Length < 2);
-                if (VRInput.GetPressed(DigitalAction.Kick) || click)
+                // (A hand on the wheel or the stick of a vehicle going faster than a walk: not, the controls would be let go at speed
+                // and the plane or car left with nobody at them; a scout of 2026-11-06 found that of the left stick's click. Said why.)
+                Rig.VRRig rigNow = Rig.VRRig.Instance;
+                bool steeringNow = rigNow != null && (rigNow.Hands[0].Role == Rig.HandRole.Cockpit || rigNow.Hands[1].Role == Rig.HandRole.Cockpit);
+                bool moving = here.vehicle != null && here.vehicle.Velocity().sqrMagnitude > 3f * 3f;
+                bool press = VRInput.GetPressed(DigitalAction.Kick) || click;
+                if (press && steeringNow && moving && here.IsDriverSeat())
+                {
+                    UI.UISystem.Instance?.Notice?.Show("Let go of the controls (or slow down) to change seats.", 2f);
+                }
+                else if (press)
                 {
                     int next = NextSeatIndex(here);
                     if (next >= 0)

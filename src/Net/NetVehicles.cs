@@ -84,6 +84,7 @@ namespace RavenfieldVR.Net
                           finalizer: new HarmonyMethod(typeof(NetVehicles), nameof(AfterEnterSeat)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.LeaveSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnLeaveSeat)));
             harmony.Patch(AccessTools.Method(typeof(Vehicle), "FixedUpdate"), postfix: new HarmonyMethod(typeof(NetVehicles), nameof(AfterFixedUpdate)));
+            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnSwitchSeat)));
         }
 
         private static readonly AccessTools.FieldRef<Vehicle, Vector3> CachedVelocity = AccessTools.FieldRefAccess<Vehicle, Vector3>("cachedVelocity");
@@ -135,6 +136,28 @@ namespace RavenfieldVR.Net
                 return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// The game's own seat change (its seat keys) into a seat another PC's soldier holds: refused before anything moves. The game
+        /// leaves the seat first and puts the one sitting there out by its own way, past EnterSeat: the player sat there and the other
+        /// soldier stood stranded here while his PC still seated him (vehicle scout, 2026-11-11).
+        /// </summary>
+        private static bool OnSwitchSeat(Actor __instance, int seatIndex, ref bool __result)
+        {
+            if (!Enabled || Seating || __instance != LocalPlayer.actor || __instance.seat == null || __instance.seat.vehicle == null)
+            {
+                return true;
+            }
+            List<Seat> seats = __instance.seat.vehicle.seats;
+            Seat target = seatIndex >= 0 && seats != null && seatIndex < seats.Count ? seats[seatIndex] : null;
+            if (target == null || target == __instance.seat || target.occupant == null || !NetGame.IsRemote(target.occupant))
+            {
+                return true;
+            }
+            UI.UISystem.Instance?.Notice?.Show("That seat is taken by another player.", 2f);
+            __result = false;
+            return false;
         }
 
         private static System.Exception AfterEnterSeat(System.Exception __exception, bool __state)

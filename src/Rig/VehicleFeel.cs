@@ -15,6 +15,7 @@ namespace RavenfieldVR.Rig
         private static Vehicle _of;
         private static Vector3 _lastVelocity;
         private static float _nextBump, _nextHum;
+        private static Vector3 _accelAverage;
 
         /// <summary>Once a frame from the rig (any seat of a vehicle, not only the driver's).</summary>
         internal static void Update(VRRig rig)
@@ -37,12 +38,17 @@ namespace RavenfieldVR.Rig
             {
                 _of = v;
                 _lastVelocity = velocity;
+                _accelAverage = Vector3.zero;
                 return;
             }
             float dt = Mathf.Max(Time.deltaTime, 1e-3f);
-            // The change of speed beyond what driving does: a car brakes at about 8 m/s each second, a crash stops it in a tenth.
-            float jolt = (velocity - _lastVelocity).magnitude / dt;
+            // The change of speed beyond what the ride itself does: its acceleration against its own average of the last third of a
+            // second. A crash or a hard landing is a spike; a hard turn (3 g in a plane, a fast corner) is steady and is not one
+            // (counted whole, it rumbled every 0.12 s for as long as the turn lasted; vehicle scout, 2026-11-11).
+            Vector3 accel = (velocity - _lastVelocity) / dt;
             _lastVelocity = velocity;
+            float jolt = (accel - _accelAverage).magnitude;
+            _accelAverage = Vector3.Lerp(_accelAverage, accel, 1f - Mathf.Exp(-dt / 0.3f));
             if (jolt > 25f && Time.unscaledTime >= _nextBump)
             {
                 float strength = Mathf.Clamp01((jolt - 25f) / 150f);
@@ -75,7 +81,8 @@ namespace RavenfieldVR.Rig
                 return;
             }
             _nextHum = Time.unscaledTime + 0.1f;
-            float power = Mathf.Clamp01(v.engine.power);
+            // (By the throttle as well as the engine running: power alone is on or off, the same at idle and at full throttle.)
+            float power = Mathf.Clamp01(v.engine.power) * (0.3f + 0.7f * Mathf.Clamp01(Mathf.Abs(v.engine.targetThrottle)));
             if (power < 0.05f)
             {
                 return;
