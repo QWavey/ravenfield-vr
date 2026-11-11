@@ -222,6 +222,9 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `HideGameWeaponHud` | on | Hide the game's weapon panel (name, ammo, slots); the gun, pouch and wrist show ammo |
 | `SkipDrawAnimation` | on | Skip the weapon's draw animation in VR (you draw it with your hand) |
 | `ReturnRoundsOnMagDrop` | on | Rounds in magazines that get cleared away return to your reserve |
+| `MagazineInsertHelp` | Normal | How forgiving the magazine well is: Exact (a quarter less room), Normal, Easy (60% more room beside the well and half as much again in the turn; the magazine is drawn home by itself once a quarter in, no last push). VR settings, Weapons: "Magazine well" |
+| `ShellsPerReach` | 2 | Shells one reach into the pouch takes for a tube-fed shotgun; they still go in one at a time (push one in, draw the hand back a little, push the next) |
+| `MagazineReach` | 3 | A dropped magazine of the gun in your hand (with rounds in it) comes to your empty hand from this many metres: point at it and squeeze the grip. 0 = off |
 | `MagazineDetent` | on | A magazine's last few millimetres take a firm push or a tap on its base, with a click as it latches; pushed gently it stops just short and waits to be tapped home (not pistols, machine gun boxes or clips) |
 | `UnderSeatedMagazineFalls` | off | With the detent: a magazine let go before it clicks home goes in unlatched and drops out at the next shot unless tapped home |
 | `AkMagazinesStayIn` | off | On rifles with a curved magazine (AK style) the release only unlatches it; your hand rocks it out |
