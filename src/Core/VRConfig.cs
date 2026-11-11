@@ -13,6 +13,8 @@ namespace RavenfieldVR.Core
     public enum MoveReference { Head, OffHand }
     public enum SprintMode { Toggle, Hold }
     public enum ReloadMode { Manual, Assisted }
+    /// <summary>How forgiving a magazine well is (other VR shooters' "easy magazine loading").</summary>
+    public enum MagazineHelp { Exact, Normal, Easy }
     public enum SlowMotionHands { Normal, Slowed }
     public enum PouchLocation { OffHandHip, DominantHip, Chest, OffHandChest }
     public enum GunAngleMode { Auto, Manual }
@@ -84,6 +86,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> ReturnRoundsOnMagDrop;
         public static ConfigEntry<bool> LoadMagazinesByHand;
         public static ConfigEntry<bool> MagazineDetent;
+        public static ConfigEntry<MagazineHelp> MagazineInsertHelp;
         public static ConfigEntry<bool> UnderSeatedMagazineFalls;
         public static ConfigEntry<bool> AkMagazinesStayIn;
         public static ConfigEntry<bool> LoseRoundOnRack;
@@ -254,6 +257,11 @@ namespace RavenfieldVR.Core
                 "A chambered round counts on top of a full magazine (30+1).");
             ReturnRoundsOnMagDrop = cfg.Bind("Weapons", "ReturnRoundsOnMagDrop", true,
                 "Rounds left in a dropped magazine go back to your reserve (Ravenfield's normal behaviour). Off = they are lost.");
+            MagazineInsertHelp = cfg.Bind("Weapons", "MagazineInsertHelp", MagazineHelp.Normal,
+                "How forgiving the magazine well is when a magazine is brought to it by hand. Exact: the magazine has to be close to the well's "
+                + "line and turned nearly straight (a quarter less room than Normal). Normal: as it always was (3.5 cm beside the line, 35 degrees "
+                + "turned; a pistol's grip a little more). Easy: 60% more room beside the line and half as much again in the turn, and on every "
+                + "gun the magazine is drawn home by itself once it is a quarter of the way in, as a pistol's always is (no last push, no detent).");
             MagazineDetent = cfg.Bind("Weapons", "MagazineDetent", true,
                 "A magazine's last few millimetres into its well take a firm push, or a tap on its base, and it clicks as it latches. Pushed in "
                 + "gently it stops just short; let go there, it waits in the well until its base is tapped home (or it is taken again, or the "

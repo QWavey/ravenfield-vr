@@ -114,7 +114,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private bool DetentApplies(MagazineProp prop) =>
             VRConfig.MagazineDetent.Value && prop.Kind == PropKind.Magazine && !WellInGrip && !Data.IsMachineGun && !Data.EnBloc && !prop.BoxSized
-            && !Core.AutoTest.Requested;
+            && !Core.AutoTest.Requested && VRConfig.MagazineInsertHelp.Value != MagazineHelp.Easy;
 
         /// <summary>How far short of its seat the latch holds a magazine: 8% of its way in, 4 to 8 mm.</summary>
         private static float DetentDepth(MagazineProp prop) => Mathf.Clamp(prop.RailLength * 0.08f, 0.004f, 0.008f);
@@ -593,6 +593,14 @@ namespace RavenfieldVR.Weapons
                 bool atMouth = !magazine || drawnAlong < MouthReach + 0.005f;
                 float lateralMax = rocket ? 0.06f : enBloc ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
                 float angleMax = enBloc ? 181f : !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
+                if (magazine && atMouth)
+                {
+                    // How forgiving the well's mouth is (MagazineInsertHelp: other VR shooters' "easy magazine loading"). Only at
+                    // the mouth: deeper in, the well's own play decides (a wider window there took it through the wall).
+                    MagazineHelp help = VRConfig.MagazineInsertHelp.Value;
+                    lateralMax *= help == MagazineHelp.Easy ? 1.6f : help == MagazineHelp.Exact ? 0.75f : 1f;
+                    angleMax *= help == MagazineHelp.Easy ? 1.5f : help == MagazineHelp.Exact ? 0.8f : 1f;
+                }
                 bool lined = (magazine ? drawnLateral : lateral) < lateralMax && along > (rocket || enBloc ? -0.03f : -0.005f) && (rocket ? along < RocketTakenIn : (magazine ? drawnAlong : along) < prop.RailLength)
                              && angle < angleMax;
                 if (rocket && !lined && LooselyLined(prop, hold, seat, insert, out float looseDepth))
@@ -754,7 +762,8 @@ namespace RavenfieldVR.Weapons
                 SeatProp(off, prop);
                 BeginSeatedHold(off, prop);
             }
-            else if (goingIn && prop.Kind == PropKind.Magazine && WellInGrip && prop.RailDepth >= prop.RailLength * 0.25f)
+            else if (goingIn && prop.Kind == PropKind.Magazine && prop.RailDepth >= prop.RailLength * 0.25f
+                     && (WellInGrip || VRConfig.MagazineInsertHelp.Value == MagazineHelp.Easy && !Data.IsMachineGun && !Data.EnBloc))
             {
                 // A pistol's well is in its grip, where the gun hand is: the two controllers meet before the magazine is all
                 // the way in. A quarter of the way in and straight, it is drawn home the rest of the way. A rocket is not:
