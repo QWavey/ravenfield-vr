@@ -658,6 +658,10 @@ namespace RavenfieldVR.Net
                         s.Team = team;
                         if (!float.IsNaN(health) && !float.IsInfinity(health))
                         {
+                            if (s.V.health - health > 1f)
+                            {
+                                Rig.VehicleFeel.OnHit(s.V, s.V.health - health); // (felt by a rider of a vehicle another PC drives too)
+                            }
                             s.Health = health;
                             s.V.health = Mathf.Clamp(health, 0f, s.V.maxHealth);
                         }

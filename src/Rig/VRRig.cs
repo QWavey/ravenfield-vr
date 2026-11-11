@@ -365,6 +365,7 @@ namespace RavenfieldVR.Rig
 
             HandleTurning(player);
             _cockpit.Update();
+            VehicleFeel.Update(this);
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
             if (Mode == RigMode.OnFoot && player != null && player.actor != null && player.actor.IsSeated())
             {
