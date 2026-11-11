@@ -2,6 +2,14 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-11 evening (1.17.5, Tasks 380: improved and optimised with the game not started)
+
+- Setup 1.17.5 is BUILT (`dist/RavenfieldVR-Setup-1.17.5.exe`) and NOT installed: the user was playing ("Treat the game as opened now ... im going to tell you"). The game folder holds 1.17.4.
+- Nothing of 1.17.5 has run in the game. First thing with the game free: `python -I tools/vrshots.py --autotest --fast`, `--ui` (the tab check aims at the button's middle now), `--netcheck`, `--sandboxcheck --sandboxmode`, `--weapon "=RK-44" --weapon "=S-IND7"` (the pace's softer braking).
+- What changed is in Tasks 380 (ten Haiku scouts over three rounds, each finding read in the code first) and in `dist/notes-1.17.5.md`.
+- Offline: `tools/tests/run-tests.ps1` passes with the game running too (483 checks, the fuzz, 5053 net checks); `tools/tests/bench.ps1` works again.
+- Open from this run: the installer's scripts, the launcher's wait, the keyboard staying up (Tasks 380, "OPEN").
+
 ## State 2026-11-11 midday (1.17.4, Tasks 379: smoothness)
 
 - Measured in the game (`ReloadInteractions.SmoothnessSelfCheck`, `vrshots --weapon "=RK-44" --weapon "=S-IND7"`): a magazine freed from the gun 90 -> 15 mm in its worst frame (the pace is inside `MagazineProp.KeepOffGun`'s sweep, `Paced`); the switch off the well's line 26 -> 10 to 16 mm (`ShowAt`, `_switchOffset`); a long gun in one hand through a snap turn 0.0 deg behind (`VRRig.LastSnapDegrees`).

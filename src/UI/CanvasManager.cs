@@ -721,6 +721,16 @@ namespace RavenfieldVR.UI
 
         public void Dispose()
         {
+            // The game's menus hidden for a joined player are the game's again: left off, a reload of the mod (F6) began with an
+            // empty list and nothing ever switched them back on for the rest of the session (scout, 2026-11-11).
+            foreach (Canvas hidden in _hiddenMenus)
+            {
+                if (hidden != null)
+                {
+                    hidden.enabled = true;
+                }
+            }
+            _hiddenMenus.Clear();
             foreach (Tracked t in _tracked.Values)
             {
                 if (t.Canvas == null)

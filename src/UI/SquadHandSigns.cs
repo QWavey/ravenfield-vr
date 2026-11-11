@@ -100,6 +100,13 @@ namespace RavenfieldVR.UI
             {
                 return false;
             }
+            // (Not from a seat: a driver's or gunner's open hand resting level for half a second was read as "go there" and sent the
+            // squad off; scout, 2026-11-11. The hands are the vehicle's there.)
+            Actor seated = FpsActorController.instance != null ? FpsActorController.instance.actor : null;
+            if (seated != null && seated.IsSeated())
+            {
+                return false;
+            }
             if (UISystem.Instance == null || UISystem.Instance.MenuMode)
             {
                 return false;
