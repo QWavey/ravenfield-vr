@@ -118,13 +118,18 @@ namespace RavenfieldVR.Net
                 __result = false;
                 return false;
             }
-            // One of this PC's own (the player) taking a seat a stand-in holds: the game puts the stand-in out, and that leave must go
-            // through, or the stand-in kept the seat as its own while the player sat in it, and its next word put the player out
-            // (vehicle scout, 2026-11-11).
-            if (!Seating && kickOutOccupant && seat != null && seat.occupant != null && NetGame.IsRemote(seat.occupant))
+            // A seat another PC's soldier sits in (his player, or one of the host's soldiers) is his: this PC's player does not take it.
+            // The game puts the one sitting there out, but only here: on his own PC he still sat there, and two players sat in one seat
+            // (the user, 2026-11-11: "A player can go into another players seat without kicking him out"). The game's swap of seats asks
+            // the same way, so it is refused too; a free seat is taken as ever.
+            if (!Seating && seat != null && seat.occupant != null && seat.occupant != __instance && NetGame.IsRemote(seat.occupant))
             {
-                Seating = true;
-                __state = true;
+                if (__instance == LocalPlayer.actor)
+                {
+                    UI.UISystem.Instance?.Notice?.Show(NetGame.RemoteOfActor(seat.occupant)?.Id == 0 ? "That seat is taken by another player." : "That seat is taken.", 2f);
+                }
+                __result = false;
+                return false;
             }
             return true;
         }
