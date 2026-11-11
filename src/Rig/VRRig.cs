@@ -468,6 +468,10 @@ namespace RavenfieldVR.Rig
         private void DetermineMode(FpsActorController player, out RigMode mode, out object key)
         {
             key = null;
+            if (player == null || GameManager.IsSpectating() || player.inPhotoMode)
+            {
+                UnshrinkHead(); // (photo mode or spectating while down: the head stayed shrunk; scout)
+            }
             if (player != null && !GameManager.IsSpectating() && !player.inPhotoMode)
             {
                 Actor actor = player.actor;
@@ -628,6 +632,14 @@ namespace RavenfieldVR.Rig
                 // down (and the view low) after getting out.
                 VRGameInput.ResetToggles();
             }
+            // (Out of the fall: the way he looked while lying, turns made there included, carried onto his feet; reset to the body's,
+            // a turn made lying was undone on getting up; view scout, 2026-11-11.)
+            bool fromFall = from == RigMode.Anchored && _anchorKey is ActiveRaggy;
+            float fallHeading = _fallYaw + _seatYawOffset - _neutralHead.rotation.eulerAngles.y;
+            if (to == RigMode.Anchored && key is ActiveRaggy && player != null && player.actor != null)
+            {
+                _fallYaw = player.actor.transform.eulerAngles.y; // (latched: getting up the game turns the body to the lying spine)
+            }
             Mode = to;
             _anchorKey = key;
             Vector3 hl = HeadLocal;
@@ -639,8 +651,8 @@ namespace RavenfieldVR.Rig
 
             if (to == RigMode.OnFoot && player != null)
             {
-                // Face the direction the game spawned / dropped us in.
-                Yaw = player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
+                // Face the direction the game spawned / dropped us in (or, up from a fall, the way he looked while lying).
+                Yaw = fromFall ? fallHeading : player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
                 _yawFromUntrackedHead = !HeadTracked;
                 if (_calibrationStart < 0f && VRConfig.EyeHeight.Value <= 0f)
                 {
@@ -1222,11 +1234,13 @@ namespace RavenfieldVR.Rig
             {
                 _restTakenAt = Time.unscaledTime;
             }
-            else if (!_restOutside && Time.unscaledTime - _restTakenAt < 0.5f)
+            else if (Time.unscaledTime - _restTakenAt < 0.5f)
             {
-                // (Taken again for the first half second: on the first frame a turret may still turn to its rest or a camera settle,
-                // and that one frame's place was kept for the whole ride; scout.)
-                _restLocal = t.InverseTransformPoint(rest);
+                // (Taken again for the first half second, the outside verdict too: on the first frame a turret may still turn to its
+                // rest or a camera settle, and that one frame's place was kept for the whole ride; scouts.)
+                var eye = new Vector3(0f, 0.85f, 0.2f);
+                _restOutside = (rest - t.TransformPoint(eye)).magnitude > 1.5f;
+                _restLocal = _restOutside ? eye : t.InverseTransformPoint(rest);
             }
             if (fresh)
             {
@@ -1275,7 +1289,7 @@ namespace RavenfieldVR.Rig
                 {
                     ShrinkHead(head);
                     // (A little above the head bone, at the eyes: inside the skull the face's own mesh filled the view.)
-                    return new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
+                    return new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, _fallYaw, 0f));
                 }
             }
             Transform root = player.fpCameraRoot;
@@ -1288,6 +1302,8 @@ namespace RavenfieldVR.Rig
         }
 
         private Transform _shrunkHead;
+        /// <summary>The body's yaw as the fall began (the view's, while lying: the game turns the body to the spine on getting up).</summary>
+        private float _fallYaw;
         private Vector3 _shrunkHeadScale;
 
         /// <summary>
@@ -1505,6 +1521,21 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void UpdateBodyShadows(FpsActorController player)
         {
+            if (Mode == RigMode.Anchored && _anchorKey is ActiveRaggy && player != null && player.actor != null)
+            {
+                // Lying, the view is at his own head: the ragdoll's own mesh and what hangs on it are drawn there (the game's
+                // third-person copies are off while it is a ragdoll), and filled the view (view scout, 2026-11-11).
+                Hide(player.actor.skinnedRendererRagdoll);
+                if (player.actor.accessoryRagdollRenderer != null)
+                {
+                    foreach (Renderer accessory in player.actor.accessoryRagdollRenderer)
+                    {
+                        Hide(accessory);
+                    }
+                }
+                _bodyShadowsOwner = player;
+                return;
+            }
             bool drawn = player != null && (player.IsUsingOverrideCamera() ? player.cameraRenderOptions.renderPlayerActor : !player.firstPerson);
             bool shadow = VRConfig.BodyShadow.Value;
             // On a seat or a ladder the head is at the body's eyes too while the game does not draw the body (its first-person
