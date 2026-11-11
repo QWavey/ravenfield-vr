@@ -133,6 +133,7 @@ namespace RavenfieldVR.UI
             Stepper("Vibration", () => VRConfig.HapticStrength.Value <= 0f ? "off" : $"{VRConfig.HapticStrength.Value * 100f:0}%",
                 d => VRConfig.HapticStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.HapticStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
             TogglePair("Physical crouch", VRConfig.PhysicalCrouch, "Seated play", VRConfig.SeatedMode);
+            Choice("When knocked over", VRConfig.FallInFirstPerson, new[] { true, false }, new[] { "First person", "Game camera" });
             ActionRow("Eye height", () => VRConfig.EyeHeight.Value > 0.3f ? $"{VRConfig.EyeHeight.Value:0.00} m" : "auto", "Calibrate now", () => _rig.CalibrateHeightNow());
         }
 
