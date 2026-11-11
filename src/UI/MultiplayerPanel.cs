@@ -28,7 +28,18 @@ namespace RavenfieldVR.UI
 
         public MultiplayerPanel(VRRig rig, Camera eventCamera) : base(rig, eventCamera, "RavenfieldVR Multiplayer")
         {
-            Multiplayer.Changed += () => Changed = true;
+            _onChanged = () => Changed = true;
+            Multiplayer.Changed += _onChanged;
+        }
+
+        /// <summary>The session's "changed" as this panel hears it: taken off again with the panel (every panel made anew, F6's
+        /// reload, left another one listening for good; scout, 2026-11-11).</summary>
+        private readonly System.Action _onChanged;
+
+        public override void Dispose()
+        {
+            Multiplayer.Changed -= _onChanged;
+            base.Dispose();
         }
 
         /// <summary>A joined player outside a match follows the host: his panel stays (its Close only made it jump back).</summary>

@@ -19,7 +19,7 @@ namespace RavenfieldVR.Sandbox
     {
         private const float Reach = 120f, PullAt = 0.7f, ReleaseAt = 0.35f;
         private const int RingPoints = 28;
-        private static readonly RaycastHit[] Hits = new RaycastHit[24];
+        private static readonly RaycastHit[] Hits = new RaycastHit[96];
         private static readonly Vector3[] Circle = MakeCircle();
 
         private static Vector3[] MakeCircle()
@@ -333,6 +333,18 @@ namespace RavenfieldVR.Sandbox
             _from = hand.TrackedPointer.position;
             Vector3 direction = hand.TrackedPointer.Forward;
             int n = Physics.RaycastNonAlloc(_from, direction, Hits, Reach, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            if (n >= Hits.Length)
+            {
+                // More along the beam than are kept (a workshop map's props and foliage): they come in no order, and the nearest
+                // may be among those left out, the soldier made on a wall behind or "Point at the ground." said (scout,
+                // 2026-11-11; the user: "spawning enemys on a modded map for example doesnt spawn them"). Then the beam only as
+                // far as the nearest thing of all, where nothing is left out.
+                if (Physics.Raycast(_from, direction, out RaycastHit first, Reach, ~(1 << 2), QueryTriggerInteraction.Ignore) && !Own(first.collider, player))
+                {
+                    n = Physics.RaycastNonAlloc(_from, direction, Hits, first.distance + 0.05f, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                }
+                Log.InfoOnce("sandbox-beam-full", $"Sandbox tool: more than {Hits.Length} things along the beam on this map; the nearest is asked for by itself.");
+            }
             float nearest = float.MaxValue;
             bool any = false;
             RaycastHit best = default;

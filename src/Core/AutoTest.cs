@@ -2925,7 +2925,10 @@ namespace RavenfieldVR.Core
                 lines.Add($"click '{label}': NO SUCH BUTTON");
                 yield break;
             }
-            Vector3 target = ((RectTransform)button.transform).position;
+            // (Its middle: the kit's buttons have their pivot on their right edge, and aimed there the laser was on the edge itself, in
+            // the gap to the next one half the time: "A TAB DID NOT SHOW ITS PAGE", every run of 2026-11-11; scout.)
+            var buttonRect = (RectTransform)button.transform;
+            Vector3 target = buttonRect.TransformPoint(buttonRect.rect.center);
             try
             {
                 // (The aim held a while before the pull and after it: with 8 frames before and 3 after, a slow frame or the laser

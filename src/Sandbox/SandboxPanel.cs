@@ -65,11 +65,27 @@ namespace RavenfieldVR.Sandbox
             return Canvas.GetComponentsInChildren<Button>(true).Count(b => b != null && b.gameObject.activeInHierarchy);
         }
 
-        protected override int Shown() =>
-            // (Each in bits of its own: added up, two states could give one number and a change went unseen.)
-            (Sandbox.Quiet ? 1 : 0) | (Sandbox.PlayerInvulnerable ? 2 : 0) | ((int)Sandbox.Armed << 2) | (GameContext.InGame ? 16 : 0)
-            | (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 32 : 0) | ((Sandbox.SpawnedCount & 0xFFF) << 6) | ((Sandbox.PlacedCount & 0xFFF) << 18)
-            | (Sandbox.Paused ? 1 << 30 : 0) | (Sandbox.Fly ? int.MinValue : 0) ^ (Sandbox.RemoveDead ? 0 : 0x2AAAAAAA) ^ (Net.Multiplayer.Active ? Net.Multiplayer.Hosting ? 0x11111111 : 0x22222222 : 0);
+        protected override int Shown()
+        {
+            // One number of all that is shown, each part mixed in after the other. (In bits of their own first, then two more
+            // parts with ^ behind the |: ^ binds tighter, so their masks were OR-ed in, half the bits stood at 1 with the dead
+            // kept, and a change of the counts under them went unseen until the next change elsewhere; scout, 2026-11-11.)
+            unchecked
+            {
+                int h = (int)Sandbox.Armed;
+                h = h * 31 + (Sandbox.Quiet ? 1 : 0);
+                h = h * 31 + (Sandbox.PlayerInvulnerable ? 1 : 0);
+                h = h * 31 + (GameContext.InGame ? 1 : 0);
+                h = h * 31 + (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 1 : 0);
+                h = h * 31 + Sandbox.SpawnedCount;
+                h = h * 31 + Sandbox.PlacedCount;
+                h = h * 31 + (Sandbox.Paused ? 1 : 0);
+                h = h * 31 + (Sandbox.Fly ? 1 : 0);
+                h = h * 31 + (Sandbox.RemoveDead ? 1 : 0);
+                h = h * 31 + (Net.Multiplayer.Active ? Net.Multiplayer.Hosting ? 1 : 2 : 0);
+                return h;
+            }
+        }
 
         private void Say(string status)
         {

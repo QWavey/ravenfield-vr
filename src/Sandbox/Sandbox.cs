@@ -597,6 +597,7 @@ namespace RavenfieldVR.Sandbox
             }
             string name = a.name;
             bool mine = Made.Contains(a);
+            Unplace(a);
             Spawned.Remove(a);
             Remove(a);
             if (!mine && !a.dead)
@@ -619,9 +620,42 @@ namespace RavenfieldVR.Sandbox
                 return "Nothing to remove there.";
             }
             Eject(v);
+            Unplace(v);
             Spawned.Remove(v);
             Remove(v);
             return "Vehicle removed.";
+        }
+
+        /// <summary>
+        /// One thing the remover took away is taken out of the set too: its pull's line goes when it was the pull's last, and a
+        /// soldiers' line counts one fewer. Left in, Save wrote the removed ones and Load brought them back (scout, 2026-11-11).
+        /// </summary>
+        private static void Unplace(UnityEngine.Object thing)
+        {
+            for (int i = PlacedThings.Count - 1; i >= 0; i--)
+            {
+                List<UnityEngine.Object> things = PlacedThings[i];
+                if (!things.Remove(thing))
+                {
+                    continue;
+                }
+                things.RemoveAll(o => o == null);
+                if (things.Count == 0)
+                {
+                    PlacedThings.RemoveAt(i);
+                    Placed.RemoveAt(i);
+                }
+                else if (i < Placed.Count)
+                {
+                    string[] parts = Placed[i].Split(';');
+                    if (parts.Length > 5 && parts[0] == "S")
+                    {
+                        parts[5] = things.Count.ToString();
+                        Placed[i] = string.Join(";", parts);
+                    }
+                }
+                return;
+            }
         }
 
         /// <summary>
