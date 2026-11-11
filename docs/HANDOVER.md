@@ -2,6 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-11 night (1.17.8 INSTALLED on both PCs and being played; 1.17.9 in code, Tasks 383)
+
+- The user and a friend play 1.17.8 in a shared match (both PCs). Nothing is installed or started from here while they play; the setup 1.17.9 is built into `dist/` at the run's end, and BOTH PCs need it (another version is refused at joining).
+- Tasks 383 (this run, code and offline tests only): the SteamVR keyboard, a VR player's gun on a flat PC, the host's mod list told again, install/uninstall that can be run again after a stop, a joined PC's own script soldiers taken off, the host's mutator settings, the free hand's wrist turn, a flat multiplayer window (F8), and a scout's fixes (the soldiers' batch over a packet since 1.17.8, walking in place on a slope again since 1.17.8, the default skin).
+- First with the game free: `vrshots --netcheck --fast` (the joining side meets `NoOwnSoldiers` and the rules' new settings block), then `--autotest --fast`; with the friend: walk on a slope and stand (no walking in place), a mutator with a changed setting, a wave of the free hand.
+
 ## State 2026-11-11 late evening (1.17.6 INSTALLED, Tasks 381: rounds into the chamber, the slide of an empty gun)
 
 - Setup 1.17.6 is built and installed (it carries all of 1.17.5, which was never installed). NOTHING of 1.17.5 or 1.17.6 has run in the game (the user: "Dont do any tests till you fully complete").
