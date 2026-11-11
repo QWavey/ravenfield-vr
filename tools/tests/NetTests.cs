@@ -456,6 +456,21 @@ namespace RavenfieldVR.Tests
             seats.Remove(longName);
             Step(1.0);
 
+            // A player whose game closed without a goodbye joins again from the same address (2026-11-11): taken in at once, not after
+            // the old one timed out (12 s), and only once.
+            Seat gone = Client(211, "Gone");
+            Step(5.0);
+            seats.Remove(gone);
+            int before = host.Session.PlayerCount;
+            Seat back = Client(211, "Back");
+            Step(1.0);
+            Check(back.Session.State == NetState.Connected && host.Session.PlayerCount == before
+                  && host.Session.Players.Count(pl => pl.Info.Name == "Back") == 1 && host.Session.Players.All(pl => pl.Info.Name != "Gone"),
+                  $"a player joining again from the same address is taken in at once, the old one gone ({back.Session.State}, {host.Session.PlayerCount} players)");
+            back.Session.Leave();
+            seats.Remove(back);
+            Step(1.0);
+
             // A client leaves: the others hear it; its number is free for the next.
             byte bens = b.Session.LocalId;
             b.Session.Leave();

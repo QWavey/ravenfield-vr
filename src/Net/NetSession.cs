@@ -37,6 +37,10 @@ namespace RavenfieldVR.Net
         /// <summary>Round trip to this player in seconds, smoothed (the host's to each client, a client's to the host); -1 until measured.</summary>
         public double Ping = -1;
         internal double LastHeard, LastPinged;
+        /// <summary>On the host: something besides a hello came from this player (he has his welcome and plays).</summary>
+        internal bool Spoke;
+        /// <summary>On the host: when this player was taken in.</summary>
+        internal double JoinedAt;
     }
 
     internal enum NetState
@@ -269,9 +273,16 @@ namespace RavenfieldVR.Net
         {
             if (kind == Hello)
             {
-                if (_byPeer.ContainsKey(from))
+                if (_byPeer.TryGetValue(from, out byte known) && _players.TryGetValue(known, out NetPlayer was))
                 {
-                    return; // (a hello twice: already in)
+                    if (!was.Spoke && _now - was.JoinedAt < 4.0) // (his hellos come every 2 s until the welcome reaches him)
+                    {
+                        return; // (a hello twice: already in, his welcome on its way)
+                    }
+                    // A hello from one who was already playing: he left (his goodbye lost as his game closed the line) and joins again.
+                    // Ignored, he waited until the old one timed out, 12 s, or gave up first ("no answer from the host"; scout,
+                    // 2026-11-11). The old one goes now and the new one is taken in below.
+                    Drop(was, "joined again", close: false); // (his line stays open: the same address is the newcomer's)
                 }
                 int protocol = r.VarInt();
                 NetPlayerInfo info = NetPlayerInfo.Read(ref r);
@@ -297,7 +308,7 @@ namespace RavenfieldVR.Net
                 {
                     id++;
                 }
-                var player = new NetPlayer { Id = id, Info = info, Peer = from, LastHeard = _now, LastPinged = _now };
+                var player = new NetPlayer { Id = id, Info = info, Peer = from, LastHeard = _now, LastPinged = _now, JoinedAt = _now };
                 // The others first learn of the newcomer, then the newcomer of everyone.
                 _out.Reset();
                 _out.Byte(PlayerJoined);
@@ -330,6 +341,7 @@ namespace RavenfieldVR.Net
                 return; // (not a player: nothing of theirs is taken)
             }
             who.LastHeard = _now;
+            who.Spoke = true;
             switch (kind)
             {
                 case Ping:
@@ -456,14 +468,17 @@ namespace RavenfieldVR.Net
             p.Ping = p.Ping < 0 ? trip : p.Ping * 0.8 + trip * 0.2;
         }
 
-        private void Drop(NetPlayer p, string why)
+        private void Drop(NetPlayer p, string why, bool close = true)
         {
             if (!_players.Remove(p.Id))
             {
                 return;
             }
             _byPeer.Remove(p.Peer);
-            _transport.Close(p.Peer);
+            if (close)
+            {
+                _transport.Close(p.Peer);
+            }
             _out.Reset();
             _out.Byte(PlayerLeft);
             _out.Byte(p.Id);
