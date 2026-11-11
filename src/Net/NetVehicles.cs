@@ -434,14 +434,24 @@ namespace RavenfieldVR.Net
 
         private static int _stateTick;
 
+        private static bool Idle(Vehicle v)
+        {
+            if (v.AnySeatsTaken() || v.burning)
+            {
+                return false;
+            }
+            Rigidbody rb = v.rigidbody;
+            return v.isTurret || rb == null || rb.isKinematic || rb.velocity.sqrMagnitude < 0.05f && rb.angularVelocity.sqrMagnitude < 0.01f;
+        }
+
         private static void TellStates(NetSession session, byte me)
         {
             Scratch.Clear();
             _stateTick++;
             foreach (Shared s in ById.Values)
             {
-                // (A turret nobody sits in stands still: told three times a second, not fifteen; a map has a score of them.)
-                if (s.Owner == me && s.V != null && (!s.V.isTurret || s.V.AnySeatsTaken() || _stateTick % 5 == 0))
+                // (A turret or a parked vehicle nobody sits in stands still: told three times a second, not fifteen; a map has a score.)
+                if (s.Owner == me && s.V != null && (!Idle(s.V) || _stateTick % 5 == 0))
                 {
                     Scratch.Add(s);
                 }
