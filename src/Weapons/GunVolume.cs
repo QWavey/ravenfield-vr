@@ -406,9 +406,30 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>Like <see cref="Solid"/> for one of several objects sharing this volume, at its own pose.</summary>
-        public bool SolidAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(inverseRotation * (world - position), true);
+        public bool SolidAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(TurnedAt(world, position, inverseRotation), true);
 
-        public bool InsideModelAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(inverseRotation * (world - position), false);
+        public bool InsideModelAt(Vector3 world, Vector3 position, Quaternion inverseRotation) => _ready && Test(TurnedAt(world, position, inverseRotation), false);
+
+        // The turn of the last object asked about, as a matrix: Quaternion * Vector3 builds it anew for every point (12 products,
+        // a call), and one object's points come one after the other, some hundreds a frame for a magazine in the glove (measured
+        // offline, tools/tests/bench.ps1, 2026-11-11: 92 ns a call before, against Solid's 39). Asked from the main thread only.
+        private Quaternion _atTurn;
+        private Rot3 _atRot;
+        private bool _atSet;
+
+        private Vector3 TurnedAt(Vector3 world, Vector3 position, Quaternion inverseRotation)
+        {
+            if (!_atSet || inverseRotation.x != _atTurn.x || inverseRotation.y != _atTurn.y || inverseRotation.z != _atTurn.z || inverseRotation.w != _atTurn.w)
+            {
+                _atRot = Rot3.Of(inverseRotation);
+                _atTurn = inverseRotation;
+                _atSet = true;
+            }
+            float dx = world.x - position.x, dy = world.y - position.y, dz = world.z - position.z;
+            return new Vector3(_atRot.M00 * dx + _atRot.M01 * dy + _atRot.M02 * dz,
+                               _atRot.M10 * dx + _atRot.M11 * dy + _atRot.M12 * dz,
+                               _atRot.M20 * dx + _atRot.M21 * dy + _atRot.M22 * dz);
+        }
 
         /// <summary>Reading back or measuring failed: the volume never becomes ready (the next request measures again).</summary>
         public bool Failed { get; private set; }

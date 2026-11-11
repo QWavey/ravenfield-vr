@@ -61,6 +61,15 @@ namespace RavenfieldVR.Tests
                 }
                 Set(v, "ToView", rots[n]);
                 Set(v, "WorldToView", rots[n]);
+                // (The view's turn as the matrix the per-point test reads, made as Measure makes it: left unset here since the test
+                // went over to it, every point fell outside the first view and SolidAt counted 0 hits against Solid's 406531, the
+                // bench ending in "DIFFERENT" from then on; found 2026-11-11.)
+                Type rot3 = volType.GetNestedType("Rot3", all) ?? mod.GetType("RavenfieldVR.Weapons.Rot3") ?? mod.GetType("RavenfieldVR.Runtime.Rot3");
+                FieldInfo toRot = viewType.GetField("ToRot", all);
+                if (rot3 != null && toRot != null)
+                {
+                    toRot.SetValue(v, rot3.GetMethod("Of", all).Invoke(null, new object[] { rots[n] }));
+                }
                 Set(v, "MinX", -w * texel / 2f);
                 Set(v, "MinY", -h * texel / 2f);
                 Set(v, "Texel", texel);
