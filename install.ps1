@@ -33,7 +33,8 @@ $GameDir = Resolve-RavenfieldDir -GameDir $GameDir
 Write-Step "Installing into $GameDir"
 # The launcher too, as the setup and uninstall.ps1 check: waiting for the headset it holds its own exe, and copying over it
 # failed part way through the install (improve round, 2026-10-22).
-if (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue) {
+# (The offline tests install into made-up folders of their own and set RFVR_TESTS_IN_OWN_FOLDER: the player's game may run then.)
+if ($env:RFVR_TESTS_IN_OWN_FOLDER -ne '1' -and (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue)) {
     throw 'Ravenfield (or its VR launcher) is running. Close it first.'
 }
 
@@ -75,6 +76,13 @@ if (Test-Path $previousManifest) {
     # upgrade went into a new one that uninstall never looked in.
     # Setup writes it relative to the game folder: resolved there, not in the working directory.
     if ($previousBackup -and -not [System.IO.Path]::IsPathRooted($previousBackup)) { $previousBackup = Join-Path $GameDir $previousBackup }
+    # An older record's absolute folder that is no longer there (the game moved to another drive since): a fresh one in the game
+    # folder, as the setup does. Kept, every backup of this install failed and it stopped part way, each time (installer scout,
+    # 2026-11-11).
+    if ($previousBackup -and [System.IO.Path]::IsPathRooted($previousBackup) -and -not (Test-Path -LiteralPath $previousBackup)) {
+        Write-Warning "The earlier install's backup folder $previousBackup is gone; this install backs up into $backupDir."
+        $previousBackup = ''
+    }
     if ($previousBackup) { $backupDir = $previousBackup }
 }
 
@@ -130,9 +138,20 @@ function Write-Record {
     $modVersion = if (Test-Path $dll) { (Get-Item $dll).VersionInfo.FileVersion } else { '' }
     $lines = @("# Ravenfield VR install $stamp", "version=$modVersion", "installedBepInEx=$installedBepInEx", "backup=$backupRef")
     $lines += $added | ForEach-Object { "added=$_" }
+    # Stopped part way: the earlier install's files not reached yet are still in the game and still ours (left out, uninstall left
+    # them behind, and the next install took them for the player's own and backed them up; installer scout, 2026-11-11).
+    if (-not $script:completed) {
+        $lines += $ours | Where-Object { -not ($added -contains $_) } | ForEach-Object { "added=$_" }
+    }
     $lines += $backedUp | ForEach-Object { "replaced=$_" }
-    Set-Content -Path $manifest -Value $lines -Encoding UTF8
+    # Written beside it and then put in its place: written in place, a full disk or a lock left it cut short, and the originals it
+    # names were never put back (installer scout, 2026-11-11).
+    $temp = "$manifest.tmp"
+    Set-Content -Path $temp -Value $lines -Encoding UTF8
+    Move-Item -LiteralPath $temp -Destination $manifest -Force
 }
+
+$script:completed = $false
 
 # --- BepInEx ---------------------------------------------------------------------------------------
 $existingBep = Join-Path $GameDir 'BepInEx/core/BepInEx.dll'
@@ -174,6 +193,7 @@ foreach ($old in $ours) {
         }
     }
 }
+$script:completed = $true
 
 }
 finally {

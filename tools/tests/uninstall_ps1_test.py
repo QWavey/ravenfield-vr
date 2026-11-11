@@ -24,9 +24,7 @@ def game_running():
     return '"ravenfield.exe"' in out or '"ravenfieldvr-launcher.exe"' in out
 
 
-if game_running():
-    print('0 passed, 0 failed (skipped: Ravenfield is running, and uninstall.ps1 refuses then)')
-    sys.exit(0)
+
 failed = passed = 0
 
 
@@ -65,7 +63,7 @@ def make(base, launch_option):
 
 def run(game, steam, *extra):
     r = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(ROOT, 'uninstall.ps1'),
-                        '-GameDir', game, '-SteamDir', steam] + list(extra), capture_output=True, text=True, errors='replace')
+                        '-GameDir', game, '-SteamDir', steam] + list(extra), env=dict(os.environ, RFVR_TESTS_IN_OWN_FOLDER='1'), capture_output=True, text=True, errors='replace')
     return r.returncode, r.stdout + r.stderr
 
 

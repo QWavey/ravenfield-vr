@@ -16,7 +16,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tools/common.ps1')
 
 $GameDir = Resolve-RavenfieldDir -GameDir $GameDir
-if (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue) {
+# (The offline tests install into made-up folders of their own and set RFVR_TESTS_IN_OWN_FOLDER: the player's game may run then.)
+if ($env:RFVR_TESTS_IN_OWN_FOLDER -ne '1' -and (Get-Process -Name ravenfield, RavenfieldVR-Launcher -ErrorAction SilentlyContinue)) {
     throw 'Ravenfield (or its VR launcher) is running. Close it first.'
 }
 $manifest = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR/install-manifest.txt'

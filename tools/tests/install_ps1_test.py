@@ -44,7 +44,7 @@ try:
     with open(os.path.join(plugin, 'install-manifest.txt'), 'w', encoding='utf-8') as f:
         f.write('version=0.9\ninstalledBepInEx=False\nbackup=\nadded=old_part.txt\nadded=..\\outside.txt\nadded=' + outside + '\n')
     r = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', os.path.join(ROOT, 'install.ps1'), '-GameDir', game],
-                       capture_output=True, text=True, errors='replace')
+                       env=dict(os.environ, RFVR_TESTS_IN_OWN_FOLDER='1'), capture_output=True, text=True, errors='replace')
     out = (r.stdout + r.stderr).strip()
     check(r.returncode == 0, 'install.ps1 ran: ' + out[-300:])
     check(os.path.exists(outside), "a record entry outside the game folder ('..\\outside.txt', and a rooted one) is not deleted")
