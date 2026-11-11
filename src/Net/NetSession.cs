@@ -277,6 +277,11 @@ namespace RavenfieldVR.Net
                 NetPlayerInfo info = NetPlayerInfo.Read(ref r);
                 string refuse = protocol != ProtocolVersion ? $"the host plays protocol {ProtocolVersion}, you have {protocol}: both need the same version of the mod"
                     : info.GameBuild != LocalInfo.GameBuild ? $"the host runs game build {LocalInfo.GameBuild}, you run {info.GameBuild}: update the game on both PCs"
+                    // (The mod's own version: sent since the start and never looked at. Two versions agree on the wire's format, but not on
+                    // the game's rules (a slide caught or not, a round counted or not), and each PC is the judge of its own soldiers; a
+                    // shared match on two versions went its own way on each PC with nothing said. 2026-11-11.)
+                    : !string.IsNullOrEmpty(LocalInfo.ModVersion) && !string.IsNullOrEmpty(info.ModVersion) && info.ModVersion != LocalInfo.ModVersion
+                        ? $"the host has Ravenfield VR {LocalInfo.ModVersion}, you have {info.ModVersion}: install the same version on both PCs"
                     : _players.Count >= MaxPlayers ? "the game is full"
                     : Admit?.Invoke(info, from);
                 if (refuse != null)

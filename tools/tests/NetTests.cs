@@ -348,7 +348,7 @@ namespace RavenfieldVR.Tests
             return seat;
         }
 
-        private static NetPlayerInfo Info(string name, int build = 31) => new NetPlayerInfo { Name = name, GameBuild = build, ModVersion = "test", Vr = true, SteamId = 42 };
+        private static NetPlayerInfo Info(string name, int build = 31, string version = "test") => new NetPlayerInfo { Name = name, GameBuild = build, ModVersion = version, Vr = true, SteamId = 42 };
 
         private static void SessionTests()
         {
@@ -368,10 +368,10 @@ namespace RavenfieldVR.Tests
             INetTransport ht = net.Join(100);
             Seat host = Sit(NetSession.Host(ht, Info("Host")), ht);
             seats.Add(host);
-            Seat Client(ulong id, string name, int build = 31)
+            Seat Client(ulong id, string name, int build = 31, string version = "test")
             {
                 INetTransport t = net.Join(id);
-                Seat s = Sit(NetSession.Join(t, 100, Info(name, build)), t);
+                Seat s = Sit(NetSession.Join(t, 100, Info(name, build, version)), t);
                 seats.Add(s);
                 return s;
             }
@@ -429,6 +429,12 @@ namespace RavenfieldVR.Tests
             Check(old.Session.State == NetState.Closed && old.Session.CloseReason.Contains("game build 31") && old.Session.CloseReason.Contains("30"), "another game build is refused with both numbers in the reason: " + old.Session.CloseReason);
             seats.Remove(old);
             host.Session.MaxPlayers = 4;
+            // Another version of the mod: refused with both versions named.
+            Seat older = Client(209, "Older", version: "1.0.0");
+            Step(1.0);
+            Check(older.Session.State == NetState.Closed && older.Session.CloseReason.Contains("1.0.0") && older.Session.CloseReason.Contains("test"),
+                  "another version of the mod is refused with both versions in the reason: " + older.Session.CloseReason);
+            seats.Remove(older);
             Seat late = Client(205, "Late");
             Step(1.0);
             Check(late.Session.State == NetState.Closed && late.Session.CloseReason.Contains("full"), "a full game refuses the fifth: " + late.Session.CloseReason);
