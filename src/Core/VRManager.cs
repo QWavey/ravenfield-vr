@@ -504,15 +504,17 @@ namespace RavenfieldVR.Core
             // it made the next headset or dashboard edge do the wrong thing (lifecycle hunt, 2026-10-21).
             _pausedForDashboard = false;
             _pausedForHeadset = false;
-            Input.VRInput.OnSceneChanged();
+            // (Each on its own: a throw in one of these left the level's optimisers thinking the old level was still applied, and
+            // the new one got none of them; scout, 2026-11-11.)
+            Log.Guard("Input.OnSceneChanged", () => Input.VRInput.OnSceneChanged());
             // (Crouch and prone toggled by the stick are cleared by a death or a seat: alive to the end of a match, the next map's soldier spawned
             // crouched or prone, the view lowered with him; rig scout, 2026-11-07.)
-            VRGameInput.ResetToggles();
+            Log.Guard("Input.ResetToggles", () => VRGameInput.ResetToggles());
             _speedBeforePause = 1f;
             _pauseAfterLoad = true; // (the dashboard still open or the headset still off: paused again once in the match)
-            SmallShadows.OnSceneChanged();
-            TinyObjects.OnSceneChanged();
-            InstancedObjects.OnSceneChanged();
+            Log.Guard("SmallShadows.OnSceneChanged", () => SmallShadows.OnSceneChanged());
+            Log.Guard("TinyObjects.OnSceneChanged", () => TinyObjects.OnSceneChanged());
+            Log.Guard("InstancedObjects.OnSceneChanged", () => InstancedObjects.OnSceneChanged());
             Log.Guard("Weapons.OnSceneChanged", () => Weapons?.OnSceneChanged()); // (a throw there skipped the UI's)
             Log.Guard("UI.OnSceneChanged", () => UI?.OnSceneChanged());
         }

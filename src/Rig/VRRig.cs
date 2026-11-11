@@ -591,6 +591,10 @@ namespace RavenfieldVR.Rig
 
         private void OnModeChanged(RigMode from, RigMode to, object key, FpsActorController player)
         {
+            // (The "taller than saved" count starts again: it is counted on foot only, so begun before a seat, a ladder or a death
+            // and never ended, its three seconds were long over on the first frame back and the saved eye height was raised at
+            // once, written to the settings too; scout, 2026-11-11.)
+            _tallerSince = -1f;
             // Logged (sparingly): a view that keeps flipping between modes is exactly the kind of glitch to see here.
             if (++_modeChanges <= 30 || _modeChanges % 100 == 0)
             {

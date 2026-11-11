@@ -262,7 +262,9 @@ namespace RavenfieldVR.Weapons
 
         public int SpareAmmo
         {
-            get => Weapon.spareAmmo;
+            // (Never under 0 for a reserve that ends: the game's -1, a gun with no reserve that is never resupplied, came through as it
+            // was, and a shell was handed out with -1 rounds in it; scout, 2026-11-11. One without end keeps its -2.)
+            get => Weapon.spareAmmo < 0 && !Weapon.HasInfiniteSpareAmmo() ? 0 : Weapon.spareAmmo;
             set => Weapon.spareAmmo = Mathf.Max(0, value);
         }
 

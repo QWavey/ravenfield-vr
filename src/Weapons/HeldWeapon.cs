@@ -1236,6 +1236,14 @@ namespace RavenfieldVR.Weapons
                 {
                     ActiveAmmo.MagazineOf = Ammo; // a fire-mode variant on this model: this gun's magazine is its magazine
                 }
+                // The game's own count of the one switched to, told now: the two share a magazine in the mod's count, but each
+                // has a count of its own in the game, written only while it is the one in use. Fired empty, then reloaded by
+                // hand as the other, the first still stood at 0 there: switched back, the counter read 30 and the trigger did
+                // nothing, with no click (the game's own "no ammo" comes before the mod's gate; scout, 2026-11-11).
+                if (ActiveAmmo != null)
+                {
+                    ActiveAmmo.Sync();
+                }
             }
             UpdateAim();
             _magnifierFlip.Update();

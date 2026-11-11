@@ -262,7 +262,9 @@ namespace RavenfieldVR.Core
             // 7.8 to 25.5 ms, every phase two to four times dearer, physics most; 2026-10-27) tells here whether bodies, renderers
             // or cameras piled up, or the same scene simply ran slower (a hot laptop).
             // The scene's counts every fifth report only: walking every renderer (5000 in the user's session) was a frame of its own.
-            if (_reports++ % 5 == 0)
+            // (Every fifteenth in play, a quarter of an hour apart: it is a hitch in the headset each time. Every fifth in a test run,
+            // where the growth over a long run is what is looked for; scout, 2026-11-11.)
+            if (_reports++ % (AutoTest.Requested ? 5 : 15) == 0)
             {
                 try
                 {

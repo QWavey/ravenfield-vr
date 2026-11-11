@@ -15,7 +15,7 @@ namespace RavenfieldVR.Core
     internal static class CodeWarmup
     {
         /// <summary>Types only the tests use (with everything nested in them).</summary>
-        private static readonly HashSet<string> TestTypes = new HashSet<string> { "AutoTest", "Shots", "TestHost", "WeaponSelfTest" };
+        private static readonly HashSet<string> TestTypes = new HashSet<string> { "AutoTest", "Shots", "TestHost", "WeaponSelfTest", "EyeFilm" };
 
         private static List<RuntimeMethodHandle> _pending;
         private static int _next, _failed;
@@ -136,6 +136,12 @@ namespace RavenfieldVR.Core
         private static bool Skipped(Type t)
         {
             if (t.Namespace != null && t.Namespace.StartsWith("Valve", StringComparison.Ordinal))
+            {
+                return true;
+            }
+            // (The showcase's staged scenes and the films: test runs' own, some thousand lines compiled in every session's menu
+            // for nothing; scout, 2026-11-11.)
+            if (t.Namespace != null && t.Namespace.StartsWith("RavenfieldVR.Core.Showcase", StringComparison.Ordinal))
             {
                 return true;
             }

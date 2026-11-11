@@ -91,6 +91,12 @@ namespace RavenfieldVR.Weapons
             {
                 _armed = false; // armed, then a menu opened: letting go in the menu must not throw it (85-agent review)
             }
+            if (_armed && !hand.Tracked && !VRInput.GetHeld(DigitalAction.Fire, hand.Side))
+            {
+                // Let go while the hand was out of view: a tracking gap gives no release (the buttons are held through it), so it
+                // stayed armed, and the next pull and release threw it (scout, 2026-11-11).
+                _armed = false;
+            }
             if (_armed && VRInput.GetReleased(DigitalAction.Fire, hand.Side))
             {
                 _armed = false;
