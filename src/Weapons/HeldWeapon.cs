@@ -48,6 +48,8 @@ namespace RavenfieldVR.Weapons
         private readonly float _sagDegrees;
         private readonly float _followRate;
         private Quaternion _carriedRot;
+        /// <summary>The frame a snap turn was last carried into what trails the hand.</summary>
+        private int _snapCarried = -1;
         private bool _carriedInit;
         /// <summary>How much of the droop and trail applies now (0 supported or shouldered .. 1 held in one hand).</summary>
         private float _sagWeight = -1f;
@@ -1871,7 +1873,7 @@ namespace RavenfieldVR.Weapons
             }
             // A support hand that loses tracking (hidden behind the gun from the headset's cameras) still holds: the two-hand aim eases
             // out over a third of a second, not a tenth, which swung the barrel by the whole steer in a blink (support hunt, 2026-10-20).
-            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (TwoHanded && !off.Tracked ? 3f : 10f));
+            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (!TwoHanded ? 6f : !off.Tracked ? 3f : 10f)); // (let go: back to the wrist's line over a sixth of a second; in a tenth, 10 to 25 degrees swung at up to 300 deg/s)
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = HoldFrame(main, d);
@@ -1920,6 +1922,19 @@ namespace RavenfieldVR.Weapons
             // comes and goes over a quarter of a second: switched on and off at once, setting the stock in the shoulder or
             // taking the handguard snapped the gun up by the whole droop (up to 11 degrees), and a stock held at the edge
             // of the shoulder pocket made it flick.
+            // A snap turn turns the rig, the hand and the gun in one frame: what trails the hand in the world (the droop's turn,
+            // the weight's lag) is turned with it. Left where it was, a long gun in one hand went on pointing the old way and
+            // swung the snap's whole angle after the hand over a quarter second (half a second for a machine gun), 8 cm beside
+            // the hand at most (scout, 2026-11-11; the steadied aim already starts again there).
+            if (RavenfieldVR.Rig.VRRig.LastSnapFrame == Time.frameCount && _snapCarried != Time.frameCount)
+            {
+                _snapCarried = Time.frameCount;
+                Transform rigRoot = RavenfieldVR.Rig.VRRig.Instance != null ? RavenfieldVR.Rig.VRRig.Instance.Root : null;
+                Quaternion snap = Quaternion.AngleAxis(RavenfieldVR.Rig.VRRig.LastSnapDegrees, rigRoot != null ? rigRoot.up : Vector3.up);
+                _carriedRot = snap * _carriedRot;
+                _lagPos = snap * _lagPos;
+                _lagVel = snap * _lagVel;
+            }
             float sagWant = VRConfig.WeaponWeight.Value && !Supported && !Shouldered && _sagDegrees > 0f && !passHold.HasValue ? 1f : 0f;
             _sagWeight = _sagWeight < 0f ? sagWant : Mathf.MoveTowards(_sagWeight, sagWant, dt * 4f); // drawn: as it should be at once
             if (_sagWeight > 0f)

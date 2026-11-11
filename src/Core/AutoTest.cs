@@ -5831,14 +5831,32 @@ namespace RavenfieldVR.Core
                 yield return null;
                 shake = Peak(shake, hand);
             }
+            // The held gun through the snap: how far it is turned against its hand, at most, in the frames after (a long gun in
+            // one hand trailed the whole angle; scout, 2026-11-11).
+            HeldWeapon gun = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
+            Transform gunBody = gun != null && gun.Rig != null ? gun.Rig.GunBody : null;
+            Quaternion GunInHand() => Quaternion.Inverse(rig.Dominant.Palm.rotation) * gunBody.rotation;
+            Quaternion gunBefore = gunBody != null ? GunInHand() : Quaternion.identity;
+            float gunTrail = 0f;
             Rig.VRRig.LastSnapFrame = Time.frameCount; // as the snap turn's input flags it
+            Rig.VRRig.LastSnapDegrees = 15f;
             rig.AddYaw(15f);
             for (int i = 0; i < 4; i++)
             {
                 yield return null;
                 snap = Peak(snap, hand);
+                if (gunBody != null && i >= 1)
+                {
+                    gunTrail = Mathf.Max(gunTrail, Quaternion.Angle(gunBefore, GunInHand()));
+                }
+            }
+            if (gunBody != null)
+            {
+                Metric("held gun: degrees behind its hand after a 15 deg snap turn", gunTrail);
+                report($"held gun through a 15 deg snap turn ({(gun.TwoHanded ? "two hands" : "one hand")}): at most {gunTrail:0.0} deg turned against its hand{(gunTrail > 4f ? " (TRAILED THE SNAP)" : "")}");
             }
             Rig.VRRig.LastSnapFrame = Time.frameCount;
+            Rig.VRRig.LastSnapDegrees = -15f;
             rig.AddYaw(-15f);
             for (int i = 0; i < 4; i++)
             {

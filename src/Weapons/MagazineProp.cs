@@ -247,6 +247,10 @@ namespace RavenfieldVR.Weapons
         }
         private float _switchAt = -1f;
         private const float SwitchBlend = 0.08f;
+        /// <summary>The switch (its <see cref="_switchAt"/> in milliseconds) <see cref="_switchOffset"/> was taken for, and how far
+        /// it was drawn from where it goes on the switch's first frame, against where it goes.</summary>
+        private int _offsetFor = -1;
+        private RigidPose _switchOffset;
 
         // A magazine switched onto its line from aside at the well's mouth, or off it from inside the well, goes round the gun
         // (Routed): where the switch started and, taken off the line, the line it leaves (its mouth and direction), all against the
@@ -272,9 +276,19 @@ namespace RavenfieldVR.Weapons
             float t = _switchAt >= 0f ? (Time.unscaledTime - _switchAt) / SwitchBlend : 1f;
             if (t < 1f)
             {
+                // What is eased away is how far it was from where it goes, kept against where it goes: eased from the fixed place
+                // it was drawn at, it stood still on the switch's first frame while the hand went on (a hand at 0.75 m/s: 8 mm
+                // a frame lost at once, and the same won back at the end; 26 mm in the smoothness check, 2026-11-11). It keeps
+                // the hand's own motion through the ease this way, and walking's and the gun's too.
+                int key = Mathf.RoundToInt(_switchAt * 1000f);
+                if (_offsetFor != key)
+                {
+                    _offsetFor = key;
+                    _switchOffset = target.Inverse().Multiply(FromRigSpace(_switchFrom));
+                }
                 float k = t * t * (3f - 2f * t);
-                RigidPose from = FromRigSpace(_switchFrom);
-                target = new RigidPose(Vector3.Lerp(from.position, target.position, k), Quaternion.Slerp(from.rotation, target.rotation, k));
+                target = new RigidPose(target.position + target.rotation * (_switchOffset.position * (1f - k)),
+                                       target.rotation * Quaternion.Slerp(_switchOffset.rotation, Quaternion.identity, k));
             }
             else
             {

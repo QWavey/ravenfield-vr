@@ -898,6 +898,7 @@ namespace RavenfieldVR.Weapons
             }
             string phase = "";
             // The measure.
+            float kept1 = 0f; // how far the magazine was kept out of the gun the frame before
             Vector3 mag1 = Vector3.zero, mag2 = Vector3.zero, hand1 = Vector3.zero, hand2 = Vector3.zero, ctl1 = Vector3.zero, ctl2 = Vector3.zero;
             int have = 0, magOver = 0, handOver = 0, frames = 0;
             float magWorst = 0f, handWorst = 0f;
@@ -934,11 +935,12 @@ namespace RavenfieldVR.Weapons
                         if (magJump > magWorst)
                         {
                             magWorst = magJump;
-                            magWhere = phase;
+                            magWhere = phase + $"; kept out of the gun {kept1 * 1000f:0} -> {prop.KeptOut.magnitude * 1000f:0} mm, {(prop.OnRail ? "on" : "off")} the line";
                         }
                         magOver += magJump > 0.01f ? 1 : 0;
                     }
                 }
+                kept1 = mag ? prop.KeptOut.magnitude : 0f;
                 mag2 = mag1;
                 mag1 = m;
                 hand2 = hand1;

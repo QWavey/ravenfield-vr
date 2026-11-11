@@ -297,10 +297,10 @@ namespace RavenfieldVR.Core
                                       + "Only one with rounds in it. 0 = off: a magazine is picked up where it lies.",
                                       new AcceptableValueRange<float>(0f, 6f)));
             GripLetGoBelow = cfg.Bind("Input", "GripLetGoBelow", 0.3f,
-                new ConfigDescription("On controllers with an analog grip (Touch, Index, Reverb): once a squeeze has taken hold, the hand lets go only when "
-                                      + "the grip is released below this (0 to 1). SteamVR's own click lets go a little under where it took hold, so a grip "
-                                      + "that eased off while pushing a magazine in or racking a slide dropped it and took it again. 0 = SteamVR's click alone, "
-                                      + "as before.", new AcceptableValueRange<float>(0f, 0.9f)));
+                new ConfigDescription("On controllers with an analog grip (Touch, Index, Reverb): once a squeeze has taken hold, a grip that eases off for a moment "
+                                      + "(up to 0.15 s) keeps its hold while it stays squeezed above this (0 to 1). SteamVR's own click lets go a little under "
+                                      + "where it took hold, so a grip that eased off while pushing a magazine in or racking a slide dropped it and took it "
+                                      + "again. 0 = SteamVR's click alone, as before.", new AcceptableValueRange<float>(0f, 0.9f)));
             MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 60f,
                 new ConfigDescription("Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).",
                     new AcceptableValueRange<float>(1f, 3600f)));

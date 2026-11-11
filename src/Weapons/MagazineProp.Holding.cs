@@ -534,6 +534,8 @@ namespace RavenfieldVR.Weapons
         private Vector3 _keptOut;
         /// <summary>The frame the keep-out last ran (its pacing needs the frame before).</summary>
         private int _easeFrame = -10;
+        /// <summary>How fast the keep-out's offset is closing (m/s): it gathers pace from standing.</summary>
+        private float _easeVel;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
@@ -832,11 +834,26 @@ namespace RavenfieldVR.Weapons
             // meeting the gun stops it at once, as before. Not where the paced place would be inside the gun.
             Vector3 offset = drawn - target.position;
             float had = _keptOut.magnitude, has = offset.magnitude;
-            float pace = 2.5f * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            if (_easeFrame == Time.frameCount - 1 && had > 0.012f && has < had - pace)
+            // The pace itself sets in and ends softly (measured 2026-11-11: a flat 2.5 m/s was itself a 28 mm step on its first
+            // frame, 33 mm in the smoothness check): it gathers by 60 m/s2 from standing and is never more than half of what is
+            // left, so 9 cm close in about eight frames with no frame's step changing by more than a centimetre.
+            float easeDt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            bool easing = _easeFrame == Time.frameCount - 1 && had > 0.004f;
+            easing &= has < had - 0.0005f; // (only while it closes: held against the gun it gathers no pace)
+            // (No frame's step more than 8 mm over the last one's, at any frame rate: by the time alone a 25 ms frame's first
+            // step was 37 mm; measured 98 -> 63 mm in one frame at 45 frames a second.)
+            _easeVel = easing ? Mathf.Min(_easeVel + Mathf.Min(60f * easeDt, 0.008f / Mathf.Max(easeDt, 0.004f)), 2.5f) : 0f;
+            float pace = Mathf.Min(_easeVel * easeDt, Mathf.Max(had - has, 0f) * 0.5f);
+            if (easing && has < had - pace)
             {
                 Vector3 paced = Vector3.MoveTowards(_keptOut, offset, pace);
                 Vector3 at = target.position + paced;
+                if (gun != null && gun.InsideDrawnGun(at) && has > 1e-4f)
+                {
+                    // (The way out changed sides: as far out as it was less the pace, on the new way out.)
+                    paced = offset / has * (had - pace);
+                    at = target.position + paced;
+                }
                 if (gun == null || !gun.InsideDrawnGun(at))
                 {
                     offset = paced;

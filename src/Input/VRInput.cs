@@ -73,6 +73,10 @@ namespace RavenfieldVR.Input
         private static readonly float[] Grip = new float[2];
         /// <summary>The grip tells how far it is squeezed (an analog grip), not only whether it clicked.</summary>
         private static readonly bool[] GripAnalog = new bool[2];
+        /// <summary>When the grip's click let go while the hand still held (Time.unscaledTime; -1: it has not), and for how long
+        /// a squeeze still above GripLetGoBelow keeps the hold from then.</summary>
+        private static readonly float[] GripClickGone = { -1f, -1f };
+        private const float GripKeepTime = 0.15f;
         public static Vector2 Move { get; private set; }
         public static Vector2 TurnStick { get; private set; }
 
@@ -298,16 +302,24 @@ namespace RavenfieldVR.Input
             // A hold on the grip is kept until the grip is clearly released (GripLetGoBelow), on controllers that tell how far it is
             // squeezed: SteamVR's click lets go just under where it took hold, and a grip easing off while the hand pushed a
             // magazine in or pulled a slide let go and took hold again ("parts of the hand or mags are glitching around (this
-            // happens randomly with force or smth)", user, 2026-11-11). Last frame's squeeze decides (it is read below).
+            // happens randomly with force or smth)", user, 2026-11-11). Last frame's squeeze decides (it is read below). For
+            // GripKeepTime at most after the click let go: an Index controller's grip reads a third and more with the fingers only
+            // lying round it, and a hold kept for as long as that would never let go there.
             float letGo = Core.VRConfig.GripLetGoBelow != null ? Core.VRConfig.GripLetGoBelow.Value : 0f;
-            if (letGo > 0f)
+            for (int h = 0; h < 2; h++)
             {
-                for (int h = 0; h < 2; h++)
+                if (RawState[(int)DigitalAction.Grab, h] || !Held[(int)DigitalAction.Grab, h])
                 {
-                    if (!RawState[(int)DigitalAction.Grab, h] && Held[(int)DigitalAction.Grab, h] && GripAnalog[h] && Grip[h] > letGo && HandAlive[h])
-                    {
-                        RawState[(int)DigitalAction.Grab, h] = true;
-                    }
+                    GripClickGone[h] = -1f;
+                    continue;
+                }
+                if (GripClickGone[h] < 0f)
+                {
+                    GripClickGone[h] = Time.unscaledTime;
+                }
+                if (letGo > 0f && GripAnalog[h] && Grip[h] > letGo && HandAlive[h] && Time.unscaledTime - GripClickGone[h] < GripKeepTime)
+                {
+                    RawState[(int)DigitalAction.Grab, h] = true;
                 }
             }
             for (int a = 0; a < DigitalCount; a++)

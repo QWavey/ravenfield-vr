@@ -264,6 +264,8 @@ namespace RavenfieldVR.Rig
         /// rates (360 deg/s at 45 Hz is 8 degrees a frame; review, 2026-10-20).
         /// </summary>
         internal static int LastSnapFrame = -10;
+        /// <summary>The last snap turn's angle about the rig's up axis (degrees, signed), for what is carried in the world through it.</summary>
+        internal static float LastSnapDegrees;
 
         /// <summary>A snap turn in this frame or the one before (read in Update, before this frame's placement).</summary>
         internal static bool SnappedRecently => Time.frameCount - LastSnapFrame <= 1;
@@ -669,6 +671,7 @@ namespace RavenfieldVR.Rig
                     _snapLatch = true;
                     delta = Mathf.Sign(x) * VRConfig.SnapTurnAngle.Value;
                     LastSnapFrame = Time.frameCount;
+                    LastSnapDegrees = delta;
                 }
                 else if (_snapLatch && Mathf.Abs(x) < 0.35f)
                 {
