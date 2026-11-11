@@ -2,6 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-11 later night (1.17.10 played by both; 1.17.11 BUILT, not installed; 1.17.12 in code, Tasks 383)
+
+- The user and his friend play 1.17.10 (vehicles shared for the first time). Setup 1.17.11 is built (`dist/`), the commits after it go into 1.17.12 at the run's end. Both PCs need the same version.
+- New and UNRUN in a real match: shared vehicles and turrets (`Net/NetVehicles.cs`, kinds 31-37: copies, one owner a vehicle, seats by each soldier's own PC, hits to the owner, kill credit), heads turned where players look (`NetAvatar.TurnHeads`), falling in first person (`VRRig`, `Comfort/FallInFirstPerson`), empty magazines without rounds (`ReloadInteractions.KeepEmptyRoundsHidden`), seated arms, capture progress, pings for a joiner, the host's Kick, "Play against".
+- First with the game free: `vrshots --netcheck --fast` (new lines: "multiplayer shared vehicle ...", "multiplayer heads ..."), then the autotest.
+
 ## State 2026-11-11 night (1.17.8 INSTALLED on both PCs and being played; 1.17.9 in code, Tasks 383)
 
 - The user and a friend play 1.17.8 in a shared match (both PCs). Nothing is installed or started from here while they play; the setup 1.17.9 is built into `dist/` at the run's end, and BOTH PCs need it (another version is refused at joining).
