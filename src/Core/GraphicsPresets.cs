@@ -210,7 +210,10 @@ namespace RavenfieldVR.Core
             }
             float now = Time.unscaledTime;
             _missedWindows = percentOnTime < 85 ? _missedWindows + 1 : 0;
-            _roomyWindows = percentOnTime >= 98 ? _roomyWindows + 1 : 0;
+            // (One window a little short takes two back off the count, not all of it: with half a minute of windows at 98% asked for in
+            // a row, a single one at 96%, a few late frames at a spawn or a collection, began the count again each time, and a
+            // session that ran well stayed held down to its end; scout, 2026-11-11. Under 93% it starts again as before.)
+            _roomyWindows = percentOnTime >= 98 ? _roomyWindows + 1 : percentOnTime >= 93 ? Mathf.Max(0, _roomyWindows - 2) : 0;
             // (A window with no GPU time counts as heavy only where the GPU was never timed: then the scale may help, as before.)
             _gpuEverTimed |= gpuMs >= 0f;
             bool heavy = gpuMs >= 0f ? RenderScaleHelps(gpuMs, budgetMs, false) : !_gpuEverTimed;

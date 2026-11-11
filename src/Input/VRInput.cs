@@ -573,6 +573,12 @@ namespace RavenfieldVR.Input
             {
                 Array.Clear(a, 0, a.Length);
             }
+            // (What a test run pressed and had not been read yet, and its held buttons: left, the next VR start began with them.)
+            Array.Clear(PressPending, 0, PressPending.Length);
+            Array.Clear(SimulatedGrab, 0, SimulatedGrab.Length);
+            Array.Clear(SimulatedFire, 0, SimulatedFire.Length);
+            Array.Clear(SimulatedUse, 0, SimulatedUse.Length);
+            GripClickGone[0] = GripClickGone[1] = -1f;
             Array.Clear(Curl[0], 0, Curl[0].Length);
             Array.Clear(Curl[1], 0, Curl[1].Length);
             _heldBeforeOutageSaved = false;
@@ -859,6 +865,10 @@ namespace RavenfieldVR.Input
                 amplitude, HandSource[(int)h]);
             if (err != EVRInputError.None)
             {
+                // (A pulse that was not played holds no weaker one off: its time was kept, and the ticks after a failed strong
+                // pulse were dropped for as long as it would have lasted; scout, 2026-11-11.)
+                HapticUntil[(int)h] = 0f;
+                HapticAmplitude[(int)h] = 0f;
                 if (!HapticFailLogged[(int)h])
                 {
                     // Latched as the success line is: the key and message were built on every failed pulse only to be dropped.
