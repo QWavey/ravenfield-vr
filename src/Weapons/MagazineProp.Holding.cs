@@ -539,6 +539,15 @@ namespace RavenfieldVR.Weapons
         /// <summary>The magazine's way toward the hand was cut short by the pace the last time (it goes on from where it is drawn,
         /// and the held-still shortcut is not taken).</summary>
         private bool _keptShort;
+        /// <summary>
+        /// How far a magazine behind its hand may go in a frame (metres): the player's own way that frame, and on top at most
+        /// 8 mm more than it went the frame before (<paramref name="lastTravel"/>, without the player's way), never more than
+        /// four tenths of what is left to the hand or the hand's own way that frame, whichever is more, and 4 mm at least. A rule of
+        /// its own so it is run outside the game too (the offline tests).
+        /// </summary>
+        internal static float PaceBudget(float lastTravel, float behind, float handWay, float rigWay) =>
+            rigWay + Mathf.Max(0.004f, Mathf.Min(lastTravel + 0.008f, Mathf.Max(Mathf.Max(0f, behind - rigWay) * 0.4f, handWay + 0.004f))); // (the hand's way and 4 mm: with its way alone it stayed 3 cm behind a moving hand for as long as that moved; four tenths: by half, the last steps of 10 cm went 26 then 13 mm; offline test)
+
         /// <summary>The hand's place the last time the keep-out ran.</summary>
         private Vector3 _easeTarget;
         /// <summary>The rig's place the last time the keep-out's sweep ran.</summary>
@@ -824,7 +833,7 @@ namespace RavenfieldVR.Weapons
                     float handWay = Mathf.Max(0f, (target.position - _easeTarget).magnitude - rigWay);
                     float budget = !ran || _attachAt >= 0f || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace)
                         ? float.MaxValue
-                        : rigWay + Mathf.Max(0.004f, Mathf.Min(_easeTravel + 0.008f, Mathf.Max(Mathf.Max(0f, behind - rigWay) * 0.5f, handWay)));
+                        : PaceBudget(_easeTravel, behind, handWay, rigWay);
                     // (Or the hand's own way that frame, where that is more than the half: slid along the gun beside a moving hand
                     // it keeps up with it.)
                     Vector3 swept = from;

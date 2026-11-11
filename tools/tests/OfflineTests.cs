@@ -134,6 +134,7 @@ namespace RavenfieldVR.Tests
             ReusedFrameTests(mod);
             RackSplitTests(mod);
             WholeReloadNameTests(mod);
+            PaceBudgetTests(mod);
         }
 
         /// <summary>A short clip named as a whole reload is bound to no one hand action (WeaponAnalyzer.WholeReloadName, 2026-11-08).</summary>
@@ -580,6 +581,60 @@ namespace RavenfieldVR.Tests
         /// moment after shooting): a jump for one frame is held off and the old pose kept, a move that lasts is taken on its fifth frame, and
         /// a pose off the gun altogether is held off for as long as it lasts, once one on the gun has been seen.
         /// </summary>
+        /// <summary>
+        /// A magazine kept out of the gun catches up with its hand at a pace (MagazineProp.PaceBudget, 2026-11-11: it came back in one
+        /// frame, 90 mm measured in the game). Played through frame by frame as the sweep uses it: 10 cm behind a still hand it arrives
+        /// with no frame's step more than 9 mm over the one before; beside a hand going 2 cm a frame it stays with it; and while the
+        /// player runs 3 cm a frame the run is not held back.
+        /// </summary>
+        private static void PaceBudgetTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo budget = mod.GetType("RavenfieldVR.Weapons.MagazineProp")?.GetMethod("PaceBudget",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Check(budget != null, "Magazine pace: MagazineProp.PaceBudget found");
+            if (budget == null)
+            {
+                return;
+            }
+            float Budget(float last, float behind, float hand, float rig) => (float)budget.Invoke(null, new object[] { last, behind, hand, rig });
+            // Still hand, 10 cm behind.
+            float gap = 0.1f, travel = 0f, lastStep = 0f, worstChange = 0f;
+            int frames = 0;
+            while (gap > 1e-5f && frames < 200)
+            {
+                float step = Math.Min(gap, Budget(travel, gap, 0f, 0f));
+                worstChange = Math.Max(worstChange, Math.Abs(step - lastStep));
+                lastStep = step;
+                travel = step;
+                gap -= step;
+                frames++;
+            }
+            Check(frames <= 30 && worstChange <= 0.0091f, $"Magazine pace: 10 cm behind a still hand closes in {frames} frames, a step changing by {worstChange * 1000f:0.0} mm at most");
+            // Beside a hand going 2 cm a frame, starting 5 cm behind it: after the first frames it does not fall further behind.
+            gap = 0.05f;
+            travel = 0f;
+            float worstGap = 0f;
+            for (int i = 0; i < 60; i++)
+            {
+                gap += 0.02f;
+                float step = Math.Min(gap, Budget(travel, gap, 0.02f, 0f));
+                travel = step;
+                gap -= step;
+                if (i >= 10)
+                {
+                    worstGap = Math.Max(worstGap, gap);
+                }
+            }
+            Check(worstGap < 0.03f, $"Magazine pace: beside a hand going 2 cm a frame it stays within {worstGap * 1000f:0} mm of it");
+            // The player running 3 cm a frame, the hand still against him: the run itself is never held back.
+            float held = 0f;
+            for (int i = 0; i < 30; i++)
+            {
+                held = Math.Max(held, 0.03f + 0.02f - Math.Min(0.05f, Budget(0f, 0.05f, 0f, 0.03f)));
+            }
+            Check(held <= 0.016f + 1e-5f, $"Magazine pace: the player's own way is on top of the pace ({held * 1000f:0} mm of a 20 mm gap left after a frame at 3 cm a frame)");
+        }
+
         private static void SteadyGripTests(System.Reflection.Assembly mod)
         {
             Type steady = mod.GetType("RavenfieldVR.Weapons.ArmIK+SteadyGrip");
@@ -621,6 +676,31 @@ namespace RavenfieldVR.Tests
                 kept = Step(0.5f, false);
             }
             Check(Math.Abs(kept - 0.5f) < 1e-4, $"Steady grip: a gun never seen on its points keeps its bones as they are ({kept:0.000})");
+            // What it gives out is eased (SteadyEased, 2026-11-11): a pose taken over after its four frames is gone through over a
+            // tenth of a second, no frame's step more than a third of the way, and it ends on the pose itself.
+            System.Reflection.MethodInfo eased = steady.GetMethod("SteadyEased");
+            Check(eased != null, "Steady grip: ArmIK.SteadyGrip.SteadyEased found");
+            if (eased != null)
+            {
+                object e = Activator.CreateInstance(steady, true);
+                int frame = 100;
+                float time = 5f;
+                float Out(float x)
+                {
+                    frame++;
+                    time += 1f / 90f;
+                    return ((UnityEngine.Vector3)pose.GetField("position").GetValue(eased.Invoke(e, new[] { At(x), gun, true, false, (object)frame, (object)time }))).x - 1f;
+                }
+                Out(0.1f);
+                float last = 0.1f, worst = 0f, end = 0f;
+                for (int i = 0; i < 20; i++)
+                {
+                    end = Out(0.4f);
+                    worst = Math.Max(worst, Math.Abs(end - last));
+                    last = end;
+                }
+                Check(worst < 0.1f && Math.Abs(end - 0.4f) < 1e-4, $"Steady grip: a pose taken over is gone through, not jumped (largest step {worst:0.000} of 0.300, ends at {end:0.000})");
+            }
         }
 
         /// <summary>

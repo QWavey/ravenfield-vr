@@ -133,7 +133,7 @@ namespace RavenfieldVR.Weapons
                 // Gun hand: exactly where its animation holds the grip (steadied: a frame's blink of it, or a pose off the grip altogether).
                 RigidPose animated = RigidPose.Of(_right.Hand);
                 bool onGrip = (animated.position - _held.Rig.ToWorld(_held.Rig.Data.GripPoint)).sqrMagnitude < 0.08f * 0.08f;
-                RigidPose target = _gunGrip.Steady(animated, _held.Rig.GunBodyPose, onGrip, GameReloading);
+                RigidPose target = _gunGrip.SteadyEased(animated, _held.Rig.GunBodyPose, onGrip, GameReloading, Time.frameCount, Time.unscaledTime);
                 SayHeldOff("gun hand", animated, target, ref _saidGunOff);
                 Vector3 pole = gunShoulder + down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_right, gunShoulder, target, pole);
@@ -164,7 +164,7 @@ namespace RavenfieldVR.Weapons
                 RigidPose animatedGrip = RigidPose.Of(_left.Hand);
                 WeaponRigData data = _held.Rig.Data;
                 bool onSupport = !data.HasSupportPoint || (animatedGrip.position - _held.Rig.ToWorld(data.SupportPoint)).sqrMagnitude < 0.14f * 0.14f;
-                RigidPose grip = _supportGrip.Steady(animatedGrip, _held.Rig.GunBodyPose, onSupport, GameReloading);
+                RigidPose grip = _supportGrip.SteadyEased(animatedGrip, _held.Rig.GunBodyPose, onSupport, GameReloading, Time.frameCount, Time.unscaledTime);
                 SayHeldOff("support hand", animatedGrip, grip, ref _saidSupportOff);
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;
@@ -338,30 +338,53 @@ namespace RavenfieldVR.Weapons
             private bool _known, _seenOnGun;
             private int _odd;
 
+            /// <summary>The steadied pose as it is decided, with no ease (the rule alone; the offline tests' entry).</summary>
             public RigidPose Steady(RigidPose now, RigidPose gun, bool onGun, bool pass)
             {
-                if (pass)
+                return Decide(now, gun, onGun, pass, out RigidPose inGun) ? gun.Multiply(inGun) : now;
+            }
+
+            /// <summary>The steadied pose, what it gives out gone through over a tenth of a second where it changes at once
+            /// (<paramref name="frame"/> and <paramref name="time"/>: Time.frameCount and Time.unscaledTime, handed in so the rule
+            /// runs outside the game too: called from in here, the offline tests stopped at Unity's native clock, 2026-11-11).</summary>
+            public RigidPose SteadyEased(RigidPose now, RigidPose gun, bool onGun, bool pass, int frame, float time)
+            {
+                if (!Decide(now, gun, onGun, pass, out RigidPose inGun))
                 {
-                    _known = false; // (the reload over, the next pose is taken as the one to hold to)
-                    _odd = 0;
                     _hasOut = false;
                     _easeAt = -1f;
                     return now;
                 }
+                return Eased(inGun, gun, frame, time);
+            }
+
+            /// <summary>The pose to hold to in the gun's space; false with <paramref name="pass"/> (taken as it comes).</summary>
+            private bool Decide(RigidPose now, RigidPose gun, bool onGun, bool pass, out RigidPose held)
+            {
+                held = default;
+                if (pass)
+                {
+                    _known = false; // (the reload over, the next pose is taken as the one to hold to)
+                    _odd = 0;
+                    return false;
+                }
                 RigidPose inGun = gun.Inverse().Multiply(now);
                 if (_seenOnGun && !onGun)
                 {
-                    return Eased(_inGun, gun);
+                    held = _inGun;
+                    return true;
                 }
                 if (_known && (Vector3.Distance(inGun.position, _inGun.position) > 0.03f || Quaternion.Angle(inGun.rotation, _inGun.rotation) > 20f) && ++_odd <= 4)
                 {
-                    return Eased(_inGun, gun);
+                    held = _inGun;
+                    return true;
                 }
                 _inGun = inGun;
                 _known = true;
                 _seenOnGun |= onGun;
                 _odd = 0;
-                return Eased(inGun, gun);
+                held = inGun;
+                return true;
             }
 
             // What it gives out never jumps: a pose held for four frames and then taken over, or held off the grip and let back
@@ -373,19 +396,19 @@ namespace RavenfieldVR.Weapons
             private int _outFrame;
             private float _easeAt = -1f;
 
-            private RigidPose Eased(RigidPose inGun, RigidPose gun)
+            private RigidPose Eased(RigidPose inGun, RigidPose gun, int frame, float time)
             {
                 RigidPose r = inGun;
-                if (_hasOut && Time.frameCount - _outFrame <= 2)
+                if (_hasOut && frame - _outFrame <= 2)
                 {
                     if (_easeAt < 0f && (Vector3.Distance(r.position, _out.position) > 0.015f || Quaternion.Angle(r.rotation, _out.rotation) > 10f))
                     {
                         _easeFrom = _out;
-                        _easeAt = Time.unscaledTime;
+                        _easeAt = time;
                     }
                     if (_easeAt >= 0f)
                     {
-                        float t = (Time.unscaledTime - _easeAt) / 0.1f;
+                        float t = (time - _easeAt) / 0.1f;
                         if (t >= 1f)
                         {
                             _easeAt = -1f;
@@ -393,7 +416,9 @@ namespace RavenfieldVR.Weapons
                         else
                         {
                             float k = t * t * (3f - 2f * t);
-                            r = new RigidPose(Vector3.Lerp(_easeFrom.position, r.position, k), Quaternion.Slerp(_easeFrom.rotation, r.rotation, k));
+                            // (No turn between the two: none worked out. Slerp is one of Unity's native calls, and the rule runs outside the game too.)
+                            bool turned = Mathf.Abs(Quaternion.Dot(_easeFrom.rotation, r.rotation)) < 0.999999f;
+                            r = new RigidPose(Vector3.Lerp(_easeFrom.position, r.position, k), turned ? Quaternion.Slerp(_easeFrom.rotation, r.rotation, k) : r.rotation);
                         }
                     }
                 }
@@ -402,7 +427,7 @@ namespace RavenfieldVR.Weapons
                     _easeAt = -1f;
                 }
                 _out = r;
-                _outFrame = Time.frameCount;
+                _outFrame = frame;
                 _hasOut = true;
                 return gun.Multiply(r);
             }
