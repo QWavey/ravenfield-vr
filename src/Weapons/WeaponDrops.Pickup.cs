@@ -439,6 +439,7 @@ namespace RavenfieldVR.Weapons
                 swapped.EmptyChamber = EmptyChamberOf(current);
                 BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);
                 ChamberStateOf(current, out swapped.SpentCases, out swapped.ActionOpen);
+                Net.NetGame.OnOwnDrop(swapped, Vector3.zero); // (shown on the other PCs as a gun let go is: a swapped-away one was not; scout)
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,
             // launcher, grenade; never two of a kind): it is put in its slot holstered, then held in this hand (Tasks 152: "pick

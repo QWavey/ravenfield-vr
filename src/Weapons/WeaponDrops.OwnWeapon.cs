@@ -203,6 +203,10 @@ namespace RavenfieldVR.Weapons
         {
             foreach (DroppedWeapon d in _drops)
             {
+                if (d.Shown)
+                {
+                    continue; // (another PC's player's gun: his, not this player's to let go of at his death)
+                }
                 if (d.OwnerSlot >= 0 || d.Keep || d.PlayerOwned)
                 {
                     d.OwnerSlot = -1;

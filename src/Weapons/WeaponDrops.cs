@@ -152,14 +152,16 @@ namespace RavenfieldVR.Weapons
             // Weapons kept after a swap pile up only so far: past six, the oldest of them stops being kept. It is the only
             // copy of that weapon, so it is not deleted outright (that lost the first swapped-away gun of a long fight on the
             // seventh swap); it becomes an ordinary drop with a fresh lifetime, still grabbable, and goes on the normal timer.
+            // (Another PC's guns shown here are kept apart from these: counted with them, six of them made the player's own swapped-
+            // away gun an ordinary drop, gone 90 s later; drops scout, 2026-11-11.)
             int kept = 0;
             foreach (DroppedWeapon d in _drops)
             {
-                kept += d.Keep ? 1 : 0;
+                kept += d.Keep && !d.Shown ? 1 : 0;
             }
             for (int i = 0; i < _drops.Count && kept > 6; i++)
             {
-                if (_drops[i].Keep && _drops[i].OwnerSlot < 0)
+                if (_drops[i].Keep && !_drops[i].Shown && _drops[i].OwnerSlot < 0)
                 {
                     _drops[i].Keep = false;
                     _drops[i].DropTime = Time.time;
@@ -222,6 +224,10 @@ namespace RavenfieldVR.Weapons
             if (d.NetId > 0)
             {
                 Net.NetGame.OnOwnDropGone(d.NetId); // (picked up again, back to its holster, or gone: the others take theirs away)
+            }
+            if (d.Shown)
+            {
+                Net.NetGame.OnShownDropGone(d); // (gone here: the shared match's record of it goes too, or it filled up for the match)
             }
             if (d.Go != null)
             {

@@ -822,6 +822,19 @@ namespace RavenfieldVR.Net
         /// <summary>The copies shown of other players' dropped guns (key: the sender's number and the drop's).</summary>
         private static readonly Dictionary<int, Weapons.DroppedWeapon> ShownDrops = new Dictionary<int, Weapons.DroppedWeapon>();
 
+        /// <summary>A shown copy of another PC's gun gone here (taken away, its time over): its entry goes from <see cref="ShownDrops"/>.</summary>
+        internal static void OnShownDropGone(Weapons.DroppedWeapon drop)
+        {
+            foreach (KeyValuePair<int, Weapons.DroppedWeapon> kv in ShownDrops)
+            {
+                if (ReferenceEquals(kv.Value, drop))
+                {
+                    ShownDrops.Remove(kv.Key);
+                    return;
+                }
+            }
+        }
+
         internal static void OnOwnDrop(Weapons.DroppedWeapon drop, Vector3 velocity)
         {
             NetSession session = _session;
