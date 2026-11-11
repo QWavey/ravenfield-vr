@@ -1200,8 +1200,37 @@ namespace RavenfieldVR.Rig
             return _spring != null && t.parent != null ? t.parent.TransformPoint(_spring.originPosition) : t.position;
         }
 
+        private Seat _restSeat;
+        private Camera _restCam;
+        private Vector3 _restLocal;
+        private bool _restOutside, _eyesAtSeat;
+
+        /// <summary>
+        /// Where the eyes sit in a seat whose vehicle has a camera of its own: where that camera rests in the vehicle, taken once as the
+        /// seat is taken and carried with the seat from then on. Taken from the camera every frame, the view swung around the turret
+        /// with a minigun's camera on its turning gun (the user, 2026-11-11, the Blackhawk: "the minigun is trippy"). A camera of the
+        /// vehicle's more than 1.5 m from the seat's own eye point is an outside view (an aircraft's chase camera): the eyes are the
+        /// seat's then, in the cockpit (the user: planes felt "like 2d when im actually 3d").
+        /// </summary>
+        private Vector3 SeatEyes(Seat seat, Camera cam, Vector3 rest)
+        {
+            Transform t = seat.transform;
+            if (!ReferenceEquals(_restSeat, seat) || !ReferenceEquals(_restCam, cam))
+            {
+                _restSeat = seat;
+                _restCam = cam;
+                var seatEye = new Vector3(0f, 0.85f, 0.2f); // (the game's own eye point in a seat: FpsActorController.StartSeated)
+                _restOutside = (rest - t.TransformPoint(seatEye)).magnitude > 1.5f;
+                _restLocal = _restOutside ? seatEye : t.InverseTransformPoint(rest);
+                Log.Info($"View in {(seat.vehicle != null ? seat.vehicle.name : "a seat")}: {(_restOutside ? $"its camera '{cam.name}' is outside ({(rest - t.TransformPoint(seatEye)).magnitude:0.0} m from the seat): the seat's own eyes" : $"its camera '{cam.name}' at its place in the vehicle")}.");
+            }
+            _eyesAtSeat = _restOutside;
+            return t.TransformPoint(_restLocal);
+        }
+
         private RigidPose AnchorPose(FpsActorController player, out Camera cam)
         {
+            _eyesAtSeat = false; // (set again below for an outside camera; stale from a seat left, it hid the body on a ladder)
             cam = player != null ? player.fpCamera : null;
             if (_anchorKey is Camera overrideCam && overrideCam != null)
             {
@@ -1210,7 +1239,13 @@ namespace RavenfieldVR.Rig
                 // and following that rotation would make head-aimed turrets chase their own view.
                 Seat seatOfCam = player != null && player.actor.IsSeated() ? player.actor.seat : null;
                 Quaternion rot = seatOfCam != null ? seatOfCam.transform.rotation : overrideCam.transform.rotation;
-                return Level(new RigidPose(SeatCameraRest(overrideCam), rot));
+                Vector3 rest = SeatCameraRest(overrideCam);
+                _eyesAtSeat = false;
+                if (seatOfCam != null)
+                {
+                    rest = SeatEyes(seatOfCam, overrideCam, rest);
+                }
+                return Level(new RigidPose(rest, rot));
             }
             if (player == null)
             {
@@ -1461,7 +1496,7 @@ namespace RavenfieldVR.Rig
             bool shadow = VRConfig.BodyShadow.Value;
             // On a seat or a ladder the head is at the body's eyes too while the game does not draw the body (its first-person
             // seat camera; its arms on the wheel in their own animation): hidden there as well. A third-person seat camera draws it.
-            bool atEyes = Mode == RigMode.OnFoot || Mode == RigMode.Anchored && !drawn;
+            bool atEyes = Mode == RigMode.OnFoot || Mode == RigMode.Anchored && (!drawn || _eyesAtSeat); // (an outside camera's body is not drawn at the seat's eyes)
             if (atEyes && player != null && (Mode == RigMode.OnFoot && drawn || !shadow))
             {
                 if (shadow)
