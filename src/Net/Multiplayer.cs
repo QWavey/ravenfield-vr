@@ -358,6 +358,9 @@ namespace RavenfieldVR.Net
 
         /// <summary>What the hosted game shows in Steam's list (the game layer names the map and mode; before a match: the menu).</summary>
         public static string Map = "", Mode = "";
+
+        /// <summary>A joined player plays on the side against the host's (from the next match the host starts).</summary>
+        public static bool OtherSide;
         public static bool InMatch;
 
         /// <summary>Once a frame, in the menu and in a match alike.</summary>

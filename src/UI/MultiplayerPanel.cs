@@ -148,6 +148,13 @@ namespace RavenfieldVR.UI
                     Label(line, 24, FontStyle.Normal, UiKit.TextColor);
                 }
                 Label("When the host starts the match, it starts here by itself.", 19, FontStyle.Italic);
+                // His side: with the host, or against him (from the next match the host starts).
+                ActionRow(Multiplayer.OtherSide ? "You play AGAINST the host (from his next match)." : "You play on the host's side.",
+                          Multiplayer.OtherSide ? "Join his side" : "Play against", () =>
+                          {
+                              Multiplayer.OtherSide = !Multiplayer.OtherSide;
+                              Rebuild();
+                          });
                 if (NetMods.HostCount > 0)
                 {
                     // The host's workshop mods this PC lacks: asked for through Steam on the player's word.

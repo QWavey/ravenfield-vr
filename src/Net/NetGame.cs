@@ -1136,7 +1136,8 @@ namespace RavenfieldVR.Net
             p.configuration.SetFloat("respawnTime", Mathf.Clamp(respawn, 1f, 120f));
             p.configuration.SetDropdown("gameLength", length);
             p.nightMode = night;
-            p.playerTeam = team;
+            // (The joined player's own choice of side: the host's, or against him; Multiplayer.OtherSide, from his panel.)
+            p.playerTeam = Multiplayer.OtherSide ? 1 - Mathf.Clamp(team, 0, 1) : team;
             Clear(false);
             _loading = true;
             _startingFromNet = true;
