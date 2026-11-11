@@ -166,12 +166,12 @@ namespace RavenfieldVR.Weapons
             float within = LookWithin + (a1 - a0).magnitude * 0.5f;
             foreach (Actor a in ActorManager.instance.actors)
             {
-                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled || a.IsSeated())
+                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled)
                 {
                     continue;
                 }
                 Vector3 at = a.transform.position;
-                if ((at - mid).sqrMagnitude > within * within || a.ragdoll != null && a.ragdoll.IsRagdoll())
+                if ((at - mid).sqrMagnitude > within * within || a.IsSeated() || a.ragdoll != null && a.ragdoll.IsRagdoll()) // (the seat asked only of those in reach: it was asked of every soldier of the match each frame)
                 {
                     continue; // (down: the gun is not in his hands)
                 }

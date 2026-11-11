@@ -453,6 +453,8 @@ namespace RavenfieldVR.Weapons
                    && VRInput.GetPressedRecently(DigitalAction.Grab, g._rig.Hands[i].Side, GrabWindow);
         }
 
+        // (WhyNot's words are put together in a test run only: the squeeze goes through here every frame it is held with nothing
+        // taken, and each was a new string a frame; scout, 2026-11-11.)
         /// <summary>Autotest: why the last squeeze near a soldier took no one.</summary>
         internal static string WhyNot = "";
 
@@ -478,7 +480,7 @@ namespace RavenfieldVR.Weapons
             float punch = Mathf.Max(Mathf.Max(MeleeHandler.BlowSpeed, GrabMaxSpeed), SwungSpeed(i));
             if (hand.BodyRelativeVelocity.sqrMagnitude > punch * punch)
             {
-                WhyNot = $"too fast {hand.BodyRelativeVelocity.magnitude:0.0}";
+                if (Core.AutoTest.Requested) WhyNot = $"too fast {hand.BodyRelativeVelocity.magnitude:0.0}";
                 return;
             }
             Vector3 palm = hand.PalmCentre;
@@ -508,7 +510,7 @@ namespace RavenfieldVR.Weapons
             Hold other = _holds[1 - i];
             if (best == null || other != null && other.Neck && other.Actor == best)
             {
-                WhyNot = $"no one within reach ({n} colliders)";
+                if (Core.AutoTest.Requested) WhyNot = $"no one within reach ({n} colliders)";
                 return; // (held by the neck in the other hand: knocked over by this one, that hold would hang on a ragdoll)
             }
             try

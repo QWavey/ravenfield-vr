@@ -11,6 +11,10 @@ namespace RavenfieldVR.Weapons
     {
         private const float FrameSeconds = 0.01f;
 
+        /// <param name="clip">The clip the action's sound is in.</param>
+        /// <param name="keyTime">The clip's second of the action's animation key.</param>
+        /// <param name="start">Where the sound starts in the clip (seconds): moved onto its onset.</param>
+        /// <param name="end">Where it ends: moved to where it has died away.</param>
         /// <param name="notBefore">The clip's second before which this action's sound cannot start (the action before it): the
         /// search for its onset went back a quarter second and, with a louder action 0.2 s earlier, took THAT one's onset: a pull
         /// that was the magazine's clack, a slide home that began with the pull (review, 2026-11-10).</param>

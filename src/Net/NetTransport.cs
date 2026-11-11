@@ -40,11 +40,13 @@ namespace RavenfieldVR.Net
         private readonly Dictionary<ulong, Endpoint> _ends = new Dictionary<ulong, Endpoint>();
         private readonly Random _random;
 
+#pragma warning disable 0649 // (set by the offline tests alone, from outside this assembly)
         /// <summary>Of unreliable messages: the share lost, and the share delivered twice.</summary>
         public double Loss, Duplicate;
 
         /// <summary>Seconds a message is on its way (each unreliable one up to this much longer, so they pass each other).</summary>
         public double Delay, Jitter;
+#pragma warning restore 0649
 
         public LoopbackNetwork(int seed = 1)
         {

@@ -96,8 +96,10 @@ namespace RavenfieldVR.Net
         public event Action<string> Closed;
         public event NetMessageHandler Message;
 
+#pragma warning disable 0649 // (set by the offline tests alone so far, from outside this assembly)
         /// <summary>The host's own check of a newcomer (null: welcome): a reason in words refuses it.</summary>
         public Func<NetPlayerInfo, ulong, string> Admit;
+#pragma warning restore 0649
 
         private NetSession(INetTransport transport, NetPlayerInfo info, bool host, ulong hostPeer)
         {
