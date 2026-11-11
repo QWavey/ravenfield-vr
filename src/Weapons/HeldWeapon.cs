@@ -1331,6 +1331,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal bool SettledLoaded => Settled(true);
 
+        /// <summary>The gloves are on the weapon's own grip poses now (each leaves at a wider line than it came on at).</summary>
+        private bool _gripPinned, _supportPinned;
+
         /// <summary>
         /// The gun is drawn and sits shot dry: nothing counted by the game (no round chambered, the magazine empty), not reloading, half a
         /// second after the last shot, its animator in one state for a third of a second, not a transition (its empty pose, as it shows an
@@ -2318,7 +2321,11 @@ namespace RavenfieldVR.Weapons
                 RigidPose grip = default;
                 // (Not while it is held where the hand took it, off the grip: the glove stays on the hand, closing on the gun there.)
                 bool posed = _gripHand != null && main.Role == HandRole.Weapon && !_system.HeldWhereTaken(Weapon) && _gripHand.TryPose(Rig.Weapon.transform, out grip);
-                bool onGrip = posed && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < 0.06f * 0.06f;
+                // (On at 6 cm, off again only at 8: with the animation's hand bone hovering at the line the glove glided onto the
+                // grip pose and off it several times a second; scout, 2026-11-11.)
+                float gripLine = _gripPinned ? 0.08f : 0.06f;
+                bool onGrip = posed && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < gripLine * gripLine;
+                _gripPinned = onGrip;
                 main.Model.SnapPose = onGrip
                     ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand
                     : (RigidPose?)null;
@@ -2356,8 +2363,12 @@ namespace RavenfieldVR.Weapons
             {
                 return; // nor while it holds a soldier: its glove is on him where it took hold (BodyGrab), cleared here every frame
             }
-            if (_supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out RigidPose support)
-                && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < 0.12f * 0.12f)
+            float supportLine = _supportPinned ? 0.16f : 0.12f; // (on at 12 cm, off at 16: as the gun hand's)
+            RigidPose support = default;
+            bool supportOn = _supportHand != null && off.Role == HandRole.Foregrip && _supportHand.TryPose(Rig.Weapon.transform, out support)
+                             && (support.position - Rig.ToWorld(Rig.Data.SupportPoint)).sqrMagnitude < supportLine * supportLine;
+            _supportPinned = supportOn;
+            if (supportOn)
             {
                 if (off.Side == Hand.Right)
                 {

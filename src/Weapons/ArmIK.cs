@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using RavenfieldVR.Runtime;
@@ -26,6 +27,8 @@ namespace RavenfieldVR.Weapons
         private readonly Arm _right, _left;
         /// <summary>The eased shift of the off hand onto the part it works (see <see cref="HandModel.GraspAnchor"/>).</summary>
         private Vector3 _anchorOffset;
+        /// <summary>How long the off hand has had no tracking (seconds).</summary>
+        private float _offLostFor;
 
         /// <summary>How far the off arm has gone over to the weapon's support grip (0: the controller, 1: the grip).</summary>
         private float _onGunBlend = -1f;
@@ -152,7 +155,10 @@ namespace RavenfieldVR.Weapons
                 // (A made stand-in is not the part the hold was taken on: the hand would sit off it, turned as the seat is.)
                 bool onMag = hold != null && (mag != null && mag.Go != null && mag.Kind == PropKind.Magazine && (mag.WeaponKey == _held.Rig.Data.Key || _held.Rig.Data.TakesMagazineOf(mag.Data)) && mag.OwnCopy
                                               || seated != null);
-                bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || !off.Tracked);
+                // (Not tracked for a tenth of a second, not for one frame: a single lost frame started the hand toward the
+                // handguard, 7% of the way, and back over the next six: a twitch of the arm at every dropout; scout, 2026-11-11.)
+                _offLostFor = off.Tracked ? 0f : _offLostFor + Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                bool onGun = !onMag && (off.Role == HandRole.Foregrip || _held.TwoHanded || _offLostFor > 0.1f);
                 // The authored support grip, steadied (the same: its bone went 26 to 31 cm off the support point on the HK416-E/S and the
                 // G BRN180 EO S, by the log of 2026-11-03).
                 RigidPose animatedGrip = RigidPose.Of(_left.Hand);
@@ -215,7 +221,10 @@ namespace RavenfieldVR.Weapons
                 // held at 5 cm the arm stayed with the real hand while the glove was on the handle.
                 float reach = off.Role == HandRole.Foregrip ? 0.05f : off.Model.GraspReach;
                 Vector3 anchorWant = anchored ? Vector3.ClampMagnitude(off.Model.GraspAnchor.Value - off.Model.GraspPointNow(), reach) : Vector3.zero;
-                _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * Time.unscaledDeltaTime));
+                // (Every ease here by a frame of 50 ms at most: on a slow frame, a load or a collection, the tenth-of-a-second
+                // eases were over in that one frame and the arm jumped to the grip or off it; scout, 2026-11-11.)
+                float easeDt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                _anchorOffset = Vector3.Lerp(_anchorOffset, anchorWant, 1f - Mathf.Exp(-(anchored ? 30f : 18f) * easeDt));
                 at += _anchorOffset;
                 var free = new RigidPose(at - palmPoint, rot);
                 // A magazine of this gun in the hand: the hand on it as the gun's own reload holds it, its fingers too (the user,
@@ -224,7 +233,7 @@ namespace RavenfieldVR.Weapons
                 {
                     _lastOnMag = RigidPose.Of(mag != null && mag.Go != null ? mag.Go.transform : seated).Multiply(hold.HandInMag);
                 }
-                _onMagBlend = Mathf.MoveTowards(_onMagBlend, onMag ? 1f : 0f, Time.unscaledDeltaTime * 10f);
+                _onMagBlend = Mathf.MoveTowards(_onMagBlend, onMag ? 1f : 0f, easeDt * 10f);
                 float m = _onMagBlend * _onMagBlend * (3f - 2f * _onMagBlend);
                 if (m > 0f)
                 {
@@ -232,7 +241,7 @@ namespace RavenfieldVR.Weapons
                 }
                 // Taking hold of the handguard or letting go eases over a tenth of a second instead of snapping.
                 float want = onGun ? 1f : 0f;
-                _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, Time.unscaledDeltaTime * 10f);
+                _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, easeDt * 10f);
                 float e = _onGunBlend * _onGunBlend * (3f - 2f * _onGunBlend); // eased in and out
                 RigidPose target = new RigidPose(Vector3.Lerp(free.position, grip.position, e), Quaternion.Slerp(free.rotation, grip.rotation, e));
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
@@ -393,6 +402,67 @@ namespace RavenfieldVR.Weapons
             return new RigidPose(at - rot * c.PalmPoint, rot);
         }
 
+        // The side an elbow bends to turns no faster than 600 degrees a second. It is the pole's direction seen across the line from
+        // shoulder to hand: where the hand's direction passes the pole's (down, a little out and back: a hand hanging at the hip, where
+        // the magazine pouch is), that side swings half a turn within a few degrees of the hand's way, and the elbow whipped 35 cm
+        // across in one frame ("parts of the hand ... glitching around", user 2026-11-11; scout). Kept against the rig, so a turn
+        // of the player is not held back.
+        /// <summary>Where the two hands of the gun's arms are drawn now (the gun hand's, the off hand's), for the empty-hand arms to start from.</summary>
+        internal bool HandsNow(out RigidPose gunHand, out RigidPose offHand)
+        {
+            gunHand = _right.Valid ? RigidPose.Of(_right.Hand) : default;
+            offHand = _left.Valid ? RigidPose.Of(_left.Hand) : default;
+            return _right.Valid && _left.Valid;
+        }
+
+        private sealed class BendMemory
+        {
+            public Vector3 InRig;
+            public int Frame;
+        }
+
+        private static readonly Dictionary<Transform, BendMemory> Bends = new Dictionary<Transform, BendMemory>();
+
+        private static Vector3 SteadyBend(Transform arm, Vector3 bend, Vector3 dir)
+        {
+            Transform rig = Rig.VRRig.Instance != null ? Rig.VRRig.Instance.Root : null;
+            if (arm == null || rig == null)
+            {
+                return bend;
+            }
+            if (!Bends.TryGetValue(arm, out BendMemory memory))
+            {
+                if (Bends.Count > 24)
+                {
+                    Bends.Clear(); // (arms of guns put away long ago)
+                }
+                Bends[arm] = memory = new BendMemory { Frame = -10 };
+            }
+            if (Time.frameCount - memory.Frame <= 2)
+            {
+                Vector3 before = Vector3.ProjectOnPlane(rig.TransformDirection(memory.InRig), dir);
+                if (before.sqrMagnitude > 1e-4f)
+                {
+                    before.Normalize();
+                    float most = 600f * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                    if (Vector3.Angle(before, bend) > most)
+                    {
+                        // (Turned about the arm's own line: two opposite directions have no shortest turn of their own.)
+                        float signed = Vector3.SignedAngle(before, bend, dir);
+                        Vector3 paced = Quaternion.AngleAxis(Mathf.Sign(signed) * most, dir) * before;
+                        paced = Vector3.ProjectOnPlane(paced, dir);
+                        if (paced.sqrMagnitude > 1e-6f)
+                        {
+                            bend = paced.normalized;
+                        }
+                    }
+                }
+            }
+            memory.InRig = rig.InverseTransformDirection(bend);
+            memory.Frame = Time.frameCount;
+            return bend;
+        }
+
         /// <summary>
         /// Two-bone IK: the arm's root moved so its shoulder joint lands on <paramref name="shoulder"/> (slid toward the hand when
         /// out of reach), the elbow bent toward <paramref name="pole"/>, the hand on <paramref name="target"/>. True when the
@@ -425,6 +495,7 @@ namespace RavenfieldVR.Weapons
             float h = Mathf.Sqrt(Mathf.Max(0f, a * a - x * x));
             Vector3 bend = Vector3.ProjectOnPlane(pole - s, dir);
             bend = bend.sqrMagnitude > 1e-6f ? bend.normalized : Vector3.ProjectOnPlane(Vector3.down, dir).normalized;
+            bend = SteadyBend(upper, bend, dir);
             Vector3 elbow = s + dir * x + bend * h;
 
             upper.rotation = Quaternion.FromToRotation(lower.position - s, elbow - s) * upper.rotation;

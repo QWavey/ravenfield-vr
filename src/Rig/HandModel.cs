@@ -713,7 +713,7 @@ namespace RavenfieldVR.Rig
                 return;
             }
             _easedFrame = Time.frameCount;
-            float dt = Time.unscaledDeltaTime;
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f); // (a slow frame finished every 80 ms ease in one step: the glove jumped; scout, 2026-11-11)
             StepPalm();
             // A magazine sliding into the well slides through the hand: the glove stays out of the gun (set every frame by
             // the reload while it does; a stale value from a frame that did not set it counts as none).
@@ -749,7 +749,7 @@ namespace RavenfieldVR.Rig
             {
                 _heldPalmLast = HeldPalm;
             }
-            _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, Time.unscaledDeltaTime / 0.08f);
+            _heldPalmWeight = Mathf.MoveTowards(_heldPalmWeight, heldPalm ? 1f : 0f, Mathf.Min(Time.unscaledDeltaTime, 0.05f) / 0.08f);
         }
 
         /// <summary>
@@ -785,7 +785,7 @@ namespace RavenfieldVR.Rig
                 return;
             }
             SetVisible(!Suppressed && !HiddenByHeld);
-            float dt = Time.unscaledDeltaTime;
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f); // (a slow frame finished every 80 ms ease in one step: the glove jumped; scout, 2026-11-11)
             StepEasing();
             RigidPose target = PlacedTarget();
 

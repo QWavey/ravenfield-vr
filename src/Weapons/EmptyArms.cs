@@ -55,8 +55,24 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            // Where the gun's arms had their hands as it is put away, against the rig: the empty-hand arms start there and go
+            // to the controllers over a tenth of a second. They were on the controllers the next frame, the off hand a jump of
+            // 5 to 15 cm from the handguard, at every holster and weapon switch (scout, 2026-11-11).
+            RigidPose gunHand = default, offHand = default;
+            _fromGun = held.Arms != null && held.Arms.HandsNow(out gunHand, out offHand);
+            if (_fromGun)
+            {
+                _gunHandFrom = MagazineProp.ToRigSpace(gunHand);
+                _offHandFrom = MagazineProp.ToRigSpace(offHand);
+                _fromGunAt = Time.unscaledTime;
+            }
             Copy(held.Weapon, held.Rig);
         }
+
+        private bool _fromGun;
+        private RigidPose _gunHandFrom, _offHandFrom;
+        private float _fromGunAt;
+        private const float FromGunTime = 0.12f;
 
         /// <summary>When the next try at <see cref="TakeFromLoadout"/> may be (Time.unscaledTime).</summary>
         private float _nextLoadoutTry;
@@ -309,8 +325,14 @@ namespace RavenfieldVR.Weapons
             // As ArmIK places them with a gun: the model's right arm (the gun arm) on the gun hand, its shoulder on that side. On the
             // right controller always, left-handed play's arms swapped sides at every draw and holster (review, 2026-10-30).
             float side = Input.VRInput.GunHand == Input.Hand.Left ? -1f : 1f;
-            float right = Solve(sys.Rig.Dominant, _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side), side, zones, _restLocal, 0);
-            float left = Solve(sys.Rig.Off, _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side), -side, zones, _restLocal, 4);
+            float sinceGun = _fromGun ? (Time.unscaledTime - _fromGunAt) / FromGunTime : 1f;
+            if (sinceGun >= 1f)
+            {
+                _fromGun = false;
+            }
+            float fromGun = _fromGun ? 1f - sinceGun * sinceGun * (3f - 2f * sinceGun) : 0f;
+            float right = Solve(sys.Rig.Dominant, _right, _rightChain, _rightFingers, neck - Vector3.up * 0.06f + zones.TorsoRight * (0.17f * side), side, zones, _restLocal, 0, _gunHandFrom, fromGun);
+            float left = Solve(sys.Rig.Off, _left, _leftChain, _leftFingers, neck - Vector3.up * 0.06f - zones.TorsoRight * (0.17f * side), -side, zones, _restLocal, 4, _offHandFrom, fromGun);
             HandError = Mathf.Max(right, left);
         }
 
@@ -318,7 +340,8 @@ namespace RavenfieldVR.Weapons
         /// One arm on its hand; returns how far its hand bone ended from its target (m: the IK's reach, the placement itself is the
         /// autotest's picture), -1 when it was not solved (no arm, the hand with no pose: a 0 read as on target; review).
         /// </summary>
-        private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones, RigidPose[] rest, int restAt)
+        private static float Solve(VRHand hand, Transform[] arm, ArmChain chain, ArmFingers fingers, Vector3 shoulder, float side, BodyZones zones, RigidPose[] rest, int restAt,
+                                   RigidPose fromInRig = default, float from = 0f)
         {
             if (arm == null || fingers == null || chain == null)
             {
@@ -343,6 +366,11 @@ namespace RavenfieldVR.Weapons
                 arm[i].localRotation = rest[restAt + i].rotation;
             }
             RigidPose target = ArmIK.FreeTarget(hand, chain);
+            if (from > 0f)
+            {
+                RigidPose start = MagazineProp.FromRigSpace(fromInRig);
+                target = new RigidPose(Vector3.Lerp(target.position, start.position, from), Quaternion.Slerp(target.rotation, start.rotation, from));
+            }
             Vector3 pole = shoulder + Vector3.down * 0.6f + zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
             ArmIK.SolveArm(arm[0], arm[1], arm[2], arm[3], shoulder, target, pole);
             fingers.Pose(hand, arm[3], chain, 0f);
