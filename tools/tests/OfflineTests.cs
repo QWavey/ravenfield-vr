@@ -136,6 +136,7 @@ namespace RavenfieldVR.Tests
             RackSplitTests(mod);
             WholeReloadNameTests(mod);
             PaceBudgetTests(mod);
+            VectorSettingTests(mod);
         }
 
         /// <summary>A short clip named as a whole reload is bound to no one hand action (WeaponAnalyzer.WholeReloadName, 2026-11-08).</summary>
@@ -634,6 +635,43 @@ namespace RavenfieldVR.Tests
                 held = Math.Max(held, 0.03f + 0.02f - Math.Min(0.05f, Budget(0f, 0.05f, 0f, 0.03f)));
             }
             Check(held <= 0.016f + 1e-5f, $"Magazine pace: the player's own way is on top of the pace ({held * 1000f:0} mm of a 20 mm gap left after a frame at 3 cm a frame)");
+        }
+
+        /// <summary>
+        /// An offset setting as it is typed (VRConfig.TryParseVector, 2026-11-11): with dots and commas as the mod writes it, and with a
+        /// decimal comma as a German keyboard has it; never a number that is none.
+        /// </summary>
+        private static void VectorSettingTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo parse = mod.GetType("RavenfieldVR.Core.VRConfig")?.GetMethod("TryParseVector");
+            Check(parse != null, "Vector setting: VRConfig.TryParseVector found");
+            if (parse == null)
+            {
+                return;
+            }
+            string Read(string text)
+            {
+                object[] a = { text, null };
+                bool ok = (bool)parse.Invoke(null, a);
+                var v = (UnityEngine.Vector3)a[1];
+                return ok ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.###} {1:0.###} {2:0.###}", v.x, v.y, v.z) : "no";
+            }
+            var cases = new[]
+            {
+                ("0.5, 0, -0.25", "0.5 0 -0.25"), ("0.5 0 -0.25", "0.5 0 -0.25"), ("1;2;3", "1 2 3"), ("1,2,3", "1 2 3"),
+                ("0,5; 0; -0,25", "0.5 0 -0.25"), ("0,5 0 -0,25", "0.5 0 -0.25"), ("0,5, 0, -0,25", "0.5 0 -0.25"), ("0,5, 0, 0", "0.5 0 0"),
+                ("1, 2", "no"), ("1,2,3,4", "no"), ("NaN, 0, 0", "no"), ("0,5,5; 0; 0", "no"), ("", "no"), ("a, b, c", "no"),
+            };
+            var wrong = new List<string>();
+            foreach ((string text, string want) in cases)
+            {
+                string got = Read(text);
+                if (got != want)
+                {
+                    wrong.Add($"'{text}' read as {got}, not {want}");
+                }
+            }
+            Check(wrong.Count == 0, $"Vector setting: {cases.Length} ways of writing three numbers, the decimal comma too" + (wrong.Count > 0 ? ": " + string.Join("; ", wrong) : ""));
         }
 
         private static void SteadyGripTests(System.Reflection.Assembly mod)

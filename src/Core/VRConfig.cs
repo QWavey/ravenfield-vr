@@ -605,7 +605,26 @@ namespace RavenfieldVR.Core
             string[] parts = text.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 3)
             {
-                return false;
+                // Written with a decimal comma, as a German keyboard has it ("0,5; 0; 0", "0,5 0 0", "0,5, 0, 0,25"): split by
+                // ';', by blanks or by ", " alone, three parts whose commas are the decimal's. Read as four and more parts it was
+                // refused, the offset left out with a line in the log only (scout, 2026-11-11).
+                string[] wide = text.IndexOf(';') >= 0 ? text.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    : text.IndexOf(", ", StringComparison.Ordinal) >= 0 ? text.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries)
+                    : text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (wide.Length != 3)
+                {
+                    return false;
+                }
+                parts = wide;
+                for (int i = 0; i < 3; i++)
+                {
+                    parts[i] = parts[i].Trim();
+                    if (parts[i].IndexOf(',') != parts[i].LastIndexOf(','))
+                    {
+                        return false; // (two commas in one number)
+                    }
+                    parts[i] = parts[i].Replace(',', '.');
+                }
             }
             float[] f = new float[3];
             for (int i = 0; i < 3; i++)
