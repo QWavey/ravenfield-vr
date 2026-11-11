@@ -285,6 +285,12 @@ namespace RavenfieldVR.Net
             try
             {
                 ulong host = UdpTransport.Parse(address, DefaultPort);
+                if (host == 0)
+                {
+                    // (Said at once: joined all the same, it read "Joining ..." and "no answer from the host" 15 s later.)
+                    Say($"\"{address}\" is not an address this PC finds (a number like 192.168.1.20, or a name, with :port if it is not {DefaultPort}).");
+                    return;
+                }
                 var transport = new UdpTransport(0);
                 Begin(NetSession.Join(transport, host, OwnInfo()), transport);
                 Say($"Joining {address} ...");

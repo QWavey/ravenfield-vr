@@ -149,7 +149,7 @@ namespace RavenfieldVR.Net
             w.Rotation(muzzleRot);
         }
 
-        /// <summary>My own pose told (a VR player on his feet), thirty times a second.</summary>
+        /// <summary>My own pose told (a VR player on his feet), thirty times a second with another player near.</summary>
         internal static void Tell(NetSession session)
         {
             if (Time.unscaledTime < _nextSend || session.PlayerCount < 2 || !VRManager.Active)
@@ -164,6 +164,15 @@ namespace RavenfieldVR.Net
                 return;
             }
             Vector3 origin = player.Position();
+            // Less often with nobody near to see the hands: every pose goes through the host to every other player, so its cost
+            // grows with the square of the players (16 VR players at 30 a second: about 250 kB/s through the host; scout,
+            // 2026-11-11). Past 40 m from the nearest other player 15 a second, past 120 m 5 (a pose is fresh for 0.6 s, and the
+            // stand-in's hands are eased between two).
+            float nearest = NetGame.NearestOtherPlayer(origin);
+            if (nearest > 40f)
+            {
+                _nextSend = Time.unscaledTime + (nearest > 120f ? 0.2f : 1f / 15f);
+            }
             VRHand left = rig.Hand(Input.Hand.Left), right = rig.Hand(Input.Hand.Right);
             int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0)
                         | (rig.Off.Role == HandRole.Magazine ? Magazine : 0);

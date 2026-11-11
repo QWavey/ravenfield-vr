@@ -39,8 +39,16 @@ namespace RavenfieldVR.Net
             {
                 // (not Windows, or not allowed: the receive loop skips the reset itself)
             }
-            _socket.Bind(new IPEndPoint(IPAddress.Any, port));
-            Port = ((IPEndPoint)_socket.LocalEndPoint).Port;
+            try
+            {
+                _socket.Bind(new IPEndPoint(IPAddress.Any, port));
+                Port = ((IPEndPoint)_socket.LocalEndPoint).Port;
+            }
+            catch (Exception)
+            {
+                _socket.Close(); // (the port taken: the socket not left open behind the throw, one more with every try to host)
+                throw;
+            }
             _deliver = (data, length) => _deliverTo(_deliverFrom, data, length);
         }
 

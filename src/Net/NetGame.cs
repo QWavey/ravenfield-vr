@@ -77,6 +77,22 @@ namespace RavenfieldVR.Net
         // stays known); a living one farther than 150 m from every player, and not firing, five times a second; the rest as before.
         private static readonly List<Actor> ToTell = new List<Actor>();
         private static readonly List<Vector3> Eyes = new List<Vector3>();
+        /// <summary>Whether <see cref="Eyes"/> begins with this PC's own player (the others' follow).</summary>
+        private static bool _eyesOwnFirst;
+
+        /// <summary>
+        /// How far the nearest other player is from <paramref name="from"/> (metres), by the places gathered when the soldiers
+        /// were last told (15 times a second); 0 when none is known yet (taken as near).
+        /// </summary>
+        internal static float NearestOtherPlayer(Vector3 from)
+        {
+            float best = float.MaxValue;
+            for (int i = _eyesOwnFirst ? 1 : 0; i < Eyes.Count; i++)
+            {
+                best = Mathf.Min(best, (Eyes[i] - from).sqrMagnitude);
+            }
+            return best == float.MaxValue ? 0f : Mathf.Sqrt(best);
+        }
         private static int _tellTick;
         private const float FarMetres = 150f;
         /// <summary>The check's: soldiers' places told in the last telling, of how many owned.</summary>
@@ -1223,6 +1239,7 @@ namespace RavenfieldVR.Net
             // Whose place is told this time (see ToTell).
             _tellTick++;
             Eyes.Clear();
+            _eyesOwnFirst = player != null;
             if (player != null)
             {
                 Eyes.Add(player.Position());
