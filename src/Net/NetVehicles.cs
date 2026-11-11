@@ -56,6 +56,7 @@ namespace RavenfieldVR.Net
         private static ushort _nextId = 1;
         private static float _nextState, _nextInfo, _nextSeat, _nextSeatResend, _catalogAt = -100f;
         private static bool _patched, _applyingHit;
+        private static float _matchSeenAt = -1f;
 
         /// <summary>A stand-in is being seated or unseated by its owner's word (the patches let it through).</summary>
         internal static bool Seating;
@@ -243,6 +244,10 @@ namespace RavenfieldVR.Net
                 return;
             }
             byte me = session.LocalId;
+            if (_matchSeenAt < 0f)
+            {
+                _matchSeenAt = Time.unscaledTime;
+            }
             if (session.IsHost)
             {
                 Register(session);
@@ -820,25 +825,31 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            if (turret)
             {
-                // A turret stands on the map on this PC too (the map's own, or its spawner's for the side that holds the point): that
-                // one is taken as the host's, not a second one made beside it. Made only when none has come after three tellings.
-                Vehicle local = LocalTurret(key, pos);
+                // The same vehicle standing on this PC too, at the same place under the same name (a turret, the map's own car or tank,
+                // one a spawner made at the match's start): that one is taken as the host's, not a second one made beside it. A map's
+                // scripts on this PC know their own vehicles: taken off and made anew, those scripts lost them.
+                Vehicle local = LocalMatch(key, pos, turret);
                 if (local != null)
                 {
-                    var adopted = new Shared { Id = id, V = local, Key = key, Owner = owner, WasKinematic = local.rigidbody != null && local.rigidbody.isKinematic, Pos = local.transform.position, Rot = local.transform.rotation, Heard = Time.unscaledTime, HasState = true };
+                    // (Not a turret: gone with the host's when he says so, as a copy is. A turret stays: the map's own, never cleaned up.)
+                    var adopted = new Shared { Id = id, V = local, Key = key, Owner = owner, Copy = !turret, WasKinematic = local.rigidbody != null && local.rigidbody.isKinematic, Pos = local.transform.position, Rot = local.transform.rotation, Heard = Time.unscaledTime, HasState = true };
+                    local.spawner = null;
                     ById[id] = adopted;
                     ByVehicle[local] = adopted;
                     TurretTries.Remove(id);
-                    Log.InfoOnce("net-turret-adopt:" + key, $"Multiplayer: the host's turret '{key}' is this PC's own at the same place (number {id}).");
+                    Log.InfoOnce("net-adopt:" + key, $"Multiplayer: the host's {(turret ? "turret" : "vehicle")} '{key}' is this PC's own at the same place (number {id}).");
                     return;
                 }
+            }
+            // (In a match's first seconds a vehicle too waits a telling: this PC's own map vehicles may not be listed yet.)
+            if (turret || Time.unscaledTime - _matchSeenAt < 10f)
+            {
                 TurretTries.TryGetValue(id, out int tries);
                 TurretTries[id] = tries + 1;
-                if (tries < 3)
+                if (tries < (turret ? 3 : 1))
                 {
-                    return;
+                    return; // (made only when none has come after three tellings: its spawner may bring this PC's own yet)
                 }
             }
             GameObject prefab = PrefabOf(key);
@@ -889,7 +900,7 @@ namespace RavenfieldVR.Net
         private static readonly Dictionary<ushort, int> TurretTries = new Dictionary<ushort, int>();
 
         /// <summary>This PC's own turret of that name standing within 2.5 m of the told place, not yet taken as one of the host's.</summary>
-        private static Vehicle LocalTurret(string key, Vector3 pos)
+        private static Vehicle LocalMatch(string key, Vector3 pos, bool turret)
         {
             Vehicle best = null;
             float bestDistance = 2.5f * 2.5f;
@@ -900,7 +911,7 @@ namespace RavenfieldVR.Net
             }
             foreach (Vehicle v in list)
             {
-                if (v == null || !v.isTurret || v.dead || ByVehicle.ContainsKey(v) || !v.gameObject.activeInHierarchy || !string.Equals(KeyOf(v), key, StringComparison.OrdinalIgnoreCase))
+                if (v == null || v.isTurret != turret || v.dead || ByVehicle.ContainsKey(v) || !v.gameObject.activeInHierarchy || !string.Equals(KeyOf(v), key, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -1067,7 +1078,26 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>A copy of a vehicle that is not one of the host's: taken off on a joined PC (its own spawners are stopped).</summary>
-        internal static bool KeepOnJoined(Vehicle v) => Enabled && IsShared(v);
+        internal static bool KeepOnJoined(Vehicle v)
+        {
+            if (!Enabled)
+            {
+                return false;
+            }
+            if (IsShared(v))
+            {
+                return true;
+            }
+            // A few seconds for the host's word to take it as his (LocalMatch): the host tells his vehicles every 3 s.
+            if (!FirstSeen.TryGetValue(v, out float seen))
+            {
+                FirstSeen[v] = Time.unscaledTime;
+                return true;
+            }
+            return Time.unscaledTime - seen < 8f;
+        }
+
+        private static readonly Dictionary<Vehicle, float> FirstSeen = new Dictionary<Vehicle, float>();
 
         private static void Forget(Shared s)
         {
@@ -1093,6 +1123,8 @@ namespace RavenfieldVR.Net
             Gone.Clear();
             SeatTold.Clear();
             TurretTries.Clear();
+            FirstSeen.Clear();
+            _matchSeenAt = -1f;
             Missing.Clear();
             Catalog.Clear();
             _catalogAt = -100f;

@@ -236,6 +236,8 @@ namespace RavenfieldVR.Net
                     w.Rotation(Quaternion.identity);
                     w.Bool(false);
                     host.Send(NetGame.VehicleInfo, w, true);
+                    yield return For(0.5f);
+                    host.Send(NetGame.VehicleInfo, w, true); // (told again, as the host does every 3 s: early in a match the first is waited out)
                     yield return For(0.8f);
                     Vehicle copy = NetVehicles.VehicleOf(vid);
                     bool made = copy != null;
