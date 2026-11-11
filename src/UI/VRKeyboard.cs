@@ -29,6 +29,9 @@ namespace RavenfieldVR.UI
         /// <summary>When the selected field may be tried again (see <see cref="Update"/>).</summary>
         private float _retryAt;
 
+        /// <summary>When the keyboard was last shown (Time.unscaledTime).</summary>
+        private float _openedAt;
+
         public void Update()
         {
             // Its field gone (the menu closed, a map loaded): the keyboard goes too. It stayed in front until dismissed by hand, and
@@ -42,6 +45,18 @@ namespace RavenfieldVR.UI
             }
             EventSystem es = EventSystem.current;
             GameObject selected = es != null ? es.currentSelectedGameObject : null;
+            // The laser clicked something that is no text field (a button, the panel): the player has gone on, and the keyboard goes
+            // too. It stayed in front of him until Done or Cancel, and Done then wrote into the field he had left (scout, 2026-11-11).
+            // (Not in its first half second: the click that selected the field is still being let go.)
+            if (_open && Time.unscaledTime - _openedAt > 0.5f && (selected == null || selected != _target
+                && selected.GetComponent<InputField>() == null && selected.GetComponent<TMP_InputField>() == null))
+            {
+                OpenVR.Overlay?.HideKeyboard();
+                _open = false;
+                _target = null;
+                _retryAt = 0f;
+                return;
+            }
             // Another text field selected while the keyboard types for one: the selection goes back to that one, where Done writes
             // the text (it wrote into the first field while the second showed selected, and the second's text was lost; round 9).
             // The other field gets its own keyboard once this one closes. (Not hidden and reopened here: SteamVR's closed event for
@@ -89,6 +104,7 @@ namespace RavenfieldVR.UI
             if (_open)
             {
                 _retryAt = float.MaxValue;
+                _openedAt = Time.unscaledTime;
             }
             else
             {
