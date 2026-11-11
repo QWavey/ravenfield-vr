@@ -990,6 +990,19 @@ namespace RavenfieldVR.Tests
             Check(Rounds(true, 40, true, false, 41) == 41, "User's list: a belt gun firing tells it the box and the chamber");
             Check(Rounds(false, 15, false, true, 0) == 0, "User's list: a pistol with its slide locked stays at 0 with a fresh magazine in");
             Check(Rounds(false, 15, true, false, 16) == 16, "User's list: any other gun tells the game's count");
+            // The slide home on an empty chamber (2026-11-11): the animator is told 1, so a pistol that draws its slide back at 0 draws
+            // it shut; not while it is caught back, not with rounds counted, not a belt gun.
+            System.Reflection.MethodInfo home = ammo.GetMethod("AnimatorRoundsHome", flags);
+            Check(home != null, "Gun logic: AmmoState.AnimatorRoundsHome found");
+            if (home != null)
+            {
+                int Home(bool belt, int box, bool chambered, bool locked, int gun, bool homeOnEmpty) =>
+                    (int)home.Invoke(null, new object[] { belt, box, chambered, locked, gun, homeOnEmpty });
+                Check(Home(false, 0, false, false, 0, true) == 1, "Gun logic: the slide home on nothing tells the animator 1 (shut), not 0 (drawn back)");
+                Check(Home(false, 0, false, true, 0, false) == 0, "Gun logic: the slide caught back stays at 0");
+                Check(Home(false, 12, false, false, 12, true) == 12, "Gun logic: home on nothing with rounds in the magazine tells the count");
+                Check(Home(true, 100, false, false, 0, true) == 100, "Gun logic: a belt gun tells its box as before");
+            }
             Check(!Answers(false, true, false), "User's list: the gun away, not loading by hand: the pouch takes no notice of a hand");
             Check(!Answers(false, false, true), "User's list: a grenade in the hand: the pouch takes no notice of the other hand");
             Check(Answers(false, true, true), "User's list: the gun away, loading by hand: the pouch answers");
