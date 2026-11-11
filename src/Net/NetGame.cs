@@ -22,7 +22,7 @@ namespace RavenfieldVR.Net
     ///
     /// The host starts a match from the game's own menu; the same map, mode and night go to everyone (<see cref="MatchStart"/>),
     /// also to who joins later. A map is named by its file, so a workshop map works when both have it.
-    /// Not carried yet: vehicles (a soldier in one is shown where his seat is), scores and flags (each PC counts its own).
+    /// Vehicles and turrets: the host's, copied on the others (NetVehicles). Flags, the score and the end: the host's (MatchState).
     /// </summary>
     internal static class NetGame
     {
@@ -1904,12 +1904,9 @@ namespace RavenfieldVR.Net
         internal static int VehiclesRemoved;
 
         /// <summary>
-        /// A shared match is on foot for now: vehicles are not carried between the PCs, and a host's soldier driving one was a
-        /// soldier sliding over the ground on every other PC, shot at from a tank nobody else saw. So in a session the map's
-        /// vehicles are taken away on every PC and their spawners stopped (the fixed guns stay: a soldier at one stands at it).
+        /// On a joined PC (since 1.17.10; on every PC before, when vehicles were not shared): its own vehicles are taken off and its spawners
+        /// stopped, the host's being copied here (NetVehicles; turrets are matched, not taken off).
         /// At the match's start, when a session begins in a running match, and every five seconds for what a script brings.
-        /// The spawners are looked for once a match (a search of the whole scene: not every five seconds in the headset);
-        /// the later looks only read the game's own list of vehicles.
         /// </summary>
         private static void NoVehicles(bool newMatch)
         {
@@ -1957,7 +1954,7 @@ namespace RavenfieldVR.Net
                 if (removed > 0)
                 {
                     VehiclesRemoved += removed;
-                    Log.Info($"Multiplayer: {removed} vehicle(s) taken off the field (a shared match is on foot for now).");
+                    Log.Info($"Multiplayer: {removed} vehicle(s) of this PC's own taken off the field (the host's are shown here).");
                 }
             }
             catch (Exception e)
