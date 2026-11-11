@@ -137,8 +137,8 @@ namespace RavenfieldVR.Weapons
                 if (expired && d.OwnerSlot >= 0)
                 {
                     // Your own weapon is the only copy of it (its slot was emptied when it left the hand): it goes back to
-                    // its holster, never away. Deleted after 90 s (in a vehicle, where it is not returned) or after falling
-                    // out of the world, it was gone from the loadout for good.
+                    // its holster when it can (on foot), never away. Once it was deleted after 90 s in a vehicle or after falling
+                    // out of the world, and was gone from the loadout for good; now it waits for its return.
                     d.ReturnAt = 0f;
                     continue;
                 }
