@@ -8,7 +8,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 - Nothing of 1.17.5 has run in the game. First thing with the game free: `python -I tools/vrshots.py --autotest --fast`, `--ui` (the tab check aims at the button's middle now), `--netcheck`, `--sandboxcheck --sandboxmode`, `--weapon "=RK-44" --weapon "=S-IND7"` (the pace's softer braking).
 - What changed is in Tasks 380 (ten Haiku scouts over three rounds, each finding read in the code first) and in `dist/notes-1.17.5.md`.
 - Offline: `tools/tests/run-tests.ps1` passes with the game running too (483 checks, the fuzz, 5053 net checks); `tools/tests/bench.ps1` works again.
-- Open from this run: the installer's scripts, the launcher's wait, the keyboard staying up (Tasks 380, "OPEN").
+- Open from this run: the installer's scripts (`install.ps1`, `uninstall.ps1`: stopped runs), the SteamVR keyboard staying up when the laser clicks elsewhere (Tasks 380, "OPEN").
 
 ## State 2026-11-11 midday (1.17.4, Tasks 379: smoothness)
 
