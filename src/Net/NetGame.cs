@@ -204,7 +204,13 @@ namespace RavenfieldVR.Net
         /// <summary>The match that is on, as it is told to who joins (and what the list shows of it).</summary>
         private static void RememberStart(MapEntryData entry, GameModeParameters p)
         {
+            // (A workshop map's file name with its mod's number: two workshop maps may share a file name, and the joiner loaded
+            // the first of them it had.)
             string scene = entry.isCustomMap ? Path.GetFileName(entry.sceneName) : entry.sceneName;
+            if (entry.isCustomMap && entry.sourceMod != null && entry.sourceMod.IsWorkshopItem())
+            {
+                scene += KeySeparator.ToString() + entry.sourceMod.workshopItemId.m_PublishedFileId;
+            }
             string mode = p != null && p.gameMode != null ? p.gameMode.name : "";
             Out.Reset();
             Out.Bool(entry.isCustomMap);
@@ -215,7 +221,7 @@ namespace RavenfieldVR.Net
             Out.Float(p != null ? p.GetRespawnTime() : 5f);
             Out.Byte((byte)(p != null ? Mathf.Clamp(p.GetGameLength(), 0, 255) : 1));
             _lastStart = Out.ToArray();
-            Multiplayer.Map = !string.IsNullOrEmpty(entry.metaData.displayName) ? entry.metaData.displayName : Path.GetFileNameWithoutExtension(scene);
+            Multiplayer.Map = !string.IsNullOrEmpty(entry.metaData.displayName) ? entry.metaData.displayName : Path.GetFileNameWithoutExtension(Path.GetFileName(entry.sceneName));
             Multiplayer.Mode = mode;
         }
 
@@ -488,6 +494,13 @@ namespace RavenfieldVR.Net
         /// <summary>The map on this PC by the name the host gave (a built-in scene; a workshop map's file name). Null: not here.</summary>
         internal static MapEntryData FindMap(bool custom, string scene)
         {
+            int cut = scene != null ? scene.IndexOf(KeySeparator) : -1;
+            ulong mod = cut >= 0 && ulong.TryParse(scene.Substring(cut + 1), out ulong id) ? id : 0ul;
+            if (cut >= 0)
+            {
+                scene = scene.Substring(0, cut);
+            }
+            MapEntryData first = null;
             foreach (MapEntryData m in custom ? ModManager.AllCustomMaps() : ModManager.AllBuiltInMaps())
             {
                 if (m == null || string.IsNullOrEmpty(m.sceneName))
@@ -495,10 +508,20 @@ namespace RavenfieldVR.Net
                     continue;
                 }
                 string name = custom ? Path.GetFileName(m.sceneName) : m.sceneName;
-                if (string.Equals(name, scene, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(name, scene, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                if (mod == 0ul || m.sourceMod != null && m.sourceMod.IsWorkshopItem() && m.sourceMod.workshopItemId.m_PublishedFileId == mod)
                 {
                     return m;
                 }
+                first = first ?? m;
+            }
+            if (first != null)
+            {
+                Log.WarnOnce("net-othermap:" + scene, $"Multiplayer: the host's map '{scene}' of workshop {mod} is not on this PC; another mod's map of that file name is loaded.");
+                return first;
             }
             return custom ? null : MapEntryData.CreateBasicBuiltIn(scene);
         }
@@ -516,7 +539,10 @@ namespace RavenfieldVR.Net
             MapEntryData map = FindMap(custom, scene);
             if (map == null)
             {
-                UI.UISystem.Instance?.Notice?.Show($"The host started on a map this PC does not have: {Path.GetFileNameWithoutExtension(scene)}. Subscribe to it and join again.", 12f);
+                int cut = scene.IndexOf(KeySeparator);
+                string file = Path.GetFileNameWithoutExtension(cut >= 0 ? scene.Substring(0, cut) : scene);
+                string where = cut >= 0 ? $" (workshop item {scene.Substring(cut + 1)})" : "";
+                UI.UISystem.Instance?.Notice?.Show($"The host started on a map this PC does not have: {file}{where}. Subscribe to it and join again.", 12f);
                 Log.Warn("Multiplayer: the host's map is not on this PC: " + scene);
                 return;
             }
