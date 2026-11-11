@@ -212,6 +212,63 @@ namespace RavenfieldVR.Net
                 report($"multiplayer hit on the host's soldier: {(hits == 1 && hitVictim == 1 ? "sent to the host" : $"NOT SENT ({hits} message(s), victim {hitVictim})")}");
             }
 
+            // 5a. A vehicle of the host's (1.17.10): a copy made here from this PC's prefab of that name, kinematic, following where he
+            // says it goes, gone when he says.
+            if (NetVehicles.Enabled)
+            {
+                Vehicle prefab = Resources.FindObjectsOfTypeAll<Vehicle>()
+                    .FirstOrDefault(v => v != null && !v.gameObject.scene.IsValid() && !v.isTurret && v.GetComponent<Rigidbody>() != null);
+                Actor me = LocalPlayer.actor;
+                if (prefab == null || me == null)
+                {
+                    report("multiplayer shared vehicle: skipped (no vehicle prefab loaded, or no player)");
+                }
+                else
+                {
+                    const ushort vid = 900;
+                    Vector3 at = me.Position() + me.transform.forward * 15f + Vector3.up * 3f;
+                    w.Reset();
+                    w.UShort(vid);
+                    w.String(prefab.gameObject.name, 128);
+                    w.Byte(0);
+                    w.Bool(false);
+                    w.Vector(at);
+                    w.Rotation(Quaternion.identity);
+                    w.Bool(false);
+                    host.Send(NetGame.VehicleInfo, w, true);
+                    yield return For(0.8f);
+                    Vehicle copy = NetVehicles.VehicleOf(vid);
+                    bool made = copy != null;
+                    bool kinematic = copy != null && copy.rigidbody != null && copy.rigidbody.isKinematic;
+                    Vector3 to = at + me.transform.right * 6f;
+                    for (int i = 0; i <= 15; i++)
+                    {
+                        w.Reset();
+                        w.Byte(1);
+                        w.UShort(vid);
+                        w.Vector(Vector3.Lerp(at, to, i / 15f));
+                        w.Rotation(Quaternion.identity);
+                        w.SmallVector((to - at));
+                        w.SmallVector(Vector3.zero);
+                        w.Float(copy != null ? copy.maxHealth * 0.4f : 100f);
+                        w.Byte(0);
+                        w.Byte(0);
+                        host.Send(NetGame.VehicleStates, w, false);
+                        yield return For(1f / 15f);
+                    }
+                    yield return For(0.6f);
+                    float off = copy != null ? Vector3.Distance(copy.transform.position, to) : -1f;
+                    bool smoke = copy != null && (copy.smokeParticles == null || copy.smokeParticles.isPlaying);
+                    w.Reset();
+                    w.UShort(vid);
+                    host.Send(NetGame.VehicleGone, w, true);
+                    yield return For(0.6f);
+                    report($"multiplayer shared vehicle '{prefab.gameObject.name}': {(copy != null ? "copy made" : "NO COPY MADE")}, {(kinematic ? "kinematic" : "NOT KINEMATIC")}, "
+                           + $"{(off >= 0f && off < 0.6f ? $"followed the host's word ({off * 100f:0} cm off)" : $"DID NOT FOLLOW ({off:0.00} m off)")}, smoke at 40% health {(smoke ? "shown" : "NOT SHOWN")}, "
+                           + $"gone when told: {(!made ? "-" : copy == null ? "yes" : "NOT GONE")}");
+                }
+            }
+
             // 5b. The host's flags and the host's end: a flag held otherwise here is given to who holds it there; this game's own
             // victory is held back, the host's is shown.
             {

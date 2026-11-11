@@ -62,6 +62,9 @@ namespace RavenfieldVR.Net
 
         internal static bool IsShared(Vehicle v) => v != null && ByVehicle.ContainsKey(v);
 
+        /// <summary>The check's: the vehicle shown here under the host's number (null: none).</summary>
+        internal static Vehicle VehicleOf(ushort id) => ById.TryGetValue(id, out Shared s) ? s.V : null;
+
         internal static int Count => ById.Count;
 
         // ---- the patches --------------------------------------------------------------------------------------------
