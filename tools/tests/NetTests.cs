@@ -440,6 +440,20 @@ namespace RavenfieldVR.Tests
             Check(late.Session.State == NetState.Closed && late.Session.CloseReason.Contains("full"), "a full game refuses the fifth: " + late.Session.CloseReason);
             seats.Remove(late);
             Check(host.Session.PlayerCount == 4 && a.Log.All(l => !l.Contains("Old") && !l.Contains("Late")), "the refused never showed up for the others");
+            // The host's Kick: the player told why, gone for everyone, the others stay.
+            byte cleoId = c.Session.LocalId;
+            host.Session.Kick(cleoId);
+            Step(1.5);
+            Check(c.Session.State == NetState.Closed && c.Session.CloseReason.Contains("removed you"), "a kicked player's game ends with the reason: " + c.Session.CloseReason);
+            Check(host.Session.Player(cleoId) == null && a.Session.Player(cleoId) == null && b.Session.Player(cleoId) == null, "he is gone for the host and the others");
+            Check(a.Session.State == NetState.Connected && b.Session.State == NetState.Connected, "the others stay in");
+            host.Session.Kick(0);
+            Check(host.Session.State == NetState.Connected, "the host cannot kick himself");
+            seats.Remove(c);
+            Seat cleoAgain = Client(203, "Cleo");
+            Step(1.5);
+            Check(cleoAgain.Session.State == NetState.Connected, "the kicked player can join again (a kick is not a ban)");
+            c = cleoAgain;
             host.Session.Admit = (info, peer) => info.Name == "Banned" ? "not welcome here" : null;
             host.Session.MaxPlayers = 16;
             Seat banned = Client(206, "Banned");
