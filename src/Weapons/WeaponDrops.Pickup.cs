@@ -150,11 +150,12 @@ namespace RavenfieldVR.Weapons
         /// Whether a weapon is put down with its magazine out, and with its slide locked back on nothing chambered (both false
         /// without a rig state, as for a weapon nothing of the mod's has handled).
         /// </summary>
-        private static void PutDownState(Weapon w, out bool magOut, out bool slideBack)
+        private static void PutDownState(Weapon w, out bool magOut, out bool slideBack, out bool slideHome)
         {
             AmmoState st = WeaponSystem.Instance != null ? WeaponSystem.Instance.StateFor(w, create: false) : null;
             magOut = st != null && st.UsesDetachableMag && !st.MagInserted;
             slideBack = st != null && st.Participates && st.SlideLocked && !st.Chambered;
+            slideHome = st != null && st.HomeOnEmpty;
         }
 
         /// <summary>A machine gun's feed cover lifted, and a box in with its belt not laid on the tray, as it is put down.</summary>
@@ -227,7 +228,7 @@ namespace RavenfieldVR.Weapons
             // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
             // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
             // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
-            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid || d.SpentCases > 0 || d.ActionOpen);
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.SlideHome || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid || d.SpentCases > 0 || d.ActionOpen);
             state?.AdoptWeaponAmmo();
             if (state != null && (d.SpentCases > 0 || d.ActionOpen))
             {
@@ -253,6 +254,11 @@ namespace RavenfieldVR.Weapons
                 }
                 state.Sync();
                 Log.InfoOnce("putdown:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: magazine {(d.MagOut ? "out" : "in")}, slide {(d.SlideBack ? "locked back" : "free")}.");
+            }
+            if (state != null && d.SlideHome && !d.SlideBack && state.SlideLocked)
+            {
+                state.SlideLocked = false; // (AdoptWeaponAmmo catches an empty gun's slide, as for a spawn: this one was put down home)
+                state.Sync();
             }
             if (state != null && state.HasCover && (d.CoverOpen || d.BeltUnlaid))
             {
@@ -422,13 +428,14 @@ namespace RavenfieldVR.Weapons
                 swapped.PlayerOwned = true;
                 swapped.Key = WeaponAnalyzer.KeyOf(current);
                 swapped.Semi = FireSelector.IsSemiByPlayer(current);
-                PutDownState(current, out bool swapMagOut, out bool swapSlideBack);
+                PutDownState(current, out bool swapMagOut, out bool swapSlideBack, out bool swapSlideHome);
                 swapped.MagOut = swapMagOut;
                 if (swapMagOut)
                 {
                     HideMagazine(swapped);
                 }
                 swapped.SlideBack = swapSlideBack;
+                swapped.SlideHome = swapSlideHome;
                 swapped.EmptyChamber = EmptyChamberOf(current);
                 BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);
                 ChamberStateOf(current, out swapped.SpentCases, out swapped.ActionOpen);

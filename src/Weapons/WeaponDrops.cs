@@ -42,6 +42,11 @@ namespace RavenfieldVR.Weapons
         /// <summary>Put down locked back on nothing chambered: it comes back caught back, with its magazine's rounds loaded.</summary>
         public bool SlideBack;
         /// <summary>
+        /// Put down empty with its slide brought home by hand or by its release (AmmoState.HomeOnEmpty): it comes back home, not caught
+        /// back as a gun empty from a spawn starts (the chamber scout, 2026-11-11: picked up again it was caught, "NO MAG" and dry clicks).
+        /// </summary>
+        public bool SlideHome;
+        /// <summary>
         /// Put down with nothing chambered and its action closed (a pump or bolt gun fired and not worked again): it comes back
         /// still to be worked. The count alone made it "N+1" and its next trigger pull fired with no stroke (reload hunt, 2026-10-20).
         /// </summary>

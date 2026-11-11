@@ -89,7 +89,7 @@ namespace RavenfieldVR.Weapons
             PropPhysics.IgnorePlayer(colliders);
             OutOfTheGround(root.transform, colliders, WeaponSystem.Instance != null && WeaponSystem.Instance.Rig != null && WeaponSystem.Instance.Rig.Head != null
                 ? WeaponSystem.Instance.Rig.Head.position : (Vector3?)null);
-            PutDownState(w, out bool magOut, out bool slideBack);
+            PutDownState(w, out bool magOut, out bool slideBack, out bool slideHome);
             var drop = new DroppedWeapon
             {
                 Go = root,
@@ -107,6 +107,7 @@ namespace RavenfieldVR.Weapons
                 PlayerOwned = true,
                 MagOut = magOut,
                 SlideBack = slideBack,
+                SlideHome = slideHome,
                 EmptyChamber = EmptyChamberOf(w)
             };
             BeltStateOf(w, out drop.CoverOpen, out drop.BeltUnlaid);

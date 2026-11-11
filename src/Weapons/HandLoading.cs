@@ -336,7 +336,7 @@ namespace RavenfieldVR.Weapons
                 }
                 VRHand other = sys.Rig.Hands[0] == h ? sys.Rig.Hands[1] : sys.Rig.Hands[0];
                 if (c.Live && c.Key != null && other.Held is MagazineProp mag && mag.Go != null && mag.Kind == PropKind.Magazine
-                    && mag.WeaponKey == c.Key && mag.Owner != null && mag.Owner.Weapon != null && mag.Rounds < mag.Owner.Capacity)
+                    && mag.WeaponKey == c.Key && Applies(mag.Owner) && mag.Rounds < mag.Owner.Capacity) // (Applies: the setting on, not a machine gun's box or a clip; with ChamberByHand alone a round went into the magazine too)
                 {
                     Vector3 top = mag.Go.transform.TransformPoint(mag.TipLocal);
                     if (Vector3.Distance(Casings.CentreOf(c), top) < LoadReach)
