@@ -642,6 +642,27 @@ namespace RavenfieldVR.Net
                 case NetGame.VehicleHit:
                     TakeHit(session, sender, ref r);
                     break;
+                case NetGame.VehicleKilled:
+                {
+                    // This PC's player disabled or destroyed a vehicle another PC drove: his credit, as for one of his own match
+                    // (the game's "DISABLED"/"DESTROYED" line and the scoreboard's vehicle count).
+                    ushort id = r.UShort();
+                    ushort shooter = r.UShort();
+                    bool disabled = r.Bool();
+                    Actor player = LocalPlayer.actor;
+                    if (shooter == 0 && player != null && ById.TryGetValue(id, out Shared s) && s.V != null)
+                    {
+                        try
+                        {
+                            player.OnGotVehicleKill(disabled, s.V);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.WarnOnce("net-vehicle-kill", "Multiplayer: a vehicle kill could not be counted: " + e.Message);
+                        }
+                    }
+                    break;
+                }
             }
         }
 
@@ -729,6 +750,7 @@ namespace RavenfieldVR.Net
                 point = point,
                 direction = Finite(direction) ? direction : Vector3.zero,
             };
+            bool wasDead = s.V.dead, wasBurning = s.V.burning;
             _applyingHit = true;
             try
             {
@@ -737,6 +759,14 @@ namespace RavenfieldVR.Net
             finally
             {
                 _applyingHit = false;
+            }
+            if (!wasDead && s.V.dead || !wasBurning && s.V.burning)
+            {
+                Out.Reset();
+                Out.UShort(s.Id);
+                Out.UShort(shooter);
+                Out.Bool(!s.V.dead);
+                session.SendTo(sender, NetGame.VehicleKilled, Out, true);
             }
         }
 
