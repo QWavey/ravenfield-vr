@@ -16,9 +16,9 @@ namespace RavenfieldVR.Net
 
         public void Write(NetWriter w)
         {
-            w.String(Name);
+            w.String(Name, 64);
             w.VarInt(GameBuild);
-            w.String(ModVersion);
+            w.String(ModVersion, 32);
             w.Bool(Vr);
             w.ULong(SteamId);
         }
@@ -283,7 +283,7 @@ namespace RavenfieldVR.Net
                 {
                     _out.Reset();
                     _out.Byte(Reject);
-                    _out.String(refuse);
+                    _out.String(refuse, 256);
                     _transport.Send(from, _out.Buffer, _out.Length, true);
                     return;
                 }

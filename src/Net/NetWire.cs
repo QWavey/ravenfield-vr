@@ -169,6 +169,32 @@ namespace RavenfieldVR.Net
             Bytes(utf8, 0, utf8.Length);
         }
 
+        /// <summary>
+        /// A text of at most <paramref name="maxBytes"/> bytes as the reader takes it (<see cref="NetReader.String"/> with the same
+        /// number): a longer one is cut at the last whole character that fits. Written whole, a Steam name of more than 64 bytes
+        /// made the reader refuse the whole message, the host's welcome with it: nobody could join that host (scout, 2026-11-11).
+        /// </summary>
+        public void String(string s, int maxBytes)
+        {
+            if (string.IsNullOrEmpty(s))
+            {
+                VarUInt(0);
+                return;
+            }
+            byte[] utf8 = Encoding.UTF8.GetBytes(s);
+            int count = utf8.Length;
+            if (count > maxBytes)
+            {
+                count = maxBytes;
+                while (count > 0 && (utf8[count] & 0xC0) == 0x80)
+                {
+                    count--; // (not in the middle of a character: its following bytes all begin with the bits 10)
+                }
+            }
+            VarUInt((uint)count);
+            Bytes(utf8, 0, count);
+        }
+
         public void Bytes(byte[] data, int offset, int count)
         {
             Room(count);

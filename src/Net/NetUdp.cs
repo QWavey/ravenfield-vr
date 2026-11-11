@@ -87,6 +87,12 @@ namespace RavenfieldVR.Net
             return ip == null || ip.AddressFamily != AddressFamily.InterNetwork ? 0 : PeerOf(new IPEndPoint(ip, port));
         }
 
+        /// <summary>The most reliable channels at a time (a session has 16 players at most).</summary>
+        internal const int MaxChannels = 64;
+        /// <summary>Messages whose handling threw, and the last one's fault in words.</summary>
+        internal int Faults;
+        internal string LastFault = "";
+
         private ReliableChannel Channel(ulong peer)
         {
             if (!_channels.TryGetValue(peer, out ReliableChannel c))
@@ -160,16 +166,29 @@ namespace RavenfieldVR.Net
                     continue;
                 }
                 ulong peer = PeerOf((IPEndPoint)from);
-                if (_in[0] == ReliableChannel.KindUnreliable)
+                // One message's fault ends that message, not the frame's poll: thrown through, the channels' resends and
+                // acknowledgements of that frame were skipped, every frame it threw, until its peers counted as lost (as
+                // SteamTransport guards each of its messages; scout, 2026-11-11).
+                try
                 {
-                    Buffer.BlockCopy(_in, 1, _message, 0, length - 1);
-                    received(peer, _message, length - 1);
+                    if (_in[0] == ReliableChannel.KindUnreliable)
+                    {
+                        Buffer.BlockCopy(_in, 1, _message, 0, length - 1);
+                        received(peer, _message, length - 1);
+                    }
+                    else if (_channels.ContainsKey(peer) || _channels.Count < MaxChannels)
+                    {
+                        // (No more channels than a session and some newcomers need: every address that sent one piece got a
+                        // channel of its own for good.)
+                        _deliverTo = received;
+                        _deliverFrom = peer;
+                        Channel(peer).Receive(_in, length, _deliver);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    _deliverTo = received;
-                    _deliverFrom = peer;
-                    Channel(peer).Receive(_in, length, _deliver);
+                    Faults++;
+                    LastFault = e.GetType().Name + ": " + e.Message;
                 }
             }
             _lostNow.Clear();

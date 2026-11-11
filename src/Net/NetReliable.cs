@@ -31,6 +31,9 @@ namespace RavenfieldVR.Net
         private readonly List<Piece> _waiting = new List<Piece>(); // sent or queued, not yet answered; in order of number
         private readonly Dictionary<ushort, (byte[] data, bool more)> _ahead = new Dictionary<ushort, (byte[], bool)>();
         private readonly List<byte[]> _joining = new List<byte[]>();
+        /// <summary>The bytes of the pieces being joined, and the most one message may come to.</summary>
+        private int _joiningBytes;
+        internal const int MaxJoined = 1 << 20;
         private ushort _nextSeq, _expected;
         private bool _ackDue;
 
@@ -171,10 +174,22 @@ namespace RavenfieldVR.Net
                 if (next.more || _joining.Count > 0)
                 {
                     _joining.Add(next.data);
+                    _joiningBytes += next.data.Length;
+                    if (_joiningBytes > MaxJoined)
+                    {
+                        // A message with no end: pieces marked "more" without limit grew this list for as long as they came
+                        // (scout, 2026-11-11). No message of the mod's is near a megabyte: the peer is given up.
+                        _joining.Clear();
+                        _joiningBytes = 0;
+                        _ahead.Clear();
+                        Lost = true;
+                        return;
+                    }
                     if (next.more)
                     {
                         continue;
                     }
+                    _joiningBytes = 0;
                     int total = 0;
                     foreach (byte[] part in _joining)
                     {

@@ -180,6 +180,8 @@ namespace RavenfieldVR.Net
 
         private static readonly List<VehicleSpawner> StoppedSpawners = new List<VehicleSpawner>();
         private static bool _loading;
+        /// <summary>Since when a level is said to be loading (Time.unscaledTime; -1: none).</summary>
+        private static float _loadingSince = -1f;
         /// <summary>The host's "back to the menu" came while this PC was loading his match: followed once it is loaded.</summary>
         private static bool _backPending;
 
@@ -190,8 +192,8 @@ namespace RavenfieldVR.Net
             string mode = p != null && p.gameMode != null ? p.gameMode.name : "";
             Out.Reset();
             Out.Bool(entry.isCustomMap);
-            Out.String(scene);
-            Out.String(mode);
+            Out.String(scene, 512);
+            Out.String(mode, 128);
             Out.Bool(p != null && p.nightMode);
             Out.Byte((byte)(p != null ? Mathf.Clamp(p.playerTeam, 0, 1) : 0));
             Out.Float(p != null ? p.GetRespawnTime() : 5f);
@@ -520,6 +522,11 @@ namespace RavenfieldVR.Net
                 Log.Info($"Multiplayer: the host starts {scene} ({modeName}{(night ? ", night" : "")}).");
                 GameManager.StartLevel(map, p);
             }
+            catch (Exception)
+            {
+                _loading = false; // (no level is loading after all: left on, nothing of the session was told or kept again until it ended)
+                throw;
+            }
             finally
             {
                 _startingFromNet = false;
@@ -530,6 +537,12 @@ namespace RavenfieldVR.Net
 
         private static void OnMessage(byte kind, byte sender, ref NetReader r)
         {
+            // From a player of the session only: a state on the unreliable way may arrive after its sender's leaving was told on
+            // the reliable one, and made his stand-ins anew for six seconds, a body left behind (scout, 2026-11-11).
+            if (_session != null && _session.Player(sender) == null)
+            {
+                return;
+            }
             try
             {
                 switch (kind)
@@ -667,11 +680,27 @@ namespace RavenfieldVR.Net
             }
         }
 
+        /// <summary>The most soldiers of one player's that are stood in for (the game's largest matches have some hundreds in all).</summary>
+        private const int MaxRemotesOfOne = 300;
+
         private static Remote Get(byte owner, ushort id)
         {
             int key = owner << 16 | id;
             if (!Remotes.TryGetValue(key, out Remote r))
             {
+                // No more of one player's soldiers than a match has: every number a message names became a stand-in, a soldier
+                // made for each, a thousand in one frame from one message after another (scout, 2026-11-11). What is over the
+                // count is read into a spare that is kept nowhere.
+                int ofOwner = 0;
+                foreach (Remote other in Remotes.Values)
+                {
+                    ofOwner += other.Owner == owner ? 1 : 0;
+                }
+                if (ofOwner >= MaxRemotesOfOne)
+                {
+                    Log.WarnOnce("net-remotes-" + owner, $"Multiplayer: player {owner} tells of more than {MaxRemotesOfOne} soldiers; the rest are left out.");
+                    return new Remote { Owner = owner, Id = id };
+                }
                 r = new Remote { Owner = owner, Id = id };
                 Remotes[key] = r;
             }
@@ -693,6 +722,9 @@ namespace RavenfieldVR.Net
             _session.SendTo(victim.Owner, Hit, Out, true);
         }
 
+        private static bool Finite(Vector3 v) =>
+            !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
+
         private static void TakeHit(byte sender, ref NetReader r)
         {
             ushort victimId = r.UShort();
@@ -706,6 +738,17 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
+            // (Numbers that are none: a hit's push or place that is not a number went into the ragdoll's physics as it came.)
+            if (float.IsNaN(balance) || float.IsInfinity(balance))
+            {
+                balance = 0f;
+            }
+            if (!Finite(point))
+            {
+                point = victim.CenterPosition();
+            }
+            direction = Finite(direction) ? direction : Vector3.zero;
+            force = Finite(force) ? Vector3.ClampMagnitude(force, 100000f) : Vector3.zero;
             Remotes.TryGetValue(sender << 16 | shooterId, out Remote shooter);
             var info = new DamageInfo(Enum.IsDefined(typeof(DamageInfo.DamageSourceType), type) ? (DamageInfo.DamageSourceType)type : DamageInfo.DamageSourceType.Unknown,
                                       shooter != null ? shooter.Actor : null, null)
@@ -747,6 +790,22 @@ namespace RavenfieldVR.Net
                 TellLobby(session);
             }
             // The host out of a match he was in (back in the menu, not loading the next one): the others are told to come along.
+            // A level that never came (the start refused inside the game, the same scene started again with no change of scene):
+            // loading for more than a minute and a half is over. Left on, nothing was told or kept for the rest of the session.
+            if (_loading && _loadingSince < 0f)
+            {
+                _loadingSince = Time.unscaledTime;
+            }
+            else if (!_loading)
+            {
+                _loadingSince = -1f;
+            }
+            else if (Time.unscaledTime - _loadingSince > 90f)
+            {
+                _loading = false;
+                _loadingSince = -1f;
+                Log.WarnOnce("net-loading-long", "Multiplayer: a level said to be loading for 90 s; taken as loaded.");
+            }
             bool inMatchNow = InMatch && !_loading;
             if (session.IsHost && _hostWasInMatch && !inMatchNow && !_loading && session.PlayerCount > 1)
             {
@@ -1013,7 +1072,7 @@ namespace RavenfieldVR.Net
             Out.Byte((byte)lines.Count);
             foreach (string line in lines)
             {
-                Out.String(line.Length > 180 ? line.Substring(0, 180) : line);
+                Out.String(line, 200); // (by its bytes, as it is read: 180 characters of a map's name in another script were more than the reader's 200 bytes, and the whole lobby state was refused)
             }
             session.Send(LobbyState, Out, true);
             Multiplayer.SetHostLines(lines.ToArray());
@@ -1149,14 +1208,14 @@ namespace RavenfieldVR.Net
                     own.Carried = carriedHash;
                     Out.Reset();
                     Out.UShort(own.Id);
-                    Out.String(a == player ? session.LocalInfo.Name : a.name ?? "");
-                    Out.String(weapon);
+                    Out.String(a == player ? session.LocalInfo.Name : a.name ?? "", 64);
+                    Out.String(weapon, 128);
                     Out.Byte((byte)slot);
                     Out.Byte(5);
                     for (int i = 0; i < 5; i++)
                     {
                         Weapon w = !a.dead && a.weapons != null && i < a.weapons.Length ? a.weapons[i] : null;
-                        Out.String(w != null && w.weaponEntry != null ? w.weaponEntry.name : "");
+                        Out.String(w != null && w.weaponEntry != null ? w.weaponEntry.name : "", 128);
                     }
                     session.Send(ActorInfo, Out, true);
                 }

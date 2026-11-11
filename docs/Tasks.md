@@ -2819,6 +2819,17 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 380. Improve and optimise without the game (user, 2026-11-11 afternoon: "Dont start the game tho. Improve,optimize , etc"; work-until-limit 65)
+
+No run in the game in this entry: code read, offline tests (`tools/tests/run-tests.ps1`), builds into the project folder. The user plays meanwhile ("Treat the game as opened now"): nothing installed until they say so. Every change below is to be run in the game next time (`--autotest --fast`, `--weapon "=RK-44"`).
+
+- [x] The offline tests had stopped since the morning: `ArmIK.SteadyGrip.Eased` read `Time.unscaledTime`, one of Unity's native calls, and the suite ended there with an exception ("ECall-Methoden"), 477 checks unrun. The rule (`Steady`, `Decide`) and its ease (`SteadyEased`, the frame and the time handed in) are apart now, and no `Slerp` where nothing turns. A new check plays the ease. 478 pass.
+- [x] The magazine's pace as a rule of its own (`MagazineProp.PaceBudget`) with three offline checks (`PaceBudgetTests`). They found two things at once: by half of what is left the last steps of 10 cm went 26 then 13 mm (four tenths now: 8.3 mm at most), and beside a hand going 2 cm a frame the magazine stayed 3 cm behind for as long as the hand moved (the hand's way and 4 mm now: it closes).
+- [x] From the per-frame scout (a Haiku scout, read-only, 15 candidates; the mod's per-frame paths "produce almost no per-frame garbage"): a squeeze held with nothing taken built a new string every frame (`BodyGrab.WhyNot`, read by the self-test alone: in a test run only now); `SoldierGuns.GatherClose` asked every soldier of the match for his seat each frame (only those in reach now). Read and left: the body hidden renderer by renderer each frame (one read each, on purpose: weapons picked up since), the camera's settings copied each frame (hunted 2026-10-24), the rest small.
+- [x] The build is warning-free (nine standing warnings: the tests' own knobs in `Net`, four missing parameter notes).
+- [ ] Seen in the morning's runs, not looked into in the game: "walking with a soldier held at the chest" fails in every run since 1.17.3 at least: the walk takes him into a static prop of the test's map ("hardest contact: Dirt Barrier ... 2222.8 N s"), the hold lets go ("NOT HELD ON"), he gets up two seconds on, and the measure goes on over the body getting up ("NOT A RAGDOLL ... pulled apart at the joints"). Two things to do with the game: the walk on clear ground, and the measure ended when the hold ends.
+- [ ] The M1 GARRET's clip in the deep run (`weaponfix2`): "dropped copy 2.0 cm across ... size x0.74", "FLOATS BESIDE THE HAND", "SLIDES IN BESIDE THE WELL": the magazine's checks on an en-bloc clip whose seat was moved 3.9 cm deeper; which of them is the check and which the clip is to be seen in the game.
+
 ### 379. Smoother reloading: hands and magazines "glitching around" (user, 2026-11-11; work-until-limit 60, with bug-hunt, improve, optimize)
 
 Their words: "look what other vr games have what we dont have in terms of reloading or some stuff like maybe we can make it smootther ebcause sometimes parts of the hand or mags are glitching around (this happens randomly with force or smth) and i cant say when it happens the most time we just need to improve somehow".

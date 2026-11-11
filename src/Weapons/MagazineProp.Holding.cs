@@ -831,7 +831,7 @@ namespace RavenfieldVR.Weapons
                     float rigWay = ran ? (rootAt - _easeRoot).magnitude : 0f;
                     _easeRoot = rootAt;
                     float handWay = Mathf.Max(0f, (target.position - _easeTarget).magnitude - rigWay);
-                    float budget = !ran || _attachAt >= 0f || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace)
+                    float budget = !ran || _attachAt >= 0f || VRRig.SnappedRecently || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace; nor through a snap turn: the hand's jump round the head is the player's own)
                         ? float.MaxValue
                         : PaceBudget(_easeTravel, behind, handWay, rigWay);
                     // (Or the hand's own way that frame, where that is more than the half: slid along the gun beside a moving hand

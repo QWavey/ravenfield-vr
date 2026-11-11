@@ -101,6 +101,16 @@ namespace RavenfieldVR.Tests
             Check(r.String() == "Hällo, wörld ☃" && r.String() == "" && r.String() == "", "texts come back (an empty and a null one as empty)");
             Check(r.Remaining == 0, "nothing left over");
 
+            // A text cut to what its reader takes (2026-11-11): at a whole character, and one that fits is left alone.
+            var capped = new NetWriter(64);
+            capped.String(new string('ä', 40), 64); // 80 bytes of two-byte characters
+            capped.String(new string('☃', 30), 64); // 90 bytes of three-byte characters: 21 fit, 63 bytes
+            capped.String("short", 64);
+            var cr = new NetReader(capped.Buffer, 0, capped.Length);
+            string two = cr.String(64), three = cr.String(64), shortOne = cr.String(64);
+            Check(two == new string('ä', 32) && three == new string('☃', 21) && shortOne == "short" && cr.Remaining == 0,
+                  $"a text longer than its reader takes is cut at a whole character ({two.Length} and {three.Length} characters)");
+
             // Rotations: the angle between what went in and what came out, over many random ones and the axes.
             double worst = 0;
             for (int i = 0; i < 5000; i++)
@@ -392,6 +402,15 @@ namespace RavenfieldVR.Tests
             Step(1.0);
             Check(banned.Session.CloseReason != null && banned.Session.CloseReason.Contains("not welcome"), "the host's own check can refuse");
             seats.Remove(banned);
+
+            // A name longer than the 64 bytes a name is read with (a Steam name may be): joined all the same, the name cut.
+            Seat longName = Client(208, new string('ä', 50));
+            Step(1.0);
+            Check(longName.Session.State == NetState.Connected && host.Session.Players.Any(pl => pl.Info.Name == new string('ä', 32)),
+                  "a player with a name of 100 bytes joins, the name cut to 64: " + longName.Session.State + " " + longName.Session.CloseReason);
+            longName.Session.Leave();
+            seats.Remove(longName);
+            Step(1.0);
 
             // A client leaves: the others hear it; its number is free for the next.
             byte bens = b.Session.LocalId;
