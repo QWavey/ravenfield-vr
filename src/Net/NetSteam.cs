@@ -83,6 +83,11 @@ namespace RavenfieldVR.Net
             {
                 LastSend = SteamNetworkingMessages.SendMessageToUser(ref to, pin.AddrOfPinnedObject(), (uint)length, flags, Channel);
             }
+            catch (InvalidOperationException)
+            {
+                // Steam already shut down (the game closing: the goodbye comes after it); nothing to send with. It threw out of the
+                // session's leaving and the log closed on an error (the user's friend's log, 2026-11-11).
+            }
             finally
             {
                 pin.Free();

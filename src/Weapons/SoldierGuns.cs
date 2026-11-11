@@ -166,7 +166,9 @@ namespace RavenfieldVR.Weapons
             float within = LookWithin + (a1 - a0).magnitude * 0.5f;
             foreach (Actor a in ActorManager.instance.actors)
             {
-                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled)
+                // (Not another PC's soldier in a shared match: his gun is on his own PC. The user's friend pulled the magazine out of the
+                // user's rifle on his PC, "he reloads", while the user's own gun never knew; his log, 2026-11-11.)
+                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled || Net.NetGame.IsRemote(a))
                 {
                     continue;
                 }

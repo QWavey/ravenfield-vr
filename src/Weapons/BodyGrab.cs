@@ -500,7 +500,9 @@ namespace RavenfieldVR.Weapons
                     continue; // (whose it is asked only of a nearer one)
                 }
                 Actor a = HurtableOf(c) as Actor;
-                if (a == null || a == player || a.ragdoll == null)
+                // (Not another PC's soldier: taken and carried here, he stood and walked on as before on his own PC; a punch still lands,
+                // through the shared hits.)
+                if (a == null || a == player || a.ragdoll == null || Net.NetGame.IsRemote(a))
                 {
                     continue;
                 }
