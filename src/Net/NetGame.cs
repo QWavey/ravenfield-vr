@@ -146,6 +146,8 @@ namespace RavenfieldVR.Net
 
         internal static int RemoteCount => Remotes.Count;
         internal static IEnumerable<Remote> AllRemotes => Remotes.Values;
+        /// <summary>The same for a loop every frame: the collection itself, walked with no enumerator made on the heap.</summary>
+        internal static Dictionary<int, Remote>.ValueCollection RemoteValues => Remotes.Values;
 
         internal static NetSession SessionNow => _session;
         internal static bool LoadingNow => _loading;

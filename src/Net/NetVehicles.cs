@@ -521,7 +521,7 @@ namespace RavenfieldVR.Net
         /// <summary>Every stand-in in the seat its owner says (or out of a shared vehicle's seat when he says none).</summary>
         private static void SeatRemotes(NetSession session)
         {
-            foreach (NetGame.Remote r in NetGame.AllRemotes)
+            foreach (NetGame.Remote r in NetGame.RemoteValues)
             {
                 Actor a = r.Actor;
                 if (a == null || a.dead || !r.HasState)

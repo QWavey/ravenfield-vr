@@ -480,7 +480,7 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            foreach (NetGame.Remote r in NetGame.AllRemotes)
+            foreach (NetGame.Remote r in NetGame.RemoteValues)
             {
                 Actor a = r.Actor;
                 if (r.Id != 0 || a == null || a.dead || a.fallenOver || !r.HasState || a.animator == null)
