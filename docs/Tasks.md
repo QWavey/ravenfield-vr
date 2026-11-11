@@ -2819,6 +2819,12 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 379. Smoother reloading: hands and magazines "glitching around" (user, 2026-11-11; work-until-limit 60, with bug-hunt, improve, optimize)
+
+Their words: "look what other vr games have what we dont have in terms of reloading or some stuff like maybe we can make it smootther ebcause sometimes parts of the hand or mags are glitching around (this happens randomly with force or smth) and i cant say when it happens the most time we just need to improve somehow".
+
+- [x] A measure first (`ReloadInteractions.SmoothnessSelfCheck`, in the autotest for six magazine guns, every one in a deep run; metrics "reload by hand: the magazine's / the drawn hand's largest jump (mm)"): a scripted hand with a real hand's wobble (1 cm, 8 degrees, 3 Hz) takes the seated magazine, slides it out, goes 14 cm aside round the gun through its keep-out and back, in again and home; on every drawn frame the magazine's and the drawn hand's places against a steady motion (second difference, the controller's own taken off; frames over 25 ms left out). Over 30 mm is a problem line.
+
 ### 378. Multiplayer's mods, its cost, the sandbox's spawns (user, 2026-11-10 21:40, the game closed; work-until-limit 35)
 
 Their words: "People playing online in multiplayer need to download the mods from the Host if they dont have them (except the vr mod they need to have it). they should be prompted. Also make sure we optimize multiplayer playing. and still focus on single player experience ... when I spawn people they spawn on spawnpoints and not in the place i want to spawn them; they also dont get removed from the match when they died (which should be the case if enabled, can be disabled tho normally). Also in multiplayer some things need to be greyed out; idk if graphic changes work but they shouild work (locally for the clients and host only not for both at the same time ...). build the setup when done after that."

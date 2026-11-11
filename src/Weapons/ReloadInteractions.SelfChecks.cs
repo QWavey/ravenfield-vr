@@ -854,6 +854,154 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>
+        /// Autotest: how smoothly a magazine and the hand holding it are drawn through a whole reload by hand (the user, 2026-11-11:
+        /// "sometimes parts of the hand or mags are glitching around (this happens randomly with force or smth)"). The off hand goes
+        /// a smooth path with a real hand's small wobble (1 cm, 8 degrees, 3 times a second): to the seated magazine, out along the
+        /// well's line, a hand's width past it, 14 cm aside round the gun and back (through the gun's keep-out), in again and home.
+        /// On every drawn frame the magazine's and the drawn hand's places are taken; a jump is what a place does beyond a steady
+        /// motion (its second difference: where it is against where the two frames before sent it). Frames slower than 25 ms are
+        /// left out (a hitch moves everything). Reported: the largest jump of each, where on the path, and how many frames jumped
+        /// more than a centimetre. The numbers are the baseline every smoothing change is measured against.
+        /// </summary>
+        internal IEnumerator SmoothnessSelfCheck(System.Action<string> report)
+        {
+            VRHand off = _sys.Rig.Off;
+            if (!Manual || Ammo == null || !Ammo.UsesDetachableMag || !Ammo.MagInserted || Ammo.BoxLocked || Data.EnBloc || off.Held != null || off.Role != HandRole.Free || Rig.GunBody == null)
+            {
+                yield break;
+            }
+            int side = (int)off.Side;
+            RigidPose palm0 = off.Palm, raw0 = off.Raw;
+            RigidPose rawFromPalm = palm0.Inverse().Multiply(raw0);
+            MagazineProp probe = MagazineProp.Create(Rig, PropKind.Magazine, 0);
+            probe.RailDepth = probe.RailLength;
+            RigidPose seated = probe.RailPose(SeatPose);
+            RigidPose holding = seated.Multiply(probe.HoldPose(off).Inverse().Multiply(palm0));
+            float railLength = probe.RailLength;
+            Vector3 insert = SeatPose.TransformDirection(probe.InsertDirLocal);
+            probe.Destroy();
+            Vector3 aside = Vector3.Cross(insert, Rig.AimWorld).normalized;
+            RigidPose hand = holding;
+            for (int k = 0; k < 25 && _held.InsideDrawnGun(hand.position); k++)
+            {
+                hand = new RigidPose(hand.position - insert * 0.01f, hand.rotation);
+            }
+            float outBy = railLength + 0.12f;
+            // (Where the hand is for a distance out along the line and a distance aside, with its wobble at this moment.)
+            float t0 = Time.unscaledTime;
+            RigidPose At(float outAlong, float sideways)
+            {
+                float w = (Time.unscaledTime - t0) * 3f * 2f * Mathf.PI;
+                Vector3 wobble = aside * (0.01f * Mathf.Sin(w)) + Rig.AimWorld * (0.006f * Mathf.Sin(w * 0.7f + 1f));
+                Quaternion turn = Quaternion.AngleAxis(8f * Mathf.Sin(w * 0.8f + 2f), insert);
+                return new RigidPose(hand.position - insert * outAlong + aside * sideways + wobble, turn * hand.rotation);
+            }
+            string phase = "";
+            // The measure.
+            Vector3 mag1 = Vector3.zero, mag2 = Vector3.zero, hand1 = Vector3.zero, hand2 = Vector3.zero, ctl1 = Vector3.zero, ctl2 = Vector3.zero;
+            int have = 0, magOver = 0, handOver = 0, frames = 0;
+            float magWorst = 0f, handWorst = 0f;
+            string magWhere = "", handWhere = "";
+            bool hadMag = false;
+            void Measure()
+            {
+                var prop = off.Held as MagazineProp;
+                bool mag = prop != null && prop.Go != null;
+                Vector3 m = mag ? prop.Go.transform.position : Vector3.zero;
+                Vector3 h = off.Model != null && off.Model.Root != null ? off.Model.Root.position : off.Palm.position;
+                Vector3 c = off.Palm.position;
+                bool steady = Time.unscaledDeltaTime < 0.025f;
+                if (!steady || mag != hadMag)
+                {
+                    have = 0; // (a slow frame, or the magazine taken or seated: the run of frames starts again)
+                }
+                hadMag = mag;
+                if (have >= 2)
+                {
+                    frames++;
+                    // Against the controller's own second difference: what the scripted hand itself does is not a jump.
+                    Vector3 hand = c - 2f * ctl1 + ctl2;
+                    float handJump = ((h - 2f * hand1 + hand2) - hand).magnitude;
+                    if (handJump > handWorst)
+                    {
+                        handWorst = handJump;
+                        handWhere = phase;
+                    }
+                    handOver += handJump > 0.01f ? 1 : 0;
+                    if (mag)
+                    {
+                        float magJump = ((m - 2f * mag1 + mag2) - hand).magnitude;
+                        if (magJump > magWorst)
+                        {
+                            magWorst = magJump;
+                            magWhere = phase;
+                        }
+                        magOver += magJump > 0.01f ? 1 : 0;
+                    }
+                }
+                mag2 = mag1;
+                mag1 = m;
+                hand2 = hand1;
+                hand1 = h;
+                ctl2 = ctl1;
+                ctl1 = c;
+                have++;
+            }
+            IEnumerator Go(System.Func<float, RigidPose> pose, float seconds, string note)
+            {
+                phase = note;
+                float begin = Time.unscaledTime;
+                for (float k = 0f; k < 1f; k = (Time.unscaledTime - begin) / seconds)
+                {
+                    float sm = k * k * (3f - 2f * k);
+                    VRHand.Scripted[side] = pose(sm).Multiply(rawFromPalm);
+                    yield return new WaitForEndOfFrame();
+                    Measure();
+                }
+            }
+            bool seatedAgain = false;
+            try
+            {
+                yield return Go(sm => At(0.12f * (1f - sm), 0f), 0.4f, "reaching");
+                VRInput.SimulatedGrab[side] = true;
+                if (off.Held == null && Ammo.MagInserted)
+                {
+                    PullSeatedMagazine(off);
+                }
+                yield return Go(sm => At(0f, 0f), 0.2f, "taken at the seat");
+                yield return Go(sm => At(outBy * sm, 0f), 0.6f, "sliding out of the well");
+                yield return Go(sm => At(outBy, 0.14f * sm), 0.5f, "free, going aside");
+                yield return Go(sm => At(outBy - (outBy + 0.03f) * sm, 0.14f), 0.5f, "beside the gun (the keep-out)");
+                yield return Go(sm => At(-0.03f + (outBy + 0.03f) * sm, 0.14f), 0.5f, "back down beside the gun");
+                yield return Go(sm => At(outBy, 0.14f * (1f - sm)), 0.5f, "free, back under the well");
+                yield return Go(sm => At(outBy * (1f - sm), 0f), 0.7f, "onto the line and in");
+                yield return Go(sm => At(-0.005f, 0f), 0.3f, "pressed home");
+                seatedAgain = Ammo.MagInserted;
+                VRInput.SimulatedGrab[side] = false;
+                yield return Go(sm => At(0.12f * sm, 0f), 0.3f, "hand away");
+            }
+            finally
+            {
+                VRHand.Scripted[side] = null;
+                VRInput.SimulatedGrab[side] = false;
+            }
+            if (off.Held is MagazineProp left)
+            {
+                Ammo.ReturnSpare(left.Rounds);
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            LastSmoothMag = magWorst;
+            LastSmoothHand = handWorst;
+            report($"smoothness through a reload by hand ({frames} frames): the magazine's largest jump {magWorst * 1000f:0} mm ({magWhere}), {magOver} frame(s) over 10 mm"
+                   + $"{(magWorst > 0.03f ? " (JUMPED: the magazine)" : "")}; the drawn hand's largest {handWorst * 1000f:0} mm ({handWhere}), {handOver} frame(s) over 10 mm"
+                   + $"{(handWorst > 0.03f ? " (JUMPED: the hand)" : "")}; {(seatedAgain ? "seated again" : "not seated again at the end")}");
+        }
+
+        /// <summary>The last smoothness check's largest jumps (metres), for the run's metrics.</summary>
+        internal static float LastSmoothMag, LastSmoothHand;
+
+        /// <summary>
         /// Autotest film (-rfvr-flashfilm): the off hand pulls the seated magazine out of the well by hand, holds it, and
         /// pushes it back in, the way a player does: the hand a little turned and off the well's line, as a real hand is.
         /// <paramref name="frame"/> is called on every frame (it films the close-up). <paramref name="clock"/>: the time its moves are

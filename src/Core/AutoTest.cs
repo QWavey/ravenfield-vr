@@ -6777,7 +6777,7 @@ namespace RavenfieldVR.Core
                 yield return BodyShots();
             }
             int every = WeaponSelfTest.Only.Length > 0 ? 1 : Mathf.Max(1, entries.Count / 28); // a filtered run pictures every weapon
-            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, secondChecks = 0, keepOutChecks = 0, pumpChecks = 0, emptyPouchChecks = 0, offLineChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
+            int recoilRifles = 0, recoilPistols = 0, leftRifles = 0, leftPistols = 0, rackRifles = 0, rackPistols = 0, rackManual = 0, passChecks = 0, slideLockChecks = 0, emptyReloadChecks = 0, secondChecks = 0, keepOutChecks = 0, pumpChecks = 0, emptyPouchChecks = 0, offLineChecks = 0, smoothChecks = 0, steadyMgs = 0, steadyRifles = 0, weightPistols = 0;
             if (Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-quick", StringComparison.OrdinalIgnoreCase)))
             {
                 // Quick run: the weapons that get a picture, the first few melee weapons, grenades and pistols, and the
@@ -7044,6 +7044,16 @@ namespace RavenfieldVR.Core
                         if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && (held.Rig.Data.EnBloc || emptyPouchChecks++ < (Deep ? 4 : 1)))
                         {
                             yield return held.Reload.EmptyAtPouchSelfCheck(lines.Add); // an emptied magazine is not handed back (255.I6-6)
+                        }
+                        if (held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsMachineGun && !held.Rig.Data.EnBloc && (Deep || smoothChecks++ < 6))
+                        {
+                            int before = lines.Count;
+                            yield return held.Reload.SmoothnessSelfCheck(lines.Add); // the magazine's and the hand's jumps through a reload by hand
+                            if (lines.Count > before)
+                            {
+                                Metric("reload by hand: the magazine's largest jump (mm)", ReloadInteractions.LastSmoothMag * 1000.0);
+                                Metric("reload by hand: the drawn hand's largest jump (mm)", ReloadInteractions.LastSmoothHand * 1000.0);
+                            }
                         }
                         if (want && held.ActiveAmmo != null && held.ActiveAmmo.UsesDetachableMag && !held.Rig.Data.IsMachineGun && (Deep || offLineChecks++ < 4))
                         {
