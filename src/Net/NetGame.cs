@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -558,6 +558,19 @@ namespace RavenfieldVR.Net
                 if (source != null && !sourceRemote && Owned.TryGetValue(source, out Own shooter))
                 {
                     SendHit(victim, shooter.Id, info);
+                    if (source == LocalPlayer.actor && !__instance.dead)
+                    {
+                        // His hit marker, as on any soldier: the game's own Damage, which shows it, does not run on a stand-in (the
+                        // hit is his owner's to apply), and a hit on another PC's soldier showed nothing (scout, 2026-11-11).
+                        try
+                        {
+                            IngameUI.OnDamageDealt(info, new HitInfo(__instance), showHitIndicator: true);
+                        }
+                        catch (Exception)
+                        {
+                            // (the game's UI not up: no marker, nothing else)
+                        }
+                    }
                 }
                 __result = false;
                 return false;
@@ -757,6 +770,9 @@ namespace RavenfieldVR.Net
                     case Dropped:
                         ShowDrop(sender, ref r);
                         break;
+                    case KilledBy:
+                        TakeKill(sender, ref r);
+                        break;
                     case DropGone:
                     {
                         int key = sender << 16 | r.UShort();
@@ -932,6 +948,42 @@ namespace RavenfieldVR.Net
             finally
             {
                 _applying = false;
+            }
+            if (victim.dead && _session != null)
+            {
+                // Killed by this hit: his PC is told, so the kill is counted there (the kills, the streak, the end of match's numbers;
+                // the stand-in only died "of nothing" there, and a player never got a kill of another PC's soldier; scout, 2026-11-11).
+                Out.Reset();
+                Out.UShort(shooterId);
+                Out.UShort(victimId);
+                _session.SendTo(sender, KilledBy, Out, true);
+            }
+        }
+
+        /// <summary>The PC of a soldier I hit says my hit killed him: counted as my kill, as the game counts its own.</summary>
+        private static void TakeKill(byte sender, ref NetReader r)
+        {
+            ushort shooterId = r.UShort();
+            ushort victimId = r.UShort();
+            Actor player = LocalPlayer.actor;
+            if (shooterId != 0 || player == null || GameManager.gameResultsTracker == null)
+            {
+                return; // (only the player's own kills are counted by the game; his soldiers' are theirs)
+            }
+            Remotes.TryGetValue(sender << 16 | victimId, out Remote dead);
+            Actor hit = dead != null ? dead.Actor : null;
+            if (hit == null)
+            {
+                return;
+            }
+            var info = new DamageInfo(DamageInfo.DamageSourceType.Projectile, player, player.activeWeapon);
+            try
+            {
+                GameManager.gameResultsTracker.AddPlayerKill(info, hit);
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-kill", "Multiplayer: a kill could not be counted: " + e.Message);
             }
         }
 
