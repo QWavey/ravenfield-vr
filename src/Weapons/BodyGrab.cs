@@ -546,11 +546,18 @@ namespace RavenfieldVR.Weapons
             catch (System.Exception e)
             {
                 Log.ExceptionOnce("BodyGrab.Take", e);
+                if (_settingUp != null)
+                {
+                    Object.Destroy(_settingUp); // (made, its hold never kept: Release knew nothing of it; throw scout)
+                    _settingUp = null;
+                }
                 Release(i, hand, thrown: false);
             }
         }
 
         /// <summary>The hand holds the ragdoll's nearest bone through a joint (fixed in place, its turn damped and limited) to a body that follows the hand.</summary>
+        private ConfigurableJoint _settingUp;
+
         private void Attach(int i, VRHand hand, Actor best, Vector3 palm)
         {
             // Not the bone the other hand holds: two locked joints on one body pulled it between them every step.
@@ -574,6 +581,7 @@ namespace RavenfieldVR.Weapons
             Physics.SyncTransforms();
             anchor.velocity = anchor.angularVelocity = Vector3.zero;
             var joint = bone.gameObject.AddComponent<ConfigurableJoint>();
+            _settingUp = joint; // (destroyed again if what follows throws before the hold is kept: it pinned the soldier where he was taken)
             // Held at the bone's centre of mass, not its pivot or the touched point (the hips' pivot is 30 cm from its middle): the
             // lock's pull on a heavy body hanging from it turns the bone no more, only the drive below does (held at the touched
             // point, its weight levered the bone round it: 15-68 m/s bones in the soldier check, 2026-10-27; and the body pulled onto
@@ -608,6 +616,7 @@ namespace RavenfieldVR.Weapons
             joint.projectionAngle = 5f;
             joint.enablePreprocessing = false;
             _holds[i] = new Hold { Actor = best, Bone = bone, Joint = joint, Reach = (bone.position - palm).magnitude, LastPalm = palm, LastRotation = hand.Palm.rotation, SeatAt = seatAt };
+            _settingUp = null;
             // Taken as he runs, or as he tumbles: every bone moves with the hand from the first step. The game ragdolls a running
             // soldier with his speed in every bone (Actor.FallOver: Ragdoll(cachedVelocity)); the hold stopped the bone it took at
             // once, and the rest of him (80 kg at 6 m/s) pulled his joints apart and flung him: "all the npcs i grabbed were walking
