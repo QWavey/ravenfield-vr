@@ -541,6 +541,8 @@ namespace RavenfieldVR.Weapons
         private bool _keptShort;
         /// <summary>The hand's place the last time the keep-out ran.</summary>
         private Vector3 _easeTarget;
+        /// <summary>The rig's place the last time the keep-out's sweep ran.</summary>
+        private Vector3 _easeRoot;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
@@ -812,9 +814,17 @@ namespace RavenfieldVR.Weapons
                     // before) it follows freely, not held back at all. 10 cm behind closes in about eight frames.
                     bool ran = _easeFrame == Time.frameCount - 1;
                     float behind = (target.position - from).magnitude;
-                    float budget = !ran || _attachAt >= 0f || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace; paced twice, a magazine taken while running trailed 4 cm, autotest 2026-11-11)
+                    // The player's own way that frame (walking, running, a turn's jump) is never part of the pace: the gun's frame the
+                    // sweep starts from is a frame behind the rig, and paced with it a magazine taken while running trailed 4 to
+                    // 6 cm (autotest, 2026-11-11).
+                    Transform rigRoot = VRRig.Instance != null ? VRRig.Instance.Root : null;
+                    Vector3 rootAt = rigRoot != null ? rigRoot.position : Vector3.zero;
+                    float rigWay = ran ? (rootAt - _easeRoot).magnitude : 0f;
+                    _easeRoot = rootAt;
+                    float handWay = Mathf.Max(0f, (target.position - _easeTarget).magnitude - rigWay);
+                    float budget = !ran || _attachAt >= 0f || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace)
                         ? float.MaxValue
-                        : Mathf.Max(0.004f, Mathf.Min(_easeTravel + 0.008f, Mathf.Max(behind * 0.5f, (target.position - _easeTarget).magnitude)));
+                        : rigWay + Mathf.Max(0.004f, Mathf.Min(_easeTravel + 0.008f, Mathf.Max(Mathf.Max(0f, behind - rigWay) * 0.5f, handWay)));
                     // (Or the hand's own way that frame, where that is more than the half: slid along the gun beside a moving hand
                     // it keeps up with it.)
                     Vector3 swept = from;
@@ -855,7 +865,7 @@ namespace RavenfieldVR.Weapons
                     }
                     // The hand far through or past the gun: the magazine stays outside it, the glove with it (it jumped through the
                     // gun to the hand 30 cm on; user, 2026-10-16). Pulled more than 45 cm from it, the hand lets go of it.
-                    _easeTravel = (drawn - swept).magnitude;
+                    _easeTravel = Mathf.Max(0f, (drawn - swept).magnitude - rigWay);
                     LostByHand = (drawn - target.position).sqrMagnitude > 0.45f * 0.45f;
                     _drawnInGun = gun.Rig.ToGun(drawn);
                     _drawnFor = gun;

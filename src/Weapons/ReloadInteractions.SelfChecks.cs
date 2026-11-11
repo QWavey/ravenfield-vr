@@ -911,7 +911,7 @@ namespace RavenfieldVR.Weapons
                 Vector3 m = mag ? prop.Go.transform.position : Vector3.zero;
                 Vector3 h = off.Model != null && off.Model.Root != null ? off.Model.Root.position : off.Palm.position;
                 Vector3 c = off.Palm.position;
-                bool steady = Time.unscaledDeltaTime < 0.025f;
+                bool steady = Time.unscaledDeltaTime < 0.016f; // (a jump grows with the square of the frame's time: at 40 frames a second the same motion read 33 mm, 2026-11-11; only frames of 60 a second and faster are measured)
                 if (!steady || mag != hadMag)
                 {
                     have = 0; // (a slow frame, or the magazine taken or seated: the run of frames starts again)
