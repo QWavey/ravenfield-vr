@@ -344,22 +344,67 @@ namespace RavenfieldVR.Weapons
                 {
                     _known = false; // (the reload over, the next pose is taken as the one to hold to)
                     _odd = 0;
+                    _hasOut = false;
+                    _easeAt = -1f;
                     return now;
                 }
                 RigidPose inGun = gun.Inverse().Multiply(now);
                 if (_seenOnGun && !onGun)
                 {
-                    return gun.Multiply(_inGun);
+                    return Eased(_inGun, gun);
                 }
                 if (_known && (Vector3.Distance(inGun.position, _inGun.position) > 0.03f || Quaternion.Angle(inGun.rotation, _inGun.rotation) > 20f) && ++_odd <= 4)
                 {
-                    return gun.Multiply(_inGun);
+                    return Eased(_inGun, gun);
                 }
                 _inGun = inGun;
                 _known = true;
                 _seenOnGun |= onGun;
                 _odd = 0;
-                return now;
+                return Eased(inGun, gun);
+            }
+
+            // What it gives out never jumps: a pose held for four frames and then taken over, or held off the grip and let back
+            // onto it, moved the hand by the whole difference in one frame (up to 31 cm by the comment above; scout, 2026-11-11:
+            // "frozen for 4 frames, then teleports"). A change of more than 1.5 cm or 10 degrees from the frame before is gone
+            // through over a tenth of a second, in the gun's own space.
+            private RigidPose _out, _easeFrom;
+            private bool _hasOut;
+            private int _outFrame;
+            private float _easeAt = -1f;
+
+            private RigidPose Eased(RigidPose inGun, RigidPose gun)
+            {
+                RigidPose r = inGun;
+                if (_hasOut && Time.frameCount - _outFrame <= 2)
+                {
+                    if (_easeAt < 0f && (Vector3.Distance(r.position, _out.position) > 0.015f || Quaternion.Angle(r.rotation, _out.rotation) > 10f))
+                    {
+                        _easeFrom = _out;
+                        _easeAt = Time.unscaledTime;
+                    }
+                    if (_easeAt >= 0f)
+                    {
+                        float t = (Time.unscaledTime - _easeAt) / 0.1f;
+                        if (t >= 1f)
+                        {
+                            _easeAt = -1f;
+                        }
+                        else
+                        {
+                            float k = t * t * (3f - 2f * t);
+                            r = new RigidPose(Vector3.Lerp(_easeFrom.position, r.position, k), Quaternion.Slerp(_easeFrom.rotation, r.rotation, k));
+                        }
+                    }
+                }
+                else
+                {
+                    _easeAt = -1f;
+                }
+                _out = r;
+                _outFrame = Time.frameCount;
+                _hasOut = true;
+                return gun.Multiply(r);
             }
         }
 
