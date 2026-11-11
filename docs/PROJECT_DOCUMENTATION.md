@@ -698,8 +698,21 @@ join from the list, by a friend's invitation, or by address.
 - **Knock-downs and the match's state.** `Knock` (22): a postfix on `Actor.KnockOver` tells a stand-in's owner, who knocks his own
   soldier over with the same force. `MatchState` (24): the host's flag owners (`SpawnPoint.owner`, applied with `SetOwner`) and the
   end (`VictoryUi.EndGame` is held back by a prefix on a PC that joined and called with the host's winner).
-- **Not carried yet:** vehicles (none in a shared match, see above), a soldier knocked over or held (ragdolls are each PC's own), scores, flags and the match's end (each PC counts its
-  own), VR hands on the stand-in (the state has head yaw and pitch only), thrown things.
+- **Vehicles (1.17.10, `Net/NetVehicles.cs`, kinds 31-37; Tasks 383.11):** the host keeps his vehicles and spawners and numbers each (turrets too);
+  a joined PC takes off its own vehicles, stops its spawners, and makes a copy of each of the host's from its own prefab of that name
+  (`PrefabOf`: every loaded `Vehicle` prefab and the scene's spawners' prefabs; a missing one is said once). A turret is matched to this PC's
+  own turret of that name within 2.5 m instead (the map's or its spawner's), made only after three tellings with none. ONE owner a vehicle:
+  the host, or the PC whose player sits in its driver's seat (seat 0); a joined PC takes it only from the host and gives it back on leaving
+  the seat; the host takes back one nobody of the owner's drives for 5 s (unless the owner's word says he drives it). The owner tells place,
+  turn, speeds, health, burning and death 15 times a second (3 when idle); elsewhere its rigidbody is kinematic and follows (eased,
+  extrapolated 0.25 s at most, put there past 12 m), and its cached speeds are the told ones (wheels, sound). Seats: each PC tells where its
+  own soldiers sit (`VehicleSeat`, on change and every 3 s); a stand-in enters or leaves a shared vehicle's seat only by that word
+  (prefixes on `Actor.EnterSeat`/`LeaveSeat`), the lower player number keeps a seat two claim, a refused seat is tried again every 2 s; this
+  PC's player cannot take a seat another PC's soldier holds. Hits: `Vehicle.Damage` on a vehicle not owned here is sent to its owner with
+  the shooter's PC (passed on once if the vehicle changed hands meanwhile); a stand-in's own hits are dropped (its PC sends them); the owner
+  tells the shooter's PC of a disable or kill (`VehicleKilled`, the game's `OnGotVehicleKill`). A destroyed vehicle dies on every PC by the
+  owner's word. The self-check (`--netcheck`, joining side) tells a vehicle, moves it and takes it away.
+- **Not carried yet:** a soldier knocked over or held (ragdolls are each PC's own), the fingers of a VR player, a mutator's own objects.
 - **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
   `run-tests.ps1`); in the game `python -I tools/vrshots.py --netcheck --fast`: the game hosts on UDP port 7141 and a second player made
   in the same process joins and sends what a real one does (join, stand-in made and following, a hit passed out, a hit taken, death and
