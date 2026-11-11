@@ -41,7 +41,13 @@ namespace RavenfieldVR.Rig
                 _accelAverage = Vector3.zero;
                 return;
             }
-            float dt = Mathf.Max(Time.deltaTime, 1e-3f);
+            if (velocity == _lastVelocity)
+            {
+                return; // (no physics step this frame: its speed changes only on those, 50 a second against 90 frames)
+            }
+            // Per physics step, not per frame: divided by the frame's time, a steady turn read as 1.8 times its pull on the frames with a
+            // step and nothing on those without, a jolt every other frame.
+            float dt = Mathf.Max(Time.fixedDeltaTime, Time.deltaTime, 1e-3f);
             // The change of speed beyond what the ride itself does: its acceleration against its own average of the last third of a
             // second. A crash or a hard landing is a spike; a hard turn (3 g in a plane, a fast corner) is steady and is not one
             // (counted whole, it rumbled every 0.12 s for as long as the turn lasted; vehicle scout, 2026-11-11).
