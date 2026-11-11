@@ -5,7 +5,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 ## State 2026-11-11 late evening (1.17.6 INSTALLED, Tasks 381: rounds into the chamber, the slide of an empty gun)
 
 - Setup 1.17.6 is built and installed (it carries all of 1.17.5, which was never installed). NOTHING of 1.17.5 or 1.17.6 has run in the game (the user: "Dont do any tests till you fully complete").
-- First with the game free: `--autotest --fast`, `--ui`, `--netcheck`, `--sandboxcheck --sandboxmode`, then `--weapon` for a pistol, a rifle and the M1 GARRET. Checks that expect a slide to stay caught on its release with an empty magazine, or caught with no magazine in, will fail by design now: read them against Tasks 381.2 and 381.3.
+- First with the game free: `--autotest --fast`, `--ui`, `--netcheck`, `--sandboxcheck --sandboxmode`, then `--weapon` for a pistol, a rifle and the M1 GARRET. The self-checks read for it (the slide-lock pose check, the en-bloc check, the rack checks) work with loaded magazines and are not expected to change; any that does say a slide "went home" on an empty magazine or with no magazine in is to be read against Tasks 381.2 and 381.3 (meant so now).
 - New: `Weapons/ChamberByHand` (trigger held + grip at the pouch = one round; held to the port of an open, empty chamber it goes in), the slide brought home by hand or by its release on an empty gun, no catch with the magazine out, the M1's ping through the mod's own source.
 - Open: 381.4 (press check and the like, for the user's word), 381.5 (the M1's clip drawn with rounds when empty).
 
