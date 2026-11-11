@@ -74,7 +74,8 @@ namespace RavenfieldVR.Net
             }
             _patched = true;
             harmony.Patch(AccessTools.Method(typeof(Vehicle), nameof(Vehicle.Damage)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnVehicleDamage)));
-            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.EnterSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnEnterSeat)));
+            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.EnterSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnEnterSeat)),
+                          finalizer: new HarmonyMethod(typeof(NetVehicles), nameof(AfterEnterSeat)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.LeaveSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnLeaveSeat)));
             harmony.Patch(AccessTools.Method(typeof(Vehicle), "FixedUpdate"), postfix: new HarmonyMethod(typeof(NetVehicles), nameof(AfterFixedUpdate)));
         }
@@ -102,14 +103,36 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>A stand-in takes a seat only by its owner's word: its own AI walked it into a vehicle nobody else saw it in.</summary>
-        private static bool OnEnterSeat(Actor __instance, ref bool __result)
+        private static bool OnEnterSeat(Actor __instance, Seat seat, bool kickOutOccupant, ref bool __result, out bool __state)
         {
-            if (!Enabled || Seating || !NetGame.IsRemote(__instance))
+            __state = false;
+            if (!Enabled)
             {
                 return true;
             }
-            __result = false;
-            return false;
+            if (!Seating && NetGame.IsRemote(__instance))
+            {
+                __result = false;
+                return false;
+            }
+            // One of this PC's own (the player) taking a seat a stand-in holds: the game puts the stand-in out, and that leave must go
+            // through, or the stand-in kept the seat as its own while the player sat in it, and its next word put the player out
+            // (vehicle scout, 2026-11-11).
+            if (!Seating && kickOutOccupant && seat != null && seat.occupant != null && NetGame.IsRemote(seat.occupant))
+            {
+                Seating = true;
+                __state = true;
+            }
+            return true;
+        }
+
+        private static System.Exception AfterEnterSeat(System.Exception __exception, bool __state)
+        {
+            if (__state)
+            {
+                Seating = false;
+            }
+            return __exception;
         }
 
         /// <summary>Nor leaves one on its own (its AI's own wish to get out); a fall, a death or a wreck still put it out.</summary>
@@ -309,7 +332,9 @@ namespace RavenfieldVR.Net
             Actor player = LocalPlayer.actor;
             Seat seat = player != null && !player.dead ? player.seat : null;
             Vehicle driven = seat != null && seat.IsDriverSeat() ? seat.vehicle : null;
-            if (driven != null && !driven.dead && ByVehicle.TryGetValue(driven, out Shared take) && take.Owner != me)
+            // (A joined PC takes it only from the host: two joined PCs' players each in the driver's seat of their own copy took it
+            // from each other every frame. The host takes it from anyone: his word holds.)
+            if (driven != null && !driven.dead && ByVehicle.TryGetValue(driven, out Shared take) && take.Owner != me && (session.IsHost || take.Owner == 0))
             {
                 SetOwner(session, take, me, tell: true);
                 OwnersTaken++;
@@ -325,7 +350,9 @@ namespace RavenfieldVR.Net
                     if (s.Owner != me && now - s.OwnerSince > 5f && s.V != null)
                     {
                         Actor driver = s.V.seats.Count > 0 ? s.V.seats[0].occupant : null;
-                        if (driver == null || !NetGame.IsRemote(driver))
+                        NetGame.Remote taker = NetGame.RemoteOf(s.Owner, 0);
+                        bool saysDriving = taker != null && taker.SeatVehicle == s.Id && taker.SeatIndex == 0;
+                        if ((driver == null || !NetGame.IsRemote(driver)) && !saysDriving)
                         {
                             Scratch.Add(s);
                         }
@@ -351,9 +378,9 @@ namespace RavenfieldVR.Net
             }
         }
 
-        private static void SetOwner(NetSession session, Shared s, byte owner, bool tell)
+        private static void SetOwner(NetSession session, Shared s, byte owner, bool tell, bool force = false)
         {
-            if (s.Owner == owner)
+            if (s.Owner == owner && !force)
             {
                 return;
             }
@@ -441,8 +468,25 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>Where each of this PC's soldiers sits (a shared vehicle and its seat), told when it changes and every few seconds.</summary>
+        private static readonly List<Actor> SeatGone = new List<Actor>();
+
         private static void TellSeats(NetSession session, bool all)
         {
+            if (all && SeatTold.Count > 0)
+            {
+                SeatGone.Clear();
+                foreach (Actor told in SeatTold.Keys)
+                {
+                    if (told == null)
+                    {
+                        SeatGone.Add(told);
+                    }
+                }
+                foreach (Actor gone in SeatGone)
+                {
+                    SeatTold.Remove(gone);
+                }
+            }
             foreach (KeyValuePair<Actor, ushort> kv in NetGame.OwnedIds())
             {
                 Actor a = kv.Key;
@@ -491,9 +535,18 @@ namespace RavenfieldVR.Net
                 }
                 if (want != null && a.seat != want)
                 {
+                    if (Time.unscaledTime < r.SeatRetryAt || !want.gameObject.activeInHierarchy)
+                    {
+                        continue;
+                    }
                     if (want.occupant != null && (want.occupant == LocalPlayer.actor || !want.occupant.aiControlled))
                     {
                         continue; // (a player sits there here: not thrown out by another's word; the next tell settles it)
+                    }
+                    NetGame.Remote holder = NetGame.RemoteOfActor(want.occupant);
+                    if (holder != null && holder.SeatVehicle == r.SeatVehicle && holder.SeatIndex == r.SeatIndex && holder.Owner <= r.Owner)
+                    {
+                        continue; // (two say the same seat: the one of the lower player number keeps it; they kicked each other every frame)
                     }
                     if (want.vehicle.ownerTeam >= 0 && want.vehicle.ownerTeam != a.team)
                     {
@@ -502,11 +555,15 @@ namespace RavenfieldVR.Net
                     Seating = true;
                     try
                     {
-                        if (a.seat != null)
+                        if (a.seat != null && a.seat.occupant == a)
                         {
                             a.LeaveSeat(false);
                         }
-                        a.EnterSeat(want, kickOutOccupant: true, ignoreLock: true);
+                        if (!a.EnterSeat(want, kickOutOccupant: true, ignoreLock: true))
+                        {
+                            r.SeatRetryAt = Time.unscaledTime + 2f;
+                            Log.InfoOnce("net-seat-refused:" + want.vehicle.name, $"Multiplayer: a seat of {want.vehicle.name} refused a stand-in (tried again every 2 s).");
+                        }
                     }
                     catch (Exception e)
                     {
@@ -517,7 +574,7 @@ namespace RavenfieldVR.Net
                         Seating = false;
                     }
                 }
-                else if (want == null && a.seat != null && a.seat.vehicle != null && ByVehicle.ContainsKey(a.seat.vehicle))
+                else if (want == null && a.seat != null && a.seat.vehicle != null && ByVehicle.ContainsKey(a.seat.vehicle) && a.seat.occupant == a)
                 {
                     Seating = true;
                     try
@@ -578,7 +635,10 @@ namespace RavenfieldVR.Net
                             s.Health = health;
                             s.V.health = Mathf.Clamp(health, 0f, s.V.maxHealth);
                         }
-                        s.V.ownerTeam = Mathf.Clamp(team, -1, 1);
+                        if (LocalPlayer.actor == null || LocalPlayer.actor.seat == null || LocalPlayer.actor.seat.vehicle != s.V)
+                        {
+                            s.V.ownerTeam = Mathf.Clamp(team, -1, 1); // (not under this PC's own player in it: the game's own claim holds)
+                        }
                         if ((flags & 1) != 0 && !s.V.dead)
                         {
                             s.ToldDead = true;
@@ -617,7 +677,8 @@ namespace RavenfieldVR.Net
                         // (Taken by another while this PC's player drives it too, both at once: the host's word holds, the other gives way.)
                         if (s.Owner == session.LocalId && owner != session.LocalId && sender != 0 && session.IsHost && DrivenHere(s))
                         {
-                            SetOwner(session, s, session.LocalId, tell: true);
+                            // (Told even though nothing changes here: the taker believed it his, and both drove it apart; scout.)
+                            SetOwner(session, s, session.LocalId, tell: true, force: true);
                             break;
                         }
                         s.Pos = pos;
@@ -868,6 +929,10 @@ namespace RavenfieldVR.Net
             if (Catalog.TryGetValue(key, out GameObject known) && known != null)
             {
                 return known;
+            }
+            if (Missing.Contains(key))
+            {
+                return null; // (looked for once a match: the scene's search every few seconds was a hitch in the headset)
             }
             if (Time.unscaledTime - _catalogAt < 5f && Catalog.Count > 0)
             {

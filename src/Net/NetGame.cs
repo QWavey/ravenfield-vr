@@ -53,6 +53,8 @@ namespace RavenfieldVR.Net
             /// <summary>The shared vehicle and seat his owner says he sits in (0: none; NetVehicles).</summary>
             public ushort SeatVehicle;
             public int SeatIndex;
+            /// <summary>The seat refused him (taken, shut, the wrong side): tried again from then on, not every frame.</summary>
+            public float SeatRetryAt;
 
             /// <summary>
             /// Whether his told place is going anywhere: it moved 20 cm along the ground from where it was (<see cref="Anchor"/>) within
@@ -150,6 +152,8 @@ namespace RavenfieldVR.Net
         internal static bool InMatchNow => InMatch;
         /// <summary>A told death or hit is being applied here (the patches let it through).</summary>
         internal static bool Applying => _applying;
+
+        internal static Remote RemoteOfActor(Actor a) => a != null && _anyRemote && ByActor.TryGetValue(a, out Remote r) ? r : null;
 
         internal static Remote RemoteOf(byte owner, ushort id) => Remotes.TryGetValue(owner << 16 | id, out Remote r) ? r : null;
 
