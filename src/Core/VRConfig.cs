@@ -87,6 +87,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> LoadMagazinesByHand;
         public static ConfigEntry<bool> MagazineDetent;
         public static ConfigEntry<MagazineHelp> MagazineInsertHelp;
+        public static ConfigEntry<int> ShellsPerReach;
         public static ConfigEntry<bool> UnderSeatedMagazineFalls;
         public static ConfigEntry<bool> AkMagazinesStayIn;
         public static ConfigEntry<bool> LoseRoundOnRack;
@@ -262,6 +263,11 @@ namespace RavenfieldVR.Core
                 + "line and turned nearly straight (a quarter less room than Normal). Normal: as it always was (3.5 cm beside the line, 35 degrees "
                 + "turned; a pistol's grip a little more). Easy: 60% more room beside the line and half as much again in the turn, and on every "
                 + "gun the magazine is drawn home by itself once it is a quarter of the way in, as a pistol's always is (no last push, no detent).");
+            ShellsPerReach = cfg.Bind("Weapons", "ShellsPerReach", 2,
+                new ConfigDescription("How many shells one reach into the pouch takes for a tube-fed shotgun (as in Half-Life: Alyx, two a reach). "
+                                      + "They still go in one at a time: push one in, draw the hand back a little, push the next. Let go, the rest go back "
+                                      + "to your reserve. 1 = one shell a reach, as before. Break actions and revolvers always take one.",
+                                      new AcceptableValueRange<int>(1, 4)));
             MagazineDetent = cfg.Bind("Weapons", "MagazineDetent", true,
                 "A magazine's last few millimetres into its well take a firm push, or a tap on its base, and it clicks as it latches. Pushed in "
                 + "gently it stops just short; let go there, it waits in the well until its base is tapped home (or it is taken again, or the "

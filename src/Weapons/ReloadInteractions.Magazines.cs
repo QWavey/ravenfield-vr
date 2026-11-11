@@ -366,8 +366,10 @@ namespace RavenfieldVR.Weapons
             else
             {
                 kind = PropKind.Shell;
+                // (A tube-fed shotgun: ShellsPerReach in the hand, pushed in one by one. Not in a test run: its hand loads one a reach.)
+                int reach = Data.Action == ActionType.ShellFed && !Breaks && !Core.AutoTest.Requested ? Mathf.Clamp(VRConfig.ShellsPerReach.Value, 1, 4) : 1;
                 rounds = Data.Action == ActionType.ShellFed || Breaks
-                    ? Ammo.ShellChunk()
+                    ? Mathf.Min(reach, Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? reach : Ammo.SpareAmmo)) * (Ammo.ShellChunk() > 0 ? 1 : 0)
                     : Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
             }
             if (rounds <= 0 && !emptyToo)
@@ -620,6 +622,18 @@ namespace RavenfieldVR.Weapons
                     _refusedAt = Time.unscaledTime;
                     off.Haptic(0.04f, 70f, 0.55f);
                     _sys.FlashMessage("TAIL FIRST");
+                }
+                if (prop.BackOutFirst)
+                {
+                    // (The hand has to come back out to the first third of the way in before the next shell starts.)
+                    if (along < prop.RailLength * 0.35f)
+                    {
+                        prop.BackOutFirst = false;
+                    }
+                    else
+                    {
+                        lined = false;
+                    }
                 }
                 if (enBloc && !lined && lateral < 0.15f && along > -0.12f && along < prop.RailLength + 0.05f)
                 {
@@ -1131,6 +1145,20 @@ namespace RavenfieldVR.Weapons
                     if (_seatChamber < _held.ChamberFull.Length)
                     {
                         _held.ChamberFull[_seatChamber] = true; // drawn in the chamber it went into, not the first empty one
+                    }
+                    if (prop.Rounds > 1 && Ammo.TubeRoom > 1 && ReferenceEquals(off.Held, prop))
+                    {
+                        // More than one in the hand (ShellsPerReach): this one goes in, the hand keeps the rest and pushes the next
+                        // after drawing back a little.
+                        Ammo.LoadRounds(1);
+                        prop.Rounds--;
+                        prop.BackOutFirst = true;
+                        prop.OnRail = false;
+                        prop.RailDepth = 0f;
+                        _held.Sounds.Play(MechSound.ShellIn, at);
+                        off.Haptic(0.05f, 110f, 0.8f);
+                        _sys.Rig.Dominant.Haptic(0.05f, 110f, 0.6f);
+                        return;
                     }
                     int accepted = Ammo.LoadRounds(prop.Rounds);
                     Ammo.ReturnSpare(prop.Rounds - accepted);
