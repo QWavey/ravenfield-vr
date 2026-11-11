@@ -1645,6 +1645,10 @@ namespace RavenfieldVR.Net
             foreach (SpawnPoint point in points)
             {
                 hash = hash * 31 + (point != null ? point.owner + 2 : 0);
+                if (point is CapturePoint progress)
+                {
+                    hash = hash * 31 + Mathf.RoundToInt(progress.control * 20f) * 3 + progress.pendingOwner + 1; // (a flag being taken: told each second)
+                }
             }
             if (hash == _matchTold && Time.unscaledTime - _matchToldAt < 5f)
             {
@@ -1673,6 +1677,15 @@ namespace RavenfieldVR.Net
             else
             {
                 Out.Byte(0);
+            }
+            // Each flag's progress: how far up its pole and for whom (a joined PC's flags change hands only by the host's word, and
+            // their bars stood still while someone took one; the multiplayer ideas, 2026-11-11).
+            Out.Byte((byte)Mathf.Min(points.Length, 255));
+            for (int i = 0; i < points.Length && i < 255; i++)
+            {
+                CapturePoint progress = points[i] as CapturePoint;
+                Out.Byte((byte)(progress != null ? Mathf.RoundToInt(Mathf.Clamp01(progress.control) * 255f) : 255));
+                Out.Byte((byte)(progress != null ? Mathf.Clamp(progress.pendingOwner + 2, 0, 3) : 0));
             }
             session.Send(MatchState, Out, true);
         }
@@ -1727,6 +1740,27 @@ namespace RavenfieldVR.Net
                         }
                     }
                     ScoreTaken++;
+                }
+            }
+            if (r.Remaining > 0)
+            {
+                int m = r.Byte();
+                for (int i = 0; i < m; i++)
+                {
+                    float control = r.Byte() / 255f;
+                    int pending = r.Byte() - 2;
+                    if (points != null && i < points.Length && points[i] is CapturePoint progress && pending >= -1 && pending <= 1)
+                    {
+                        progress.control = control;
+                        if (progress.pendingOwner != pending)
+                        {
+                            progress.SetPendingOwner(pending);
+                        }
+                        if (progress.flagRenderer != null)
+                        {
+                            progress.flagRenderer.enabled = control > 0f;
+                        }
+                    }
                 }
             }
             if (ended && points != null && !VictoryUi.GameHasEnded())
