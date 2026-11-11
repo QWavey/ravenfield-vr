@@ -596,9 +596,23 @@ namespace RavenfieldVR.Weapons
             const float stiffness = 150f;
             float damping = 2f * Mathf.Sqrt(stiffness);
             _kickPosVel += (-stiffness * _kickPos - damping * _kickPosVel) * dt;
-            _kickPos = Vector3.ClampMagnitude(_kickPos + _kickPosVel * dt, 0.12f);
+            _kickPos += _kickPosVel * dt;
             _kickRotVel += (-stiffness * _kickRot - damping * _kickRotVel) * dt;
-            _kickRot = Vector2.ClampMagnitude(_kickRot + _kickRotVel * dt, 25f);
+            _kickRot += _kickRotVel * dt;
+            // At the limits the way out is spent too, as on the gun hand's (HeldWeapon): clamped alone, a big kick sat pinned at the limit
+            // and came back from a flat top (aiming scout, 2026-11-11).
+            if (_kickPos.sqrMagnitude > 0.12f * 0.12f)
+            {
+                Vector3 way = _kickPos.normalized;
+                _kickPos = way * 0.12f;
+                _kickPosVel -= way * Mathf.Max(0f, Vector3.Dot(_kickPosVel, way));
+            }
+            if (_kickRot.sqrMagnitude > 25f * 25f)
+            {
+                Vector2 way = _kickRot.normalized;
+                _kickRot = way * 25f;
+                _kickRotVel -= way * Mathf.Max(0f, Vector2.Dot(_kickRotVel, way));
+            }
 
             if (Armed && _modPin != null)
             {

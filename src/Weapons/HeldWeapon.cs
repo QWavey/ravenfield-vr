@@ -239,7 +239,8 @@ namespace RavenfieldVR.Weapons
                 Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
                 FireSelector.ShowLever(weapon);
                 Inertia(rig.Data, weapon, out _inertiaOmega, out _inertiaLever);
-                if (_inertiaOmega > 0f && _inertiaOmega < 14f)
+                // (Not when it is passed from hand to hand: it was never put down, and dipped 5 cm and 6 degrees; aiming scout.)
+                if (_inertiaOmega > 0f && _inertiaOmega < 14f && !system.PassHoldNow(weapon).HasValue)
                 {
                     // Picked up, a heavy weapon (a machine gun, a launcher) comes up into the hand over about half a second.
                     _lagPos = Vector3.down * 0.05f;
@@ -1881,7 +1882,7 @@ namespace RavenfieldVR.Weapons
             }
             // A support hand that loses tracking (hidden behind the gun from the headset's cameras) still holds: the two-hand aim eases
             // out over a third of a second, not a tenth, which swung the barrel by the whole steer in a blink (support hunt, 2026-10-20).
-            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (!TwoHanded ? 6f : !off.Tracked ? 3f : 10f)); // (let go: back to the wrist's line over a sixth of a second; in a tenth, 10 to 25 degrees swung at up to 300 deg/s)
+            _twoHandBlend = Mathf.MoveTowards(_twoHandBlend, TwoHanded && off.Tracked ? 1f : 0f, dt * (!TwoHanded ? 6f : !off.Tracked ? 3f : 6f)); // (taken too over a sixth of a second: in a tenth the grab swung as the let-go did; aiming scout. Let go: back to the wrist's line over a sixth of a second; in a tenth, 10 to 25 degrees swung at up to 300 deg/s)
 
             WeaponRigData d = Rig.Data;
             RigidPose hand = HoldFrame(main, d);
