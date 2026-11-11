@@ -14,7 +14,7 @@ namespace RavenfieldVR.Rig
     {
         private static Vehicle _of;
         private static Vector3 _lastVelocity;
-        private static float _nextBump;
+        private static float _nextBump, _nextHum;
 
         /// <summary>Once a frame from the rig (any seat of a vehicle, not only the driver's).</summary>
         internal static void Update(VRRig rig)
@@ -26,6 +26,7 @@ namespace RavenfieldVR.Rig
                 _of = null;
                 return;
             }
+            Hum(rig, v);
             if (v.rigidbody == null || v.rigidbody.isKinematic)
             {
                 _of = null; // (another PC drives it: its speed comes in steps 15 times a second, no jolt to read from them; hits still felt)
@@ -61,6 +62,31 @@ namespace RavenfieldVR.Rig
             }
             float strength = Mathf.Clamp01(damage / Mathf.Max(100f, v.maxHealth * 0.3f));
             Rumble(rig, 0.04f + 0.12f * strength, 90f + 60f * strength, 0.2f + 0.7f * strength);
+        }
+
+        /// <summary>
+        /// The engine, faintly, in a hand on the wheel or the flight stick only: a tenth of a second ten times a second, its strength by
+        /// the engine's power (idle almost nothing). Not in a hand that is free, nor with nothing running.
+        /// </summary>
+        private static void Hum(VRRig rig, Vehicle v)
+        {
+            if (Time.unscaledTime < _nextHum || v.engine == null)
+            {
+                return;
+            }
+            _nextHum = Time.unscaledTime + 0.1f;
+            float power = Mathf.Clamp01(v.engine.power);
+            if (power < 0.05f)
+            {
+                return;
+            }
+            foreach (VRHand hand in rig.Hands)
+            {
+                if (hand != null && hand.Tracked && hand.Role == HandRole.Cockpit)
+                {
+                    hand.Haptic(0.1f, 35f + 40f * power, 0.04f + 0.08f * power);
+                }
+            }
         }
 
         private static void Rumble(VRRig rig, float seconds, float frequency, float amplitude)
