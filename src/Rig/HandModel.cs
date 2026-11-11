@@ -195,8 +195,13 @@ namespace RavenfieldVR.Rig
             {
                 return true;
             }
-            return _hand.Role == HandRole.Free && _hand.Held == null && goal[1] < 0.3f && goal[2] > 0.6f && goal[3] > 0.6f && goal[4] > 0.55f;
+            // (Pointing from the lines below, not pointing again only a tenth beyond each: as the fist's.)
+            float give = _pointing ? 0.1f : 0f;
+            _pointing = _hand.Role == HandRole.Free && _hand.Held == null && goal[1] < 0.3f + give && goal[2] > 0.6f - give && goal[3] > 0.6f - give && goal[4] > 0.55f - give;
+            return _pointing;
         }
+
+        private bool _fisted, _pointing;
 
         /// <summary>The pinch point (<see cref="PinchFromShape"/>) in the tracked palm's frame: where the hand holds what it pinches.</summary>
         public Vector3 PinchInPalm
@@ -1530,7 +1535,11 @@ namespace RavenfieldVR.Rig
             // (A loose round or case in the fingers, magazines loaded by hand: pinched as a shell is, not in a magazine's fist.)
             _pose = HandPoses.Get(_hand.Held is Weapons.Casings.Case ? HandPoseId.Shell
                 : HandPoses.For(_hand.Role, WeaponClass, WorkedPart, _hand.Held as Weapons.MagazineProp, Palming, CockpitStick));
-            if (_hand.Role == HandRole.Free && !VRInput.HasSkeleton(side) && grip > 0.9f && trigger > 0.9f)
+            // (A fist from 0.9 on both, open again only under 0.8: at one line the pose changed frame by frame with the grip's
+            // noise there, the thumb wobbling; scout, 2026-11-11.)
+            float fistLine = _fisted ? 0.8f : 0.9f;
+            _fisted = _hand.Role == HandRole.Free && !VRInput.HasSkeleton(side) && grip > fistLine && trigger > fistLine;
+            if (_fisted)
             {
                 _pose = HandPoses.Get(HandPoseId.Fist);
             }

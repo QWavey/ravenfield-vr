@@ -532,6 +532,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How far the magazine in the hand is drawn away from the hand to stay out of the gun now.</summary>
         private Vector3 _keptOut;
+        /// <summary>The frame the keep-out last ran (its pacing needs the frame before).</summary>
+        private int _easeFrame = -10;
         // On the rail nothing keeps it out of the gun: the last keep-out eases away with the switch onto the line (the palmed
         // magazine beside it kept the stale offset for as long as this one sat on the rail; bug hunt 251.3).
         // On the rail it eases to nothing over the switch and stays nothing after it: once the switch was over, the stale offset came
@@ -823,7 +825,31 @@ namespace RavenfieldVR.Weapons
                 _drawnFor = null;
                 LostByHand = false;
             }
-            _keptOut = drawn - target.position;
+            // Back to the hand at a pace, not in one frame: held out of the gun while the hand went on into it (up to 45 cm), the
+            // magazine and the glove jumped the whole way to the hand on the frame the way was free again ("parts of the hand or
+            // mags are glitching around (this happens randomly with force or smth)", user, 2026-11-11; the smoothness check). The
+            // offset shrinks by 2.5 m/s at most (3 cm a frame at 90 Hz: 10 cm are closed in four frames). Only shrinking is paced:
+            // meeting the gun stops it at once, as before. Not where the paced place would be inside the gun.
+            Vector3 offset = drawn - target.position;
+            float had = _keptOut.magnitude, has = offset.magnitude;
+            float pace = 2.5f * Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            if (_easeFrame == Time.frameCount - 1 && had > 0.012f && has < had - pace)
+            {
+                Vector3 paced = Vector3.MoveTowards(_keptOut, offset, pace);
+                Vector3 at = target.position + paced;
+                if (gun == null || !gun.InsideDrawnGun(at))
+                {
+                    offset = paced;
+                    drawn = at;
+                    if (gun != null && gun.Rig != null && gun.Rig.GunBody != null)
+                    {
+                        _drawnInGun = gun.Rig.ToGun(drawn);
+                        _drawnFor = gun;
+                    }
+                }
+            }
+            _easeFrame = Time.frameCount;
+            _keptOut = offset;
             ContactSounds(gun, drawn, _keptOut.sqrMagnitude > 1e-6f);
             if (_keptOut.sqrMagnitude < 1e-8f)
             {

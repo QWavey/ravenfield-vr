@@ -993,6 +993,9 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Self-test: how far the drawn grip lags the hand now (metres) and the muzzle dips (degrees).</summary>
         internal Vector3 InertiaLag => _lagPos;
+        /// <summary>Where the recoil and the nudges have the drawn gun off the hand this frame (world).</summary>
+        internal Vector3 RecoilShift => _recoilWorld;
+        private Vector3 _recoilWorld;
         internal float InertiaPitch => _lagPitch;
 
         private static void Inertia(WeaponRigData d, Weapon w, out float omega, out float lever)
@@ -1959,7 +1962,8 @@ namespace RavenfieldVR.Weapons
             Quaternion boreFrame = gunRot * boreInGun * recoil;
             gunRot = boreFrame * Runtime.RigidPose.Conjugate(boreInGun);
             Quaternion aimFrame = gunRot * gripInGun.rotation;
-            Vector3 gripWorld = hand.position + _lagPos + boreFrame * _recoilPos;
+            _recoilWorld = boreFrame * _recoilPos;
+            Vector3 gripWorld = hand.position + _lagPos + _recoilWorld;
             var desiredGunBody = new RigidPose(gripWorld - gunRot * d.GripPoint, gunRot);
             HandGunBody = desiredGunBody;
 

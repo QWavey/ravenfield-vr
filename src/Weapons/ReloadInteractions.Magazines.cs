@@ -850,7 +850,9 @@ namespace RavenfieldVR.Weapons
             // 120 degrees in the hand never reached the seat's depth: "taken onto its way in, NOT SEATED" in the check, and the
             // user's "putting a new one in doesnt work still".)
             Quaternion turn = prop.Kind == PropKind.Magazine && Data.EnBloc ? SeatPose.rotation : hold.rotation;
-            return PoseAlongRail(prop, new RigidPose(hold.position + _held.InertiaLag, turn), out lateral);
+            // (And as its recoil and nudges have it: a shot or a nudge moved the drawn gun 1 to 3 cm, read here as the hand going in or
+            // out by as much, a shell or rocket along the bore most; scout, 2026-11-11.)
+            return PoseAlongRail(prop, new RigidPose(hold.position + _held.InertiaLag + _held.RecoilShift, turn), out lateral);
         }
 
         /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>
