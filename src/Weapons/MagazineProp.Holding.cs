@@ -23,6 +23,16 @@ namespace RavenfieldVR.Weapons
         internal void NotFresh() => _fresh = false;
         private float _attachAt = -1f;
         private const float AttachBlend = 0.09f;
+        /// <summary>This grab's own time to the hand (a magazine fetched from metres away flies a quarter second, not 0.09 s).</summary>
+        private float _attachTime = AttachBlend;
+
+        /// <summary>Taken from afar (VRConfig.MagazineReach): to the hand over a time that grows with the way, 0.15 to 0.35 s.</summary>
+        internal void AttachFromAfar(VRHand hand)
+        {
+            float far = Go != null && hand != null ? Vector3.Distance(Go.transform.position, hand.Palm.position) : 0f;
+            Attach(hand);
+            _attachTime = Mathf.Clamp(0.12f + far * 0.08f, 0.15f, 0.35f);
+        }
 
         public void Attach(VRHand hand)
         {
@@ -37,6 +47,7 @@ namespace RavenfieldVR.Weapons
                 _attachFrom = _attachInRig ? ToRigSpace(at) : at;
                 _attachAt = Time.unscaledTime;
             }
+            _attachTime = AttachBlend;
             _fresh = false;
             HeldBy = hand;
             _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
@@ -484,7 +495,7 @@ namespace RavenfieldVR.Weapons
             if (HeldBy != null && !OnRail)
             {
                 RigidPose target = HoldPose(HeldBy);
-                float t = _attachAt >= 0f ? (Time.unscaledTime - _attachAt) / AttachBlend : 1f;
+                float t = _attachAt >= 0f ? (Time.unscaledTime - _attachAt) / Mathf.Max(0.01f, _attachTime) : 1f;
                 if (t < 1f)
                 {
                     float k = t * t * (3f - 2f * t);

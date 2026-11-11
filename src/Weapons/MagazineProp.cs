@@ -1103,6 +1103,36 @@ namespace RavenfieldVR.Weapons
             return best;
         }
 
+        /// <summary>
+        /// The dropped prop a hand points at from afar: of this weapon, taken by <paramref name="accept"/>, within <paramref name="reach"/>
+        /// metres of <paramref name="from"/> and <paramref name="degrees"/> of the pointing line; the one nearest the line.
+        /// </summary>
+        public static MagazineProp PointedDropped(Vector3 from, Vector3 direction, float reach, float degrees, string weaponKey, System.Func<MagazineProp, bool> accept)
+        {
+            MagazineProp best = null;
+            float bestAngle = degrees;
+            foreach (MagazineProp p in Alive)
+            {
+                if (!p.IsDropped || p.Go == null || weaponKey != null && p.WeaponKey != weaponKey || accept != null && !accept(p))
+                {
+                    continue;
+                }
+                Vector3 to = p.Go.transform.position - from;
+                float d = to.magnitude;
+                if (d > reach || d < 0.05f)
+                {
+                    continue;
+                }
+                float angle = Vector3.Angle(direction, to);
+                if (angle < bestAngle)
+                {
+                    bestAngle = angle;
+                    best = p;
+                }
+            }
+            return best;
+        }
+
         /// <summary>Removes props past their lifetime, beyond the cap, or fallen out of the world.</summary>
         public static void Cull()
         {

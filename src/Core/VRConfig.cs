@@ -93,6 +93,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> LoseRoundOnRack;
         public static ConfigEntry<PouchLocation> Pouch;
         public static ConfigEntry<float> MagPropLifetime;
+        public static ConfigEntry<float> MagazineReach;
         public static ConfigEntry<int> MaxMagProps;
         public static ConfigEntry<float> RecoilStrength;
         public static ConfigEntry<float> TwoHandRecoilReduction;
@@ -289,6 +290,11 @@ namespace RavenfieldVR.Core
             Pouch = cfg.Bind("Weapons", "MagazinePouch", PouchLocation.OffHandHip,
                 "Where fresh magazines/shells/rockets are grabbed from.");
             // (Ranges: a hand-typed huge lifetime left nothing but the fall-out test to remove props; prop physics hunt, 2026-10-21.)
+            MagazineReach = cfg.Bind("Weapons", "MagazineReach", 3f,
+                new ConfigDescription("A dropped magazine of the gun in your hand comes to your empty hand from this far (metres): point the hand at it "
+                                      + "and squeeze the grip, with nothing else in reach of that hand (as the gravity gloves of Half-Life: Alyx do). "
+                                      + "Only one with rounds in it. 0 = off: a magazine is picked up where it lies.",
+                                      new AcceptableValueRange<float>(0f, 6f)));
             MagPropLifetime = cfg.Bind("Weapons", "DroppedMagLifetime", 60f,
                 new ConfigDescription("Seconds dropped magazines stay in the world (they keep their rounds and can be picked up again).",
                     new AcceptableValueRange<float>(1f, 3600f)));

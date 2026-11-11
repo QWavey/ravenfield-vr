@@ -847,6 +847,24 @@ namespace RavenfieldVR.Weapons
                          + $"manual {Manual}, cover {(Ammo.HasCover ? Ammo.CoverOpen ? "open" : "shut" : "none")}, openness {_held.HingeOpenness:0.00}");
             }
 
+            if (choice == 0 && off.GrabPressed && !Core.AutoTest.Requested && VRConfig.MagazineReach.Value > 0.2f && Manual && Ammo.UsesDetachableMag)
+            {
+                // Nothing in reach: a dropped magazine of this gun the hand points at comes to it (MagazineReach; other VR
+                // shooters' force grab, asked for on 2026-11-11: "look what other vr games have what we dont have").
+                MagazineProp far = MagazineProp.PointedDropped(off.TrackedPointer.position, off.TrackedPointer.Forward, VRConfig.MagazineReach.Value, 14f, Data.Key, NotEmpty);
+                if (far != null)
+                {
+                    if (far == _ejecting)
+                    {
+                        _ejecting = null;
+                    }
+                    Log.InfoOnce("magreach:" + Data.Key, $"{Data.Key}: a dropped magazine ({far.Rounds} rounds) taken from {far.DistanceTo(palm):0.0} m by pointing at it.");
+                    far.AttachFromAfar(off);
+                    off.Haptic(0.04f, 150f, 0.6f);
+                    VRInput.Consume(DigitalAction.Grab, off.Side);
+                    return;
+                }
+            }
             if (choice == 0 && off.GrabPressed && HandLoading.TakeLying(off))
             {
                 // Loading by hand: a case or round lying within reach, with a gun drawn too (only a hand no gun manages took them, and
