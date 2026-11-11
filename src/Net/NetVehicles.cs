@@ -174,6 +174,7 @@ namespace RavenfieldVR.Net
             {
                 Out.Reset();
                 Out.UShort(s.Id);
+                Out.Byte(session.LocalId); // (the shooter's PC: a hit passed on by an owner who has just handed the vehicle on keeps it)
                 Out.UShort(shooter);
                 Out.Float(info.healthDamage);
                 Out.Float(info.balanceDamage);
@@ -868,18 +869,37 @@ namespace RavenfieldVR.Net
         private static void TakeHit(NetSession session, byte sender, ref NetReader r)
         {
             ushort id = r.UShort();
+            byte shooterPc = r.Byte();
             ushort shooter = r.UShort();
             float health = r.Float(), balance = r.Float();
             int flags = r.Byte();
             int type = r.Byte();
             Vector3 point = r.Vector();
             Vector3 direction = r.SmallVector();
-            if (!ById.TryGetValue(id, out Shared s) || s.Owner != session.LocalId || s.V == null || s.V.dead
-                || float.IsNaN(health) || float.IsInfinity(health) || !Finite(point))
+            if (!ById.TryGetValue(id, out Shared s) || s.V == null || s.V.dead || float.IsNaN(health) || float.IsInfinity(health) || !Finite(point))
             {
                 return;
             }
-            NetGame.Remote by = NetGame.RemoteOf(sender, shooter);
+            if (s.Owner != session.LocalId)
+            {
+                // Handed on since it was sent (its driver got in or out): passed to the owner now, once (it was lost; vehicle scout).
+                if (sender == shooterPc && s.Owner != shooterPc)
+                {
+                    Out.Reset();
+                    Out.UShort(id);
+                    Out.Byte(shooterPc);
+                    Out.UShort(shooter);
+                    Out.Float(health);
+                    Out.Float(balance);
+                    Out.Byte((byte)flags);
+                    Out.Byte((byte)type);
+                    Out.Vector(point);
+                    Out.SmallVector(direction);
+                    session.SendTo(s.Owner, NetGame.VehicleHit, Out, true);
+                }
+                return;
+            }
+            NetGame.Remote by = NetGame.RemoteOf(shooterPc, shooter);
             var info = new DamageInfo((DamageInfo.DamageSourceType)type, by != null ? by.Actor : null, null)
             {
                 healthDamage = Mathf.Clamp(health, 0f, 100000f),
@@ -906,7 +926,7 @@ namespace RavenfieldVR.Net
                 Out.UShort(s.Id);
                 Out.UShort(shooter);
                 Out.Bool(!s.V.dead);
-                session.SendTo(sender, NetGame.VehicleKilled, Out, true);
+                session.SendTo(shooterPc, NetGame.VehicleKilled, Out, true);
             }
         }
 
