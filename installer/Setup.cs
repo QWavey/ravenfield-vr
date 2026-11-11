@@ -349,8 +349,16 @@ namespace RavenfieldVR.Setup
         /// Ravenfield, or the launcher waiting for the headset to start it: the launcher holds its own exe and openvr_api.dll, and a
         /// delete then failed as if it needed admin rights (review, 2026-10-20).
         /// </summary>
-        public static bool GameRunning() => Process.GetProcessesByName("ravenfield").Length > 0
-                                            || Process.GetProcessesByName(Path.GetFileNameWithoutExtension(LauncherName)).Length > 0;
+        public static bool GameRunning() => RunningCheck != null ? RunningCheck()
+                                            : Process.GetProcessesByName("ravenfield").Length > 0
+                                              || Process.GetProcessesByName(Path.GetFileNameWithoutExtension(LauncherName)).Length > 0;
+
+        /// <summary>
+        /// The offline tests' own answer to <see cref="GameRunning"/> (null: the PC's processes are asked). They install into
+        /// folders of their own and are not about this PC's game: with the user playing, thirteen of them stopped at "Ravenfield
+        /// ... is running" (2026-11-11).
+        /// </summary>
+        internal static Func<bool> RunningCheck;
 
         /// <summary>Installed mod version, or null.</summary>
         public static string InstalledVersion(string game)

@@ -12,6 +12,21 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def game_running():
+    """uninstall.ps1 refuses while Ravenfield or its launcher runs, whatever folder it is pointed at (it cannot tell whose
+    game that is). With the user playing, this test has nothing to say: skipped, said so, not failed (2026-11-11)."""
+    try:
+        out = subprocess.run(['tasklist', '/FO', 'CSV', '/NH'], capture_output=True, text=True, timeout=30).stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return '"ravenfield.exe"' in out or '"ravenfieldvr-launcher.exe"' in out
+
+
+if game_running():
+    print('0 passed, 0 failed (skipped: Ravenfield is running, and uninstall.ps1 refuses then)')
+    sys.exit(0)
 failed = passed = 0
 
 

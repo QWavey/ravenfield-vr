@@ -30,6 +30,7 @@ namespace RavenfieldVR.Tests
 
         private static int Main(string[] args)
         {
+            Installer.RunningCheck = () => false; // (the setup checks work in folders of their own: this PC's game may be running)
             InsideTests();
             VdfTests();
             BindingsTests();
