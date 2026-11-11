@@ -38,6 +38,9 @@ namespace RavenfieldVR.Net
             public Vector3 Pos, Vel, AngVel;
             public Quaternion Rot = Quaternion.identity;
             public float Heard = -10f, Health = -1f, OwnerSince;
+            /// <summary>Where it was shown against where the newest word puts it, faded out (see Follow).</summary>
+            public Vector3 Offset;
+            public Quaternion TurnOffset = Quaternion.identity;
             public bool ToldDead;
             public int Team = -1;
         }
@@ -416,19 +419,14 @@ namespace RavenfieldVR.Net
             float age = Mathf.Min(now - s.Heard, 0.25f);
             Vector3 want = s.Pos + s.Vel * age;
             Quaternion turn = s.AngVel.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(s.AngVel.magnitude * Mathf.Rad2Deg * age, s.AngVel.normalized) * s.Rot : s.Rot;
-            Vector3 at;
-            Quaternion rot;
-            if ((t.position - want).sqrMagnitude > 12f * 12f)
-            {
-                at = want; // (far off: put there)
-                rot = turn;
-            }
-            else
-            {
-                float k = 1f - Mathf.Exp(-14f * Time.deltaTime);
-                at = Vector3.Lerp(t.position, want, k);
-                rot = Quaternion.Slerp(t.rotation, turn, k);
-            }
+            // Where the word puts it NOW (its told place carried on by its told speed), with what it was shown at against the newest
+            // word fading out in a tenth of a second. Eased toward the word before, it trailed behind by its speed over 14: at a plane's
+            // 100 m/s seven metres, a rider's view lagging with it.
+            float fade = Mathf.Exp(-10f * Time.deltaTime);
+            s.Offset *= fade;
+            s.TurnOffset = Quaternion.Slerp(Quaternion.identity, s.TurnOffset, fade);
+            Vector3 at = want + s.Offset;
+            Quaternion rot = s.TurnOffset * turn;
             t.SetPositionAndRotation(at, rot);
             if (s.V.rigidbody != null)
             {
@@ -649,6 +647,11 @@ namespace RavenfieldVR.Net
                         {
                             continue;
                         }
+                        Transform shown = s.V.transform;
+                        Vector3 offset = shown.position - pos;
+                        bool keep = s.HasState && offset.sqrMagnitude < 12f * 12f; // (far off, or the first word: put there)
+                        s.Offset = keep ? offset : Vector3.zero;
+                        s.TurnOffset = keep ? shown.rotation * Quaternion.Inverse(rot) : Quaternion.identity;
                         s.Pos = pos;
                         s.Rot = rot;
                         s.Vel = vel;
