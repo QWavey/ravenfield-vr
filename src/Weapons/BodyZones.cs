@@ -133,7 +133,9 @@ namespace RavenfieldVR.Weapons
                 // A seated calibration is lower than standing anatomy. Only a calibrated height: the 1.65 m default is a standing one
                 // already, and scaled it put the spots for a 2.23 m body, the pouch at the shins, until (or, for a seated head under
                 // 1 m, never) the calibration landed (round-2 scout, 2026-10-27).
-                height = VRConfig.EyeHeight.Value * (VRConfig.SeatedMode.Value ? 1.35f : 1f);
+                // (Not one over 1.4 m: a standing calibration kept after Seated play was turned on, scaled, put the belt and holsters about
+                // 25 cm low; a seated head is at 1.1 to 1.3 m; holster scout, 2026-11-11.)
+                height = VRConfig.EyeHeight.Value * (VRConfig.SeatedMode.Value && VRConfig.EyeHeight.Value < 1.4f ? 1.35f : 1f);
             }
 
             // The neck pivot the head turns about (about 9 cm under and 8 cm behind the eyes): looking down at the pouch
