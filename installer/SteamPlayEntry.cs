@@ -140,7 +140,12 @@ namespace RavenfieldVR.Setup
             }
             try
             {
-                File.Copy(file, file + ".rfvr-backup", true);
+                // (The first copy is the one to keep, as with Steam's own config: written over at every change, the copy of
+                // Steam's file as it was before the setup ever touched it was gone after the second; scout, 2026-11-11.)
+                if (!File.Exists(file + ".rfvr-backup"))
+                {
+                    File.Copy(file, file + ".rfvr-backup", false);
+                }
                 SteamLaunchOption.ReplaceFile(temp, file);
             }
             finally

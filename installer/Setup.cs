@@ -180,7 +180,15 @@ namespace RavenfieldVR.Setup
             catch (Exception e)
             {
                 write("Error: " + e.Message);
-                File.WriteAllLines(logPath, log);
+                try
+                {
+                    File.WriteAllLines(logPath, log);
+                }
+                catch (Exception)
+                {
+                    // (The log's folder cannot be written, which may be the very fault: the run ends with its code, not with a
+                    // second throw out of here; scout, 2026-11-11.)
+                }
                 return 1;
             }
         }
