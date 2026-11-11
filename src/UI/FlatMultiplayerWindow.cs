@@ -18,6 +18,8 @@ namespace RavenfieldVR.UI
         private Rect _rect;
         private GUIStyle _hint;
         private string _modsSaid;
+        private int _kickArmed = -1;
+        private float _kickArmedAt;
 
         private void Awake()
         {
@@ -181,7 +183,28 @@ namespace RavenfieldVR.UI
             foreach (NetPlayer p in session.Players)
             {
                 string name = p.Info != null && !string.IsNullOrEmpty(p.Info.Name) ? p.Info.Name : "Player " + p.Id;
-                GUILayout.Label("   " + name + (p.Id == session.LocalId ? "  (you)" : p.Id == 0 ? "  (host)" : ""));
+                string ping = p.Id != session.LocalId && p.Ping >= 0 ? $"   {p.Ping * 1000:0} ms" : "";
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("   " + name + (p.Id == session.LocalId ? "  (you)" : p.Id == 0 ? "  (host)" : "") + ping);
+                if (menus && session.IsHost && p.Id != session.LocalId)
+                {
+                    // (Pressed twice, as on the VR panel.)
+                    bool armed = _kickArmed == p.Id && Time.unscaledTime - _kickArmedAt < 4f;
+                    if (GUILayout.Button(armed ? "Sure?" : "Kick", GUILayout.Width(70f)))
+                    {
+                        if (armed)
+                        {
+                            _kickArmed = -1;
+                            session.Kick(p.Id);
+                        }
+                        else
+                        {
+                            _kickArmed = p.Id;
+                            _kickArmedAt = Time.unscaledTime;
+                        }
+                    }
+                }
+                GUILayout.EndHorizontal();
             }
             if (!string.IsNullOrEmpty(Multiplayer.Map))
             {
@@ -220,6 +243,13 @@ namespace RavenfieldVR.UI
             else
             {
                 GUILayout.Label("When the host starts the match, it starts here by itself.");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(Multiplayer.OtherSide ? "You play AGAINST the host (from his next match)." : "You play on the host's side.");
+                if (menus && GUILayout.Button(Multiplayer.OtherSide ? "Join his side" : "Play against", GUILayout.Width(110f)))
+                {
+                    Multiplayer.OtherSide = !Multiplayer.OtherSide;
+                }
+                GUILayout.EndHorizontal();
             }
             if (!menus)
             {
