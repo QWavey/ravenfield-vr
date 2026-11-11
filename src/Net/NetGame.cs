@@ -1182,6 +1182,7 @@ namespace RavenfieldVR.Net
                 _loadingSince = -1f;
                 Log.WarnOnce("net-loading-long", "Multiplayer: a level said to be loading for 90 s; taken as loaded.");
             }
+            NetMods.Keep(session); // (the host's mods told again when they change)
             bool inMatchNow = InMatch && !_loading;
             if (session.IsHost && _hostWasInMatch && !inMatchNow && !_loading && session.PlayerCount > 1)
             {

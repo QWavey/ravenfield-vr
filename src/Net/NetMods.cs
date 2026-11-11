@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using RavenfieldVR.Core;
 using Steamworks;
+using UnityEngine;
 
 namespace RavenfieldVR.Net
 {
@@ -48,6 +49,46 @@ namespace RavenfieldVR.Net
                 }
             }
             return mine;
+        }
+
+        private static float _nextLook;
+        private static long _toldSum = long.MinValue;
+
+        /// <summary>
+        /// On the host, every five seconds: his mods as they are now, told again to everyone when they changed (switched on or off in
+        /// the game's Mods menu, one subscribed). Told only when a player joined, a change made after it was never heard of by those
+        /// already in (modded multiplayer hunt, 2026-11-11).
+        /// </summary>
+        internal static void Keep(NetSession session)
+        {
+            if (session == null || !session.IsHost || Time.unscaledTime < _nextLook)
+            {
+                return;
+            }
+            _nextLook = Time.unscaledTime + 5f;
+            List<ulong> mine = Mine();
+            long sum = mine.Count;
+            foreach (ulong id in mine)
+            {
+                sum = unchecked(sum * 31 + (long)id);
+            }
+            if (_toldSum == long.MinValue)
+            {
+                _toldSum = sum; // (the first look: who joins is told at his joining)
+                return;
+            }
+            if (sum == _toldSum)
+            {
+                return;
+            }
+            _toldSum = sum;
+            foreach (NetPlayer p in session.Players)
+            {
+                if (p.Id != session.LocalId)
+                {
+                    Tell(session, p.Id);
+                }
+            }
         }
 
         /// <summary>The host tells one player (who just joined) his mods, in messages of 64 numbers.</summary>
@@ -224,6 +265,8 @@ namespace RavenfieldVR.Net
         /// <summary>The session ended: the next host's list is his own.</summary>
         internal static void Clear()
         {
+            _toldSum = long.MinValue; // (a new session: its first look is its own)
+            _nextLook = 0f;
             Hosts.Clear();
             Wanted.Clear();
             _expected = -1;
