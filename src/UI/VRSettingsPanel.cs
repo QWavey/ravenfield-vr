@@ -50,6 +50,16 @@ namespace RavenfieldVR.UI
             Canvas = UiKit.MakePanel("RavenfieldVR Settings", eventCamera, out _root, out _content);
             Build();
             _root.SetActive(false);
+            // (A session started or ended while it is open: what is greyed for a shared match at once, not up to 2 s later; scout.)
+            Net.Multiplayer.Changed += OnMultiplayerChanged;
+        }
+
+        private void OnMultiplayerChanged()
+        {
+            if (_root != null && _root.activeSelf)
+            {
+                Refresh();
+            }
         }
 
         // ---- layout ---------------------------------------------------------------------------------
@@ -543,6 +553,7 @@ namespace RavenfieldVR.UI
 
         public void Dispose()
         {
+            Net.Multiplayer.Changed -= OnMultiplayerChanged;
             if (_root != null)
             {
                 UnityEngine.Object.Destroy(_root);
