@@ -614,6 +614,10 @@ namespace RavenfieldVR.Net
             }
             StartTold.Remove(p.Id); // (his number may be the next newcomer's: that one is told the match afresh)
             // (His dropped guns shown here go with him: he can no longer pick them up.)
+            foreach (int key in PendingDrops.Keys.Where(k => k >> 16 == p.Id).ToArray())
+            {
+                PendingDrops.Remove(key);
+            }
             foreach (int key in ShownDrops.Keys.Where(k => k >> 16 == p.Id).ToArray())
             {
                 Weapons.WeaponSystem.Instance?.Drops?.RemoveShown(ShownDrops[key]);
@@ -781,6 +785,16 @@ namespace RavenfieldVR.Net
             session.Send(DropGone, Out, true);
         }
 
+        /// <summary>A drop told while this PC loads the match: shown once it is in (it was lost, and the gun never seen here).</summary>
+        private sealed class PendingDrop
+        {
+            public string Weapon;
+            public Vector3 At, Velocity;
+            public Quaternion Turn;
+        }
+
+        private static readonly Dictionary<int, PendingDrop> PendingDrops = new Dictionary<int, PendingDrop>();
+
         private static void ShowDrop(byte sender, ref NetReader r)
         {
             int key = sender << 16 | r.UShort();
@@ -788,6 +802,30 @@ namespace RavenfieldVR.Net
             Vector3 at = r.Vector();
             Quaternion turn = r.Rotation();
             Vector3 velocity = r.SmallVector();
+            if (_loading && Finite(at) && Finite(velocity) && PendingDrops.Count < 64)
+            {
+                PendingDrops[key] = new PendingDrop { Weapon = weapon, At = at, Turn = turn, Velocity = velocity };
+                return;
+            }
+            ShowDropNow(key, weapon, at, turn, velocity);
+        }
+
+        /// <summary>The drops told while this PC loaded, now that the match is in.</summary>
+        private static void ShowPendingDrops()
+        {
+            if (PendingDrops.Count == 0 || Weapons.WeaponSystem.Instance == null || Weapons.WeaponSystem.Instance.Drops == null)
+            {
+                return; // (none, or the match's weapon system not up yet: next frame)
+            }
+            foreach (KeyValuePair<int, PendingDrop> kv in PendingDrops.ToArray())
+            {
+                ShowDropNow(kv.Key, kv.Value.Weapon, kv.Value.At, kv.Value.Turn, kv.Value.Velocity);
+            }
+            PendingDrops.Clear();
+        }
+
+        private static void ShowDropNow(int key, string weapon, Vector3 at, Quaternion turn, Vector3 velocity)
+        {
             Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
             if (!InMatch || _loading || system == null || system.Drops == null || !Finite(at) || !Finite(velocity) || ShownDrops.Count > 64)
             {
@@ -1131,6 +1169,7 @@ namespace RavenfieldVR.Net
                     case DropGone:
                     {
                         int key = sender << 16 | r.UShort();
+                        PendingDrops.Remove(key);
                         if (ShownDrops.TryGetValue(key, out Weapons.DroppedWeapon gone))
                         {
                             ShownDrops.Remove(key);
@@ -1407,12 +1446,17 @@ namespace RavenfieldVR.Net
             Multiplayer.InMatch = InMatch && !_loading;
             if (!InMatch || _loading)
             {
+                if (!_loading)
+                {
+                    PendingDrops.Clear(); // (in the menus: a load that ended there has no match to show them in)
+                }
                 if (Remotes.Count > 0 || Owned.Count > 0)
                 {
                     Clear(false);
                 }
                 return;
             }
+            ShowPendingDrops();
             if (_backPending)
             {
                 _backPending = false;
@@ -2453,7 +2497,7 @@ namespace RavenfieldVR.Net
         {
             _loading = false;
             EntryByKey.Clear(); // (the weapons found by name are the last scene's)
-            ShownDrops.Clear(); // (their copies went with the scene)
+            ShownDrops.Clear(); // (their copies went with the scene; the drops told during the load are kept: PendingDrops)
             _ended = false;
             _matchTold = 0;
             HeldFlags.Clear(); // (they went with the old scene)
