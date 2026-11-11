@@ -105,7 +105,8 @@ namespace RavenfieldVR.Rig
             }
             _nextHum = Time.unscaledTime + 0.1f;
             // (By the throttle as well as the engine running: power alone is on or off, the same at idle and at full throttle.)
-            float power = Mathf.Clamp01(v.engine.power) * (0.3f + 0.7f * Mathf.Clamp01(Mathf.Abs(v.engine.targetThrottle)));
+            float push = Mathf.Max(Mathf.Abs(v.engine.targetThrottle), v.Velocity().magnitude / 40f); // (most vehicles do not set the throttle: their speed then)
+            float power = Mathf.Clamp01(v.engine.power) * (0.3f + 0.7f * Mathf.Clamp01(push));
             if (power < 0.05f)
             {
                 return;
