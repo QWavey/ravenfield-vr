@@ -111,25 +111,11 @@ foreach ($line in $entries) {
 }
 
 $pluginDir = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR'
-if (Test-Path -LiteralPath $pluginDir) { Remove-Item -LiteralPath $pluginDir -Recurse -Force }
-# The record is gone with that folder: the backup copies put back go, then their folders when nothing else is in them (each install
-# and uninstall with a conflicting file left another folder of them; as the setup's uninstall; round-7 scout).
-foreach ($copy in $restoredFrom) {
-    if (Test-Path -LiteralPath $copy) { Remove-Item -LiteralPath $copy -Force -ErrorAction SilentlyContinue }
+# The mod's files go, its record LAST (below): removed here first, an uninstall stopped after it (a file of BepInEx in use) could
+# not be run again ("No install manifest ... nothing to uninstall") and left BepInEx and its loader behind (installer scout, 2026-11-11).
+if (Test-Path -LiteralPath $pluginDir) {
+    Get-ChildItem -LiteralPath $pluginDir -Force | Where-Object { $_.Name -ne 'install-manifest.txt' } | Remove-Item -Recurse -Force
 }
-if ($backup) {
-    $backupRoot = [System.IO.Path]::GetFullPath($backup).TrimEnd([char]'\', [char]'/')
-    foreach ($folder in @($restoredFrom | ForEach-Object { Split-Path $_ } | Sort-Object -Unique | Sort-Object Length -Descending)) {
-        $d = $folder
-        while ($d -and $d.TrimEnd([char]'\', [char]'/').Length -ge $backupRoot.Length) {
-            if ((Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force)) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }
-            else { break }
-            $d = Split-Path $d
-        }
-    }
-}
-$backupsRoot = Join-Path $GameDir 'RavenfieldVR-backup'
-if ((Test-Path -LiteralPath $backupsRoot) -and -not (Get-ChildItem -LiteralPath $backupsRoot -Force)) { Remove-Item -LiteralPath $backupsRoot -Force -ErrorAction SilentlyContinue }
 $subsystems = Join-Path $GameDir 'ravenfield_Data/UnitySubsystems/XRSDKOpenVR'
 if (Test-Path -LiteralPath $subsystems) { Remove-Item -LiteralPath $subsystems -Recurse -Force }
 $subsystemsRoot = Join-Path $GameDir 'ravenfield_Data/UnitySubsystems'
@@ -161,4 +147,24 @@ if ($installedBepInEx) {
         Write-Step 'Removed BepInEx (it was installed by Ravenfield VR).'
     }
 }
+# All else done: the backup copies put back go, then their folders when nothing else is in them (each install and uninstall with a
+# conflicting file left another folder of them; as the setup's uninstall; round-7 scout). Last of all, with the record: gone before,
+# a second try after a stop found no copy to put back and deleted another tool's restored winhttp.dll as BepInEx's own.
+foreach ($copy in $restoredFrom) {
+    if (Test-Path -LiteralPath $copy) { Remove-Item -LiteralPath $copy -Force -ErrorAction SilentlyContinue }
+}
+if ($backup) {
+    $backupRoot = [System.IO.Path]::GetFullPath($backup).TrimEnd([char]'\', [char]'/')
+    foreach ($folder in @($restoredFrom | ForEach-Object { Split-Path $_ } | Sort-Object -Unique | Sort-Object Length -Descending)) {
+        $d = $folder
+        while ($d -and $d.TrimEnd([char]'\', [char]'/').Length -ge $backupRoot.Length) {
+            if ((Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force)) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }
+            else { break }
+            $d = Split-Path $d
+        }
+    }
+}
+$backupsRoot = Join-Path $GameDir 'RavenfieldVR-backup'
+if ((Test-Path -LiteralPath $backupsRoot) -and -not (Get-ChildItem -LiteralPath $backupsRoot -Force)) { Remove-Item -LiteralPath $backupsRoot -Force -ErrorAction SilentlyContinue }
+if (Test-Path -LiteralPath $pluginDir) { Remove-Item -LiteralPath $pluginDir -Recurse -Force }
 Write-Step 'Ravenfield VR uninstalled.'
