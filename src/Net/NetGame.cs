@@ -57,6 +57,8 @@ namespace RavenfieldVR.Net
             public float SeatRetryAt;
             /// <summary>Where his stand-in was shown against the newest word, faded out while he is carried (a ladder, a jump, a fall).</summary>
             public Vector3 AirOffset;
+            /// <summary>He is being carried (a ladder, a jump, a fall) since the last frame: the offset belongs to that.</summary>
+            public bool Carried;
 
             /// <summary>
             /// Whether his told place is going anywhere: it moved 20 cm along the ground from where it was (<see cref="Anchor"/>) within
@@ -1213,8 +1215,10 @@ namespace RavenfieldVR.Net
                             remote.Flags |= r.Byte() << 8;
                             Vector3 told = r.Vector();
                             // (What he is shown at against the new word: faded out while he is carried, see the ladder and jump placing.)
-                            Vector3 shownOff = remote.Actor != null && remote.HasState ? remote.Actor.Position() - told : Vector3.zero;
-                            remote.AirOffset = shownOff.sqrMagnitude < 3f * 3f ? shownOff : Vector3.zero;
+                            // (Only while he is carried: a walking stand-in's lag behind the word went into the air with him at a jump,
+                            // and glided out at 30 m/s; held to 0.6 m; scout.)
+                            Vector3 shownOff = remote.Carried && remote.Actor != null && remote.HasState ? remote.Actor.Position() - told : Vector3.zero;
+                            remote.AirOffset = Vector3.ClampMagnitude(shownOff, 0.6f);
                             remote.Position = told;
                             float vx = (sbyte)r.Byte() / 10f, vz = (sbyte)r.Byte() / 10f, vy = (sbyte)r.Byte() / 5f;
                             remote.Velocity = new Vector3(vx, vy, vz);
@@ -2536,6 +2540,7 @@ namespace RavenfieldVR.Net
                     float flat = new Vector2(off.x, off.z).magnitude;
                     if (r.Is(Seated) || flat > 4f || Mathf.Abs(off.y) > 3f)
                     {
+                        r.Carried = false;
                         if (!a.fallenOver && !a.IsSeated())
                         {
                             a.SetPositionAndRotation(r.Position, Quaternion.Euler(0f, r.Yaw, 0f));
@@ -2549,9 +2554,19 @@ namespace RavenfieldVR.Net
                         Vector3 want = r.Position + r.Velocity * age;
                         // Where the word puts him now, with what he was shown at against the newest word fading in a tenth of a second
                         // (eased toward it, he trailed by his speed over 12: a metre in a fall, as a copied vehicle did).
+                        if (!r.Carried)
+                        {
+                            // (Into the carrying: from where he stands now, the difference held to 0.6 m and fading.)
+                            r.Carried = true;
+                            r.AirOffset = Vector3.ClampMagnitude(a.Position() - want, 0.6f);
+                        }
                         r.AirOffset *= Mathf.Exp(-10f * Time.deltaTime);
                         Vector3 at = want + r.AirOffset;
                         a.SetPositionAndRotation(at, a.transform.rotation);
+                    }
+                    else
+                    {
+                        r.Carried = false;
                     }
                 }
             }

@@ -564,8 +564,11 @@ namespace RavenfieldVR.Net
                         continue;
                     }
                     // The axis that turns this finger's direction toward the palm: the finger's own way crossed with the palm's.
-                    Transform next = j < 2 ? animator.GetBoneTransform(FingerBones[f][j + 1]) : null;
-                    Vector3 dir = next != null ? (next.position - bone.position).normalized : along;
+                    // (The tip: its finger's own last segment's way, from the joint before; the middle finger's, taken for every tip,
+                    // bent the others' tips sideways; scout.)
+                    Transform from = j < 2 ? bone : animator.GetBoneTransform(FingerBones[f][1]);
+                    Transform next = j < 2 ? animator.GetBoneTransform(FingerBones[f][j + 1]) : bone;
+                    Vector3 dir = next != null && from != null && next != from ? (next.position - from.position).normalized : along;
                     Vector3 axis = Vector3.Cross(dir, palm);
                     if (axis.sqrMagnitude < 1e-4f)
                     {

@@ -58,7 +58,8 @@ namespace RavenfieldVR.Net
         private static ushort _nextId = 1;
         private static float _nextState, _nextInfo, _nextSeat, _nextSeatResend, _catalogAt = -100f;
         private static bool _patched, _applyingHit;
-        private static float _matchSeenAt = -1f;
+        private static float _matchSeenAt = -1f, _nextFirstSeenPrune;
+        private static readonly List<Vehicle> Scratch2 = new List<Vehicle>();
 
         /// <summary>A stand-in is being seated or unseated by its owner's word (the patches let it through).</summary>
         internal static bool Seating;
@@ -249,6 +250,23 @@ namespace RavenfieldVR.Net
             if (_matchSeenAt < 0f)
             {
                 _matchSeenAt = Time.unscaledTime;
+            }
+            if (FirstSeen.Count > 0 && Time.unscaledTime >= _nextFirstSeenPrune)
+            {
+                // (Destroyed ones out: kept, each held its vehicle for the scene; scout.)
+                _nextFirstSeenPrune = Time.unscaledTime + 10f;
+                Scratch2.Clear();
+                foreach (Vehicle v in FirstSeen.Keys)
+                {
+                    if (v == null)
+                    {
+                        Scratch2.Add(v);
+                    }
+                }
+                foreach (Vehicle v in Scratch2)
+                {
+                    FirstSeen.Remove(v);
+                }
             }
             if (session.IsHost)
             {
@@ -852,8 +870,9 @@ namespace RavenfieldVR.Net
                     return;
                 }
             }
-            // (In a match's first seconds a vehicle too waits a telling: this PC's own map vehicles may not be listed yet.)
-            if (turret || Time.unscaledTime - _matchSeenAt < 10f)
+            // (In a match's first seconds a vehicle too waits a telling when one of its name stands near on this PC, not yet listed as
+            // it can be taken; with none near it is made at once: it waited 3 s for nothing; scout.)
+            if (turret || Time.unscaledTime - _matchSeenAt < 10f && SameNameNear(key, pos))
             {
                 TurretTries.TryGetValue(id, out int tries);
                 TurretTries[id] = tries + 1;
@@ -908,6 +927,24 @@ namespace RavenfieldVR.Net
         }
 
         private static readonly Dictionary<ushort, int> TurretTries = new Dictionary<ushort, int>();
+
+        private static bool SameNameNear(string key, Vector3 pos)
+        {
+            List<Vehicle> list = ActorManager.instance != null ? ActorManager.instance.vehicles : null;
+            if (list == null)
+            {
+                return false;
+            }
+            foreach (Vehicle v in list)
+            {
+                if (v != null && !ByVehicle.ContainsKey(v) && (v.transform.position - pos).sqrMagnitude < 30f * 30f
+                    && string.Equals(KeyOf(v), key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>This PC's own turret of that name standing within 2.5 m of the told place, not yet taken as one of the host's.</summary>
         private static Vehicle LocalMatch(string key, Vector3 pos, bool turret)
