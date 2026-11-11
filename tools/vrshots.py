@@ -86,8 +86,15 @@ class NullHeadset:
         time.sleep(2)
         cfg = json.load(open(STEAMVR_CFG, encoding='utf-8'))
         if cfg.get('steamvr', {}).get('forcedDriver') == 'null':
-            raise SystemExit('SteamVR is already on the null driver (a run that did not restore?): '
-                             'python tools/vrshots.py --restore puts your own settings back.')
+            # A run that was killed before it could restore: put back from its own backup (hash checked) and gone on from
+            # there. Refused outright before, every later run ended here with no report, and with its output hidden a
+            # morning's runs "ran" for nothing (2026-11-11).
+            for line in restore_left_over(stop=False):
+                log(line)
+            cfg = json.load(open(STEAMVR_CFG, encoding='utf-8'))
+            if cfg.get('steamvr', {}).get('forcedDriver') == 'null':
+                raise SystemExit('SteamVR is on the null driver and could not be put back from a backup (see the lines above): '
+                                 'set your headset back in SteamVR by hand, then run again.')
         os.makedirs(BACKUPS, exist_ok=True)
         self.hash = sha(STEAMVR_CFG)
         self.backup = os.path.join(BACKUPS, f'steamvr.vrsettings.{time.strftime("%Y%m%d-%H%M%S")}.{self.hash[:8]}')

@@ -6,7 +6,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 - Measured in the game (`ReloadInteractions.SmoothnessSelfCheck`, `vrshots --weapon "=RK-44" --weapon "=S-IND7"`): a magazine freed from the gun 90 -> 15 mm in its worst frame (the pace is inside `MagazineProp.KeepOffGun`'s sweep, `Paced`); the switch off the well's line 26 -> 10 to 16 mm (`ShowAt`, `_switchOffset`); a long gun in one hand through a snap turn 0.0 deg behind (`VRRig.LastSnapDegrees`).
 - In code, for the headset: `GripLetGoBelow` (0.3, at most 0.15 s after the click let go), `MagazineInsertHelp`, `ShellsPerReach`, `MagazineReach`, the eased arms.
-- A killed test run leaves SteamVR on the null driver and every later run ends at once with no report: `python tools/vrshots.py --restore` first.
+- A killed test run leaves SteamVR on the null driver; since 2026-11-11 afternoon the next run puts the settings back from its own backup by itself and goes on (before, every later run ended at once with no report).
 - Open: 377.1 to 377.3 and 376.1 wait for the user's next play; the Glock's ballistics override waits for the user's word.
 
 ## Right now

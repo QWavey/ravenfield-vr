@@ -5,7 +5,7 @@
     {
         public const string Guid = "com.qwavey.ravenfieldvr";
         public const string Name = "Ravenfield VR";
-        public const string Version = "1.17.4";
+        public const string Version = "1.17.5";
 
         /// <summary>SteamVR application key used when the game is not launched through Steam.</summary>
         public const string SteamVrAppKey = "steam.app.636480";
