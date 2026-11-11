@@ -171,7 +171,10 @@ namespace RavenfieldVR.Input
             // Held as the peek (the game's own SteamVR binding does the same): the Scoreboard key opens it focused, which frees
             // the cursor, which counts as a menu here, which let the key go, which closed it: the whole wrist view (map,
             // scoreboard, match bar, wrist display) came and went every other frame.
-            Set(KeyBinds.PeekScoreboard, _scoreboardWithMap && !menu && !PanelOpen && WristLookGesture && GameContext.InGame);
+            // Not in a seat (a car, a tank, a helicopter): the hands on the wheel or the stick turn the wrist and the scoreboard came up
+            // over the road (the user, 2026-11-11: "when I turn my hand in a car a scoreboard shows ... can we remove that in cars").
+            bool seated = LocalPlayer.actor != null && LocalPlayer.actor.IsSeated();
+            Set(KeyBinds.PeekScoreboard, _scoreboardWithMap && !menu && !PanelOpen && WristLookGesture && GameContext.InGame && !seated);
             // Clicking a menu or one of the mod's panels with the laser must not also pull the gun's trigger.
             // (Not while the match is paused with no menu either: the game's own fire check looks at the cursor, not the pause, and a
             // trigger held into the dashboard fired; vehicles hunt, 2026-10-21.)
