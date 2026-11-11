@@ -171,6 +171,7 @@ namespace RavenfieldVR.Net
             session.Joined -= OnJoined;
             session.Left -= OnLeft;
             _session = null;
+            Log.Guard("Multiplayer: own rules back", GiveRulesBack);
             _lastStart = null;
             _loading = false;
             _lobbyTold = "";
@@ -224,9 +225,143 @@ namespace RavenfieldVR.Net
             Out.Byte((byte)(p != null ? Mathf.Clamp(p.playerTeam, 0, 1) : 0));
             Out.Float(p != null ? p.GetRespawnTime() : 5f);
             Out.Byte((byte)(p != null ? Mathf.Clamp(p.GetGameLength(), 0, 255) : 1));
+            PutRules(Out);
             _lastStart = Out.ToArray();
             Multiplayer.Map = !string.IsNullOrEmpty(entry.metaData.displayName) ? entry.metaData.displayName : Path.GetFileNameWithoutExtension(Path.GetFileName(entry.sceneName));
             Multiplayer.Mode = mode;
+        }
+
+        // ---- the host's rules: mutators and team skins ----------------------------------------------------------------------
+        // Each PC started its own mutators and team skins (the host's infinite ammo or no knockdown on his PC only, a joiner's left over
+        // from his own menu; the host's soldiers in another skin on each PC; modded multiplayer hunt, 2026-11-11). The host tells his with
+        // the match; a joined PC plays with them (those it has: the others are named in a notice), and gets its own back when the session
+        // ends. Each mutator runs with this PC's own settings for it.
+
+        private const int MaxRules = 32;
+
+        private static string ModKey(string name, ModInformation mod) =>
+            mod != null && mod.IsWorkshopItem() ? name + KeySeparator + mod.workshopItemId.m_PublishedFileId : name ?? "";
+
+        private static void PutRules(NetWriter w)
+        {
+            GameInfoContainer info = GameManager.instance != null ? GameManager.instance.gameInfo : null;
+            var mutators = info != null && info.activeMutators != null ? info.activeMutators.Where(m => m != null).Take(MaxRules).ToList() : new List<MutatorEntryData>();
+            w.Byte((byte)mutators.Count);
+            foreach (MutatorEntryData m in mutators)
+            {
+                w.String(ModKey(m.name, m.sourceMod), 160);
+            }
+            for (int team = 0; team < 2; team++)
+            {
+                ActorSkin skin = info != null && info.team != null && team < info.team.Length && info.team[team] != null ? info.team[team].skin : null;
+                w.String(skin != null ? ModKey(skin.name, skin.sourceMod) : "", 160);
+            }
+        }
+
+        /// <summary>This PC's own rules from before the first shared match, given back when the session ends (null: none taken).</summary>
+        private static List<MutatorEntryData> _ownMutators;
+        private static ActorSkin[] _ownSkins;
+
+        private static bool SameMod(ModInformation mod, ulong id) =>
+            id == 0ul ? mod == null || !mod.IsWorkshopItem() : mod != null && mod.IsWorkshopItem() && mod.workshopItemId.m_PublishedFileId == id;
+
+        private static void SplitKey(string key, out string name, out ulong mod)
+        {
+            int cut = key.IndexOf(KeySeparator);
+            name = cut >= 0 ? key.Substring(0, cut) : key;
+            mod = cut >= 0 && ulong.TryParse(key.Substring(cut + 1), out ulong id) ? id : 0ul;
+        }
+
+        private static void TakeRules(ref NetReader r)
+        {
+            if (r.Remaining <= 0)
+            {
+                return; // (a host of before 1.17.7 tells none)
+            }
+            int n = Mathf.Min(r.Byte(), MaxRules);
+            var keys = new List<string>();
+            for (int i = 0; i < n; i++)
+            {
+                keys.Add(r.String(160));
+            }
+            string[] skins = { r.String(160), r.String(160) };
+            GameInfoContainer info = GameManager.instance != null ? GameManager.instance.gameInfo : null;
+            ModManager mods = ModManager.instance;
+            if (info == null || mods == null)
+            {
+                return;
+            }
+            if (_ownMutators == null)
+            {
+                _ownMutators = info.activeMutators != null ? info.activeMutators.ToList() : new List<MutatorEntryData>();
+                _ownSkins = info.team != null ? info.team.Select(t => t != null ? t.skin : null).ToArray() : new ActorSkin[0];
+            }
+            var lacking = new List<string>();
+            info.activeMutators.Clear();
+            foreach (string key in keys)
+            {
+                SplitKey(key, out string name, out ulong mod);
+                IEnumerable<MutatorEntryData> all = (mods.loadedMutators ?? new List<MutatorEntryData>()).Where(m => m != null && m.name == name);
+                MutatorEntryData found = all.FirstOrDefault(m => SameMod(m.sourceMod, mod)) ?? all.FirstOrDefault();
+                if (found != null)
+                {
+                    info.activeMutators.Add(found);
+                }
+                else
+                {
+                    lacking.Add(name);
+                }
+            }
+            for (int team = 0; team < 2 && info.team != null && team < info.team.Length; team++)
+            {
+                if (info.team[team] == null || string.IsNullOrEmpty(skins[team]))
+                {
+                    continue;
+                }
+                SplitKey(skins[team], out string name, out ulong mod);
+                IEnumerable<ActorSkin> all = (mods.actorSkins ?? new List<ActorSkin>()).Where(k => k != null && string.Equals(k.name, name, StringComparison.OrdinalIgnoreCase));
+                ActorSkin found = all.FirstOrDefault(k => SameMod(k.sourceMod, mod)) ?? all.FirstOrDefault();
+                if (found != null)
+                {
+                    info.team[team].skin = found;
+                }
+                else
+                {
+                    lacking.Add(name + " (skin)");
+                }
+            }
+            Log.Info($"Multiplayer: the host's rules: {keys.Count} mutator(s), {info.activeMutators.Count} on here; skins '{skins[0]}', '{skins[1]}'"
+                     + (lacking.Count > 0 ? "; not on this PC: " + string.Join(", ", lacking) : "") + ".");
+            if (lacking.Count > 0)
+            {
+                UI.UISystem.Instance?.Notice?.Show($"The host plays with {string.Join(", ", lacking.Take(4))}{(lacking.Count > 4 ? $" and {lacking.Count - 4} more" : "")}, "
+                                                   + "which this PC does not have: the match goes on without. Get the host's mods.", 12f);
+            }
+        }
+
+        /// <summary>The session ended: this PC's own mutators and skins back (the host's were its only while it played with him).</summary>
+        private static void GiveRulesBack()
+        {
+            GameInfoContainer info = GameManager.instance != null ? GameManager.instance.gameInfo : null;
+            if (_ownMutators == null || info == null)
+            {
+                _ownMutators = null;
+                return;
+            }
+            info.activeMutators.Clear();
+            foreach (MutatorEntryData m in _ownMutators)
+            {
+                info.activeMutators.Add(m);
+            }
+            for (int team = 0; team < _ownSkins.Length && info.team != null && team < info.team.Length; team++)
+            {
+                if (info.team[team] != null)
+                {
+                    info.team[team].skin = _ownSkins[team];
+                }
+            }
+            _ownMutators = null;
+            _ownSkins = null;
         }
 
         private static void OnJoined(NetPlayer p)
@@ -657,6 +792,7 @@ namespace RavenfieldVR.Net
             int team = r.Byte();
             float respawn = r.Float();
             int length = r.Byte();
+            TakeRules(ref r); // (before the level starts: the game spawns the mutators and skins the teams as it starts)
             MapEntryData map = FindMap(custom, scene);
             if (map == null)
             {
