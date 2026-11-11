@@ -24,7 +24,7 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
 
@@ -255,6 +255,12 @@ namespace RavenfieldVR.Net
             {
                 Remove(r);
             }
+            // (His dropped guns shown here go with him: he can no longer pick them up.)
+            foreach (int key in ShownDrops.Keys.Where(k => k >> 16 == p.Id).ToArray())
+            {
+                Weapons.WeaponSystem.Instance?.Drops?.RemoveShown(ShownDrops[key]);
+                ShownDrops.Remove(key);
+            }
         }
 
         private static bool InMatch => ActorManager.instance != null && LocalPlayer.actor != null && GameManager.instance != null && !GameManager.instance.isInNoGameplayScene;
@@ -374,6 +380,75 @@ namespace RavenfieldVR.Net
         /// of his slots it came from, from where and how fast, and see it fly from his soldier's hand. What it hits is decided here,
         /// on the thrower's PC, as for every shot.
         /// </summary>
+        // ---- dropped guns ---------------------------------------------------------------------------------------------
+        // The player's own gun let go of in a shared match (the user's friend, 2026-11-11: "when you drop your gun there is nothing"):
+        // the others are told the gun, where it is and how fast; each shows a copy that falls there and cannot be picked up (it is
+        // the dropper's). When his drop goes (picked up again, back to its holster), they take theirs away.
+
+        private static int _nextDropId;
+
+        /// <summary>The copies shown of other players' dropped guns (key: the sender's number and the drop's).</summary>
+        private static readonly Dictionary<int, Weapons.DroppedWeapon> ShownDrops = new Dictionary<int, Weapons.DroppedWeapon>();
+
+        internal static void OnOwnDrop(Weapons.DroppedWeapon drop, Vector3 velocity)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected || session.PlayerCount < 2 || drop == null || drop.Go == null || drop.Entry == null)
+            {
+                return;
+            }
+            _nextDropId = _nextDropId % 65000 + 1;
+            drop.NetId = _nextDropId;
+            Transform t = drop.Go.transform;
+            Out.Reset();
+            Out.UShort((ushort)drop.NetId);
+            Out.String(WeaponKey(drop.Entry), 160);
+            Out.Vector(t.position);
+            Out.Rotation(t.rotation);
+            Out.SmallVector(Vector3.ClampMagnitude(velocity, 30f));
+            session.Send(Dropped, Out, true);
+        }
+
+        internal static void OnOwnDropGone(int id)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected || session.PlayerCount < 2 || id <= 0)
+            {
+                return;
+            }
+            Out.Reset();
+            Out.UShort((ushort)id);
+            session.Send(DropGone, Out, true);
+        }
+
+        private static void ShowDrop(byte sender, ref NetReader r)
+        {
+            int key = sender << 16 | r.UShort();
+            string weapon = r.String(160);
+            Vector3 at = r.Vector();
+            Quaternion turn = r.Rotation();
+            Vector3 velocity = r.SmallVector();
+            Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
+            if (!InMatch || _loading || system == null || system.Drops == null || !Finite(at) || !Finite(velocity) || ShownDrops.Count > 64)
+            {
+                return;
+            }
+            WeaponManager.WeaponEntry entry = EntryNamed(weapon);
+            if (entry == null)
+            {
+                return; // (a weapon this PC lacks: logged once by EntryNamed)
+            }
+            if (ShownDrops.TryGetValue(key, out Weapons.DroppedWeapon old))
+            {
+                system.Drops.RemoveShown(old);
+            }
+            Weapons.DroppedWeapon shown = system.Drops.Show(entry, new Runtime.RigidPose(at, turn), velocity);
+            if (shown != null)
+            {
+                ShownDrops[key] = shown;
+            }
+        }
+
         internal static void OnThrown(Projectile p, Vector3 velocity)
         {
             NetSession session = _session;
@@ -665,6 +740,19 @@ namespace RavenfieldVR.Net
                     case Thrown:
                         ShowThrow(sender, ref r);
                         break;
+                    case Dropped:
+                        ShowDrop(sender, ref r);
+                        break;
+                    case DropGone:
+                    {
+                        int key = sender << 16 | r.UShort();
+                        if (ShownDrops.TryGetValue(key, out Weapons.DroppedWeapon gone))
+                        {
+                            ShownDrops.Remove(key);
+                            Weapons.WeaponSystem.Instance?.Drops?.RemoveShown(gone);
+                        }
+                        break;
+                    }
                     case NetMods.Kind:
                         NetMods.Take(sender, ref r, sender == 0 && _session != null && !_session.IsHost);
                         break;
@@ -1852,6 +1940,7 @@ namespace RavenfieldVR.Net
         {
             _loading = false;
             EntryByKey.Clear(); // (the weapons found by name are the last scene's)
+            ShownDrops.Clear(); // (their copies went with the scene)
             _ended = false;
             _matchTold = 0;
             HeldFlags.Clear(); // (they went with the old scene)

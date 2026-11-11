@@ -33,6 +33,10 @@ namespace RavenfieldVR.Weapons
         /// (a loose magazine of a swapped-away rifle lost its rounds when the rifle was skipped here; 2026-10-19).
         /// </summary>
         public bool PlayerOwned;
+        /// <summary>Another PC's player's own gun, shown where he let go of it in a shared match: not to be picked up here (it is his).</summary>
+        public bool Shown;
+        /// <summary>In a shared match, the number this PC's own dropped gun is told by (0: not told).</summary>
+        public int NetId;
         /// <summary>Put down with its magazine out: it comes back without one (the rounds in that magazine are the magazine's).</summary>
         public bool MagOut;
         /// <summary>Put down locked back on nothing chambered: it comes back caught back, with its magazine's rounds loaded.</summary>
@@ -180,9 +184,40 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>
+        /// Another PC's player's own gun shown where he let go of it (a shared match): a copy of its model, not to be picked up here, taken
+        /// away again when he picks it up (<see cref="RemoveShown"/>). Null when this PC lacks the weapon.
+        /// </summary>
+        internal DroppedWeapon Show(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 velocity)
+        {
+            if (entry == null || entry.prefab == null)
+            {
+                return null;
+            }
+            DroppedWeapon d = Spawn(entry, pose, DropScale(Vector3.one), velocity, 0, 0, keep: true);
+            if (d != null)
+            {
+                d.Shown = true;
+            }
+            return d;
+        }
+
+        /// <summary>A shown copy taken away (its owner picked his gun up again, or left).</summary>
+        internal void RemoveShown(DroppedWeapon d)
+        {
+            if (d != null && d.Shown && _drops.Contains(d))
+            {
+                Remove(d);
+            }
+        }
+
         private void Remove(DroppedWeapon d)
         {
             _drops.Remove(d);
+            if (d.NetId > 0)
+            {
+                Net.NetGame.OnOwnDropGone(d.NetId); // (picked up again, back to its holster, or gone: the others take theirs away)
+            }
             if (d.Go != null)
             {
                 UnityEngine.Object.Destroy(d.Go);

@@ -338,7 +338,7 @@ namespace RavenfieldVR.Weapons
             bestDist = PickupReach;
             foreach (DroppedWeapon d in _drops)
             {
-                if (d.Go == null || d.Colliders == null)
+                if (d.Go == null || d.Colliders == null || d.Shown)
                 {
                     continue;
                 }

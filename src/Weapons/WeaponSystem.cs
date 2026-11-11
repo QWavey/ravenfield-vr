@@ -1510,6 +1510,7 @@ namespace RavenfieldVR.Weapons
                 HolsterToEmptyHand(actor);
                 return;
             }
+            Net.NetGame.OnOwnDrop(drop, velocity); // (in a shared match the others see it fall where it fell: they saw nothing)
             ReleaseHeld();
             actor.HolsterActiveWeapon();
             actor.DropWeapon(slot);
