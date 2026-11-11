@@ -651,6 +651,19 @@ namespace RavenfieldVR.Net
                             s.ToldDead = true;
                             DieHere(s);
                         }
+                        else if (!s.V.dead)
+                        {
+                            // Its smoke below half health and its fire while it burns, as on the owner's (the damage that starts them is
+                            // the owner's alone: a copy hit hard showed nothing until it blew up).
+                            if (s.V.smokeParticles != null && s.V.health < 0.5f * s.V.maxHealth && !s.V.smokeParticles.isPlaying)
+                            {
+                                s.V.smokeParticles.Play();
+                            }
+                            if (s.V.fireParticles != null && (flags & 2) != 0 && !s.V.fireParticles.isPlaying)
+                            {
+                                s.V.fireParticles.Play();
+                            }
+                        }
                     }
                     break;
                 }
