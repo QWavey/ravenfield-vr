@@ -29,6 +29,10 @@ namespace RavenfieldVR.Net
             public Vector3 HeadForward = Vector3.forward;
             public Vector3 Left, Right, Muzzle;
             public Quaternion LeftRot = Quaternion.identity, RightRot = Quaternion.identity, MuzzleRot = Quaternion.identity;
+            /// <summary>How far each hand's grip is squeezed (0 open, 1 a fist), eased here (see Fingers).</summary>
+            public float GripL, GripR, GripNowL, GripNowR;
+            /// <summary>The soldier's left hand is on the gun (the game's own hold: its fingers are the game's grip).</summary>
+            public bool LeftOnGun;
             public float Heard = -10f;
 
             // Eased (the told ones come 30 times a second, the eyes are drawn 90 times).
@@ -140,7 +144,7 @@ namespace RavenfieldVR.Net
 
         /// <summary>One pose as it goes over the line (the check's second player writes the same).</summary>
         internal static void Put(NetWriter w, int flags, Vector3 headForward, Vector3 left, Quaternion leftRot, Vector3 right, Quaternion rightRot,
-                                 Vector3 muzzle, Quaternion muzzleRot)
+                                 Vector3 muzzle, Quaternion muzzleRot, float gripL = 0f, float gripR = 0f)
         {
             w.Byte((byte)flags);
             w.SmallVector(headForward);
@@ -150,6 +154,8 @@ namespace RavenfieldVR.Net
             w.Rotation(rightRot);
             w.SmallVector(muzzle);
             w.Rotation(muzzleRot);
+            w.Byte((byte)Mathf.RoundToInt(Mathf.Clamp01(gripL) * 255f));
+            w.Byte((byte)Mathf.RoundToInt(Mathf.Clamp01(gripR) * 255f));
         }
 
         /// <summary>My own pose told (a VR player on his feet), thirty times a second with another player near.</summary>
@@ -201,7 +207,8 @@ namespace RavenfieldVR.Net
                 }
             }
             Out.Reset();
-            Put(Out, flags, rig.Head.forward, left.Palm.position - origin, left.Palm.rotation, right.Palm.position - origin, right.Palm.rotation, muzzle, muzzleRot);
+            Put(Out, flags, rig.Head.forward, left.Palm.position - origin, left.Palm.rotation, right.Palm.position - origin, right.Palm.rotation, muzzle, muzzleRot,
+                left.Grip, right.Grip);
             session.Send(NetGame.VrPose, Out, false);
         }
 
@@ -216,6 +223,11 @@ namespace RavenfieldVR.Net
             p.RightRot = r.Rotation();
             p.Muzzle = r.SmallVector();
             p.MuzzleRot = r.Rotation();
+            if (r.Remaining >= 2)
+            {
+                p.GripL = r.Byte() / 255f;
+                p.GripR = r.Byte() / 255f;
+            }
             // (Held to what an arm can do: a broken or made-up message does not throw a hand a kilometre off.)
             p.Left = Vector3.ClampMagnitude(p.Left, 3f);
             p.Right = Vector3.ClampMagnitude(p.Right, 3f);
@@ -356,12 +368,14 @@ namespace RavenfieldVR.Net
                         Learn(ref p.PalmToBoneL, ref p.PalmKnownL, p.LeftRot, hold);
                     }
                     p.TargetL.SetPositionAndRotation(gunHold, hold);
+                    p.LeftOnGun = true;
                     p.OwnLeft = own;
                     __instance.handTargetL = p.TargetL;
                     __instance.SetHandIkEnabled(true, true);
                 }
                 else
                 {
+                    p.LeftOnGun = false;
                     if (onGun)
                     {
                         p.OwnLeft = own;
@@ -442,6 +456,118 @@ namespace RavenfieldVR.Net
             }
             palmToBone = known ? Quaternion.Slerp(palmToBone, now, 0.05f) : now;
             known = true;
+        }
+
+        // ---- his fingers ---------------------------------------------------------------------------------------------------
+
+        private static readonly HumanBodyBones[][] FingerBones =
+        {
+            new[] { HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftIndexIntermediate, HumanBodyBones.LeftIndexDistal },
+            new[] { HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftMiddleIntermediate, HumanBodyBones.LeftMiddleDistal },
+            new[] { HumanBodyBones.LeftRingProximal, HumanBodyBones.LeftRingIntermediate, HumanBodyBones.LeftRingDistal },
+            new[] { HumanBodyBones.LeftLittleProximal, HumanBodyBones.LeftLittleIntermediate, HumanBodyBones.LeftLittleDistal },
+            new[] { HumanBodyBones.RightIndexProximal, HumanBodyBones.RightIndexIntermediate, HumanBodyBones.RightIndexDistal },
+            new[] { HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightMiddleIntermediate, HumanBodyBones.RightMiddleDistal },
+            new[] { HumanBodyBones.RightRingProximal, HumanBodyBones.RightRingIntermediate, HumanBodyBones.RightRingDistal },
+            new[] { HumanBodyBones.RightLittleProximal, HumanBodyBones.RightLittleIntermediate, HumanBodyBones.RightLittleDistal },
+        };
+
+        /// <summary>The check's: fingers curled in the last frame.</summary>
+        internal static int FingersCurled;
+
+        /// <summary>
+        /// A VR player's free hand closes on the other PCs as he squeezes its grip, and opens as he lets go (the open list of VR
+        /// presence: "the fingers"). After the animation and the arms' IK: each finger's joints are bent toward the palm by up to 75, 85
+        /// and 60 degrees, about the axis across the hand worked out from the bones' own places (no rig's axes assumed). The hand on the
+        /// gun keeps the game's grip pose.
+        /// </summary>
+        private static void Fingers()
+        {
+            FingersCurled = 0;
+            if (ByIk.Count == 0)
+            {
+                return;
+            }
+            float ease = 1f - Mathf.Exp(-20f * Time.deltaTime);
+            foreach (KeyValuePair<ActorIk, NetGame.Remote> kv in ByIk)
+            {
+                Pose p = kv.Value.Pose;
+                Actor a = kv.Value.Actor;
+                if (p == null || !Usable(kv.Value, out Actor _, out Pose _) || a == null || a.animator == null)
+                {
+                    continue;
+                }
+                p.GripNowL = Mathf.Lerp(p.GripNowL, p.GripL, ease);
+                p.GripNowR = Mathf.Lerp(p.GripNowR, p.GripR, ease);
+                bool gunLeft = p.Is(GunInLeft);
+                if (p.Is(HasGun))
+                {
+                    // With a gun the soldier's right hand is on its grip (the game's pose) and his left is the free hand: the VR left
+                    // hand's, or a left-handed player's right (see BeforeIk). On the gun's own hold, the game's fingers.
+                    if (!p.LeftOnGun && p.Is(gunLeft ? RightHand : LeftHand))
+                    {
+                        Curl(a.animator, 0, gunLeft ? p.GripNowR : p.GripNowL);
+                    }
+                }
+                else
+                {
+                    if (p.Is(LeftHand))
+                    {
+                        Curl(a.animator, 0, p.GripNowL);
+                    }
+                    if (p.Is(RightHand))
+                    {
+                        Curl(a.animator, 4, p.GripNowR);
+                    }
+                }
+            }
+        }
+
+        private static void Curl(Animator animator, int first, float amount)
+        {
+            if (amount < 0.03f)
+            {
+                return;
+            }
+            Transform index = animator.GetBoneTransform(FingerBones[first][0]);
+            Transform little = animator.GetBoneTransform(FingerBones[first + 3][0]);
+            Transform middleTip = animator.GetBoneTransform(FingerBones[first + 1][1]);
+            Transform middle = animator.GetBoneTransform(FingerBones[first + 1][0]);
+            if (index == null || little == null || middle == null || middleTip == null)
+            {
+                return;
+            }
+            // Across the hand (index to little), along it (knuckle to the next joint): the joints bend about the line across.
+            Vector3 across = (little.position - index.position).normalized;
+            Vector3 along = (middleTip.position - middle.position).normalized;
+            // (Which side the palm is on: the bend turns the finger's tip to it. Index to little runs the other way on a right hand.)
+            Vector3 palm = Vector3.Cross(along, across).normalized * (first >= 4 ? -1f : 1f);
+            if (across.sqrMagnitude < 0.5f || palm.sqrMagnitude < 0.5f)
+            {
+                return;
+            }
+            float[] most = { 75f, 85f, 60f };
+            for (int f = first; f < first + 4; f++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    Transform bone = animator.GetBoneTransform(FingerBones[f][j]);
+                    if (bone == null)
+                    {
+                        continue;
+                    }
+                    // The axis that turns this finger's direction toward the palm: the finger's own way crossed with the palm's.
+                    Transform next = j < 2 ? animator.GetBoneTransform(FingerBones[f][j + 1]) : null;
+                    Vector3 dir = next != null ? (next.position - bone.position).normalized : along;
+                    Vector3 axis = Vector3.Cross(dir, palm);
+                    if (axis.sqrMagnitude < 1e-4f)
+                    {
+                        continue;
+                    }
+                    bone.rotation = Quaternion.AngleAxis(most[j] * amount, axis.normalized) * bone.rotation;
+                }
+            }
+            FingersCurled++;
         }
 
         // ---- his head, where he looks ---------------------------------------------------------------------------------
@@ -547,6 +673,7 @@ namespace RavenfieldVR.Net
         internal static void BeforeRender()
         {
             TurnHeads();
+            Fingers();
             if (ByIk.Count == 0)
             {
                 return;

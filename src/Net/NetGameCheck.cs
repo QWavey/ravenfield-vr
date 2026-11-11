@@ -337,7 +337,7 @@ namespace RavenfieldVR.Net
                     {
                         nextPose = Time.unscaledTime + 1f / 30f;
                         vr.Reset();
-                        NetAvatar.Put(vr, NetAvatar.HasGun | NetAvatar.LeftHand | NetAvatar.RightHand | NetAvatar.Magazine, toMe, handL, Quaternion.identity, handR, Quaternion.identity, muzzleAt, muzzleLook);
+                        NetAvatar.Put(vr, NetAvatar.HasGun | NetAvatar.LeftHand | NetAvatar.RightHand | NetAvatar.Magazine, toMe, handL, Quaternion.identity, handR, Quaternion.identity, muzzleAt, muzzleLook, 1f, 0f);
                         ghost.Send(NetGame.VrPose, vr, false);
                     }
                     Pump();
@@ -461,6 +461,7 @@ namespace RavenfieldVR.Net
 
             report($"multiplayer telling: {NetGame.LastTold} of {NetGame.LastOwned} soldiers' places went out in the last telling (the dead and the far ones go out less often)");
             report($"multiplayer heads: {NetAvatar.HeadsTurned} player's head(s) turned where he looks{(NetAvatar.HeadsTurned == 0 && NetGame.AllRemotes.Any(r => r.Id == 0 && r.Actor != null && !r.Actor.dead) ? " NOT TURNED" : "")}");
+            report($"multiplayer fingers: {NetAvatar.FingersCurled} hand(s) of a VR player closed by his grip (the second player squeezes his left; it holds a magazine, not the gun)");
 
             int vehicles = ActorManager.instance.vehicles.Count(v => v != null && !v.isTurret);
             // (Since 1.17.10 the host keeps his vehicles and numbers each for the others: NetVehicles.)
