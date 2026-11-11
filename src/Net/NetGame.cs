@@ -488,8 +488,13 @@ namespace RavenfieldVR.Net
             }
             for (int team = 0; team < 2 && info.team != null && team < info.team.Length; team++)
             {
-                if (info.team[team] == null || string.IsNullOrEmpty(skins[team]))
+                if (info.team[team] == null)
                 {
+                    continue;
+                }
+                if (string.IsNullOrEmpty(skins[team]))
+                {
+                    info.team[team].skin = null; // (the host plays this team's default skin: so here, not this PC's own or an earlier host's)
                     continue;
                 }
                 SplitKey(skins[team], out string name, out ulong mod);
@@ -660,7 +665,9 @@ namespace RavenfieldVR.Net
             // capsule and ground, the told speed's 0.1 m/s steps), and the pull of a few centimetres toward it read as a slow walk, so
             // a player standing still walked in place on the other PC (the user's friend, 2026-11-11). Within 25 cm while its owner
             // stands, and 12 cm once started (no flicker at the line), it stands.
-            bool owner = r.Velocity.sqrMagnitude < 0.2f * 0.2f;
+            // (Along the ground only: the told speed carries its height's too since 1.17.8, in 0.2 m/s steps, and a player standing on a
+            // slope or a step told one step of it and walked in place again; multiplayer scout, 2026-11-11.)
+            bool owner = r.Velocity.x * r.Velocity.x + r.Velocity.z * r.Velocity.z < 0.2f * 0.2f;
             float near = r.Walking ? 0.12f : 0.25f;
             if (owner && to.sqrMagnitude < near * near)
             {
@@ -1008,6 +1015,7 @@ namespace RavenfieldVR.Net
                 string where = cut >= 0 ? $" (workshop item {scene.Substring(cut + 1)})" : "";
                 UI.UISystem.Instance?.Notice?.Show($"The host started on a map this PC does not have: {file}{where}. Subscribe to it and join again.", 12f);
                 Log.Warn("Multiplayer: the host's map is not on this PC: " + scene);
+                GiveRulesBack(); // (no match here: the host's mutators and skins stayed this PC's, in its own menu too, until the session ended)
                 return;
             }
             GameModeInfo mode = Sandbox.Sandbox.ModeByName(modeName)
@@ -1750,7 +1758,8 @@ namespace RavenfieldVR.Net
             try
             {
                 int removed = 0;
-                foreach (Actor a in ActorManager.instance.actors)
+                // (Over a copy: a map's script told of a death may bring a soldier at once, and the list changed under the loop.)
+                foreach (Actor a in ActorManager.instance.actors.ToArray())
                 {
                     if (a == null || !a.aiControlled || ByActor.ContainsKey(a))
                     {
@@ -1904,7 +1913,9 @@ namespace RavenfieldVR.Net
             LastTold = ToTell.Count;
             LastOwned = Scratch.Count;
             // Where each is: as many to a message as fit one packet.
-            const int most = 60; // (19 bytes each)
+            // (21 bytes each since 1.17.8, the second flag byte and the height's speed: 60 of them were 1261 bytes, over the 1200 a
+            // packet carries, and a big battle's batch could be lost whole; multiplayer scout, 2026-11-11.)
+            const int most = 56;
             int at = 0;
             while (at < ToTell.Count)
             {
@@ -1951,7 +1962,7 @@ namespace RavenfieldVR.Net
         /// <summary>A shot within the last fifth of a second (the gun's own clock: however the trigger was pulled, a VR hand included).</summary>
         private static bool FiredJustNow(Actor a) => a.activeWeapon != null && Time.time - a.activeWeapon.lastFiredTimestamp < 0.2f;
 
-        /// <summary>One soldier's state as it goes over the line (19 bytes).</summary>
+        /// <summary>One soldier's state as it goes over the line (21 bytes).</summary>
         internal static void PutState(NetWriter w, ushort id, int flags, Vector3 position, Vector3 velocity, Vector3 facing)
         {
             w.UShort(id);

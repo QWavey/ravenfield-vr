@@ -111,6 +111,7 @@ foreach ($line in $entries) {
 }
 
 $pluginDir = Join-Path $GameDir 'BepInEx/plugins/RavenfieldVR'
+$removeBepInExLast = $false
 # The mod's files go, its record LAST (below): removed here first, an uninstall stopped after it (a file of BepInEx in use) could
 # not be run again ("No install manifest ... nothing to uninstall") and left BepInEx and its loader behind (installer scout, 2026-11-11).
 if (Test-Path -LiteralPath $pluginDir) {
@@ -140,7 +141,18 @@ if ($installedBepInEx) {
         else { Write-Step 'BepInEx left in place so your Ravenfield VR settings are kept (use -RemoveConfig to remove it too).' }
     }
     else {
-        foreach ($p in @('BepInEx') + @($loaderFiles | Where-Object { -not $restoredLoader.ContainsKey($_) })) {
+        # All of BepInEx but the folders that hold the record (BepInEx/plugins/RavenfieldVR/install-manifest.txt): the whole folder
+        # went here, the record with it, and a stop after it could not be run again (multiplayer scout, 2026-11-11). Those go last.
+        $bepRoot = Join-Path $GameDir 'BepInEx'
+        if (Test-Path -LiteralPath $bepRoot) {
+            Get-ChildItem -LiteralPath $bepRoot -Force | Where-Object { $_.Name -ne 'plugins' } | Remove-Item -Recurse -Force
+            $bepPlugins = Join-Path $bepRoot 'plugins'
+            if (Test-Path -LiteralPath $bepPlugins) {
+                Get-ChildItem -LiteralPath $bepPlugins -Force | Where-Object { $_.Name -ne 'RavenfieldVR' } | Remove-Item -Recurse -Force
+            }
+            $removeBepInExLast = $true
+        }
+        foreach ($p in @($loaderFiles | Where-Object { -not $restoredLoader.ContainsKey($_) })) {
             $full = Join-Path $GameDir $p
             if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
         }
@@ -167,4 +179,8 @@ if ($backup) {
 $backupsRoot = Join-Path $GameDir 'RavenfieldVR-backup'
 if ((Test-Path -LiteralPath $backupsRoot) -and -not (Get-ChildItem -LiteralPath $backupsRoot -Force)) { Remove-Item -LiteralPath $backupsRoot -Force -ErrorAction SilentlyContinue }
 if (Test-Path -LiteralPath $pluginDir) { Remove-Item -LiteralPath $pluginDir -Recurse -Force }
+if ($removeBepInExLast) {
+    $bepRoot = Join-Path $GameDir 'BepInEx'
+    if (Test-Path -LiteralPath $bepRoot) { Remove-Item -LiteralPath $bepRoot -Recurse -Force }
+}
 Write-Step 'Ravenfield VR uninstalled.'
