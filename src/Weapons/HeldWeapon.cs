@@ -1478,7 +1478,7 @@ namespace RavenfieldVR.Weapons
             // and the old one stayed when the cover was lifted (reports 274, 312; decoded from the clips, 2026-11-05).
             bool belt = ammo.HasCover && ammo.MagInserted && VRConfig.ReloadNow == ReloadMode.Manual;
             bool onTray = ammo.BeltLaid || !VRConfig.BeltByHand.Value;
-            int shown = AmmoState.AnimatorRounds(belt, onTray ? ammo.MagRounds : 0, onTray && ammo.Chambered, ammo.SlideLocked, w.ammo);
+            int shown = AmmoState.AnimatorRoundsHome(belt, onTray ? ammo.MagRounds : 0, onTray && ammo.Chambered, ammo.SlideLocked, w.ammo, ammo.HomeOnEmpty);
             if (w.animator.GetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH) != shown)
             {
                 w.animator.SetInteger(Weapon.LOADED_AMMO_PARAMETER_HASH, shown);

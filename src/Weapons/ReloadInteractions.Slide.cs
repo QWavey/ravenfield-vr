@@ -362,18 +362,18 @@ namespace RavenfieldVR.Weapons
                     _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
                 }
             }
-            else if (!HandDriven && _rackedBack && _strokeOut && !_rackFromBoltLock && fraction <= 0.1f
-                     && !(Data.LockOnEmpty && Ammo.UsesChamber && !(Ammo.FeedReady && Ammo.MagRounds > 0)))
+            else if (!HandDriven && _rackedBack && _strokeOut && !_rackFromBoltLock && fraction <= 0.1f)
             {
                 // A spring-driven slide ridden all the way home by the hand (not let go at the back): it chambers and shuts as it
                 // arrives, as softly or hard as it was brought there. It did nothing until the hand let go, the gun said RACK
-                // meanwhile, and a second pull without letting go was silent (scout, 2026-11-10). Not where it would only catch
-                // again on an empty magazine: that stays for the let-go.
+                // meanwhile, and a second pull without letting go was silent (scout, 2026-11-10). With nothing to chamber too:
+                // brought home by the hand it shuts on an empty chamber and stays shut (the user, 2026-11-11: "if the person grabs
+                // it and moves forward it goes forward again"); it caught again only when let go at the back.
                 float closing = Mathf.Abs(moved) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f);
                 float hard = Mathf.Clamp01(0.2f + closing / 1.5f);
                 _rackedBack = false;
                 _strokeOut = false;
-                Ammo.RackForward();
+                Ammo.RackForward(home: true);
                 _held.Sounds.Play(MechSound.SlideForward, RackPointWorld, hard);
                 off.Haptic(0.03f, 120f, 0.25f + 0.3f * hard);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.35f * hard);
@@ -459,8 +459,10 @@ namespace RavenfieldVR.Weapons
             }
             if (_rackedBack)
             {
-                // (With no round to chamber, a gun that locks open on empty stays caught back: AmmoState.RackForward, Tasks 264.)
-                Ammo.RackForward();
+                // (With no round to chamber, a gun that locks open on empty stays caught back: AmmoState.RackForward, Tasks 264.
+                // Unless the hand had already brought it most of the way home: let go in the front half of its way, it runs the
+                // rest by its spring and shuts empty, as it does ridden all the way.)
+                Ammo.RackForward(home: !fromBoltLock && _rackMoved && Fraction < 0.5f);
                 if (!Ammo.SlideLocked)
                 {
                     // As loud as the run home it has left: let go from the back it slams, ridden most of the way home it only
@@ -484,7 +486,9 @@ namespace RavenfieldVR.Weapons
 
         private void ReleaseSlide()
         {
-            if (Ammo.RackForward())
+            // (Its release lets it home whatever is in the magazine: on an empty one it shuts on an empty chamber, as the real
+            // catch pressed down does; it stayed back and the button did nothing. User, 2026-11-11: "yk gun logic".)
+            if (Ammo.RackForward(home: true))
             {
                 _held.Sounds.Play(MechSound.SlideForward, RackPointWorld);
             }

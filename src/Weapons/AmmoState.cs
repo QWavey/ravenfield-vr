@@ -430,7 +430,7 @@ namespace RavenfieldVR.Weapons
                     MagRounds--;
                     Chambered = true;
                 }
-                else if (Rig.LockOnEmpty)
+                else if (Rig.LockOnEmpty && CatchHolds)
                 {
                     SlideLocked = true;
                 }
@@ -586,8 +586,12 @@ namespace RavenfieldVR.Weapons
         /// A launcher, break action or revolver has no chamber apart from its rounds: one taken into the chamber left the
         /// rounds (which it fires from) one short, so a launcher reloaded in the free hand never fired again (scout, 2026-10-23).
         /// </summary>
+        /// <param name="home">Brought home by the hand, or let go by its release: with nothing to chamber it goes home all the
+        /// same, on an empty chamber (the user, 2026-11-11: "if the person grabs it and moves forward it goes forward again ...
+        /// it stays forward but is empty but the person can also make it go back again"). Let go at the back it is caught, as
+        /// before: the magazine's follower holds the catch up.</param>
         /// <returns>True if a round was chambered.</returns>
-        public bool RackForward()
+        public bool RackForward(bool home = false)
         {
             SlideLocked = false;
             bool hasRound = UsesChamber && FeedReady && MagRounds > 0;
@@ -596,13 +600,54 @@ namespace RavenfieldVR.Weapons
                 MagRounds--;
                 Chambered = true;
             }
-            if (!Chambered && Rig.LockOnEmpty && UsesChamber && !Rig.CyclesByHand)
+            if (!Chambered && Rig.LockOnEmpty && UsesChamber && !Rig.CyclesByHand && !home && CatchHolds)
             {
                 SlideLocked = true;
                 Log.InfoOnce($"caught:{Rig.Key}", $"{Rig.Key}: the slide went back with no round to chamber (no magazine it can feed, or an empty one); it stays caught back until one can be chambered.");
             }
             Sync();
             return Chambered;
+        }
+
+        /// <summary>
+        /// Something holds the slide's catch up when it comes back with nothing to chamber: the empty magazine's follower. With
+        /// the magazine out there is none, and the slide runs home on the empty chamber (the last round fired with the magazine
+        /// out, a rack of the bare gun): gun logic the mod had left out, the slide caught open with no magazine in (2026-11-11).
+        /// A gun fed from inside (a fixed magazine, a clip's follower) or from a belt keeps its own catch.
+        /// </summary>
+        private bool CatchHolds => !UsesDetachableMag || MagInserted || Rig.EnBloc || HasCover;
+
+        /// <summary>
+        /// The slide or bolt forward on an empty chamber of a gun that locks open on empty (brought home by hand or by its release):
+        /// the gun is shut and empty, its trigger clicks, and a pull of the slide catches it open again.
+        /// </summary>
+        public bool HomeOnEmpty => Participates && UsesChamber && !LoadsDirectly && Rig.LockOnEmpty && !Rig.CyclesByHand && !SlideLocked && !Chambered;
+
+        /// <summary>
+        /// The chamber lies open and empty for a round put in by hand: the slide or bolt back (caught open, or a bolt or pump left
+        /// open), no round and no fired case in it. Not a gun loaded straight into its chambers (a break action, a revolver, a
+        /// launcher: their rounds go in there already).
+        /// </summary>
+        public bool ChamberOpenEmpty => Participates && UsesChamber && !LoadsDirectly && Rig.Action != ActionType.SingleShot
+                                        && !Chambered && !SpentInChamber && (SlideLocked || BoltOpen) && !(HasCover && !CoverOpen && !SlideLocked);
+
+        /// <summary>Whether one more round has room in the gun by the chamber (without chamber plus one a full magazine is all it holds).</summary>
+        public bool ChamberHasRoom => VRConfig.ChamberPlusOne.Value || MagRounds < Capacity;
+
+        /// <summary>
+        /// A round put into the open chamber by hand (the user, 2026-11-11: "make me able to load bullets into chambers of guns").
+        /// The slide let go or the bolt pushed home then shuts on it, and takes none from the magazine.
+        /// </summary>
+        /// <returns>True if it went in.</returns>
+        public bool ChamberByHand()
+        {
+            if (!ChamberOpenEmpty || !ChamberHasRoom)
+            {
+                return false;
+            }
+            Chambered = true;
+            Sync();
+            return true;
         }
 
         /// <summary>How many rounds a fresh magazine taken from the pouch holds.</summary>
@@ -699,6 +744,13 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static int AnimatorRounds(bool beltIn, int boxRounds, bool chambered, bool slideLocked, int gunAmmo) =>
             beltIn ? boxRounds + (chambered ? 1 : 0) : slideLocked ? 0 : gunAmmo;
+
+        /// <summary>
+        /// The same with the slide home on an empty chamber (<see cref="HomeOnEmpty"/>): told 1, not the gun's 0. Many pistols' animators
+        /// hold the slide back at 0, and the slide brought home by hand stood open again in the picture while the gun counted it shut.
+        /// </summary>
+        internal static int AnimatorRoundsHome(bool beltIn, int boxRounds, bool chambered, bool slideLocked, int gunAmmo, bool homeOnEmpty) =>
+            !beltIn && !slideLocked && homeOnEmpty && gunAmmo <= 0 ? 1 : AnimatorRounds(beltIn, boxRounds, chambered, slideLocked, gunAmmo);
 
         private string BuildCounterText()
         {

@@ -76,7 +76,7 @@ namespace RavenfieldVR.Weapons
         public string Key = "fuzz";
         public ActionType Action;
         public HingeKind Hinge;
-        public bool LockOnEmpty, CyclesByHand;
+        public bool LockOnEmpty, CyclesByHand, EnBloc;
         public int[] MagazinePath;
     }
 }
@@ -299,9 +299,33 @@ namespace RavenfieldVR.Tests
             {
                 bool lose = VRConfig.LoseRoundOnRack.Value;
                 string op = null;
-                switch (random.Next(flipSettings ? 14 : 13))
+                switch (random.Next(flipSettings ? 16 : 15))
                 {
                     case 13:
+                        // The slide brought home by the hand or let go by its release (2026-11-11): shut, whatever is in the magazine.
+                        if (a.SlideLocked)
+                        {
+                            op = "slide home by hand";
+                            a.RackForward(home: true);
+                        }
+                        break;
+                    case 14:
+                        // A round out of the reserve into the open chamber by hand.
+                        if (a.ChamberOpenEmpty && a.ChamberHasRoom && a.SpareAmmo > 0)
+                        {
+                            op = "round into the chamber";
+                            a.TakeSpare(1);
+                            if (!a.ChamberByHand())
+                            {
+                                return $"step {step}: an open, empty chamber with room refused a round";
+                            }
+                        }
+                        else if (!(a.ChamberOpenEmpty && a.ChamberHasRoom) && a.ChamberByHand())
+                        {
+                            return $"step {step}: a round went into a chamber that was not open and empty (or the gun had no room)";
+                        }
+                        break;
+                    case 15:
                         switch (random.Next(4))
                         {
                             case 0:
@@ -380,6 +404,10 @@ namespace RavenfieldVR.Tests
                     case 8:
                         op = "rack forward";
                         a.RackForward();
+                        if (a.SlideLocked && a.UsesDetachableMag && !a.MagInserted && !a.HasCover)
+                        {
+                            return $"step {step}: the slide caught open with no magazine in (nothing holds its catch up)";
+                        }
                         break;
                     case 9:
                         if (a.HasCover)
@@ -456,6 +484,11 @@ namespace RavenfieldVR.Tests
                 {
                     wrong = "able to fire with nothing loaded";
                 }
+                else if (a.HomeOnEmpty && a.CanFire)
+                {
+                    wrong = "able to fire with the slide home on an empty chamber";
+                }
+
                 else if (step % 7 == 0 && a.CounterText() != (string)BuildText.Invoke(a, null))
                 {
                     wrong = $"the counter says '{a.CounterText()}', its state says '{BuildText.Invoke(a, null)}'";

@@ -85,6 +85,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> ChamberPlusOne;
         public static ConfigEntry<bool> ReturnRoundsOnMagDrop;
         public static ConfigEntry<bool> LoadMagazinesByHand;
+        public static ConfigEntry<bool> ChamberByHand;
         public static ConfigEntry<bool> MagazineDetent;
         public static ConfigEntry<MagazineHelp> MagazineInsertHelp;
         public static ConfigEntry<int> ShellsPerReach;
@@ -286,6 +287,12 @@ namespace RavenfieldVR.Core
                 + "one hand, squeeze at the pouch with the other for a round, then touch it to the magazine's top. A magazine in a hand that is "
                 + "not the gun's gives its rounds out one by one on that hand's trigger. Cases and rounds on the ground can be picked up and are "
                 + "pushed by bullets. Not for machine guns, clips or guns loaded through the action, nor with the assisted reload.");
+            ChamberByHand = cfg.Bind("Weapons", "ChamberByHand", true,
+                "A single round into the open chamber by hand. With the gun drawn, hold your free hand's trigger and squeeze its grip at the "
+                + "pouch: one round out of the reserve into your fingers. With the slide caught back or the bolt open and nothing in the "
+                + "chamber, hold it to the ejection port and it goes in; let the slide go or push the bolt home and the gun is loaded with "
+                + "that one round. A live round racked out and lying on the ground can be picked up and put back the same way. Manual "
+                + "reloading only.");
             LoseRoundOnRack = cfg.Bind("Weapons", "LoseRoundOnRack", true,
                 "Racking with a round already chambered ejects (and loses) that round.");
             Pouch = cfg.Bind("Weapons", "MagazinePouch", PouchLocation.OffHandHip,

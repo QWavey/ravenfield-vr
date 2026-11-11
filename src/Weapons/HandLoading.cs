@@ -33,6 +33,72 @@ namespace RavenfieldVR.Weapons
 
         internal static bool Enabled => VRConfig.LoadsMagazinesByHand && VRConfig.ReloadNow == ReloadMode.Manual;
 
+        /// <summary>A single round goes into an open chamber by hand (Weapons/ChamberByHand, with manual reloading).</summary>
+        internal static bool ChamberEnabled => VRConfig.ChamberByHand != null && VRConfig.ChamberByHand.Value && VRConfig.ReloadNow == ReloadMode.Manual;
+
+        /// <summary>How near (m) a held round's middle must come to the gun's ejection port to go into the open chamber.</summary>
+        private const float ChamberReach = 0.06f;
+
+        private static float _chamberSaidAt = -10f;
+
+        /// <summary>A round made for a hand (the reload's single round from the pouch) is that hand's from here: followed, let go, loaded.</summary>
+        internal static void HoldRound(VRHand hand, Casings.Case round) => Hold(hand, round);
+
+        /// <summary>Where the drawn gun's chamber is reached from: its ejection port, or where its slide or bolt is taken.</summary>
+        private static Vector3 ChamberWorld(HeldWeapon gun)
+        {
+            if (Casings.TryPort(gun.ActiveWeapon, out Vector3 port))
+            {
+                return port;
+            }
+            return gun.ActiveRig.ToWorld(gun.ActiveRig.Data.RackPoint);
+        }
+
+        /// <summary>
+        /// A live round of the drawn gun held to its ejection port with the chamber open and empty: it goes in (the user, 2026-11-11:
+        /// "make me able to load bullets into chambers of guns"). True when it went in (the round is gone from the hand).
+        /// </summary>
+        private static bool TryChamber(WeaponSystem sys, VRHand h, Casings.Case c)
+        {
+            HeldWeapon gun = sys.Held;
+            if (!ChamberEnabled || gun == null || !c.Live || c.Key == null || h == sys.Rig.Dominant || gun.ActiveAmmo == null || gun.ActiveRig == null
+                || gun.ActiveWeapon == null || gun.ActiveRig.Data.Key != c.Key)
+            {
+                return false;
+            }
+            AmmoState ammo = gun.ActiveAmmo;
+            Vector3 port = ChamberWorld(gun);
+            if (Vector3.Distance(Casings.CentreOf(c), port) > ChamberReach)
+            {
+                return false;
+            }
+            if (!ammo.ChamberOpenEmpty || !ammo.ChamberHasRoom)
+            {
+                // At the port and it cannot go in: said why, now and then (a round held to a shut gun did nothing and said nothing).
+                if (Time.unscaledTime - _chamberSaidAt > 1.5f)
+                {
+                    _chamberSaidAt = Time.unscaledTime;
+                    sys.FlashMessage(ammo.Chambered ? "CHAMBER FULL" : !ammo.ChamberHasRoom ? "FULL" : "OPEN THE ACTION");
+                    h.Haptic(0.08f, 40f, 0.5f);
+                }
+                return false;
+            }
+            if (!ammo.ChamberByHand())
+            {
+                return false;
+            }
+            // (A round that came out of no reserve, the pouch's without end when magazines are loaded by hand, is simply in the gun now;
+            // one out of the reserve was taken from it when it came into the hand.)
+            Casings.LoadedAway(c);
+            Free(h);
+            sys.Sounds.Play(MechSound.ShellIn, port, 0.6f);
+            gun.Nudge(-gun.ActiveRig.UpWorld * 0.03f);
+            h.Haptic(0.03f, 150f, 0.55f);
+            sys.Rig.Dominant.Haptic(0.02f, 150f, 0.35f);
+            Log.InfoOnce("chamber-hand:" + c.Key, $"{c.Key}: a round put into the open chamber by hand ({(ammo.SlideLocked ? "the slide caught back" : "the bolt open")}).");
+            return true;
+        }
+
         /// <summary>Whether <paramref name="a"/>'s magazines are loaded by hand: the setting on, a box magazine, not a machine gun's or a clip.</summary>
         internal static bool Applies(AmmoState a) =>
             Enabled && a != null && a.Weapon != null && a.UsesDetachableMag && !a.Rig.IsMachineGun && !a.Rig.EnBloc;
@@ -188,7 +254,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>A free hand's squeeze that found no magazine or grenade to pick up: a case or round lying within reach of its fingers, taken.</summary>
         internal static bool TakeLying(VRHand hand)
         {
-            if (!Enabled || hand.Held != null)
+            if (!Enabled && !ChamberEnabled || hand.Held != null)
             {
                 return false;
             }
@@ -239,7 +305,7 @@ namespace RavenfieldVR.Weapons
                     Log.Info($"Round in the {h.Side} hand a moment on: {(c.Renderer.isVisible ? "drawn by a camera" : "NOT drawn by any camera")}, "
                              + $"layer {c.Go.layer}, {Vector3.Distance(sys.Rig.Head.position, c.Go.transform.position):0.00} m from the eye.");
                 }
-                if (!h.GrabHeld || !Enabled)
+                if (!h.GrabHeld || !Enabled && !ChamberEnabled)
                 {
                     if (c.Live && sys.Zones.InPouch(h.Palm.position) && h.BodyThrowVelocity().magnitude < 1.2f)
                     {
@@ -262,6 +328,10 @@ namespace RavenfieldVR.Weapons
                         Casings.LetGo(c, h.ThrowVelocity(), h.AngularVelocity);
                     }
                     Free(h);
+                    continue;
+                }
+                if (TryChamber(sys, h, c))
+                {
                     continue;
                 }
                 VRHand other = sys.Rig.Hands[0] == h ? sys.Rig.Hands[1] : sys.Rig.Hands[0];

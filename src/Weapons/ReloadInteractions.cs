@@ -460,7 +460,7 @@ namespace RavenfieldVR.Weapons
                     ReleaseSlide();
                 }
                 else if (VRConfig.TriggerReleasesSlide.Value && Ammo.SlideLocked && !_racking && VRInput.GetPressed(DigitalAction.Fire, dom.Side)
-                         && !VRGameInput.GunInputBlocked && Ammo.FeedReady && Ammo.MagRounds > 0)
+                         && !VRGameInput.GunInputBlocked && (Ammo.FeedReady && Ammo.MagRounds > 0 || Ammo.Chambered)) // (or over a round put in by hand)
                 {
                     // The trigger on a gun locked open sends the slide or bolt forward, as the slide release would: it chambers a
                     // round from a loaded magazine. With none to chamber, the slide stays back (AmmoState.RackForward), so this

@@ -154,6 +154,23 @@ namespace RavenfieldVR.Weapons
             return (port != null ? port : p[0]).transform;
         }
 
+        /// <summary>Where this weapon's ejection port is in the world (its chamber lies under it), when it has one.</summary>
+        internal static bool TryPort(Weapon w, out Vector3 at)
+        {
+            at = Vector3.zero;
+            if (!Ejects(w))
+            {
+                return false;
+            }
+            Transform port = PortOf(w);
+            if (port == null)
+            {
+                return false;
+            }
+            at = port.position;
+            return true;
+        }
+
         /// <summary>The flat game's casing particles of this weapon and its sub weapons switched off (real cases take their place), kept in <paramref name="hidden"/>.</summary>
         internal static void HideFlat(Weapon weapon, List<ParticleSystemRenderer> hidden)
         {
@@ -224,6 +241,10 @@ namespace RavenfieldVR.Weapons
             if (live && HandLoading.Enabled && VRConfig.LoseRoundOnRack.Value && kind != Kind.Shell)
             {
                 c.Key = d.Key;
+            }
+            else if (live && HandLoading.ChamberEnabled && VRConfig.LoseRoundOnRack.Value)
+            {
+                c.Key = d.Key; // (racked out and lost to the count: it is the gun's again when picked up and put into its chamber)
             }
         }
 

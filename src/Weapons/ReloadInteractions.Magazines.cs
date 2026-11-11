@@ -343,6 +343,26 @@ namespace RavenfieldVR.Weapons
 
         private void TakeFromPouch(VRHand off)
         {
+            // With the hand's trigger held as it squeezes: one round for the chamber, not a magazine (Weapons/ChamberByHand; the
+            // user, 2026-11-11). The squeeze alone stays what it was: after the last shot the slide is back with the empty magazine
+            // still in, and that squeeze wants the next magazine.
+            if (HandLoading.ChamberEnabled && Ammo.Participates && Ammo.UsesChamber && Data.Action != ActionType.SingleShot && !Breaks
+                && VRInput.GetHeld(DigitalAction.Use, off.Side))
+            {
+                VRInput.Consume(DigitalAction.Use, off.Side);
+                if (!Ammo.InfiniteSpare && Ammo.SpareAmmo <= 0)
+                {
+                    off.Haptic(0.15f, 35f, 0.7f);
+                    _sys.FlashMessage("NO AMMO");
+                    return;
+                }
+                Ammo.TakeSpare(1);
+                Casings.Case round = Casings.RoundInHand(Data, Data.Key, Ammo, off);
+                HandLoading.HoldRound(off, round);
+                _held.Sounds.Play(MechSound.Pouch, off.Palm.position, 0.4f);
+                off.Haptic(0.02f, 160f, 0.35f);
+                return;
+            }
             PropKind kind;
             int rounds;
             bool emptyToo = false;
