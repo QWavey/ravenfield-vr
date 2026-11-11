@@ -7,6 +7,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 - The user and his friend play 1.17.10 (vehicles shared for the first time). Setup 1.17.11 is built (`dist/`), the commits after it go into 1.17.12 at the run's end. Both PCs need the same version.
 - New and UNRUN in a real match: shared vehicles and turrets (`Net/NetVehicles.cs`, kinds 31-37: copies, one owner a vehicle, seats by each soldier's own PC, hits to the owner, kill credit), heads turned where players look (`NetAvatar.TurnHeads`), falling in first person (`VRRig`, `Comfort/FallInFirstPerson`), empty magazines without rounds (`ReloadInteractions.KeepEmptyRoundsHidden`), seated arms, capture progress, pings for a joiner, the host's Kick, "Play against".
 - First with the game free: `vrshots --netcheck --fast` (new lines: "multiplayer shared vehicle ...", "multiplayer heads ..."), then the autotest.
+- After the user's vehicle notes (Tasks 383.19; the game closed, not to be opened): seat views carried with the seat and outside chase cameras replaced by the seat's eyes (planes, the minigun), seat switching on the turn stick, no taking another player's seat, the flight stick by wrist tilt, a plane thumbstick expo, vehicle haptics, copies following without lag. To try in the headset first: a plane (the log's "View in <vehicle>" line), the Blackhawk's minigun, holding the turn stick in a car.
 
 ## State 2026-11-11 night (1.17.8 INSTALLED on both PCs and being played; 1.17.9 in code, Tasks 383)
 
