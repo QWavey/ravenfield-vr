@@ -350,10 +350,68 @@ namespace RavenfieldVR.Weapons
         /// <summary>The magazine release only unlatches this gun's magazine (AkMagazinesStayIn: a curved magazine on a rifle).</summary>
         private bool StaysInOnRelease => VRConfig.AkMagazinesStayIn.Value && Data.MagCurved && !Data.IsPistol && !Data.IsMachineGun && !Data.EnBloc;
 
+        /// <summary>The round-shaped pieces of the gun's own magazine switched off while it sits in the gun empty (see KeepEmptyRoundsHidden).</summary>
+        private readonly List<Renderer> _hiddenRounds = new List<Renderer>();
+        private Transform _hiddenRoundsOf;
+        private float _nextRoundsLook;
+
+        /// <summary>
+        /// The gun's own magazine, in the gun with no round left in it: its round-shaped pieces (long and thin, under 9 cm: the top
+        /// rounds many models have as fixed parts) are not drawn, until it holds rounds again or comes out. The user, 2026-11-11:
+        /// "When a mag is finished and empty there are still bullets in it in many or all of the guns". Through forceRenderingOff, which
+        /// the gun's own animation does not touch (it switches its parts on and off by their enabled flag and active state).
+        /// </summary>
+        private void KeepEmptyRoundsHidden()
+        {
+            Transform mag = Rig != null ? Rig.Magazine : null;
+            bool empty = Ammo != null && Ammo.Participates && Ammo.UsesDetachableMag && Ammo.MagInserted && Ammo.MagRounds <= 0 && mag != null
+                         && !Data.EnBloc; // (an en-bloc clip leaves the gun as it empties: the M1's own model takes its rounds away)
+            if (!empty || mag != _hiddenRoundsOf)
+            {
+                ShowHiddenRounds();
+                if (!empty)
+                {
+                    return;
+                }
+            }
+            if (_hiddenRounds.Count > 0 && Time.unscaledTime < _nextRoundsLook)
+            {
+                return;
+            }
+            _nextRoundsLook = Time.unscaledTime + 0.5f; // (a look twice a second: a model that switches a round on later is caught)
+            _hiddenRoundsOf = mag;
+            foreach (Renderer r in mag.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r != null && !r.forceRenderingOff && MagazineProp.RoundShaped(r))
+                {
+                    r.forceRenderingOff = true;
+                    _hiddenRounds.Add(r);
+                }
+            }
+            if (_hiddenRounds.Count > 0)
+            {
+                Log.InfoOnce("empty-rounds:" + Data.Key, $"{Data.Key}: {_hiddenRounds.Count} round-shaped piece(s) of its empty magazine not drawn.");
+            }
+        }
+
+        private void ShowHiddenRounds()
+        {
+            foreach (Renderer r in _hiddenRounds)
+            {
+                if (r != null)
+                {
+                    r.forceRenderingOff = false;
+                }
+            }
+            _hiddenRounds.Clear();
+            _hiddenRoundsOf = null;
+        }
+
         public void Update()
         {
             VRHand dom = _sys.Rig.Dominant;
             VRHand off = _sys.Rig.Off;
+            KeepEmptyRoundsHidden();
             if (Manual && Ammo != null && Ammo.UsesDetachableMag && !GameManager.IsPaused() && !VRGameInput.GunInputBlocked) // (nor under a menu)
             {
                 UpdateDetent(off, dom);
@@ -1480,6 +1538,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Weapon is going away: finish what is in progress so no ammo is lost or duplicated.</summary>
         public void Release(bool keepSeatedHold = false)
         {
+            ShowHiddenRounds(); // (the gun put away, dropped or given: its magazine as the game draws it)
             DropAlmostSeated();
             VRHand off = _sys.Rig.Off;
             if (!keepSeatedHold)

@@ -347,7 +347,10 @@ namespace RavenfieldVR.Weapons
             triedAt[key] = Time.unscaledTime;
             triesOf[key] = tries + 1;
             string how = loaded ? "loaded" : "empty";
-            GameObject go = CopyVisuals(rig);
+            // (Empty: without the round-shaped pieces. Many models' magazines have their top rounds as fixed parts, drawn full or empty,
+            // and the empty magazine thrown out or from the pouch showed them; the user, 2026-11-11: "When a mag is finished and empty
+            // there are still bullets in it in many or all of the guns".)
+            GameObject go = loaded ? CopyVisuals(rig) : CopyVisuals(rig, roundsOut: true);
             if (go == null)
             {
                 return;
@@ -785,7 +788,7 @@ namespace RavenfieldVR.Weapons
         /// A piece shaped like a round (a plain mesh as drawn): long and thin, its two smaller sides under 1.6 cm, its longest at least twice
         /// the next. A magazine's base plate or follower is wider than that (2 cm and more): an empty magazine keeps those.
         /// </summary>
-        private static bool RoundShaped(Renderer r)
+        internal static bool RoundShaped(Renderer r)
         {
             MeshFilter mf = r is MeshRenderer ? r.GetComponent<MeshFilter>() : null;
             return mf != null && mf.sharedMesh != null && RoundShaped(Vector3.Scale(mf.sharedMesh.bounds.size, r.transform.lossyScale));
