@@ -2,9 +2,9 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-11 late night (1.17.12 INSTALLED on this PC, the game closed; commits after it go into 1.17.13; Tasks 383.19)
+## State 2026-11-11 late night (1.17.13 INSTALLED on this PC, the game closed; commits after it go into 1.17.14; Tasks 383.19)
 
-- 1.17.12 is built (`dist/`) and installed here; the friend needs the same version. Commits after `53f5ec2` (the other player's fingers, magazine and air smoothing, the cockpit, panel and vehicle-adoption fixes, passenger jolts) are for 1.17.13 (`dist/notes-1.17.13.md`), built at the run's end.
+- 1.17.13 is built (`dist/`, notes `dist/notes-1.17.13.md`) and installed here; the friend needs the same version (1.17.12 before it). Commits after `53f5ec2` (the other player's fingers, magazine and air smoothing, the cockpit, panel and vehicle-adoption fixes, passenger jolts) are for 1.17.13 (`dist/notes-1.17.13.md`), built at the run's end.
 - Nothing of 1.17.10-1.17.13 has run in a real match or the game here. First with the game free: `vrshots --netcheck --fast` (lines: shared vehicle, heads, fingers, the magazine in the hand), then a plane and the Blackhawk's minigun in the headset.
 
 ## State 2026-11-11 later night (1.17.10 played by both; 1.17.11 BUILT, not installed; 1.17.12 in code, Tasks 383)
