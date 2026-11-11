@@ -64,6 +64,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> EyeHeight;
         public static ConfigEntry<bool> SeatedMode;
         public static ConfigEntry<bool> SmoothVehicleHorizon;
+        public static ConfigEntry<bool> FallInFirstPerson;
 
         // Controls
         public static ConfigEntry<bool> StickJumpCrouch;
@@ -226,6 +227,8 @@ namespace RavenfieldVR.Core
                 "Play seated: disables physical crouch, and takes the calibrated height as a seated one (the body's holsters and pouch are placed for its standing height).");
             SmoothVehicleHorizon = cfg.Bind("Comfort", "LevelHorizonInVehicles", false,
                 "Keep the horizon level in aircraft/vehicles instead of rolling with the cockpit.");
+            FallInFirstPerson = cfg.Bind("Comfort", "FallInFirstPerson", true,
+                "Knocked over, the view stays at your soldier's head as he falls and lies (the horizon kept level), not the game's camera behind him.");
 
             StickJumpCrouch = cfg.Bind("Controls", "TurnStickJumpCrouch", true,
                 "Push the turn stick up to jump and down to toggle crouch.");

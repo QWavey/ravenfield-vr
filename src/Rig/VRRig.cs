@@ -478,6 +478,14 @@ namespace RavenfieldVR.Rig
                     key = player;
                     return;
                 }
+                // Knocked over: the view at his own head as he falls and lies, not the game's camera behind him (the user, 2026-11-11:
+                // "when I fall I want to fall in first person"). The head's place only; its turn is the player's own (no roll).
+                if (actor != null && !actor.dead && actor.fallenOver && VRConfig.FallInFirstPerson.Value && FallenHead(actor) != null)
+                {
+                    mode = RigMode.Anchored;
+                    key = actor.ragdoll;
+                    return;
+                }
                 Camera active = player.GetActiveCamera();
                 // actor != null here: without a body (a frame between death and respawn) the actor-based checks below would throw;
                 // the camera fallbacks further down take over instead (review 2026-10-21).
@@ -1206,6 +1214,15 @@ namespace RavenfieldVR.Rig
             {
                 return RigidPose.Identity;
             }
+            if (_anchorKey is ActiveRaggy && player.actor != null)
+            {
+                Transform head = FallenHead(player.actor);
+                if (head != null)
+                {
+                    // (A little above the head bone, at the eyes: inside the skull the face's own mesh filled the view.)
+                    return new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
+                }
+            }
             Transform root = player.fpCameraRoot;
             if (_anchorKey is Seat seat && seat != null)
             {
@@ -1213,6 +1230,19 @@ namespace RavenfieldVR.Rig
             }
             // Ladder: camera root hangs off the actor; keep the actor's facing.
             return new RigidPose(root.position, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
+        }
+
+        /// <summary>A fallen soldier's head as it lies (the ragdoll's, while it is one), or null.</summary>
+        private static Transform FallenHead(Actor actor)
+        {
+            try
+            {
+                return actor.ragdoll != null ? actor.ragdoll.HumanBoneTransformActive(HumanBodyBones.Head) : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         private static RigidPose Level(RigidPose p)
