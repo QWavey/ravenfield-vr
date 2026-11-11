@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HarmonyLib;
+using Ravenfield.Configuration;
+using Ravenfield.Mutator.Configuration;
 using RavenfieldVR.Core;
 using UnityEngine;
 
@@ -238,7 +240,7 @@ namespace RavenfieldVR.Net
         // Each PC started its own mutators and team skins (the host's infinite ammo or no knockdown on his PC only, a joiner's left over
         // from his own menu; the host's soldiers in another skin on each PC; modded multiplayer hunt, 2026-11-11). The host tells his with
         // the match; a joined PC plays with them (those it has: the others are named in a notice), and gets its own back when the session
-        // ends. Each mutator runs with this PC's own settings for it.
+        // ends. Each mutator runs with the host's settings for it too (those this PC's copy of it has; its own back at the end).
 
         private const int MaxRules = 32;
 
@@ -258,6 +260,173 @@ namespace RavenfieldVR.Net
             {
                 ActorSkin skin = info != null && info.team != null && team < info.team.Length && info.team[team] != null ? info.team[team].skin : null;
                 w.String(skin != null ? ModKey(skin.name, skin.sourceMod) : "", 160);
+            }
+            // Each mutator's settings as the host set them, after the skins (a reader of 1.17.8 stops before them). Each PC's own
+            // were played: the host's 300% damage was 100% on the joined PC (Tasks 382.4).
+            foreach (MutatorEntryData m in mutators)
+            {
+                PutSettings(w, m.configuration);
+            }
+        }
+
+        private const int MaxSettings = 48;
+        private static readonly List<SortableConfigurationField> SettingsScratch = new List<SortableConfigurationField>();
+
+        private static void GatherSettings(MutatorConfiguration c)
+        {
+            SettingsScratch.Clear();
+            if (c == null)
+            {
+                return;
+            }
+            void Add(IEnumerable<SortableConfigurationField> fields)
+            {
+                if (fields == null)
+                {
+                    return;
+                }
+                foreach (SortableConfigurationField f in fields)
+                {
+                    if (f != null && !string.IsNullOrEmpty(f.id) && SettingsScratch.Count < MaxSettings)
+                    {
+                        SettingsScratch.Add(f);
+                    }
+                }
+            }
+            Add(c.integers);
+            Add(c.floats);
+            Add(c.ranges);
+            Add(c.strings);
+            Add(c.bools);
+            Add(c.dropdowns);
+        }
+
+        private static void PutSettings(NetWriter w, MutatorConfiguration c)
+        {
+            GatherSettings(c);
+            w.Byte((byte)SettingsScratch.Count);
+            foreach (SortableConfigurationField f in SettingsScratch)
+            {
+                switch (f)
+                {
+                    case IntegerConfigurationField i:
+                        w.Byte(0);
+                        w.String(f.id, 64);
+                        w.VarInt(i.value);
+                        break;
+                    case FloatConfigurationField fl:
+                        w.Byte(1);
+                        w.String(f.id, 64);
+                        w.Float(fl.value);
+                        break;
+                    case RangeConfigurationField rg:
+                        w.Byte(2);
+                        w.String(f.id, 64);
+                        w.Float(rg.value.value);
+                        break;
+                    case StringConfigurationField st:
+                        w.Byte(3);
+                        w.String(f.id, 64);
+                        w.String(st.value ?? "", 256);
+                        break;
+                    case BoolConfigurationField b:
+                        w.Byte(4);
+                        w.String(f.id, 64);
+                        w.Bool(b.value);
+                        break;
+                    case DropdownConfigurationField d:
+                        w.Byte(5);
+                        w.String(f.id, 64);
+                        w.VarInt(d.value.index);
+                        break;
+                    default:
+                        w.Byte(255); // (a kind of a later game: its id alone, nothing set)
+                        w.String(f.id, 64);
+                        break;
+                }
+            }
+        }
+
+        /// <summary>This PC's own value of each mutator setting the host's replaced (put back with the rest of its own rules).</summary>
+        private static readonly Dictionary<SortableConfigurationField, Action> OwnSettings = new Dictionary<SortableConfigurationField, Action>();
+
+        /// <summary>
+        /// One mutator's settings as the host told them, set on this PC's copy of it (<paramref name="m"/>; null: it is not here, read
+        /// and passed over). A setting this copy lacks, or of another kind, is passed over.
+        /// </summary>
+        private static int TakeSettings(ref NetReader r, MutatorEntryData m)
+        {
+            int n = r.Byte(), set = 0;
+            GatherSettings(m != null ? m.configuration : null);
+            for (int i = 0; i < n; i++)
+            {
+                byte kind = r.Byte();
+                string id = r.String(64);
+                int whole = 0;
+                float number = 0f;
+                string text = null;
+                bool on = false;
+                switch (kind)
+                {
+                    case 0: whole = r.VarInt(); break;
+                    case 1:
+                    case 2: number = r.Float(); break;
+                    case 3: text = r.String(256); break;
+                    case 4: on = r.Bool(); break;
+                    case 5: whole = r.VarInt(); break;
+                }
+                if (float.IsNaN(number) || float.IsInfinity(number))
+                {
+                    continue;
+                }
+                SortableConfigurationField f = SettingsScratch.FirstOrDefault(x => x.id == id);
+                switch (f)
+                {
+                    case IntegerConfigurationField it when kind == 0:
+                        Keep(f, it.value, v => it.value = v);
+                        it.value = whole;
+                        set++;
+                        break;
+                    case FloatConfigurationField fl when kind == 1:
+                        Keep(f, fl.value, v => fl.value = v);
+                        fl.value = number;
+                        set++;
+                        break;
+                    case RangeConfigurationField rg when kind == 2:
+                        Keep(f, rg.value.value, v => rg.value.value = v);
+                        rg.value.value = rg.value.max > rg.value.min ? Mathf.Clamp(number, rg.value.min, rg.value.max) : number;
+                        set++;
+                        break;
+                    case StringConfigurationField st when kind == 3:
+                        Keep(f, st.value, v => st.value = v);
+                        st.value = text ?? "";
+                        set++;
+                        break;
+                    case BoolConfigurationField b when kind == 4:
+                        Keep(f, b.value, v => b.value = v);
+                        b.value = on;
+                        set++;
+                        break;
+                    case DropdownConfigurationField d when kind == 5:
+                        int count = d.value.labels != null ? d.value.labels.Length : 0;
+                        if (count > 0 && (whole < 0 || whole >= count))
+                        {
+                            break; // (the host's copy of the mod has more choices than this one)
+                        }
+                        Keep(f, d.value.index, v => d.value.index = v);
+                        d.value.index = whole;
+                        set++;
+                        break;
+                }
+            }
+            return set;
+        }
+
+        private static void Keep<T>(SortableConfigurationField f, T own, Action<T> put)
+        {
+            if (!OwnSettings.ContainsKey(f))
+            {
+                OwnSettings[f] = () => put(own);
             }
         }
 
@@ -300,12 +469,14 @@ namespace RavenfieldVR.Net
                 _ownSkins = info.team != null ? info.team.Select(t => t != null ? t.skin : null).ToArray() : new ActorSkin[0];
             }
             var lacking = new List<string>();
+            var foundOf = new List<MutatorEntryData>();
             info.activeMutators.Clear();
             foreach (string key in keys)
             {
                 SplitKey(key, out string name, out ulong mod);
                 IEnumerable<MutatorEntryData> all = (mods.loadedMutators ?? new List<MutatorEntryData>()).Where(m => m != null && m.name == name);
                 MutatorEntryData found = all.FirstOrDefault(m => SameMod(m.sourceMod, mod)) ?? all.FirstOrDefault();
+                foundOf.Add(found);
                 if (found != null)
                 {
                     info.activeMutators.Add(found);
@@ -333,7 +504,15 @@ namespace RavenfieldVR.Net
                     lacking.Add(name + " (skin)");
                 }
             }
-            Log.Info($"Multiplayer: the host's rules: {keys.Count} mutator(s), {info.activeMutators.Count} on here; skins '{skins[0]}', '{skins[1]}'"
+            int settings = 0;
+            if (r.Remaining > 0) // (a host of 1.17.8 tells no settings)
+            {
+                for (int i = 0; i < foundOf.Count; i++)
+                {
+                    settings += TakeSettings(ref r, foundOf[i]);
+                }
+            }
+            Log.Info($"Multiplayer: the host's rules: {keys.Count} mutator(s), {info.activeMutators.Count} on here, {settings} setting(s) of his; skins '{skins[0]}', '{skins[1]}'"
                      + (lacking.Count > 0 ? "; not on this PC: " + string.Join(", ", lacking) : "") + ".");
             if (lacking.Count > 0)
             {
@@ -345,6 +524,18 @@ namespace RavenfieldVR.Net
         /// <summary>The session ended: this PC's own mutators and skins back (the host's were its only while it played with him).</summary>
         private static void GiveRulesBack()
         {
+            foreach (Action own in OwnSettings.Values)
+            {
+                try
+                {
+                    own();
+                }
+                catch (Exception)
+                {
+                    // (a mod unloaded since)
+                }
+            }
+            OwnSettings.Clear();
             GameInfoContainer info = GameManager.instance != null ? GameManager.instance.gameInfo : null;
             if (_ownMutators == null || info == null)
             {
