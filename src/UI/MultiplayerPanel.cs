@@ -147,7 +147,7 @@ namespace RavenfieldVR.UI
                 }
             }
             Label("No slow motion and no pause in a shared match: it runs at one speed for everyone.", 19, FontStyle.Italic);
-            Label("On foot for now: vehicles are not shared between the PCs yet, so a shared match has none.", 19, FontStyle.Italic);
+            Label("Vehicles are shared: whoever sits in the driver's seat drives it for everyone. Turrets are each PC's own.", 19, FontStyle.Italic);
             Gap(8f);
             if (session.IsHost && Multiplayer.OverSteam)
             {

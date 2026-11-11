@@ -1,0 +1,839 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using HarmonyLib;
+using RavenfieldVR.Core;
+using UnityEngine;
+
+namespace RavenfieldVR.Net
+{
+    /// <summary>
+    /// Vehicles in a shared match (cars, tanks, boats, helicopters, planes; not the fixed turrets, each PC keeps the map's own).
+    /// Asked for by the user after playing 1.17.8 with a friend: "cars and other stuff like tanks arent synced ... can you please sync
+    /// the cars etc" (Tasks 383.11). They were taken off every PC before (Tasks 373).
+    ///
+    /// The host's vehicles are the match's: his spawners make them, his game numbers each and tells the others which vehicle it is
+    /// (its prefab's name), and every other PC makes a copy of it from its own copy of that prefab (its own vehicles and spawners are
+    /// stopped). Each vehicle has ONE owner PC whose physics drive it: the host, or the PC whose player sits in its driver's seat
+    /// (he takes it on entering, gives it back to the host on leaving). The owner tells where it is, how fast, its health and its
+    /// death 15 times a second; on every other PC its rigidbody is kinematic and follows. Who sits where is told by each soldier's own
+    /// PC, and a stand-in is seated only by that word (its own AI does not take seats). A hit on a vehicle is decided by the shooter's
+    /// PC and sent to the vehicle's owner, as a hit on a soldier is.
+    /// </summary>
+    internal static class NetVehicles
+    {
+        /// <summary>Vehicles shared (off: taken off the field in a shared match, as before 1.17.10).</summary>
+        internal static bool Enabled = true;
+
+        private const float StateEvery = 1f / 15f, InfoEvery = 3f, SeatEvery = 0.2f, SeatResendEvery = 3f;
+        private const int StatesPerMessage = 24;
+
+        private sealed class Shared
+        {
+            public ushort Id;
+            public Vehicle V;
+            public string Key = "";
+            public byte Owner;
+            public bool Copy, WasKinematic, HasState;
+            public Vector3 Pos, Vel, AngVel;
+            public Quaternion Rot = Quaternion.identity;
+            public float Heard = -10f, Health = -1f, OwnerSince;
+            public bool ToldDead;
+            public int Team = -1;
+        }
+
+        private static readonly Dictionary<ushort, Shared> ById = new Dictionary<ushort, Shared>();
+        private static readonly Dictionary<Vehicle, Shared> ByVehicle = new Dictionary<Vehicle, Shared>();
+        private static readonly HashSet<ushort> Gone = new HashSet<ushort>();
+        private static readonly Dictionary<Actor, int> SeatTold = new Dictionary<Actor, int>();
+        private static readonly List<Shared> Scratch = new List<Shared>();
+        private static readonly NetWriter Out = new NetWriter(1400);
+        private static readonly Dictionary<string, GameObject> Catalog = new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> Missing = new HashSet<string>();
+        private static ushort _nextId = 1;
+        private static float _nextState, _nextInfo, _nextSeat, _nextSeatResend, _catalogAt = -100f;
+        private static bool _patched, _applyingHit;
+
+        /// <summary>A stand-in is being seated or unseated by its owner's word (the patches let it through).</summary>
+        internal static bool Seating;
+
+        /// <summary>The check's and the log's: copies made here, hits passed to an owner, owners taken.</summary>
+        internal static int CopiesMade, HitsSent, OwnersTaken;
+
+        internal static bool IsShared(Vehicle v) => v != null && ByVehicle.ContainsKey(v);
+
+        internal static int Count => ById.Count;
+
+        // ---- the patches --------------------------------------------------------------------------------------------
+
+        internal static void Patch(Harmony harmony)
+        {
+            if (_patched || harmony == null)
+            {
+                return;
+            }
+            _patched = true;
+            harmony.Patch(AccessTools.Method(typeof(Vehicle), nameof(Vehicle.Damage)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnVehicleDamage)));
+            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.EnterSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnEnterSeat)));
+            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.LeaveSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnLeaveSeat)));
+        }
+
+        /// <summary>A stand-in takes a seat only by its owner's word: its own AI walked it into a vehicle nobody else saw it in.</summary>
+        private static bool OnEnterSeat(Actor __instance, ref bool __result)
+        {
+            if (!Enabled || Seating || !NetGame.IsRemote(__instance))
+            {
+                return true;
+            }
+            __result = false;
+            return false;
+        }
+
+        /// <summary>Nor leaves one on its own (its AI's own wish to get out); a fall, a death or a wreck still put it out.</summary>
+        private static bool OnLeaveSeat(Actor __instance, bool forcedByFallingOver)
+        {
+            if (!Enabled || Seating || forcedByFallingOver || NetGame.Applying || !NetGame.IsRemote(__instance) || __instance.dead)
+            {
+                return true;
+            }
+            Seat seat = __instance.seat;
+            return seat == null || seat.vehicle == null || seat.vehicle.dead || !ByVehicle.ContainsKey(seat.vehicle);
+        }
+
+        /// <summary>
+        /// A hit on a shared vehicle: applied by its owner only. A hit from this PC's own soldier on another PC's vehicle is sent to
+        /// that owner (with the hit marker here); a stand-in's own hit is its owner PC's to tell; a crash or a fire on a copy is the owner's.
+        /// </summary>
+        private static bool OnVehicleDamage(Vehicle __instance, DamageInfo info)
+        {
+            if (!Enabled || _applyingHit || !ByVehicle.TryGetValue(__instance, out Shared s))
+            {
+                return true;
+            }
+            NetSession session = NetGame.SessionNow;
+            if (session == null)
+            {
+                return true;
+            }
+            Actor source = info.sourceActor;
+            if (source != null && NetGame.IsRemote(source))
+            {
+                return false;
+            }
+            if (s.Owner == session.LocalId)
+            {
+                return true;
+            }
+            if (source != null && NetGame.OwnedId(source, out ushort shooter) && !__instance.dead)
+            {
+                Out.Reset();
+                Out.UShort(s.Id);
+                Out.UShort(shooter);
+                Out.Float(info.healthDamage);
+                Out.Float(info.balanceDamage);
+                Out.Byte((byte)((info.isSplashDamage ? 1 : 0) | (info.isPiercing ? 2 : 0) | (info.isCriticalHit ? 4 : 0)));
+                Out.Byte((byte)info.type);
+                Out.Vector(info.point);
+                Out.SmallVector(info.direction);
+                session.SendTo(s.Owner, NetGame.VehicleHit, Out, true);
+                HitsSent++;
+                if (source == LocalPlayer.actor)
+                {
+                    try
+                    {
+                        IngameUI.OnDamageDealt(info, new HitInfo(__instance), showHitIndicator: true);
+                    }
+                    catch (Exception)
+                    {
+                        // (the game's UI not up: no marker)
+                    }
+                }
+            }
+            return false;
+        }
+
+        // ---- each frame -------------------------------------------------------------------------------------------------
+
+        /// <summary>In a match, once a frame (NetGame.Update).</summary>
+        internal static void Update(NetSession session)
+        {
+            if (!Enabled || session == null || ActorManager.instance == null)
+            {
+                return;
+            }
+            byte me = session.LocalId;
+            if (session.IsHost)
+            {
+                Register(session);
+            }
+            // Gone: destroyed here (cleaned up after its death, or taken off by a script).
+            Scratch.Clear();
+            foreach (Shared s in ById.Values)
+            {
+                if (s.V == null)
+                {
+                    Scratch.Add(s);
+                }
+            }
+            foreach (Shared s in Scratch)
+            {
+                Forget(s);
+                if (session.IsHost)
+                {
+                    Out.Reset();
+                    Out.UShort(s.Id);
+                    session.Send(NetGame.VehicleGone, Out, true);
+                }
+            }
+            TakeOrGive(session, me);
+            float now = Time.unscaledTime;
+            foreach (Shared s in ById.Values)
+            {
+                Rigidbody rb = s.V.rigidbody;
+                bool mine = s.Owner == me;
+                if (rb != null && !s.V.dead)
+                {
+                    bool kinematic = mine ? s.WasKinematic : true;
+                    if (rb.isKinematic != kinematic)
+                    {
+                        rb.isKinematic = kinematic;
+                        if (!kinematic && s.HasState)
+                        {
+                            rb.velocity = s.Vel; // (taken over moving: it goes on as it went)
+                            rb.angularVelocity = s.AngVel;
+                        }
+                    }
+                }
+                if (!mine && s.HasState)
+                {
+                    Follow(s, now);
+                }
+            }
+            if (Time.unscaledTime >= _nextState && session.PlayerCount > 1)
+            {
+                _nextState = Time.unscaledTime + StateEvery;
+                TellStates(session, me);
+            }
+            if (Time.unscaledTime >= _nextSeat && session.PlayerCount > 1)
+            {
+                _nextSeat = Time.unscaledTime + SeatEvery;
+                bool all = Time.unscaledTime >= _nextSeatResend;
+                if (all)
+                {
+                    _nextSeatResend = Time.unscaledTime + SeatResendEvery;
+                }
+                TellSeats(session, all);
+            }
+            SeatRemotes(session);
+        }
+
+        /// <summary>The host numbers each vehicle of his match as it comes (spawned, or the map's own), and tells everyone which it is.</summary>
+        private static void Register(NetSession session)
+        {
+            List<Vehicle> list = ActorManager.instance.vehicles;
+            if (list != null)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    Vehicle v = list[i];
+                    if (v == null || v.isTurret || ByVehicle.ContainsKey(v))
+                    {
+                        continue;
+                    }
+                    var s = new Shared { Id = _nextId++, V = v, Key = KeyOf(v), Owner = 0, WasKinematic = v.rigidbody != null && v.rigidbody.isKinematic };
+                    if (_nextId == 0)
+                    {
+                        _nextId = 1;
+                    }
+                    ById[s.Id] = s;
+                    ByVehicle[v] = s;
+                    TellInfo(session, s, NetSession.Everyone);
+                }
+            }
+            if (Time.unscaledTime >= _nextInfo && session.PlayerCount > 1)
+            {
+                // Again every few seconds: who joined or loaded since is told too (the ones he knows are passed over).
+                _nextInfo = Time.unscaledTime + InfoEvery;
+                foreach (Shared s in ById.Values)
+                {
+                    if (s.V != null && !s.V.dead)
+                    {
+                        TellInfo(session, s, NetSession.Everyone);
+                    }
+                }
+            }
+        }
+
+        private static void TellInfo(NetSession session, Shared s, byte to)
+        {
+            Out.Reset();
+            Out.UShort(s.Id);
+            Out.String(s.Key, 128);
+            Out.Byte(s.Owner);
+            Out.Bool(s.V.dead);
+            Out.Vector(s.V.transform.position);
+            Out.Rotation(s.V.transform.rotation);
+            session.SendTo(to, NetGame.VehicleInfo, Out, true);
+        }
+
+        /// <summary>
+        /// This PC's player in a driver's seat takes the vehicle (his physics drive it while he does); out of it again, a vehicle this
+        /// PC took goes back to the host.
+        /// </summary>
+        private static void TakeOrGive(NetSession session, byte me)
+        {
+            Actor player = LocalPlayer.actor;
+            Seat seat = player != null && !player.dead ? player.seat : null;
+            Vehicle driven = seat != null && seat.IsDriverSeat() ? seat.vehicle : null;
+            if (driven != null && !driven.dead && ByVehicle.TryGetValue(driven, out Shared take) && take.Owner != me)
+            {
+                SetOwner(session, take, me, tell: true);
+                OwnersTaken++;
+            }
+            if (session.IsHost)
+            {
+                // A vehicle another took and nobody of his drives here for a while (his word of giving it back lost, his game stalled):
+                // the host's again.
+                float now = Time.unscaledTime;
+                Scratch.Clear();
+                foreach (Shared s in ById.Values)
+                {
+                    if (s.Owner != me && now - s.OwnerSince > 5f && s.V != null)
+                    {
+                        Actor driver = s.V.seats.Count > 0 ? s.V.seats[0].occupant : null;
+                        if (driver == null || !NetGame.IsRemote(driver))
+                        {
+                            Scratch.Add(s);
+                        }
+                    }
+                }
+                foreach (Shared s in Scratch)
+                {
+                    SetOwner(session, s, me, tell: true);
+                }
+                return;
+            }
+            Scratch.Clear();
+            foreach (Shared s in ById.Values)
+            {
+                if (s.Owner == me && s.V != driven)
+                {
+                    Scratch.Add(s);
+                }
+            }
+            foreach (Shared s in Scratch)
+            {
+                SetOwner(session, s, 0, tell: true);
+            }
+        }
+
+        private static void SetOwner(NetSession session, Shared s, byte owner, bool tell)
+        {
+            if (s.Owner == owner)
+            {
+                return;
+            }
+            s.Owner = owner;
+            s.OwnerSince = Time.unscaledTime;
+            if (tell)
+            {
+                Out.Reset();
+                Out.UShort(s.Id);
+                Out.Byte(owner);
+                // (Where it is and how fast as it changes hands: the new owner goes on from there, not from a state a moment old.)
+                Rigidbody rb = s.V != null ? s.V.rigidbody : null;
+                Out.Vector(s.V != null ? s.V.transform.position : s.Pos);
+                Out.Rotation(s.V != null ? s.V.transform.rotation : s.Rot);
+                Out.SmallVector(rb != null && !rb.isKinematic ? rb.velocity : s.Vel);
+                session.Send(NetGame.VehicleOwner, Out, true);
+            }
+        }
+
+        /// <summary>A vehicle another PC drives: where it was told to be, carried on by its speed since, eased (the tells come 15 times a second).</summary>
+        private static void Follow(Shared s, float now)
+        {
+            Transform t = s.V.transform;
+            float age = Mathf.Min(now - s.Heard, 0.25f);
+            Vector3 want = s.Pos + s.Vel * age;
+            Quaternion turn = s.AngVel.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(s.AngVel.magnitude * Mathf.Rad2Deg * age, s.AngVel.normalized) * s.Rot : s.Rot;
+            Vector3 at;
+            Quaternion rot;
+            if ((t.position - want).sqrMagnitude > 12f * 12f)
+            {
+                at = want; // (far off: put there)
+                rot = turn;
+            }
+            else
+            {
+                float k = 1f - Mathf.Exp(-14f * Time.deltaTime);
+                at = Vector3.Lerp(t.position, want, k);
+                rot = Quaternion.Slerp(t.rotation, turn, k);
+            }
+            t.SetPositionAndRotation(at, rot);
+            if (s.V.rigidbody != null)
+            {
+                s.V.rigidbody.position = at;
+                s.V.rigidbody.rotation = rot;
+            }
+        }
+
+        private static void TellStates(NetSession session, byte me)
+        {
+            Scratch.Clear();
+            foreach (Shared s in ById.Values)
+            {
+                if (s.Owner == me && s.V != null)
+                {
+                    Scratch.Add(s);
+                }
+            }
+            int at = 0;
+            while (at < Scratch.Count)
+            {
+                int n = Mathf.Min(StatesPerMessage, Scratch.Count - at);
+                Out.Reset();
+                Out.Byte((byte)n);
+                for (int i = 0; i < n; i++)
+                {
+                    Shared s = Scratch[at + i];
+                    Vehicle v = s.V;
+                    Rigidbody rb = v.rigidbody;
+                    Out.UShort(s.Id);
+                    Out.Vector(v.transform.position);
+                    Out.Rotation(v.transform.rotation);
+                    Out.SmallVector(rb != null && !rb.isKinematic ? Vector3.ClampMagnitude(rb.velocity, 400f) : Vector3.zero);
+                    Out.SmallVector(rb != null && !rb.isKinematic ? Vector3.ClampMagnitude(rb.angularVelocity, 50f) : Vector3.zero);
+                    Out.Float(v.health);
+                    Out.Byte((byte)((v.dead ? 1 : 0) | (v.burning ? 2 : 0)));
+                    Out.Byte((byte)(sbyte)Mathf.Clamp(v.ownerTeam, -1, 1));
+                }
+                session.Send(NetGame.VehicleStates, Out, false);
+                at += n;
+            }
+        }
+
+        /// <summary>Where each of this PC's soldiers sits (a shared vehicle and its seat), told when it changes and every few seconds.</summary>
+        private static void TellSeats(NetSession session, bool all)
+        {
+            foreach (KeyValuePair<Actor, ushort> kv in NetGame.OwnedIds())
+            {
+                Actor a = kv.Key;
+                int now = -1;
+                if (a != null && !a.dead && a.seat != null && a.seat.vehicle != null && ByVehicle.TryGetValue(a.seat.vehicle, out Shared s))
+                {
+                    int index = s.V.seats.IndexOf(a.seat);
+                    if (index >= 0 && index < 255)
+                    {
+                        now = s.Id << 8 | index;
+                    }
+                }
+                bool known = SeatTold.TryGetValue(a, out int told);
+                if (known && told == now && !(all && now >= 0))
+                {
+                    continue;
+                }
+                if (!known && now < 0)
+                {
+                    SeatTold[a] = now;
+                    continue;
+                }
+                SeatTold[a] = now;
+                Out.Reset();
+                Out.UShort(kv.Value);
+                Out.UShort(now >= 0 ? (ushort)(now >> 8) : (ushort)0);
+                Out.Byte(now >= 0 ? (byte)(now & 255) : (byte)255);
+                session.Send(NetGame.VehicleSeat, Out, true);
+            }
+        }
+
+        /// <summary>Every stand-in in the seat its owner says (or out of a shared vehicle's seat when he says none).</summary>
+        private static void SeatRemotes(NetSession session)
+        {
+            foreach (NetGame.Remote r in NetGame.AllRemotes)
+            {
+                Actor a = r.Actor;
+                if (a == null || a.dead || !r.HasState)
+                {
+                    continue;
+                }
+                Seat want = null;
+                if (r.SeatVehicle != 0 && ById.TryGetValue(r.SeatVehicle, out Shared s) && s.V != null && !s.V.dead && r.SeatIndex < s.V.seats.Count)
+                {
+                    want = s.V.seats[r.SeatIndex];
+                }
+                if (want != null && a.seat != want)
+                {
+                    if (want.occupant != null && (want.occupant == LocalPlayer.actor || !want.occupant.aiControlled))
+                    {
+                        continue; // (a player sits there here: not thrown out by another's word; the next tell settles it)
+                    }
+                    if (want.vehicle.ownerTeam >= 0 && want.vehicle.ownerTeam != a.team)
+                    {
+                        want.vehicle.ownerTeam = a.team; // (claimed by his side on his PC: the copy's claim was the last owner's)
+                    }
+                    Seating = true;
+                    try
+                    {
+                        if (a.seat != null)
+                        {
+                            a.LeaveSeat(false);
+                        }
+                        a.EnterSeat(want, kickOutOccupant: true, ignoreLock: true);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WarnOnce("net-seat", "Multiplayer: a stand-in could not be seated: " + e);
+                    }
+                    finally
+                    {
+                        Seating = false;
+                    }
+                }
+                else if (want == null && a.seat != null && a.seat.vehicle != null && ByVehicle.ContainsKey(a.seat.vehicle))
+                {
+                    Seating = true;
+                    try
+                    {
+                        a.LeaveSeat(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WarnOnce("net-unseat", "Multiplayer: a stand-in could not be unseated: " + e);
+                    }
+                    finally
+                    {
+                        Seating = false;
+                    }
+                }
+            }
+        }
+
+        // ---- what is told -----------------------------------------------------------------------------------------------
+
+        internal static void OnMessage(byte kind, byte sender, ref NetReader r)
+        {
+            NetSession session = NetGame.SessionNow;
+            if (!Enabled || session == null)
+            {
+                return;
+            }
+            switch (kind)
+            {
+                case NetGame.VehicleInfo:
+                    TakeInfo(session, sender, ref r);
+                    break;
+                case NetGame.VehicleStates:
+                {
+                    int n = r.Byte();
+                    for (int i = 0; i < n; i++)
+                    {
+                        ushort id = r.UShort();
+                        Vector3 pos = r.Vector();
+                        Quaternion rot = r.Rotation();
+                        Vector3 vel = r.SmallVector(), ang = r.SmallVector();
+                        float health = r.Float();
+                        int flags = r.Byte();
+                        int team = (sbyte)r.Byte();
+                        if (!ById.TryGetValue(id, out Shared s) || s.Owner != sender || s.V == null || !Finite(pos) || !Finite(vel) || !Finite(ang))
+                        {
+                            continue;
+                        }
+                        s.Pos = pos;
+                        s.Rot = rot;
+                        s.Vel = vel;
+                        s.AngVel = ang;
+                        s.Heard = Time.unscaledTime;
+                        s.HasState = true;
+                        s.Team = team;
+                        if (!float.IsNaN(health) && !float.IsInfinity(health))
+                        {
+                            s.Health = health;
+                            s.V.health = Mathf.Clamp(health, 0f, s.V.maxHealth);
+                        }
+                        s.V.ownerTeam = Mathf.Clamp(team, -1, 1);
+                        if ((flags & 1) != 0 && !s.V.dead)
+                        {
+                            s.ToldDead = true;
+                            DieHere(s);
+                        }
+                    }
+                    break;
+                }
+                case NetGame.VehicleGone:
+                {
+                    ushort id = r.UShort();
+                    Gone.Add(id);
+                    if (ById.TryGetValue(id, out Shared s))
+                    {
+                        Forget(s);
+                        if (s.Copy && s.V != null)
+                        {
+                            UnityEngine.Object.Destroy(s.V.gameObject);
+                        }
+                    }
+                    break;
+                }
+                case NetGame.VehicleOwner:
+                {
+                    ushort id = r.UShort();
+                    byte owner = r.Byte();
+                    Vector3 pos = r.Vector();
+                    Quaternion rot = r.Rotation();
+                    Vector3 vel = r.SmallVector();
+                    if (owner != sender && owner != 0)
+                    {
+                        break; // (one takes a vehicle for himself, or gives it to the host: no other word)
+                    }
+                    if (ById.TryGetValue(id, out Shared s) && Finite(pos) && Finite(vel))
+                    {
+                        // (Taken by another while this PC's player drives it too, both at once: the host's word holds, the other gives way.)
+                        if (s.Owner == session.LocalId && owner != session.LocalId && sender != 0 && session.IsHost && DrivenHere(s))
+                        {
+                            SetOwner(session, s, session.LocalId, tell: true);
+                            break;
+                        }
+                        s.Pos = pos;
+                        s.Rot = rot;
+                        s.Vel = vel;
+                        s.AngVel = Vector3.zero;
+                        s.Heard = Time.unscaledTime;
+                        s.HasState = true;
+                        s.Owner = owner;
+                        s.OwnerSince = Time.unscaledTime;
+                    }
+                    break;
+                }
+                case NetGame.VehicleSeat:
+                {
+                    ushort actor = r.UShort();
+                    ushort vehicle = r.UShort();
+                    int seat = r.Byte();
+                    NetGame.Remote remote = NetGame.RemoteOf(sender, actor);
+                    if (remote != null)
+                    {
+                        remote.SeatVehicle = seat == 255 ? (ushort)0 : vehicle;
+                        remote.SeatIndex = seat == 255 ? 0 : seat;
+                    }
+                    break;
+                }
+                case NetGame.VehicleHit:
+                    TakeHit(session, sender, ref r);
+                    break;
+            }
+        }
+
+        private static bool DrivenHere(Shared s)
+        {
+            Actor player = LocalPlayer.actor;
+            return player != null && player.seat != null && player.seat.vehicle == s.V && player.seat.IsDriverSeat();
+        }
+
+        private static void TakeInfo(NetSession session, byte sender, ref NetReader r)
+        {
+            ushort id = r.UShort();
+            string key = r.String(128);
+            byte owner = r.Byte();
+            bool dead = r.Bool();
+            Vector3 pos = r.Vector();
+            Quaternion rot = r.Rotation();
+            if (sender != 0 || session.IsHost || Gone.Contains(id) || ById.ContainsKey(id) || dead || !Finite(pos) || NetGame.LoadingNow || !NetGame.InMatchNow)
+            {
+                return;
+            }
+            GameObject prefab = PrefabOf(key);
+            if (prefab == null)
+            {
+                if (Missing.Add(key))
+                {
+                    Log.Warn($"Multiplayer: the host's vehicle '{key}' is not on this PC (a mod's vehicle?): it is not shown here.");
+                    UI.UISystem.Instance?.Notice?.Show($"The host has a vehicle this PC lacks: {key}. Get the host's mods.", 6f);
+                }
+                return;
+            }
+            GameObject go;
+            try
+            {
+                go = UnityEngine.Object.Instantiate(prefab, pos, rot);
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicle-make:" + key, $"Multiplayer: the host's vehicle '{key}' could not be made here: {e}");
+                return;
+            }
+            Vehicle v = go != null ? go.GetComponent<Vehicle>() : null;
+            if (v == null)
+            {
+                if (go != null)
+                {
+                    UnityEngine.Object.Destroy(go);
+                }
+                return;
+            }
+            v.spawner = null;
+            var s = new Shared { Id = id, V = v, Key = key, Owner = owner, Copy = true, WasKinematic = v.rigidbody != null && v.rigidbody.isKinematic, Pos = pos, Rot = rot, Heard = Time.unscaledTime, HasState = true };
+            if (v.rigidbody != null)
+            {
+                v.rigidbody.isKinematic = true;
+            }
+            ById[id] = s;
+            ByVehicle[v] = s;
+            CopiesMade++;
+            Log.InfoOnce("net-vehicle-copy:" + key, $"Multiplayer: the host's vehicle '{key}' shown here (number {id}).");
+        }
+
+        private static void TakeHit(NetSession session, byte sender, ref NetReader r)
+        {
+            ushort id = r.UShort();
+            ushort shooter = r.UShort();
+            float health = r.Float(), balance = r.Float();
+            int flags = r.Byte();
+            int type = r.Byte();
+            Vector3 point = r.Vector();
+            Vector3 direction = r.SmallVector();
+            if (!ById.TryGetValue(id, out Shared s) || s.Owner != session.LocalId || s.V == null || s.V.dead
+                || float.IsNaN(health) || float.IsInfinity(health) || !Finite(point))
+            {
+                return;
+            }
+            NetGame.Remote by = NetGame.RemoteOf(sender, shooter);
+            var info = new DamageInfo((DamageInfo.DamageSourceType)type, by != null ? by.Actor : null, null)
+            {
+                healthDamage = Mathf.Clamp(health, 0f, 100000f),
+                balanceDamage = float.IsNaN(balance) || float.IsInfinity(balance) ? 0f : balance,
+                isSplashDamage = (flags & 1) != 0,
+                isPiercing = (flags & 2) != 0,
+                isCriticalHit = (flags & 4) != 0,
+                point = point,
+                direction = Finite(direction) ? direction : Vector3.zero,
+            };
+            _applyingHit = true;
+            try
+            {
+                s.V.Damage(info);
+            }
+            finally
+            {
+                _applyingHit = false;
+            }
+        }
+
+        /// <summary>Its owner told it destroyed: so here too (the fire, the explosion, its riders out; the wreck follows the owner's).</summary>
+        private static void DieHere(Shared s)
+        {
+            _applyingHit = true;
+            try
+            {
+                s.V.health = 0f;
+                s.V.Die(new DamageInfo(DamageInfo.DamageSourceType.Unknown, null, null));
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicle-die", "Multiplayer: a vehicle told destroyed could not be destroyed here: " + e);
+            }
+            finally
+            {
+                _applyingHit = false;
+            }
+        }
+
+        // ---- the vehicles' prefabs ----------------------------------------------------------------------------------------
+
+        /// <summary>A vehicle as it is told: its prefab's name (what a spawner, a mod's slot or the map made it from).</summary>
+        private static string KeyOf(Vehicle v)
+        {
+            GameObject prefab = v.vehicleInfo != null ? v.vehicleInfo.prefab : null;
+            string name = prefab != null ? prefab.name : v.gameObject.name;
+            return (name ?? "").Replace("(Clone)", "").Trim();
+        }
+
+        /// <summary>This PC's prefab of that name: every vehicle prefab loaded (the game's, the mods', the map's spawners').</summary>
+        private static GameObject PrefabOf(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return null;
+            }
+            if (Catalog.TryGetValue(key, out GameObject known) && known != null)
+            {
+                return known;
+            }
+            if (Time.unscaledTime - _catalogAt < 5f && Catalog.Count > 0)
+            {
+                return null;
+            }
+            _catalogAt = Time.unscaledTime;
+            Catalog.Clear();
+            try
+            {
+                foreach (Vehicle v in Resources.FindObjectsOfTypeAll<Vehicle>())
+                {
+                    if (v != null && !v.gameObject.scene.IsValid() && !string.IsNullOrEmpty(v.gameObject.name) && !Catalog.ContainsKey(v.gameObject.name))
+                    {
+                        Catalog[v.gameObject.name] = v.gameObject;
+                    }
+                }
+                foreach (VehicleSpawner spawner in UnityEngine.Object.FindObjectsOfType<VehicleSpawner>())
+                {
+                    if (spawner != null && spawner.prefab != null && !Catalog.ContainsKey(spawner.prefab.name))
+                    {
+                        Catalog[spawner.prefab.name] = spawner.prefab;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicle-catalog", "Multiplayer: the vehicle prefabs could not be listed: " + e);
+            }
+            return Catalog.TryGetValue(key, out GameObject found) ? found : null;
+        }
+
+        // ---- the session ----------------------------------------------------------------------------------------------------
+
+        /// <summary>A player left: the vehicles he drove are the host's again.</summary>
+        internal static void OnLeft(byte player)
+        {
+            foreach (Shared s in ById.Values)
+            {
+                if (s.Owner == player)
+                {
+                    s.Owner = 0;
+                }
+            }
+        }
+
+        /// <summary>A copy of a vehicle that is not one of the host's: taken off on a joined PC (its own spawners are stopped).</summary>
+        internal static bool KeepOnJoined(Vehicle v) => Enabled && IsShared(v);
+
+        private static void Forget(Shared s)
+        {
+            ById.Remove(s.Id);
+            if (!ReferenceEquals(s.V, null))
+            {
+                ByVehicle.Remove(s.V);
+            }
+        }
+
+        /// <summary>The match or the session over: everything forgotten; a copy left in a match that goes on alone moves by its own physics again.</summary>
+        internal static void Clear()
+        {
+            foreach (Shared s in ById.Values)
+            {
+                if (s.V != null && s.V.rigidbody != null && !s.V.dead)
+                {
+                    s.V.rigidbody.isKinematic = s.WasKinematic;
+                }
+            }
+            ById.Clear();
+            ByVehicle.Clear();
+            Gone.Clear();
+            SeatTold.Clear();
+            Missing.Clear();
+            Catalog.Clear();
+            _catalogAt = -100f;
+            _nextId = 1;
+        }
+
+        private static bool Finite(Vector3 v) =>
+            !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
+    }
+}

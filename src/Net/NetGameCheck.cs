@@ -462,7 +462,10 @@ namespace RavenfieldVR.Net
             report($"multiplayer telling: {NetGame.LastTold} of {NetGame.LastOwned} soldiers' places went out in the last telling (the dead and the far ones go out less often)");
 
             int vehicles = ActorManager.instance.vehicles.Count(v => v != null && !v.isTurret);
-            report($"multiplayer vehicles in the shared match: {vehicles} on the field ({NetGame.VehiclesRemoved} taken off){(vehicles > 0 ? " NOT TAKEN OFF" : "")}");
+            // (Since 1.17.10 the host keeps his vehicles and numbers each for the others: NetVehicles.)
+            report(NetVehicles.Enabled
+                ? $"multiplayer vehicles in the shared match: {vehicles} on the host's field, {NetVehicles.Count} numbered for the others{(NetVehicles.Count < vehicles ? " NOT ALL NUMBERED" : "")}"
+                : $"multiplayer vehicles in the shared match: {vehicles} on the field ({NetGame.VehiclesRemoved} taken off){(vehicles > 0 ? " NOT TAKEN OFF" : "")}");
 
             // 7. He leaves: his soldier goes with him.
             ghost.Leave();

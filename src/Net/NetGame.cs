@@ -26,7 +26,8 @@ namespace RavenfieldVR.Net
     /// </summary>
     internal static class NetGame
     {
-        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30;
+        internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -48,6 +49,10 @@ namespace RavenfieldVR.Net
             public Vector3 Position, Velocity;
             /// <summary>The stand-in is walking toward its told place (it stands within 12 cm then, not 25: see RemoteVelocity).</summary>
             public bool Walking;
+
+            /// <summary>The shared vehicle and seat his owner says he sits in (0: none; NetVehicles).</summary>
+            public ushort SeatVehicle;
+            public int SeatIndex;
 
             /// <summary>
             /// Whether his told place is going anywhere: it moved 20 cm along the ground from where it was (<see cref="Anchor"/>) within
@@ -140,6 +145,42 @@ namespace RavenfieldVR.Net
         internal static int RemoteCount => Remotes.Count;
         internal static IEnumerable<Remote> AllRemotes => Remotes.Values;
 
+        internal static NetSession SessionNow => _session;
+        internal static bool LoadingNow => _loading;
+        internal static bool InMatchNow => InMatch;
+        /// <summary>A told death or hit is being applied here (the patches let it through).</summary>
+        internal static bool Applying => _applying;
+
+        internal static Remote RemoteOf(byte owner, ushort id) => Remotes.TryGetValue(owner << 16 | id, out Remote r) ? r : null;
+
+        /// <summary>This PC's own soldier's number as told (false: not one of this PC's told soldiers).</summary>
+        internal static bool OwnedId(Actor a, out ushort id)
+        {
+            if (a != null && Owned.TryGetValue(a, out Own own))
+            {
+                id = own.Id;
+                return true;
+            }
+            id = 0;
+            return false;
+        }
+
+        private static readonly List<KeyValuePair<Actor, ushort>> OwnedScratch = new List<KeyValuePair<Actor, ushort>>();
+
+        /// <summary>This PC's told soldiers with their numbers (a list kept for the call: read it before the next).</summary>
+        internal static List<KeyValuePair<Actor, ushort>> OwnedIds()
+        {
+            OwnedScratch.Clear();
+            foreach (KeyValuePair<Actor, Own> kv in Owned)
+            {
+                if (kv.Key != null)
+                {
+                    OwnedScratch.Add(new KeyValuePair<Actor, ushort>(kv.Key, kv.Value.Id));
+                }
+            }
+            return OwnedScratch;
+        }
+
         /// <summary>Whether a soldier here is another PC's (its stand-in).</summary>
         internal static bool IsRemote(Actor a) => a != null && _anyRemote && ByActor.ContainsKey(a);
 
@@ -170,7 +211,7 @@ namespace RavenfieldVR.Net
             Application.onBeforeRender += FlatBeforeRender;
             // (What every player tells of his soldiers goes on unreliably through the host too: relayed reliably, one lost packet
             // held every later hit and match start back on that line. Review of 2026-11-10.)
-            session.ReliableKind = k => k != ActorStates && k != VrPose;
+            session.ReliableKind = k => k != ActorStates && k != VrPose && k != VehicleStates;
             Patch();
             // A game hosted from inside a running match: who joins is told that match (it was only told at a level's start).
             if (session.IsHost && InMatch && GameManager.instance.lastMapEntry != null)
@@ -191,6 +232,7 @@ namespace RavenfieldVR.Net
             _loading = false;
             _lobbyTold = "";
             Clear(true);
+            NetVehicles.Clear();
             // The match goes on alone: its vehicles come again (their spawners were stopped for the shared match).
             foreach (VehicleSpawner spawner in StoppedSpawners)
             {
@@ -623,6 +665,7 @@ namespace RavenfieldVR.Net
                 Remove(r);
             }
             StartTold.Remove(p.Id); // (his number may be the next newcomer's: that one is told the match afresh)
+            NetVehicles.OnLeft(p.Id);
             // (His dropped guns shown here go with him: he can no longer pick them up.)
             foreach (int key in PendingDrops.Keys.Where(k => k >> 16 == p.Id).ToArray())
             {
@@ -648,6 +691,7 @@ namespace RavenfieldVR.Net
             _patched = true;
             _harmony = new Harmony(PluginInfo.Guid + ".net");
             Type ai = typeof(AiActorController);
+            NetVehicles.Patch(_harmony);
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Velocity)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteVelocity)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.FacingDirection)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteFacing)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.WantsToFire)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteFire)));
@@ -1192,6 +1236,14 @@ namespace RavenfieldVR.Net
                     case KilledBy:
                         TakeKill(sender, ref r);
                         break;
+                    case VehicleInfo:
+                    case VehicleStates:
+                    case VehicleGone:
+                    case VehicleSeat:
+                    case VehicleOwner:
+                    case VehicleHit:
+                        NetVehicles.OnMessage(kind, sender, ref r);
+                        break;
                     case DropGone:
                     {
                         int key = sender << 16 | r.UShort();
@@ -1500,7 +1552,10 @@ namespace RavenfieldVR.Net
             {
                 _vehiclesOffFor = LocalPlayer.actor;
                 _nextVehicleSweep = Time.unscaledTime + 5f;
-                NoVehicles(newMatch);
+                if (!NetVehicles.Enabled || !session.IsHost)
+                {
+                    NoVehicles(newMatch);
+                }
             }
             if (!session.IsHost && (newMatch || Time.unscaledTime >= _nextOwnSweep))
             {
@@ -1516,6 +1571,14 @@ namespace RavenfieldVR.Net
                 }
             }
             NetAvatar.Tell(session);
+            try
+            {
+                NetVehicles.Update(session);
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicles-update", "Multiplayer: the shared vehicles' update threw: " + e);
+            }
             if (session.IsHost && Time.unscaledTime >= _nextMatchTell)
             {
                 _nextMatchTell = Time.unscaledTime + 1f;
@@ -1760,7 +1823,7 @@ namespace RavenfieldVR.Net
         {
             try
             {
-                if (!newMatch && !ActorManager.instance.vehicles.Any(v => v != null && !v.isTurret))
+                if (!newMatch && !ActorManager.instance.vehicles.Any(v => v != null && !v.isTurret && !NetVehicles.KeepOnJoined(v)))
                 {
                     return;
                 }
@@ -1777,9 +1840,9 @@ namespace RavenfieldVR.Net
                 int removed = 0;
                 foreach (Vehicle v in ActorManager.instance.vehicles.ToArray())
                 {
-                    if (v == null || v.isTurret)
+                    if (v == null || v.isTurret || NetVehicles.KeepOnJoined(v))
                     {
-                        continue;
+                        continue; // (a turret is each PC's own; a copy of the host's vehicle is the match's)
                     }
                     if (v.seats != null)
                     {
@@ -2524,6 +2587,7 @@ namespace RavenfieldVR.Net
             _loading = false;
             EntryByKey.Clear(); // (the weapons found by name are the last scene's)
             ShownDrops.Clear(); // (their copies went with the scene; the drops told during the load are kept: PendingDrops)
+            NetVehicles.Clear();
             _ended = false;
             _matchTold = 0;
             HeldFlags.Clear(); // (they went with the old scene)
