@@ -549,6 +549,13 @@ namespace RavenfieldVR.Net
             GameModeInfo mode = Sandbox.Sandbox.ModeByName(modeName)
                                 ?? GameManager.instance.officialGameModes.FirstOrDefault(m => m != null && string.Equals(m.name, modeName, StringComparison.OrdinalIgnoreCase));
             GameModeParameters p = mode != null ? GameModeParameters.CreateForGameMode(mode) : GameModeParameters.GetDefault();
+            if (mode == null && !string.IsNullOrEmpty(modeName))
+            {
+                // (A mod's game mode this PC lacks: the game's default mode was taken with nothing said, and the two PCs played two
+                // modes. Modded multiplayer hunt, 2026-11-11.)
+                UI.UISystem.Instance?.Notice?.Show($"The host plays the game mode '{modeName}', which this PC does not have: the default mode is played here. Get the host's mods.", 12f);
+                Log.Warn($"Multiplayer: the host's game mode '{modeName}' is not on this PC; the default mode is played here.");
+            }
             // None of this PC's own soldiers: the host's are shown here.
             p.configuration.SetInt("countTeam0", 0);
             p.configuration.SetInt("countTeam1", 0);
@@ -1588,6 +1595,12 @@ namespace RavenfieldVR.Net
                 if (!alive || a.dead)
                 {
                     continue;
+                }
+                if (a.team != r.Team)
+                {
+                    // (Switched side alive, by a map's or mod's script on its owner's PC: taken on at once, not at his next death; this PC's
+                    // own soldiers took him for the other side meanwhile. Modded multiplayer hunt, 2026-11-11.)
+                    a.SetTeam(r.Team);
                 }
                 {
                     if (r.WeaponChanged)

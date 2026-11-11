@@ -129,12 +129,12 @@ namespace RavenfieldVR.UI
                     if (missing > 0 && !NetMods.Asked)
                     {
                         ActionRow($"{missing} of the host's {NetMods.HostCount} workshop mods are not on this PC.", "Get them", () => UISystem.Instance?.Notice?.Show(NetMods.GetThem(), 6f));
-                        Label("Steam downloads them from the workshop and the game loads each when it is there. Without them his weapons and maps are missing here.", 18, FontStyle.Italic, UiKit.MutedText, 50f);
+                        Label("Steam downloads them from the workshop; start the game again once they are there. Without them his weapons and maps are missing here.", 18, FontStyle.Italic, UiKit.MutedText, 50f);
                     }
                     else if (missing > 0)
                     {
                         Label($"Steam is fetching the host's mods: {missing} still to come.", 22, FontStyle.Normal, UiKit.TextColor);
-                        Label("Should a weapon or map still be missing once all are there, start the game again.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
+                        Label("Once they are downloaded, start the game again: the game loads mods only when it starts.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
                     }
                     else
                     {

@@ -110,9 +110,21 @@ namespace RavenfieldVR.Net
                 _said = true;
                 int missing = Missing(out int off);
                 Log.Info($"Multiplayer: the host has {Hosts.Count} workshop mod(s) on; this PC lacks {missing}, has {off} switched off.");
-                if (missing > 0)
+                // (Switched off here is said too: those mods are not loaded, so their weapons and maps are missing as surely as a mod not
+                // installed, and only the log said so; modded multiplayer hunt, 2026-11-11.)
+                if (missing > 0 && off > 0)
+                {
+                    UI.UISystem.Instance?.Notice?.Show($"The host plays with {missing} workshop mod(s) this PC does not have, and {off} that are switched off here. "
+                                                       + "Multiplayer panel: Get them; switch the others on in the game's Mods menu.", 12f);
+                }
+                else if (missing > 0)
                 {
                     UI.UISystem.Instance?.Notice?.Show($"The host plays with {missing} workshop mod(s) this PC does not have. Multiplayer panel: Get them.", 10f);
+                }
+                else if (off > 0)
+                {
+                    UI.UISystem.Instance?.Notice?.Show($"{off} of the host's workshop mod(s) are switched off on this PC: switch them on in the game's Mods menu, "
+                                                       + "then start the game again.", 12f);
                 }
             }
         }
@@ -204,7 +216,9 @@ namespace RavenfieldVR.Net
             }
             Asked = true;
             Log.Info($"Multiplayer: asked Steam for {asked} of the host's workshop mod(s).");
-            return asked > 0 ? $"Steam is fetching {asked} mod(s). The game loads each when it is there." : "Nothing more to fetch.";
+            // (The game takes a mod in only at its own start: one fetched now is on the disk, not in the match. It said "the game loads
+            // each when it is there" and nothing came; modded multiplayer hunt, 2026-11-11.)
+            return asked > 0 ? $"Steam is fetching {asked} mod(s). When they are downloaded, start the game again to have them." : "Nothing more to fetch.";
         }
 
         /// <summary>The session ended: the next host's list is his own.</summary>
