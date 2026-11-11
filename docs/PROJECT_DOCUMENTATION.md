@@ -145,6 +145,15 @@ out of the sun in shade (`FPLightIntensity`, here `VRRig.UpdateGunShade` by the 
 `UnderwaterVeil`). `IRFlaresRenderer` draws for every camera, so its strobes need nothing. Anything in the game's `OnGUI`, `OnRenderImage`, `OnPreCull` or
 `OnPostRender` is a place to look when something the flat game shows is missing in the headset.
 
+**Seats, falls and vehicle feel (Tasks 383, 2026-11-11).** In a seat with a camera of the vehicle's own, the eyes are where that camera rests
+in the vehicle, taken once as the seat is taken and carried with the seat (`VRRig.SeatEyes`): taken every frame, a turret's camera on the
+turning gun swung the view around the pivot (the Blackhawk's minigun). A vehicle camera more than 1.5 m from the seat's eye point (0, 0.85,
+0.2 in the seat, the game's own) is an outside chase view: the eyes are the seat's then, and the body is not drawn there (planes). Knocked over,
+the view is anchored at the drawn head (the ragdoll's while it is drawn, so getting up does not jump), its own head shrunk away, the yaw only
+(`FallInFirstPerson`). The flight stick reads the hand's tilt since the grab as well as its movement (25 degrees a full throw). Hits, jolts
+over 25 m/s a second and a faint engine hum reach the hands (`Rig/VehicleFeel`). Seat switching: the left stick's click, the turn stick's
+long press anywhere, its click where the seat has no second mounted weapon and no own gun.
+
 ### 3.4 The glove and how hands hold things (`Rig/HandModel.cs`, `Rig/GloveMesh.cs`, `Weapons/ModHand.cs`, `Weapons/GunVolume.cs`)
 
 This is the system rebuilt in this session. The user's report: "the hands are clipping inside the Glock and the AK …
