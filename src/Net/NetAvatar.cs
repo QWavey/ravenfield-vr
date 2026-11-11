@@ -89,6 +89,7 @@ namespace RavenfieldVR.Net
         internal static void Forget(NetGame.Remote remote)
         {
             ForgetCarried(remote);
+            Heads.Remove(remote);
             if (remote.Pose != null)
             {
                 GiveBack(remote.Pose);
@@ -450,6 +451,80 @@ namespace RavenfieldVR.Net
             known = true;
         }
 
+        // ---- his head, where he looks ---------------------------------------------------------------------------------
+
+        /// <summary>A player's soldier's head: the bone's own forward (learnt once, as it stands), and his look eased.</summary>
+        private sealed class Head
+        {
+            public Transform Bone;
+            public Vector3 LocalForward;
+            public Vector3 Look;
+            public bool Eased;
+        }
+
+        private static readonly Dictionary<NetGame.Remote, Head> Heads = new Dictionary<NetGame.Remote, Head>();
+
+        /// <summary>The check's: players' heads turned in the last frame.</summary>
+        internal static int HeadsTurned;
+
+        /// <summary>
+        /// Each other player's soldier's head turned where he looks (a VR player: his headset's way; a flat one: his aim), after the
+        /// animation and before the eyes draw it: the game's own look turned it only part of the way, and a player looking around stood
+        /// with his face straight ahead (the user, 2026-11-11: "The face needs to be able to turn where the player is looking"). Held to
+        /// what a neck does: 80 degrees either side of his body, 60 up or down.
+        /// </summary>
+        internal static void TurnHeads()
+        {
+            HeadsTurned = 0;
+            if (NetGame.RemoteCount == 0)
+            {
+                return;
+            }
+            foreach (NetGame.Remote r in NetGame.AllRemotes)
+            {
+                Actor a = r.Actor;
+                if (r.Id != 0 || a == null || a.dead || a.fallenOver || !r.HasState || a.animator == null)
+                {
+                    continue;
+                }
+                if (!Heads.TryGetValue(r, out Head h) || h.Bone == null)
+                {
+                    Transform bone = a.animator.GetBoneTransform(HumanBodyBones.Head);
+                    if (bone == null)
+                    {
+                        continue;
+                    }
+                    // (Learnt as he stands: the animation holds the head about the body's way then.)
+                    h = new Head { Bone = bone, LocalForward = Quaternion.Inverse(bone.rotation) * a.transform.forward };
+                    Heads[r] = h;
+                }
+                Vector3 want = r.Pose != null && r.Pose.Fresh ? r.Pose.HeadForward : r.Facing;
+                if (want.sqrMagnitude < 1e-4f)
+                {
+                    continue;
+                }
+                want.Normalize();
+                Vector3 body = a.transform.forward;
+                body.y = 0f;
+                if (body.sqrMagnitude < 1e-4f)
+                {
+                    continue;
+                }
+                body.Normalize();
+                Vector3 flat = new Vector3(want.x, 0f, want.z);
+                float yaw = flat.sqrMagnitude > 1e-4f ? Mathf.Clamp(Vector3.SignedAngle(body, flat, Vector3.up), -80f, 80f) : 0f;
+                float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(want.y, -1f, 1f)) * Mathf.Rad2Deg, -60f, 60f);
+                Vector3 turned = Quaternion.AngleAxis(yaw, Vector3.up) * body;
+                Vector3 right = Vector3.Cross(Vector3.up, turned);
+                Vector3 look = Quaternion.AngleAxis(-pitch, right) * turned;
+                h.Look = h.Eased ? Vector3.Slerp(h.Look, look, 1f - Mathf.Exp(-18f * Time.deltaTime)) : look;
+                h.Eased = true;
+                Vector3 now = h.Bone.rotation * h.LocalForward;
+                h.Bone.rotation = Quaternion.FromToRotation(now, h.Look) * h.Bone.rotation;
+                HeadsTurned++;
+            }
+        }
+
         /// <summary>The gun back where the soldier's hand has it, and the game's own left-hand target back (no pose told any more).</summary>
         private static void GiveBack(Pose p)
         {
@@ -465,6 +540,7 @@ namespace RavenfieldVR.Net
         /// <summary>Before the eyes are drawn: each VR player's gun put where he holds it (its muzzle on the told one).</summary>
         internal static void BeforeRender()
         {
+            TurnHeads();
             if (ByIk.Count == 0)
             {
                 return;
