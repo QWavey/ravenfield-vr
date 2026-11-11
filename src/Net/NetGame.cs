@@ -1233,6 +1233,11 @@ namespace RavenfieldVR.Net
                 _nextVehicleSweep = Time.unscaledTime + 5f;
                 NoVehicles(newMatch);
             }
+            if (!session.IsHost && (newMatch || Time.unscaledTime >= _nextOwnSweep))
+            {
+                _nextOwnSweep = Time.unscaledTime + 1f;
+                NoOwnSoldiers();
+            }
             if (Time.unscaledTime >= _nextSend)
             {
                 _nextSend = Time.unscaledTime + SendEvery;
@@ -1534,6 +1539,56 @@ namespace RavenfieldVR.Net
             catch (Exception e)
             {
                 Log.WarnOnce("net-vehicles", "Multiplayer: the vehicles could not be taken off the field: " + e);
+            }
+        }
+
+        private static float _nextOwnSweep;
+
+        /// <summary>The check's: soldiers of this joined PC's own taken off the field this session.</summary>
+        internal static int OwnSoldiersRemoved;
+
+        /// <summary>
+        /// On a joined PC, once a second: a soldier of this PC's own (none of the host's stand-ins) is taken off the field. The match
+        /// starts here with no soldiers (countTeam 0), but a map's or mod's script brings its own (a wave, a boss, a guard), and the
+        /// same script on the host brings them too, told here as his stand-ins: this PC's copies were seen on this PC alone, shot
+        /// its player, and were shot at by him with no effect anywhere else (Tasks 382.4). Each is marked as waiting for a spawn, so
+        /// the game's waves and the scripts leave it dead.
+        /// </summary>
+        private static void NoOwnSoldiers()
+        {
+            try
+            {
+                int removed = 0;
+                foreach (Actor a in ActorManager.instance.actors)
+                {
+                    if (a == null || !a.aiControlled || ByActor.ContainsKey(a))
+                    {
+                        continue;
+                    }
+                    if (!a.dead)
+                    {
+                        _applying = true;
+                        try
+                        {
+                            a.KillSilently();
+                        }
+                        finally
+                        {
+                            _applying = false;
+                        }
+                        removed++;
+                    }
+                    a.isScheduledToSpawn = true;
+                }
+                if (removed > 0)
+                {
+                    OwnSoldiersRemoved += removed;
+                    Log.InfoOnce("net-own-soldiers", $"Multiplayer: {removed} soldier(s) of this PC's own (a map's or mod's script) taken off the field: the host's are shown here.");
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-own-soldiers-fail", "Multiplayer: this PC's own soldiers could not be taken off the field: " + e);
             }
         }
 
