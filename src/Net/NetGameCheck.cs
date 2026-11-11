@@ -378,7 +378,7 @@ namespace RavenfieldVR.Net
                        + $"left hand {offL * 100f:0} cm from where he holds it{(offL < 0f || offL > 0.2f ? " NOT THERE" : "")}, gun hand {gripOff * 100f:0} cm from where his soldier grips this gun ({(pose != null && pose.OwnRight != null ? "the game's own grip point on the gun" : "the hand's place on the gun at rest")}){(gripOff < 0f || gripOff > 0.08f ? " NOT ON THE GRIP" : "")}; "
                        + reach.TrimStart(';', ' ') + (reach.Length > 0 ? "; " : "") + $"his gun's muzzle {gunOff * 100f:0} cm off and {gunTurn:0} degrees off his{(gunOff < 0f || gunOff > 0.05f || gunTurn > 5f ? " NOT WHERE HE HOLDS IT" : "")}");
                 GameObject box = pose != null ? pose.MagazineBox : null;
-                float boxOff = box != null && box.activeSelf ? Vector3.Distance(box.transform.position, at + handL) : -1f;
+                float boxOff = box != null && box.activeSelf ? Vector3.Distance(box.transform.TransformPoint(pose.MagazineMiddle), at + handL) : -1f; // (its middle: the gun's own magazine is placed by it)
                 report($"multiplayer VR player's magazine in his free hand: {(boxOff >= 0f && boxOff < 0.05f ? $"shown, {boxOff * 100f:0} cm from the hand" : "NOT SHOWN")}; "
                        + $"this game's own player told to him {posesGot} time(s) in the check so far{(posesGot == 0 ? " NOT TOLD" : "")}"
                        + (posesGot > 0 ? $": hands {((poseFlags & NetAvatar.LeftHand) != 0 ? "left " : "")}{((poseFlags & NetAvatar.RightHand) != 0 ? "right " : "")}tracked, "

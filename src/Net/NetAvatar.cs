@@ -51,6 +51,9 @@ namespace RavenfieldVR.Net
 
             /// <summary>The magazine in his free hand, as a plain dark box (the gun's own magazine model is the weapon mod's; this shows the reload's moves).</summary>
             public GameObject MagazineBox;
+            /// <summary>The weapon whose magazine the copy in his hand is (made again when he holds another), and its middle in the copy.</summary>
+            public Weapon MagazineOf;
+            public Vector3 MagazineMiddle;
 
             /// <summary>The game's own right-hand target on this gun, or (with none) the hand bone's place on the gun taken once, before ours moved it.</summary>
             public Transform OwnRight;
@@ -687,8 +690,21 @@ namespace RavenfieldVR.Net
                 }
                 // The magazine in his free hand while he reloads by hand.
                 bool magazine = p.Is(Magazine) && Usable(kv.Value, out Actor holder, out Pose _);
+                Weapon held = kv.Value.Actor != null ? kv.Value.Actor.activeWeapon : null;
+                if (magazine && p.MagazineBox != null && !ReferenceEquals(p.MagazineOf, held))
+                {
+                    Object.Destroy(p.MagazineBox); // (another gun in his hands since: its own magazine)
+                    p.MagazineBox = null;
+                }
                 if (magazine && p.MagazineBox == null)
                 {
+                    // His gun's own magazine, copied from its model (the plain box only when it has none by name).
+                    p.MagazineOf = held;
+                    p.MagazineBox = MagazineCopy(held, out p.MagazineMiddle);
+                }
+                if (magazine && p.MagazineBox == null)
+                {
+                    p.MagazineMiddle = Vector3.zero;
                     p.MagazineBox = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     Object.Destroy(p.MagazineBox.GetComponent<Collider>());
                     p.MagazineBox.name = "RavenfieldVR Net Magazine";
@@ -709,7 +725,7 @@ namespace RavenfieldVR.Net
                         bool left = !p.Is(GunInLeft);
                         Quaternion turn = left ? p.LeftRot : p.RightRot;
                         Vector3 at = kv.Value.Actor.Position() + (left ? p.LeftNow : p.RightNow);
-                        p.MagazineBox.transform.SetPositionAndRotation(at, turn);
+                        p.MagazineBox.transform.SetPositionAndRotation(at - turn * p.MagazineMiddle, turn);
                     }
                 }
                 if (!Usable(kv.Value, out Actor _, out Pose _) && p.Eased)
@@ -757,6 +773,96 @@ namespace RavenfieldVR.Net
                 {
                     p.Model.SetPositionAndRotation(p.ModelPosition, p.ModelRotation);
                 }
+            }
+        }
+
+        /// <summary>
+        /// A copy of the magazine of <paramref name="w"/>'s model (the largest part named as a magazine, with its rounds), without its
+        /// scripts and colliders, for a VR player's free hand while he reloads; <paramref name="middle"/>: its middle in its own frame.
+        /// Null when the model has none by name (the plain box is shown then).
+        /// </summary>
+        private static GameObject MagazineCopy(Weapon w, out Vector3 middle)
+        {
+            middle = Vector3.zero;
+            Transform model = w != null ? w.thirdPersonTransform : null;
+            if (model == null)
+            {
+                return null;
+            }
+            try
+            {
+                Transform best = null;
+                float bestSize = 0f;
+                foreach (Transform t in model.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t == model || !Weapons.WeaponAnalyzer.NamedAsAmmunition(t.name))
+                    {
+                        continue;
+                    }
+                    float size = 0f;
+                    // (Plain meshes only: a skinned part's copy still follows the gun's own bones, and showed in the gun, not the hand.)
+                    foreach (MeshRenderer r in t.GetComponentsInChildren<MeshRenderer>(true))
+                    {
+                        size = Mathf.Max(size, r.bounds.size.magnitude);
+                    }
+                    if (size > bestSize && size < 0.6f)
+                    {
+                        bestSize = size;
+                        best = t;
+                    }
+                }
+                if (best == null)
+                {
+                    return null;
+                }
+                Vector3 scale = best.lossyScale;
+                GameObject copy = Object.Instantiate(best.gameObject);
+                copy.name = "RavenfieldVR Net Magazine";
+                copy.SetActive(true);
+                foreach (MonoBehaviour script in copy.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    Object.Destroy(script);
+                }
+                foreach (Collider collider in copy.GetComponentsInChildren<Collider>(true))
+                {
+                    Object.Destroy(collider);
+                }
+                foreach (SkinnedMeshRenderer skinned in copy.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skinned.enabled = false;
+                }
+                Transform ct = copy.transform;
+                ct.SetParent(null, false);
+                ct.localScale = scale;
+                ct.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                var box = new Bounds();
+                bool any = false;
+                foreach (MeshRenderer r in copy.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    r.enabled = true;
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    if (!any)
+                    {
+                        box = r.bounds;
+                        any = true;
+                    }
+                    else
+                    {
+                        box.Encapsulate(r.bounds);
+                    }
+                }
+                if (!any)
+                {
+                    Object.Destroy(copy);
+                    return null;
+                }
+                middle = box.center; // (the copy at the origin, unturned: its middle in its own frame)
+                return copy;
+            }
+            catch (System.Exception e)
+            {
+                Log.WarnOnce("net-magcopy", "Multiplayer: a player's magazine could not be copied: " + e.Message);
+                return null;
             }
         }
 
