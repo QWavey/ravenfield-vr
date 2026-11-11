@@ -556,7 +556,7 @@ namespace RavenfieldVR.Input
             {
                 int index = (here + step) % count;
                 Seat seat = vehicle.seats[index];
-                if (seat == null || !seat.gameObject.activeInHierarchy || seat.IsOccupied() && !vehicle.allowPlayerSeatSwap)
+                if (seat == null || !seat.gameObject.activeInHierarchy || seat.IsOccupied() && (!vehicle.allowPlayerSeatSwap || Net.NetGame.IsRemote(seat.occupant)))
                 {
                     continue;
                 }
@@ -780,6 +780,28 @@ namespace RavenfieldVR.Input
         private static void ComputeSeated()
         {
             Actor actor = GameContext.PlayerActor;
+            // Seat switching on the turn stick (the user, 2026-11-11: "seat switching in every vehicle should have a button (I would
+            // suggest clicking the turning button once in)"). Its long press (the kick on foot, nothing in a seat) moves to the next seat
+            // in every vehicle, hands on the controls or not; its click does too where it has nothing else to do: a seat with no second
+            // mounted weapon to cycle and no gun of one's own. The left stick's click still does it as before.
+            if (actor != null && actor.seat != null && !GunInputBlocked)
+            {
+                Seat here = actor.seat;
+                bool own = Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null || here.CanUsePersonalWeapons();
+                bool click = VRInput.GetPressed(DigitalAction.WeaponNext) && !own && (here.weapons == null || here.weapons.Length < 2);
+                if (VRInput.GetPressed(DigitalAction.Kick) || click)
+                {
+                    int next = NextSeatIndex(here);
+                    if (next >= 0)
+                    {
+                        Set(SeatKeys[next], true);
+                        if (click)
+                        {
+                            Held[(int)KeyBinds.NextWeapon] = false; // (the click was the seat's, not a weapon's)
+                        }
+                    }
+                }
+            }
             if (actor != null && (Weapons.DrivingWeapons.Armed || GameContext.HeldPersonalWeapon != null))
             {
                 // A personal weapon in hand (drawn from the seat, or a seat the game lets you shoot from): its buttons
