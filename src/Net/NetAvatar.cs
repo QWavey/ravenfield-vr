@@ -54,6 +54,9 @@ namespace RavenfieldVR.Net
             /// <summary>The weapon whose magazine the copy in his hand is (made again when he holds another), and its middle in the copy.</summary>
             public Weapon MagazineOf;
             public Vector3 MagazineMiddle;
+            /// <summary>The gun's own magazine part, not drawn while his hand holds one (two magazines showed: one seated, one in his hand).</summary>
+            public Transform MagazinePart;
+            public bool MagazinePartHidden;
 
             /// <summary>The game's own right-hand target on this gun, or (with none) the hand bone's place on the gun taken once, before ours moved it.</summary>
             public Transform OwnRight;
@@ -100,6 +103,7 @@ namespace RavenfieldVR.Net
             Heads.Remove(remote);
             if (remote.Pose != null)
             {
+                ShowMagazinePart(remote.Pose);
                 GiveBack(remote.Pose);
                 if (remote.Pose.MagazineBox != null)
                 {
@@ -691,16 +695,29 @@ namespace RavenfieldVR.Net
                 // The magazine in his free hand while he reloads by hand.
                 bool magazine = p.Is(Magazine) && Usable(kv.Value, out Actor holder, out Pose _);
                 Weapon held = kv.Value.Actor != null ? kv.Value.Actor.activeWeapon : null;
-                if (magazine && p.MagazineBox != null && !ReferenceEquals(p.MagazineOf, held))
+                if ((magazine && p.MagazineBox != null || p.MagazinePartHidden) && !ReferenceEquals(p.MagazineOf, held))
                 {
-                    Object.Destroy(p.MagazineBox); // (another gun in his hands since: its own magazine)
-                    p.MagazineBox = null;
+                    ShowMagazinePart(p);
+                    if (p.MagazineBox != null)
+                    {
+                        Object.Destroy(p.MagazineBox); // (another gun in his hands since: its own magazine)
+                        p.MagazineBox = null;
+                    }
                 }
                 if (magazine && p.MagazineBox == null)
                 {
                     // His gun's own magazine, copied from its model (the plain box only when it has none by name).
                     p.MagazineOf = held;
-                    p.MagazineBox = MagazineCopy(held, out p.MagazineMiddle);
+                    p.MagazineBox = MagazineCopy(held, out p.MagazineMiddle, out p.MagazinePart);
+                }
+                if (magazine && !p.MagazinePartHidden && p.MagazinePart != null)
+                {
+                    SetPartDrawn(p.MagazinePart, false);
+                    p.MagazinePartHidden = true;
+                }
+                else if (!magazine && p.MagazinePartHidden)
+                {
+                    ShowMagazinePart(p);
                 }
                 if (magazine && p.MagazineBox == null)
                 {
@@ -776,14 +793,32 @@ namespace RavenfieldVR.Net
             }
         }
 
+        private static void ShowMagazinePart(Pose p)
+        {
+            if (p.MagazinePartHidden && p.MagazinePart != null)
+            {
+                SetPartDrawn(p.MagazinePart, true);
+            }
+            p.MagazinePartHidden = false;
+        }
+
+        private static void SetPartDrawn(Transform part, bool drawn)
+        {
+            foreach (MeshRenderer r in part.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                r.forceRenderingOff = !drawn;
+            }
+        }
+
         /// <summary>
         /// A copy of the magazine of <paramref name="w"/>'s model (the largest part named as a magazine, with its rounds), without its
         /// scripts and colliders, for a VR player's free hand while he reloads; <paramref name="middle"/>: its middle in its own frame.
         /// Null when the model has none by name (the plain box is shown then).
         /// </summary>
-        private static GameObject MagazineCopy(Weapon w, out Vector3 middle)
+        private static GameObject MagazineCopy(Weapon w, out Vector3 middle, out Transform part)
         {
             middle = Vector3.zero;
+            part = null;
             Transform model = w != null ? w.thirdPersonTransform : null;
             if (model == null)
             {
@@ -815,6 +850,7 @@ namespace RavenfieldVR.Net
                 {
                     return null;
                 }
+                part = best;
                 Vector3 scale = best.lossyScale;
                 GameObject copy = Object.Instantiate(best.gameObject);
                 copy.name = "RavenfieldVR Net Magazine";
@@ -840,6 +876,7 @@ namespace RavenfieldVR.Net
                 foreach (MeshRenderer r in copy.GetComponentsInChildren<MeshRenderer>(true))
                 {
                     r.enabled = true;
+                    r.forceRenderingOff = false;
                     r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                     if (!any)
                     {
