@@ -78,7 +78,7 @@ namespace RavenfieldVR.Weapons
                 if (Time.unscaledTime - _chamberSaidAt > 1.5f)
                 {
                     _chamberSaidAt = Time.unscaledTime;
-                    sys.FlashMessage(ammo.Chambered ? "CHAMBER FULL" : !ammo.ChamberHasRoom ? "FULL" : "OPEN THE ACTION");
+                    sys.FlashMessage(ammo.Chambered ? "CHAMBER NOT EMPTY" : !ammo.ChamberHasRoom ? "NO ROOM" : "ACTION NOT OPEN");
                     h.Haptic(0.08f, 40f, 0.5f);
                 }
                 return false;

@@ -787,6 +787,10 @@ namespace RavenfieldVR.Weapons
             {
                 return Chambered ? "1 / NO MAG" : "NO MAG";
             }
+            if (HomeOnEmpty && MagRounds <= 0)
+            {
+                return "EMPTY"; // (the slide home on nothing, an empty magazine in: it read "0")
+            }
             string text = Chambered ? $"{MagRounds}+1" : MagRounds.ToString();
             if (SlideLocked)
             {
