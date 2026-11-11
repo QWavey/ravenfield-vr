@@ -972,6 +972,12 @@ namespace RavenfieldVR.Weapons
                 yield return Go(sm => At(outBy * sm, 0f), 0.6f, "sliding out of the well");
                 yield return Go(sm => At(outBy, 0.14f * sm), 0.5f, "free, going aside");
                 yield return Go(sm => At(outBy - (outBy + 0.03f) * sm, 0.14f), 0.5f, "beside the gun (the keep-out)");
+                // Into the gun's side and out again: the magazine is held out of the gun's solid while the hand goes on into it,
+                // and comes back to the hand when the hand comes out ("glitching ... with force").
+                yield return Go(sm => At(-0.03f, 0.14f * (1f - sm)), 0.45f, "pushed into the gun's side");
+                yield return Go(sm => At(-0.03f - 0.1f * sm, 0f), 0.35f, "through the gun, upward");
+                yield return Go(sm => At(-0.13f, 0.14f * sm), 0.35f, "out of the gun, above it");
+                yield return Go(sm => At(-0.13f + 0.1f * sm, 0.14f), 0.3f, "down beside the gun again");
                 yield return Go(sm => At(-0.03f + (outBy + 0.03f) * sm, 0.14f), 0.5f, "back down beside the gun");
                 yield return Go(sm => At(outBy, 0.14f * (1f - sm)), 0.5f, "free, back under the well");
                 yield return Go(sm => At(outBy * (1f - sm), 0f), 0.7f, "onto the line and in");
