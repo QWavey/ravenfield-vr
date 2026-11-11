@@ -55,6 +55,8 @@ namespace RavenfieldVR.Net
             public int SeatIndex;
             /// <summary>The seat refused him (taken, shut, the wrong side): tried again from then on, not every frame.</summary>
             public float SeatRetryAt;
+            /// <summary>Where his stand-in was shown against the newest word, faded out while he is carried (a ladder, a jump, a fall).</summary>
+            public Vector3 AirOffset;
 
             /// <summary>
             /// Whether his told place is going anywhere: it moved 20 cm along the ground from where it was (<see cref="Anchor"/>) within
@@ -1209,7 +1211,11 @@ namespace RavenfieldVR.Net
                             Remote remote = Get(sender, r.UShort());
                             remote.Flags = r.Byte();
                             remote.Flags |= r.Byte() << 8;
-                            remote.Position = r.Vector();
+                            Vector3 told = r.Vector();
+                            // (What he is shown at against the new word: faded out while he is carried, see the ladder and jump placing.)
+                            Vector3 shownOff = remote.Actor != null && remote.HasState ? remote.Actor.Position() - told : Vector3.zero;
+                            remote.AirOffset = shownOff.sqrMagnitude < 3f * 3f ? shownOff : Vector3.zero;
+                            remote.Position = told;
                             float vx = (sbyte)r.Byte() / 10f, vz = (sbyte)r.Byte() / 10f, vy = (sbyte)r.Byte() / 5f;
                             remote.Velocity = new Vector3(vx, vy, vz);
                             Vector3 moved = remote.Position - remote.Anchor;
@@ -2541,7 +2547,10 @@ namespace RavenfieldVR.Net
                         // only: a climber walked beside the ladder and a jumper dropped back down in steps of 3 m; scout, 2026-11-11).
                         float age = Mathf.Min(Time.unscaledTime - r.Heard, 0.3f);
                         Vector3 want = r.Position + r.Velocity * age;
-                        Vector3 at = Vector3.Lerp(a.Position(), want, 1f - Mathf.Exp(-12f * Time.deltaTime));
+                        // Where the word puts him now, with what he was shown at against the newest word fading in a tenth of a second
+                        // (eased toward it, he trailed by his speed over 12: a metre in a fall, as a copied vehicle did).
+                        r.AirOffset *= Mathf.Exp(-10f * Time.deltaTime);
+                        Vector3 at = want + r.AirOffset;
                         a.SetPositionAndRotation(at, a.transform.rotation);
                     }
                 }
