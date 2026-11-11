@@ -556,11 +556,8 @@ namespace RavenfieldVR.Weapons
                 }
                 Log.Info($"{Data.Key}: the empty clip's ping is {(_pingSource != null ? $"the gun's own '{_pingSource.clip.name}'" : "not found (a plain eject sound)")}.");
             }
-            if (_pingSource != null)
-            {
-                _pingSource.PlayOneShot(_pingSource.clip);
-            }
-            else
+            // (Through the mod's own source: on the gun's own it came only sometimes, see WeaponSounds.PlayOwn.)
+            if (!_held.Sounds.PlayOwn(_pingSource))
             {
                 _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             }

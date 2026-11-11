@@ -2,6 +2,13 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-11 late evening (1.17.6 INSTALLED, Tasks 381: rounds into the chamber, the slide of an empty gun)
+
+- Setup 1.17.6 is built and installed (it carries all of 1.17.5, which was never installed). NOTHING of 1.17.5 or 1.17.6 has run in the game (the user: "Dont do any tests till you fully complete").
+- First with the game free: `--autotest --fast`, `--ui`, `--netcheck`, `--sandboxcheck --sandboxmode`, then `--weapon` for a pistol, a rifle and the M1 GARRET. Checks that expect a slide to stay caught on its release with an empty magazine, or caught with no magazine in, will fail by design now: read them against Tasks 381.2 and 381.3.
+- New: `Weapons/ChamberByHand` (trigger held + grip at the pouch = one round; held to the port of an open, empty chamber it goes in), the slide brought home by hand or by its release on an empty gun, no catch with the magazine out, the M1's ping through the mod's own source.
+- Open: 381.4 (press check and the like, for the user's word), 381.5 (the M1's clip drawn with rounds when empty).
+
 ## State 2026-11-11 evening (1.17.5, Tasks 380: improved and optimised with the game not started)
 
 - Setup 1.17.5 is BUILT (`dist/RavenfieldVR-Setup-1.17.5.exe`) and NOT installed: the user was playing ("Treat the game as opened now ... im going to tell you"). The game folder holds 1.17.4.

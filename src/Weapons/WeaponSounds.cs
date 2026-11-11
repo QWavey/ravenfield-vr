@@ -808,6 +808,22 @@ namespace RavenfieldVR.Weapons
             return true;
         }
 
+        /// <summary>
+        /// A sound the gun carries on a source of its own (an M1's clip ping), played whole through the mod's source with that
+        /// source's routing. Played on the gun's own source it came "sometimes" (the user, 2026-11-11): that object is switched
+        /// off until the game's animation switches it on, and the game stops and restarts the source for its own sounds.
+        /// </summary>
+        internal bool PlayOwn(AudioSource own, float volume = 1f)
+        {
+            if (own == null || own.clip == null)
+            {
+                return false;
+            }
+            AudioSource player = OneShotSource(own);
+            player.PlayOneShot(own.clip, Audible(own.volume) * volume);
+            return true;
+        }
+
         /// <summary>The source for whole clips (PlayOneShot): full volume, never cut by a slice.</summary>
         private AudioSource OneShotSource(AudioSource template)
         {
