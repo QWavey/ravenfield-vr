@@ -309,7 +309,9 @@ namespace RavenfieldVR.Weapons
                 _lastThrown.Add(p);
                 if (strapTo != null && p is GrenadeProjectile && TryStrap(p, strapTo, carrier, hand.Palm.position))
                 {
-                    // strapped
+                    // Strapped. Told to the other PCs as a grenade let go where it is (it lands at the soldier's feet there and goes off
+                    // with its fuse: they saw nothing before; throw scout, 2026-11-11). Its blast is decided here, as for a throw.
+                    Net.NetGame.OnThrown(p, Vector3.zero);
                 }
                 else
                 {
