@@ -246,8 +246,16 @@ namespace RavenfieldVR.Net
                 Out.Reset();
                 Out.Bytes(_lastStart, 0, _lastStart.Length);
                 _session.SendTo(p.Id, MatchStart, Out, true);
+                StartTold.Add(p.Id);
             }
         }
+
+        /// <summary>
+        /// On the host: who has been told the match that is on. One who joined while the host's map was still loading was told nothing
+        /// (the match was not in yet) and nothing told him later: he sat on "Starting ..." for the whole match (scout, 2026-11-11). He is
+        /// told once the match is in.
+        /// </summary>
+        private static readonly HashSet<byte> StartTold = new HashSet<byte>();
 
         private static void OnLeft(NetPlayer p)
         {
@@ -255,6 +263,7 @@ namespace RavenfieldVR.Net
             {
                 Remove(r);
             }
+            StartTold.Remove(p.Id); // (his number may be the next newcomer's: that one is told the match afresh)
             // (His dropped guns shown here go with him: he can no longer pick them up.)
             foreach (int key in ShownDrops.Keys.Where(k => k >> 16 == p.Id).ToArray())
             {
@@ -573,6 +582,11 @@ namespace RavenfieldVR.Net
             {
                 RememberStart(entry, parameters ?? GameManager.instance.gameModeParameters);
                 _session.Send(MatchStart, Out, true);
+                StartTold.Clear();
+                foreach (NetPlayer told in _session.Players)
+                {
+                    StartTold.Add(told.Id);
+                }
                 Clear(false);
                 // (Until the new scene is there the old one's soldiers are still in the game's lists: not told as the new match's.)
                 _loading = true;
@@ -968,6 +982,18 @@ namespace RavenfieldVR.Net
                 _lastStart = null;
                 Multiplayer.Map = "";
                 Multiplayer.Mode = "";
+            }
+            if (session.IsHost && inMatchNow && _lastStart != null)
+            {
+                foreach (NetPlayer late in session.Players)
+                {
+                    if (late.Id != session.LocalId && StartTold.Add(late.Id))
+                    {
+                        Out.Reset();
+                        Out.Bytes(_lastStart, 0, _lastStart.Length);
+                        session.SendTo(late.Id, MatchStart, Out, true);
+                    }
+                }
             }
             _hostWasInMatch = inMatchNow;
             Multiplayer.InMatch = InMatch && !_loading;
@@ -1681,7 +1707,16 @@ namespace RavenfieldVR.Net
                     _applying = true;
                     try
                     {
-                        a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Unknown, null, null) { healthDamage = 1000f, point = a.CenterPosition(), direction = -r.Facing });
+                        if (r.Is(Alive))
+                        {
+                            // Alive by his owner's word, only not heard for six seconds (his PC stalled, a loss of line): taken off quietly.
+                            // A kill drained the host's tickets once a soldier and left bodies for deaths that never were (scout, 2026-11-11).
+                            a.KillSilently();
+                        }
+                        else
+                        {
+                            a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Unknown, null, null) { healthDamage = 1000f, point = a.CenterPosition(), direction = -r.Facing });
+                        }
                     }
                     finally
                     {
