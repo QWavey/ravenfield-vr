@@ -93,10 +93,14 @@ namespace RavenfieldVR.Net
                         for (int i = 0; i < n; i++)
                         {
                             told.Add(r.UShort());
-                            r.Byte();
+                            r.Byte(); // flags
+                            r.Byte(); // flags, the second byte (ladder, off the ground, swimming)
                             r.Vector();
-                            r.UShort();
-                            r.UShort();
+                            r.Byte(); // velocity across, along
+                            r.Byte();
+                            r.Byte(); // and up
+                            r.Byte(); // yaw, pitch
+                            r.Byte();
                         }
                         statesGot++;
                     }

@@ -27,6 +27,8 @@ namespace RavenfieldVR.Net
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
+        /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
+        internal const int OnLadder = 256, Airborne = 512, Swimming = 1024;
 
         /// <summary>A soldier owned by another PC, and its stand-in here.</summary>
         internal sealed class Remote
@@ -752,8 +754,10 @@ namespace RavenfieldVR.Net
                         {
                             Remote remote = Get(sender, r.UShort());
                             remote.Flags = r.Byte();
+                            remote.Flags |= r.Byte() << 8;
                             remote.Position = r.Vector();
-                            remote.Velocity = new Vector3((sbyte)r.Byte() / 10f, 0f, (sbyte)r.Byte() / 10f);
+                            float vx = (sbyte)r.Byte() / 10f, vz = (sbyte)r.Byte() / 10f, vy = (sbyte)r.Byte() / 5f;
+                            remote.Velocity = new Vector3(vx, vy, vz);
                             remote.Yaw = r.Byte() / 256f * 360f;
                             remote.Pitch = (sbyte)r.Byte() / 127f * 90f;
                             remote.Heard = Time.unscaledTime;
@@ -1518,7 +1522,8 @@ namespace RavenfieldVR.Net
                     if (alive && c != null)
                     {
                         flags |= (c.Crouch() || a.stance == Actor.Stance.Crouch ? Crouched : 0) | (a.stance == Actor.Stance.Prone ? Proned : 0) | (c.IsSprinting() ? Sprinting : 0)
-                                 | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0);
+                                 | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0)
+                                 | (a.IsOnLadder() ? OnLadder : 0) | (!a.IsSeated() && !a.IsOnLadder() && !c.OnGround() ? Airborne : 0) | (a.IsSwimming() ? Swimming : 0);
                         velocity = a.Velocity();
                         facing = c.FacingDirection();
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
@@ -1552,9 +1557,11 @@ namespace RavenfieldVR.Net
         {
             w.UShort(id);
             w.Byte((byte)flags);
+            w.Byte((byte)(flags >> 8));
             w.Vector(position);
             w.Byte((byte)(sbyte)Mathf.Clamp(Mathf.RoundToInt(velocity.x * 10f), -127, 127));
             w.Byte((byte)(sbyte)Mathf.Clamp(Mathf.RoundToInt(velocity.z * 10f), -127, 127));
+            w.Byte((byte)(sbyte)Mathf.Clamp(Mathf.RoundToInt(velocity.y * 5f), -127, 127)); // (up and down, 0.2 m/s steps: a jump, a fall, a ladder)
             float yaw = Mathf.Atan2(facing.x, facing.z) * Mathf.Rad2Deg;
             float pitch = Mathf.Asin(Mathf.Clamp(facing.normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
             w.Byte((byte)(Mathf.RoundToInt(Mathf.Repeat(yaw, 360f) / 360f * 256f) & 255));
@@ -1895,6 +1902,15 @@ namespace RavenfieldVR.Net
                         {
                             a.SetPositionAndRotation(r.Position, Quaternion.Euler(0f, r.Yaw, 0f));
                         }
+                    }
+                    else if ((r.Is(OnLadder) || r.Is(Airborne) || r.Is(Swimming) && Mathf.Abs(off.y) > 0.3f) && !a.fallenOver && !a.IsSeated())
+                    {
+                        // Up a ladder, in a jump or a fall: carried where he is told to be, his height too (his legs walk on the ground
+                        // only: a climber walked beside the ladder and a jumper dropped back down in steps of 3 m; scout, 2026-11-11).
+                        float age = Mathf.Min(Time.unscaledTime - r.Heard, 0.3f);
+                        Vector3 want = r.Position + r.Velocity * age;
+                        Vector3 at = Vector3.Lerp(a.Position(), want, 1f - Mathf.Exp(-12f * Time.deltaTime));
+                        a.SetPositionAndRotation(at, a.transform.rotation);
                     }
                 }
             }
