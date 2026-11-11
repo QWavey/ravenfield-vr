@@ -44,7 +44,10 @@ namespace RavenfieldVR.Input
             Vector2 right = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value);
             // The thumbstick with a gentler middle (35% linear, 65% cubed): a plane rolled and pitched hard at a small push, and holding
             // a line was a fight (the user, 2026-11-11: "I need better controlls"). Full at the edge as before; the grabbed stick as it is.
-            Vector2 stick = FlightStick ?? new Vector2(Expo(right.x), Expo(right.y));
+            // (The game reads AirplaneInput for a helicopter's cockpit stick too: there it is the helicopter's own, linear, or the stick
+            // drawn showed a quarter of the throw the helicopter was given; scout.)
+            bool plane = GameContext.SeatKind == VehicleKind.Airplane;
+            Vector2 stick = FlightStick ?? (plane ? new Vector2(Expo(right.x), Expo(right.y)) : right);
             return new Vector4(left.x, left.y, stick.x, stick.y);
         }
 
@@ -52,7 +55,8 @@ namespace RavenfieldVR.Input
         internal static float Expo(float v) => 0.35f * v + 0.65f * v * v * v;
 
         internal static bool ShouldDrive(FpsActorController c) =>
-            VRGameInput.Enabled && c.inputEnabled && c.movementInputEnabled && !GameManager.gameOver && !GameContext.GameMenuOpen;
+            VRGameInput.Enabled && c.inputEnabled && c.movementInputEnabled && !GameManager.gameOver && !GameContext.GameMenuOpen
+            && !GameManager.IsPaused(); // (paused: the wheel and stick stand still, and so do the thumbsticks; scout)
     }
 
     /// <summary>

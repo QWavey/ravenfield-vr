@@ -267,8 +267,20 @@ namespace RavenfieldVR.Rig
                     // half a turn, and turning past it (hand over hand) threw the steering to full opposite lock.
                     Vector3 now = OnWheelPlaneInSeat(palm, out Vector3 axis);
                     float maxRot = Mathf.Max(5f, _wheel.maxRotation);
-                    _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, axis, _wheelBase[i], maxRot);
-                    _wheelStart[i] = now;
+                    // Only a step of a third of a degree or more is counted (the smaller ones gather until they are one), and none from a
+                    // hand near the hub, where the angle means nothing: a hand resting on the rim walked the steering by its own tremor,
+                    // some 6 degrees in five seconds (cockpit scout, 2026-11-11).
+                    float rimRadius = _wheel.transform.TransformVector(new Vector3(_rimRadius, 0f, 0f)).magnitude;
+                    float step = Vector3.SignedAngle(_wheelStart[i], now, axis);
+                    if (now.magnitude < rimRadius * 0.45f)
+                    {
+                        _wheelStart[i] = now; // (near the hub: the hand's way round is not read, and starts again from here)
+                    }
+                    else if (Mathf.Abs(step) >= 0.33f)
+                    {
+                        _wheelTurned[i] = AddTurn(_wheelTurned[i], _wheelStart[i], now, axis, _wheelBase[i], maxRot);
+                        _wheelStart[i] = now;
+                    }
                     float before = _handSteer[i];
                     _handSteer[i] = Mathf.Clamp(_wheelBase[i] + _wheelTurned[i] / maxRot, -1f, 1f);
                     _handMove[i] = _handSteer[i] - before;
