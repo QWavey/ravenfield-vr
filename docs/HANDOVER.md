@@ -2,12 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## PAUSED 2026-11-11 (user had to leave; game and test run stopped mid-run)
+## State 2026-11-11 midday (1.17.4, Tasks 379: smoothness)
 
-- Run was `/work-until-limit 85` (last reading 57%), Tasks 379 (smoothness). Last commit `85f50d1` + one WIP commit after it.
-- OPEN: the keep-out's way back still lets one step through (RK-44: kept out 96 -> 69 mm in ONE frame at 90 Hz, 27 mm jump; was 90 mm at the start). The pacing in `MagazineProp.KeepOffGun` (`_easeVel`) seems not to engage. Counters added to find out why (`MagazineProp.EaseStats`: paced / refused / unpaced, printed in the smoothness line). The run `smooth6` was KILLED before its report: run `python -I tools/vrshots.py --weapon "=RK-44" --out smooth6` and read the "way back paced N, refused N, unpaced N+N" part. Refused high = the paced place is inside the gun (`InsideDrawnGun`); unpaced = the frame test `_easeFrame`.
-- Measured and done this session: snap turn with a gun in one hand 0.0 deg trail (`smooth4`); line switch eased as an offset (S-IND7 26 -> 21 mm); grip grace 0.15 s (`GripLetGoBelow`), unrun in a headset.
-- Not done: `--autotest --fast`, netcheck, sandboxcheck on the final build; setup 1.17.4 not built or installed (installed is 1.17.3; the test runs put a newer DLL into the game folder).
+- Measured in the game (`ReloadInteractions.SmoothnessSelfCheck`, `vrshots --weapon "=RK-44" --weapon "=S-IND7"`): a magazine freed from the gun 90 -> 15 mm in its worst frame (the pace is inside `MagazineProp.KeepOffGun`'s sweep, `Paced`); the switch off the well's line 26 -> 10 to 16 mm (`ShowAt`, `_switchOffset`); a long gun in one hand through a snap turn 0.0 deg behind (`VRRig.LastSnapDegrees`).
+- In code, for the headset: `GripLetGoBelow` (0.3, at most 0.15 s after the click let go), `MagazineInsertHelp`, `ShellsPerReach`, `MagazineReach`, the eased arms.
+- A killed test run leaves SteamVR on the null driver and every later run ends at once with no report: `python tools/vrshots.py --restore` first.
+- Open: 377.1 to 377.3 and 376.1 wait for the user's next play; the Glock's ballistics override waits for the user's word.
 
 ## Right now
 

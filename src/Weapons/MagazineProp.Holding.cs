@@ -812,7 +812,7 @@ namespace RavenfieldVR.Weapons
                     // before) it follows freely, not held back at all. 10 cm behind closes in about eight frames.
                     bool ran = _easeFrame == Time.frameCount - 1;
                     float behind = (target.position - from).magnitude;
-                    float budget = !ran || _keptOut.sqrMagnitude < 0.003f * 0.003f
+                    float budget = !ran || _attachAt >= 0f || _keptOut.sqrMagnitude < 0.003f * 0.003f // (nor while it eases into the hand: that ease is its pace; paced twice, a magazine taken while running trailed 4 cm, autotest 2026-11-11)
                         ? float.MaxValue
                         : Mathf.Max(0.004f, Mathf.Min(_easeTravel + 0.008f, Mathf.Max(behind * 0.5f, (target.position - _easeTarget).magnitude)));
                     // (Or the hand's own way that frame, where that is more than the half: slid along the gun beside a moving hand
