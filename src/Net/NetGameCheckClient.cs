@@ -248,7 +248,7 @@ namespace RavenfieldVR.Net
                         w.UShort(vid);
                         w.Vector(Vector3.Lerp(at, to, i / 15f));
                         w.Rotation(Quaternion.identity);
-                        w.SmallVector((to - at));
+                        w.SmallVector(i < 15 ? to - at : Vector3.zero); // (stopped at the end: carried on by its speed it would overshoot)
                         w.SmallVector(Vector3.zero);
                         w.Float(copy != null ? copy.maxHealth * 0.4f : 100f);
                         w.Byte(0);
