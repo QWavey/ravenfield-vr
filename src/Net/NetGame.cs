@@ -48,6 +48,16 @@ namespace RavenfieldVR.Net
             public Vector3 Position, Velocity;
             /// <summary>The stand-in is walking toward its told place (it stands within 12 cm then, not 25: see RemoteVelocity).</summary>
             public bool Walking;
+
+            /// <summary>
+            /// Whether his told place is going anywhere: it moved 20 cm along the ground from where it was (<see cref="Anchor"/>) within
+            /// the last half second. The told speed alone said "walking" for a player standing still (a VR player's soldier follows his
+            /// head's sway, the 0.1 m/s steps), and the stand-in walked in place: the user and his friend, 1.17.8: "we still do the
+            /// moonwalk walk when one stays still".
+            /// </summary>
+            public bool Moving;
+            public Vector3 Anchor;
+            public float AnchorAt = -10f;
             public float Yaw, Pitch;
             public float Heard = -1f;
 
@@ -671,7 +681,7 @@ namespace RavenfieldVR.Net
             // stands, and 12 cm once started (no flicker at the line), it stands.
             // (Along the ground only: the told speed carries its height's too since 1.17.8, in 0.2 m/s steps, and a player standing on a
             // slope or a step told one step of it and walked in place again; multiplayer scout, 2026-11-11.)
-            bool owner = r.Velocity.x * r.Velocity.x + r.Velocity.z * r.Velocity.z < 0.2f * 0.2f;
+            bool owner = !r.Moving || r.Velocity.x * r.Velocity.x + r.Velocity.z * r.Velocity.z < 0.2f * 0.2f;
             float near = r.Walking ? 0.12f : 0.25f;
             if (owner && to.sqrMagnitude < near * near)
             {
@@ -682,6 +692,10 @@ namespace RavenfieldVR.Net
                 return;
             }
             r.Walking = true;
+            if (!r.Moving)
+            {
+                v = to * 5f; // (he stands: only back to his place, none of the told speed's noise)
+            }
             __result = v.sqrMagnitude < 0.01f ? Vector3.zero : Vector3.ClampMagnitude(v, 9f);
             VelocityAsked++;
             LastVelocity = __result;
@@ -1147,6 +1161,18 @@ namespace RavenfieldVR.Net
                             remote.Position = r.Vector();
                             float vx = (sbyte)r.Byte() / 10f, vz = (sbyte)r.Byte() / 10f, vy = (sbyte)r.Byte() / 5f;
                             remote.Velocity = new Vector3(vx, vy, vz);
+                            Vector3 moved = remote.Position - remote.Anchor;
+                            moved.y = 0f;
+                            if (moved.sqrMagnitude > 0.2f * 0.2f)
+                            {
+                                remote.Anchor = remote.Position;
+                                remote.AnchorAt = Time.unscaledTime;
+                                remote.Moving = true;
+                            }
+                            else if (Time.unscaledTime - remote.AnchorAt > 0.5f)
+                            {
+                                remote.Moving = false;
+                            }
                             remote.Yaw = r.Byte() / 256f * 360f;
                             remote.Pitch = (sbyte)r.Byte() / 127f * 90f;
                             remote.Heard = Time.unscaledTime;
