@@ -460,6 +460,7 @@ namespace RavenfieldVR.Net
             report($"multiplayer host's soldiers told to the second player: {told.Count} of {mine + 1} (the player and {mine} soldier(s)), {statesGot} message(s){(told.Count < mine + 1 ? " NOT ALL TOLD" : "")}");
 
             report($"multiplayer telling: {NetGame.LastTold} of {NetGame.LastOwned} soldiers' places went out in the last telling (the dead and the far ones go out less often)");
+            report($"multiplayer heads: {NetAvatar.HeadsTurned} player's head(s) turned where he looks{(NetAvatar.HeadsTurned == 0 && NetGame.AllRemotes.Any(r => r.Id == 0 && r.Actor != null && !r.Actor.dead) ? " NOT TURNED" : "")}");
 
             int vehicles = ActorManager.instance.vehicles.Count(v => v != null && !v.isTurret);
             // (Since 1.17.10 the host keeps his vehicles and numbers each for the others: NetVehicles.)
