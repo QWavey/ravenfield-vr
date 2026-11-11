@@ -42,6 +42,8 @@ namespace RavenfieldVR.Net
             public float NextSlotCheck, NextCarriedCheck;
             public int Flags;
             public Vector3 Position, Velocity;
+            /// <summary>The stand-in is walking toward its told place (it stands within 12 cm then, not 25: see RemoteVelocity).</summary>
+            public bool Walking;
             public float Yaw, Pitch;
             public float Heard = -1f;
 
@@ -295,6 +297,21 @@ namespace RavenfieldVR.Net
             to.y = 0f;
             Vector3 v = r.Velocity + to * 5f;
             v.y = 0f;
+            // Standing still where he was told to be: no walk. The stand-in seldom reaches the told place to the centimetre (its own
+            // capsule and ground, the told speed's 0.1 m/s steps), and the pull of a few centimetres toward it read as a slow walk, so
+            // a player standing still walked in place on the other PC (the user's friend, 2026-11-11). Within 25 cm while its owner
+            // stands, and 12 cm once started (no flicker at the line), it stands.
+            bool owner = r.Velocity.sqrMagnitude < 0.2f * 0.2f;
+            float near = r.Walking ? 0.12f : 0.25f;
+            if (owner && to.sqrMagnitude < near * near)
+            {
+                r.Walking = false;
+                __result = Vector3.zero;
+                VelocityAsked++;
+                LastVelocity = __result;
+                return;
+            }
+            r.Walking = true;
             __result = v.sqrMagnitude < 0.01f ? Vector3.zero : Vector3.ClampMagnitude(v, 9f);
             VelocityAsked++;
             LastVelocity = __result;

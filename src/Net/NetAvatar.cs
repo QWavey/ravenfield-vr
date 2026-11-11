@@ -50,6 +50,8 @@ namespace RavenfieldVR.Net
             /// <summary>The game's own right-hand target on this gun, or (with none) the hand bone's place on the gun taken once, before ours moved it.</summary>
             public Transform OwnRight;
             public bool GripKnown;
+            /// <summary>The frame the arms were let go to take the grip off the animation (see BeforeIk).</summary>
+            public int IkOffFrame = -10;
             public Vector3 GripInModel;
             public Quaternion GripRotInModel;
 
@@ -252,6 +254,12 @@ namespace RavenfieldVR.Net
                 p.MuzzleRotNow = p.MuzzleRot;
             }
             p.LeftNow = Vector3.Lerp(p.LeftNow, p.Left, ease);
+            // (OnAnimatorIK may run more than once a frame on a soldier with several IK layers: the frame let go stays let go.)
+            if (p.IkOffFrame == Time.frameCount)
+            {
+                __instance.SetHandIkEnabled(false, false);
+                return;
+            }
             p.RightNow = Vector3.Lerp(p.RightNow, p.Right, ease);
             p.MuzzleNow = Vector3.Lerp(p.MuzzleNow, p.Muzzle, ease);
             p.MuzzleRotNow = Quaternion.Slerp(p.MuzzleRotNow, p.MuzzleRot, ease);
@@ -287,6 +295,19 @@ namespace RavenfieldVR.Net
                 {
                     if (!p.GripKnown)
                     {
+                        // Measured from the soldier's own animation only: the hand bone holds where last frame's IK put it, and after a
+                        // switch of guns (no gun for a moment: the arms on his free hands) that was his VR hand, not this gun's grip. The
+                        // grip was taken there and the arm hung off the gun for as long as he held it (the user's friend, 2026-11-11: "when
+                        // switched guns my arm bugged out"). The arms are let go for one frame, and the grip taken on the next.
+                        if (p.IkOffFrame != Time.frameCount - 1)
+                        {
+                            if (p.IkOffFrame != Time.frameCount)
+                            {
+                                p.IkOffFrame = Time.frameCount;
+                            }
+                            __instance.SetHandIkEnabled(false, false);
+                            return;
+                        }
                         p.GripKnown = true;
                         p.GripInModel = inRest * (boneR.position - restAt);
                         p.GripRotInModel = inRest * boneR.rotation;
