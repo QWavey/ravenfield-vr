@@ -468,6 +468,23 @@ namespace RavenfieldVR.Net
             p.Ping = p.Ping < 0 ? trip : p.Ping * 0.8 + trip * 0.2;
         }
 
+        /// <summary>
+        /// The host removes a player from his game: told why (his game ends the session in words, as a refusal), then taken off for
+        /// everyone. Not closed at once here, or the word did not reach him first; his own game closes its side on reading it.
+        /// </summary>
+        public void Kick(byte id)
+        {
+            if (!IsHost || id == LocalId || !_players.TryGetValue(id, out NetPlayer p))
+            {
+                return;
+            }
+            _out.Reset();
+            _out.Byte(Reject);
+            _out.String("the host removed you from the game", 256);
+            _transport.Send(p.Peer, _out.Buffer, _out.Length, true);
+            Drop(p, "removed by the host", close: false);
+        }
+
         private void Drop(NetPlayer p, string why, bool close = true)
         {
             if (!_players.Remove(p.Id))

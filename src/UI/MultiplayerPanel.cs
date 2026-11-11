@@ -20,6 +20,8 @@ namespace RavenfieldVR.UI
 
         private string _address = "";
         private bool _typing;
+        private int _kickArmed = -1;
+        private float _kickArmedAt;
         private int _page;
 
         protected override float CanvasWidth => 1000f;
@@ -59,6 +61,7 @@ namespace RavenfieldVR.UI
                     shown = shown * 31 + p.Id * 7 + (p.Ping >= 0 ? (int)(p.Ping * 100) : -1);
                 }
                 shown = shown * 31 + (int)Multiplayer.Session.State;
+                shown = shown * 31 + (_kickArmed >= 0 && Time.unscaledTime - _kickArmedAt < 4f ? _kickArmed + 1 : 0); // ("Sure?" back to "Kick" after 4 s)
                 foreach (string line in Multiplayer.HostLines)
                 {
                     shown = shown * 31 + line.GetHashCode();
@@ -102,7 +105,31 @@ namespace RavenfieldVR.UI
             foreach (NetPlayer p in session.Players.OrderBy(p => p.Id))
             {
                 string ping = p.Id == session.LocalId ? "you" : p.Ping >= 0 ? $"{p.Ping * 1000:0} ms" : "...";
-                Label($"{(p.Id == 0 ? "Host   " : "Player ")}{p.Info.Name}{(p.Info.Vr ? "   VR" : "")}   ({ping})", 22, FontStyle.Normal, UiKit.TextColor);
+                string line = $"{(p.Id == 0 ? "Host   " : "Player ")}{p.Info.Name}{(p.Info.Vr ? "   VR" : "")}   ({ping})";
+                if (session.IsHost && p.Id != session.LocalId)
+                {
+                    // The host's Kick, pressed twice (a laser's stray click must not throw a friend out).
+                    byte id = p.Id;
+                    bool armed = _kickArmed == id && Time.unscaledTime - _kickArmedAt < 4f;
+                    ActionRow(line, armed ? "Sure?" : "Kick", () =>
+                    {
+                        if (_kickArmed == id && Time.unscaledTime - _kickArmedAt < 4f)
+                        {
+                            _kickArmed = -1;
+                            session.Kick(id);
+                        }
+                        else
+                        {
+                            _kickArmed = id;
+                            _kickArmedAt = Time.unscaledTime;
+                            Rebuild(); // (the button reads "Sure?" now)
+                        }
+                    });
+                }
+                else
+                {
+                    Label(line, 22, FontStyle.Normal, UiKit.TextColor);
+                }
             }
             if (session.State == NetState.Connecting)
             {
