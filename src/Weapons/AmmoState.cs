@@ -740,6 +740,12 @@ namespace RavenfieldVR.Weapons
             {
                 text += " OPEN";
             }
+            else if (BoltOpen && Chambered)
+            {
+                // A bolt let go part way: the gun does not fire, over a live round too, and the counter read "5+1" as if ready
+                // while the trigger clicked dry (scout, 2026-11-11).
+                text += " OPEN";
+            }
             else if (!Chambered && MagRounds > 0)
             {
                 text += " RACK";
