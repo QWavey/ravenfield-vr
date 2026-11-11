@@ -76,6 +76,29 @@ namespace RavenfieldVR.Net
             harmony.Patch(AccessTools.Method(typeof(Vehicle), nameof(Vehicle.Damage)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnVehicleDamage)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.EnterSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnEnterSeat)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.LeaveSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnLeaveSeat)));
+            harmony.Patch(AccessTools.Method(typeof(Vehicle), "FixedUpdate"), postfix: new HarmonyMethod(typeof(NetVehicles), nameof(AfterFixedUpdate)));
+        }
+
+        private static readonly AccessTools.FieldRef<Vehicle, Vector3> CachedVelocity = AccessTools.FieldRefAccess<Vehicle, Vector3>("cachedVelocity");
+        private static readonly AccessTools.FieldRef<Vehicle, Vector3> CachedLocalVelocity = AccessTools.FieldRefAccess<Vehicle, Vector3>("cachedLocalVelocity");
+
+        /// <summary>
+        /// A vehicle another PC drives reads its told speed here: kinematic, its rigidbody's speed is none, and its wheels, engine
+        /// sound and animations stood still while it drove along.
+        /// </summary>
+        private static void AfterFixedUpdate(Vehicle __instance)
+        {
+            if (!Enabled || ById.Count == 0 || !ByVehicle.TryGetValue(__instance, out Shared s) || !s.HasState || __instance.dead)
+            {
+                return;
+            }
+            NetSession session = NetGame.SessionNow;
+            if (session == null || s.Owner == session.LocalId)
+            {
+                return;
+            }
+            CachedVelocity(__instance) = s.Vel;
+            CachedLocalVelocity(__instance) = __instance.transform.InverseTransformDirection(s.Vel);
         }
 
         /// <summary>A stand-in takes a seat only by its owner's word: its own AI walked it into a vehicle nobody else saw it in.</summary>
