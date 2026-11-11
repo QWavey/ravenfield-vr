@@ -25,6 +25,8 @@ namespace RavenfieldVR.Weapons
         private const float AttachBlend = 0.09f;
         /// <summary>This grab's own time to the hand (a magazine fetched from metres away flies a quarter second, not 0.09 s).</summary>
         private float _attachTime = AttachBlend;
+        /// <summary>The holding hand was tracked at the last drawing.</summary>
+        private bool _followTracked = true;
 
         /// <summary>Taken from afar (VRConfig.MagazineReach): to the hand over a time that grows with the way, 0.15 to 0.35 s.</summary>
         internal void AttachFromAfar(VRHand hand)
@@ -495,6 +497,17 @@ namespace RavenfieldVR.Weapons
             if (HeldBy != null && !OnRail)
             {
                 RigidPose target = HoldPose(HeldBy);
+                // The hand's tracking back after a gap: from where the magazine hung to where the hand is now over a tenth of a
+                // second. It jumped the hand's whole way in the gap (5 to 40 cm) in one frame (scout, 2026-11-11).
+                bool tracked = HeldBy.Tracked;
+                if (tracked && !_followTracked && Go != null && _attachAt < 0f && (Go.transform.position - target.position).sqrMagnitude > 0.03f * 0.03f)
+                {
+                    _attachInRig = true;
+                    _attachFrom = ToRigSpace(RigidPose.Of(Go.transform));
+                    _attachAt = Time.unscaledTime;
+                    _attachTime = 0.1f;
+                }
+                _followTracked = tracked;
                 float t = _attachAt >= 0f ? (Time.unscaledTime - _attachAt) / Mathf.Max(0.01f, _attachTime) : 1f;
                 if (t < 1f)
                 {

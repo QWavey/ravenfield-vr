@@ -623,6 +623,14 @@ namespace RavenfieldVR.Weapons
                     off.Haptic(0.04f, 70f, 0.55f);
                     _sys.FlashMessage("TAIL FIRST");
                 }
+                if (lined && magazine && Time.unscaledTime - prop.LeftRailAt < 0.25f && lateral > lateralMax)
+                {
+                    // Just taken off the line by the hand going aside, the hand still off it: not onto it again. It is judged by
+                    // where the magazine is DRAWN, which for the 80 ms of the switch is still at the mouth: it went on again the
+                    // next frame, off again the one after (the hand 7 cm aside), about 45 times a second, clicking each time, the
+                    // glove pinned and free in turn (scout, 2026-11-11: "mags are glitching around").
+                    lined = false;
+                }
                 if (prop.BackOutFirst)
                 {
                     // (The hand has to come back out to the first third of the way in before the next shell starts.)
@@ -693,6 +701,7 @@ namespace RavenfieldVR.Weapons
             if (along < offLine || lateral > (inTube ? 0.35f : inWell ? 0.2f : 0.07f) + prop.RailLateral0)
             {
                 prop.OnRail = false;
+                prop.LeftRailAt = Time.unscaledTime;
                 prop.RailOutOnly = false;
                 prop.RailHandOffset = 0f;
                 prop.RailLateral0 = 0f;
@@ -755,7 +764,9 @@ namespace RavenfieldVR.Weapons
                 if (prop.RailDepth > latch)
                 {
                     float pushSpeed = Vector3.Dot(off.BodyThrowVelocity() - _sys.Rig.Dominant.BodyThrowVelocity(), SeatPose.TransformDirection(prop.InsertDirLocal));
-                    if (pushSpeed < DetentSpeed && along - prop.RailLength < DetentPush)
+                    // (Held below 0.25 m/s once it holds, let through above 0.35: at one line of 0.3 a push near it went through and
+                    // was held again frame by frame, the magazine jumping the last 8 mm in and out; scout, 2026-11-11.)
+                    if (pushSpeed < (_atDetent ? DetentSpeed + 0.05f : DetentSpeed - 0.05f) && along - prop.RailLength < DetentPush)
                     {
                         prop.RailDepth = latch;
                         if (!_atDetent)
@@ -785,7 +796,7 @@ namespace RavenfieldVR.Weapons
                 _pullingIn = prop;
                 // On from the hand's speed, but no faster than the spring's own 0.6 m/s (a 2 m/s push seated it in a frame or
                 // two; bug hunt 2026-10-16).
-                prop.DepthVel = Mathf.Clamp((prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1e-3f), 0f, 0.6f);
+                prop.DepthVel = Mathf.Clamp((prop.RailDepth - prop.PrevDepth) / Mathf.Max(Time.unscaledDeltaTime, 1f / 120f), 0f, 0.6f);
                 off.Haptic(0.012f, 160f, 0.35f);
             }
         }

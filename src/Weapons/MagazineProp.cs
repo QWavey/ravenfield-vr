@@ -221,6 +221,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>A hand holding more shells than one has just pushed one in: the next goes in only after the hand came back out
         /// towards the port's mouth (all of them went in on neighbouring frames, as one).</summary>
         public bool BackOutFirst;
+
+        /// <summary>When the hand last took it off the well's line by going aside (Time.unscaledTime).</summary>
+        public float LeftRailAt = -10f;
         /// <summary>Where it was drawn as it went onto or off the rail, against the rig (<see cref="ToRigSpace"/>).</summary>
         private RigidPose _switchFrom;
 
