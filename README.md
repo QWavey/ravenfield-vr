@@ -189,6 +189,7 @@ Everything lives in `Ravenfield/BepInEx/config/com.qwavey.ravenfieldvr.cfg`; mos
 | `GraphicsPreset` | Medium | Low, Medium, High, Ultra or Game |
 | `RenderScale` | 1.0 | Resolution on top of SteamVR's own setting (a preset sets it) |
 | `StereoMode` | MultiPass | Leave it: the game's own shaders have no single-pass variants, so with SinglePassInstanced the world draws in one eye only |
+| `FallInFirstPerson` | on | Knocked over, your view stays at your soldier's head as he falls and lies (the horizon kept level, his head hidden), not the game's camera behind him |
 | `ScopeHalfRate` | off | To try: the magnified scope lens draws its picture every other frame (about half of its 0.5 ms a frame while aiming through it); its picture may lag a fast pan. On the panel's Speed tab (with `ShowAdvanced` on) ("Scope lens every other frame") |
 | `GarbageCollectionSliceMs` | 3 | To try: how much of a frame the game's garbage collector may take while it collects (Unity's own is 3 ms); lower spreads the same work over more frames. The frame rate line says the slice. On the panel's Speed tab (with `ShowAdvanced` on) ("Garbage collection slice") |
 | `InstanceRepeatedObjects` | off | To try: the level's materials drawn by several objects are drawn instanced, so copies of one mesh go in one draw in each eye's passes. Not for static-batched or lightmapped objects. On the panel's Speed tab (with `ShowAdvanced` on) ("Repeated objects instanced") |
