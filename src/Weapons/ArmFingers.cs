@@ -239,6 +239,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>A hand at rest is never ruler-straight (the VR glove's rest curls, thumb to little finger).</summary>
         private static readonly float[] RestCurl = { 0.1f, 0.12f, 0.16f, 0.2f, 0.24f };
 
+        /// <summary>The curls the fingers are drawn with now (eased), and the frame they were last eased in.</summary>
+        private readonly float[] _curlNow = new float[5];
+        private int _curlFrame = -10;
+
         /// <summary>
         /// The fingers follow the controller as the VR glove's do (the trigger the index, the grip the others, or the controller's
         /// own finger tracking), in a relaxed hand's shape (<see cref="Relax"/>), eased into the animation's pose by
@@ -291,12 +295,28 @@ namespace RavenfieldVR.Weapons
                     {
                         curl = Mathf.Clamp(gunGrip[f], 0.15f, 0.92f);
                     }
+                    // Eased, as the glove's fingers are: the curl jumped in one frame when the controller's finger tracking dropped
+                    // out for a frame (its own curls against the grip's and the trigger's: 40 to 80 degrees a joint), and the
+                    // trigger's and grip's noise went straight to the joints (scout, 2026-11-11).
+                    if (Time.frameCount - _curlFrame > 2)
+                    {
+                        _curlNow[f] = curl;
+                    }
+                    else
+                    {
+                        _curlNow[f] = Mathf.Lerp(_curlNow[f], curl, 1f - Mathf.Exp(-25f * Mathf.Min(Time.unscaledDeltaTime, 0.05f)));
+                    }
+                    curl = _curlNow[f];
                     Relax(f, j, hand, fingers, palm, curl, onGun);
                 }
                 for (int s = 0; s < j.Length; s++)
                 {
                     _fingerWritten[f][s] = j[s].localRotation;
                 }
+            }
+            if (onGun < 0.999f)
+            {
+                _curlFrame = Time.frameCount;
             }
             _fingersWritten = true;
         }
