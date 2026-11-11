@@ -138,6 +138,7 @@ namespace RavenfieldVR.Tests
             WholeReloadNameTests(mod);
             PaceBudgetTests(mod);
             HeadLookTests(mod);
+            ExpoTests(mod);
             VectorSettingTests(mod);
         }
 
@@ -591,6 +592,26 @@ namespace RavenfieldVR.Tests
         /// with no frame's step more than 9 mm over the one before; beside a hand going 2 cm a frame it stays with it; and while the
         /// player runs 3 cm a frame the run is not held back.
         /// </summary>
+        private static void ExpoTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo expo = mod.GetType("RavenfieldVR.Input.VehicleInput")?.GetMethod("Expo",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Check(expo != null, "Plane stick: VehicleInput.Expo found");
+            if (expo == null)
+            {
+                return;
+            }
+            float E(float v) => (float)expo.Invoke(null, new object[] { v });
+            Check(Math.Abs(E(1f) - 1f) < 1e-5 && Math.Abs(E(-1f) + 1f) < 1e-5 && Math.Abs(E(0f)) < 1e-6, "Plane stick: the ends and the middle are kept");
+            Check(E(0.3f) < 0.15f && E(0.3f) > 0.1f, $"Plane stick: a small push gives less ({E(0.3f):0.000} for 0.3)");
+            bool rising = true;
+            for (float v = -1f; v < 1f; v += 0.05f)
+            {
+                rising &= E(v + 0.05f) > E(v);
+            }
+            Check(rising, "Plane stick: always rising (no dead spot, no reversal)");
+        }
+
         private static void HeadLookTests(System.Reflection.Assembly mod)
         {
             System.Reflection.MethodInfo look = mod.GetType("RavenfieldVR.Net.NetAvatar")?.GetMethod("HeadLook",

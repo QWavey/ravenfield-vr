@@ -42,9 +42,14 @@ namespace RavenfieldVR.Input
             Vector2 left = VRGameInput.MoveStick;
             // The raw stick, zeroed while it scrolls one of the mod's panels (it pitched and rolled the aircraft meanwhile).
             Vector2 right = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value);
-            Vector2 stick = FlightStick ?? right;
+            // The thumbstick with a gentler middle (35% linear, 65% cubed): a plane rolled and pitched hard at a small push, and holding
+            // a line was a fight (the user, 2026-11-11: "I need better controlls"). Full at the edge as before; the grabbed stick as it is.
+            Vector2 stick = FlightStick ?? new Vector2(Expo(right.x), Expo(right.y));
             return new Vector4(left.x, left.y, stick.x, stick.y);
         }
+
+        /// <summary>A stick's value with a gentler middle and the same ends. Pure: the offline tests check it.</summary>
+        internal static float Expo(float v) => 0.35f * v + 0.65f * v * v * v;
 
         internal static bool ShouldDrive(FpsActorController c) =>
             VRGameInput.Enabled && c.inputEnabled && c.movementInputEnabled && !GameManager.gameOver && !GameContext.GameMenuOpen;
