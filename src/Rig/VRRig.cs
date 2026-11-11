@@ -1498,7 +1498,7 @@ namespace RavenfieldVR.Rig
             // On a seat or a ladder the head is at the body's eyes too while the game does not draw the body (its first-person
             // seat camera; its arms on the wheel in their own animation): hidden there as well. A third-person seat camera draws it.
             bool atEyes = Mode == RigMode.OnFoot || Mode == RigMode.Anchored && (!drawn || _eyesAtSeat); // (an outside camera's body is not drawn at the seat's eyes)
-            if (atEyes && player != null && (Mode == RigMode.OnFoot && drawn || !shadow))
+            if (atEyes && player != null && ((Mode == RigMode.OnFoot || _eyesAtSeat) && drawn || !shadow)) // (also at an outside camera's seat eyes with BodyShadow on: the body drawn from inside it; scout)
             {
                 if (shadow)
                 {
