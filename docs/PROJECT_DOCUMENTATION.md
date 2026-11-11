@@ -713,6 +713,21 @@ moves, and a part's real geometry. `sound_banks.py` reads every SoundBank raw (m
 lengths. They found the QJB201's real cover, the AS Val's bolt, the MK46's belt and the sounds on the wrong action (Tasks 364, 365). First thing
 to run when a gun misbehaves. UnityPy condition modes in a controller: If 1, IfNot 2, Greater 3, Less 4, Equals 6, NotEqual 7.
 
+### 3.13 The chamber and the slide's catch (`Weapons/AmmoState.cs`, `Weapons/ReloadInteractions.Slide.cs`, `Weapons/HandLoading.cs`; Tasks 381)
+
+The states a self-loading gun's slide can be in, and what moves it between them (a bolt or pump worked by hand has `BoltOpen` in place of the catch):
+
+| State | In `AmmoState` | Trigger | Counter |
+|---|---|---|---|
+| Shut on a round | `Chambered`, not `SlideLocked` | fires | `N+1` |
+| Caught back | `SlideLocked` (the game is told 0, the animator 0) | click; with `TriggerReleasesSlide` it lets the slide go when there is a round to shut on | `N OPEN` |
+| Shut on nothing | `HomeOnEmpty`: not `SlideLocked`, not `Chambered`, on a gun that locks open on empty | click | `EMPTY`, or `N RACK` with rounds in the magazine |
+
+- **Caught back** comes from the last round fired or a pull let go at the back, with nothing to chamber AND something to hold the catch up (`CatchHolds`: a magazine in, or a gun fed from inside or from a belt). With the magazine out the slide runs home: shut on nothing.
+- **Shut on nothing** comes from the hand bringing the caught slide forward (ridden home, or let go in the front half of its way) and from its release with an empty magazine (`RackForward(home: true)`). The animator is told 1 there (`AnimatorRoundsHome`): many pistols draw the slide back at 0.
+- **A round by hand** (`ChamberByHand`) goes into `ChamberOpenEmpty`: the slide caught back or a bolt left open, no round and no fired case in it. The next `RackForward` shuts on it and takes none from the magazine. The round comes from the reserve (the free hand's trigger held as its grip squeezes at the pouch: `TakeFromPouch`), or off the ground (a live round racked out with `LoseRoundOnRack`); it is a `Casings.Case` in the fingers, followed and let go by `HandLoading.BeforeRender`, put in by `HandLoading.TryChamber` within 6 cm of the ejection port (`Casings.TryPort`).
+- The rounds' fuzz (`tools/tests/AmmoFuzz.cs`) plays both as random actions among the others: nothing made or lost, no catch with the magazine out, no shot from a gun shut on nothing.
+
 ## 4. Key Files Reference
 
 | Path | What lives there | Why it matters |
