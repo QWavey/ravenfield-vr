@@ -124,8 +124,8 @@ namespace RavenfieldVR.Net
             }
             // A seat another PC's soldier sits in (his player, or one of the host's soldiers) is his: this PC's player does not take it.
             // The game puts the one sitting there out, but only here: on his own PC he still sat there, and two players sat in one seat
-            // (the user, 2026-11-11: "A player can go into another players seat without kicking him out"). The game's swap of seats asks
-            // the same way, so it is refused too; a free seat is taken as ever.
+            // (the user, 2026-11-11: "A player can go into another players seat without kicking him out"). The game's own seat change is refused before
+            // it moves anything (OnSwitchSeat); a free seat is taken as ever.
             if (!Seating && seat != null && seat.occupant != null && seat.occupant != __instance && NetGame.IsRemote(seat.occupant))
             {
                 if (__instance == LocalPlayer.actor)
