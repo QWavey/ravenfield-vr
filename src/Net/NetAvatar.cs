@@ -511,18 +511,27 @@ namespace RavenfieldVR.Net
                     continue;
                 }
                 body.Normalize();
-                Vector3 flat = new Vector3(want.x, 0f, want.z);
-                float yaw = flat.sqrMagnitude > 1e-4f ? Mathf.Clamp(Vector3.SignedAngle(body, flat, Vector3.up), -80f, 80f) : 0f;
-                float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(want.y, -1f, 1f)) * Mathf.Rad2Deg, -60f, 60f);
-                Vector3 turned = Quaternion.AngleAxis(yaw, Vector3.up) * body;
-                Vector3 right = Vector3.Cross(Vector3.up, turned);
-                Vector3 look = Quaternion.AngleAxis(-pitch, right) * turned;
+                Vector3 look = HeadLook(body, want);
                 h.Look = h.Eased ? Vector3.Slerp(h.Look, look, 1f - Mathf.Exp(-18f * Time.deltaTime)) : look;
                 h.Eased = true;
                 Vector3 now = h.Bone.rotation * h.LocalForward;
                 h.Bone.rotation = Quaternion.FromToRotation(now, h.Look) * h.Bone.rotation;
                 HeadsTurned++;
             }
+        }
+
+        /// <summary>
+        /// Where a head looks for <paramref name="want"/> (a unit direction) on a body facing <paramref name="body"/> (level, unit): at
+        /// most 80 degrees to either side and 60 up or down. Pure (no engine call): the offline tests check it.
+        /// </summary>
+        internal static Vector3 HeadLook(Vector3 body, Vector3 want)
+        {
+            Vector3 flat = new Vector3(want.x, 0f, want.z);
+            float yaw = flat.sqrMagnitude > 1e-4f ? Mathf.Clamp(Vector3.SignedAngle(body, flat, Vector3.up), -80f, 80f) * Mathf.Deg2Rad : 0f;
+            float pitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(want.y, -1f, 1f)) * Mathf.Rad2Deg, -60f, 60f) * Mathf.Deg2Rad;
+            Vector3 right = Vector3.Cross(Vector3.up, body);
+            Vector3 turned = body * Mathf.Cos(yaw) + right * Mathf.Sin(yaw);
+            return turned * Mathf.Cos(pitch) + Vector3.up * Mathf.Sin(pitch);
         }
 
         /// <summary>The gun back where the soldier's hand has it, and the game's own left-hand target back (no pose told any more).</summary>

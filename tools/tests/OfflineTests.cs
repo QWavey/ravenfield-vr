@@ -137,6 +137,7 @@ namespace RavenfieldVR.Tests
             RackSplitTests(mod);
             WholeReloadNameTests(mod);
             PaceBudgetTests(mod);
+            HeadLookTests(mod);
             VectorSettingTests(mod);
         }
 
@@ -590,6 +591,36 @@ namespace RavenfieldVR.Tests
         /// with no frame's step more than 9 mm over the one before; beside a hand going 2 cm a frame it stays with it; and while the
         /// player runs 3 cm a frame the run is not held back.
         /// </summary>
+        private static void HeadLookTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo look = mod.GetType("RavenfieldVR.Net.NetAvatar")?.GetMethod("HeadLook",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Check(look != null, "Heads: NetAvatar.HeadLook found");
+            if (look == null)
+            {
+                return;
+            }
+            UnityEngine.Vector3 Look(UnityEngine.Vector3 body, UnityEngine.Vector3 want) => (UnityEngine.Vector3)look.Invoke(null, new object[] { body, want.normalized });
+            double Deg(UnityEngine.Vector3 a, UnityEngine.Vector3 b) => Math.Acos(Math.Max(-1.0, Math.Min(1.0, a.x * b.x + a.y * b.y + a.z * b.z))) * 180.0 / Math.PI;
+            var fwd = new UnityEngine.Vector3(0f, 0f, 1f);
+            var right = new UnityEngine.Vector3(1f, 0f, 0f);
+            var up = new UnityEngine.Vector3(0f, 1f, 0f);
+            UnityEngine.Vector3 ahead = Look(fwd, fwd);
+            Check(Deg(ahead, fwd) < 0.5, $"Heads: looking ahead stays ahead ({Deg(ahead, fwd):0.0} deg off)");
+            UnityEngine.Vector3 side = Look(fwd, new UnityEngine.Vector3(1f, 0f, 0.6f));
+            Check(Deg(side, new UnityEngine.Vector3(1f, 0f, 0.6f).normalized) < 0.5 && side.x > 0f, $"Heads: 59 degrees to the right is turned there ({side.x:0.00}, {side.z:0.00})");
+            UnityEngine.Vector3 behind = Look(fwd, new UnityEngine.Vector3(1f, 0f, -1f));
+            Check(Math.Abs(Deg(behind, fwd) - 80.0) < 0.5 && behind.x > 0f, $"Heads: 135 degrees to the right is held at 80 ({Deg(behind, fwd):0.0} deg, on the right side)");
+            UnityEngine.Vector3 left = Look(fwd, new UnityEngine.Vector3(-1f, 0f, 0f));
+            Check(Math.Abs(Deg(left, fwd) - 80.0) < 0.5 && left.x < 0f, $"Heads: 90 degrees to the left is held at 80 on the left ({left.x:0.00})");
+            UnityEngine.Vector3 sky = Look(fwd, new UnityEngine.Vector3(0f, 1f, 0.1f));
+            Check(Math.Abs(Deg(sky, up) - 30.0) < 0.5, $"Heads: straight up is held at 60 up ({90.0 - Deg(sky, up):0.0} deg)");
+            UnityEngine.Vector3 down = Look(right, new UnityEngine.Vector3(1f, -0.5f, 0f));
+            Check(down.y < -0.4f && down.x > 0.85f && Math.Abs(down.z) < 1e-3f, $"Heads: a little down on a body facing right ({down.x:0.00}, {down.y:0.00}, {down.z:0.00})");
+            double length = Math.Sqrt(behind.x * behind.x + behind.y * behind.y + behind.z * behind.z);
+            Check(Math.Abs(length - 1.0) < 1e-4, $"Heads: the look is a unit direction ({length:0.0000})");
+        }
+
         private static void PaceBudgetTests(System.Reflection.Assembly mod)
         {
             System.Reflection.MethodInfo budget = mod.GetType("RavenfieldVR.Weapons.MagazineProp")?.GetMethod("PaceBudget",
