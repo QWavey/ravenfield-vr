@@ -47,8 +47,10 @@ namespace RavenfieldVR.Weapons
         public void BeforeRender()
         {
             Actor actor = GameContext.PlayerActor;
-            bool show = VRConfig.ShowHolsters.Value && actor != null && !actor.dead && GameContext.PlayerOnFoot && !GameContext.GameMenuOpen
-                        && actor.weapons != null;
+            // (Also in a seat whose holsters can be drawn from (WeaponsWhileDriving): hidden there, a gun was drawn from an empty-looking
+            // hip and one put back vanished from view; holster scout, 2026-11-11.)
+            bool show = VRConfig.ShowHolsters.Value && actor != null && !actor.dead && (GameContext.PlayerOnFoot || DrivingWeapons.CanDraw(actor))
+                        && !GameContext.GameMenuOpen && actor.weapons != null;
             BodyZones zones = _sys.Zones;
             Transform head = _sys.Rig.Head;
             for (int spot = 0; spot < BodyZones.Spots; spot++)

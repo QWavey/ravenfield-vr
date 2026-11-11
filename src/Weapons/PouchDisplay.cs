@@ -337,6 +337,8 @@ namespace RavenfieldVR.Weapons
             _root = null;
             _model = null;
             _builtFor = null;
+            _round = null; // (gone with the root: made again with its mesh when next shown)
+            _roundFor = null;
             _kept.Clear(); // their objects went with the root
             _keptOrder.Clear();
             _shownSpare = int.MinValue; // a rebuilt label must be written again
