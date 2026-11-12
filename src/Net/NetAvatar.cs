@@ -38,6 +38,8 @@ namespace RavenfieldVR.Net
             // Eased (the told ones come 30 times a second, the eyes are drawn 90 times).
             public Vector3 LeftNow, RightNow, MuzzleNow;
             public Quaternion MuzzleRotNow = Quaternion.identity;
+            /// <summary>The wrists' turns as shown, eased like the palms (the told ones stepped 30 times a second while the palms glided).</summary>
+            public Quaternion LeftRotNow = Quaternion.identity, RightRotNow = Quaternion.identity;
             public bool Eased;
             public Transform TargetL, TargetR;
 
@@ -242,6 +244,8 @@ namespace RavenfieldVR.Net
             p.Heard = Time.unscaledTime;
         }
 
+        private static readonly float[] MostCurl = { 75f, 85f, 60f }; // (one array, not one a call: a hand's curl per frame per remote)
+
         private static bool Usable(NetGame.Remote r, out Actor a, out Pose p)
         {
             a = r.Actor;
@@ -295,6 +299,8 @@ namespace RavenfieldVR.Net
                 ease = 1f;
                 p.MuzzleNow = p.Muzzle;
                 p.MuzzleRotNow = p.MuzzleRot;
+                p.LeftRotNow = p.LeftRot;
+                p.RightRotNow = p.RightRot;
             }
             p.LeftNow = Vector3.Lerp(p.LeftNow, p.Left, ease);
             // (OnAnimatorIK may run more than once a frame on a soldier with several IK layers: the frame let go stays let go.)
@@ -306,6 +312,8 @@ namespace RavenfieldVR.Net
             p.RightNow = Vector3.Lerp(p.RightNow, p.Right, ease);
             p.MuzzleNow = Vector3.Lerp(p.MuzzleNow, p.Muzzle, ease);
             p.MuzzleRotNow = Quaternion.Slerp(p.MuzzleRotNow, p.MuzzleRot, ease);
+            p.LeftRotNow = Quaternion.Slerp(p.LeftRotNow, p.LeftRot, ease);
+            p.RightRotNow = Quaternion.Slerp(p.RightRotNow, p.RightRot, ease);
             Animator animator = a.animator;
             Transform boneL = animator != null ? animator.GetBoneTransform(HumanBodyBones.LeftHand) : null;
             Transform boneR = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
@@ -389,7 +397,7 @@ namespace RavenfieldVR.Net
                     }
                     // (His wrist's turn once learnt on the gun; a left-handed player's free hand is his right, the soldier's left: not
                     // the same hand's axes, so the soldier's own turn stays.)
-                    p.TargetL.SetPositionAndRotation(freeAt, p.PalmKnownL && !p.Is(GunInLeft) ? p.LeftRot * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
+                    p.TargetL.SetPositionAndRotation(freeAt, p.PalmKnownL && !p.Is(GunInLeft) ? p.LeftRotNow * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
                     __instance.handTargetL = p.TargetL;
                     __instance.SetHandIkEnabled(freeTold, true);
                 }
@@ -397,8 +405,8 @@ namespace RavenfieldVR.Net
             else
             {
                 // (No gun: each hand where his is, turned with his wrist where that was learnt on a gun.)
-                p.TargetL.SetPositionAndRotation(origin + p.LeftNow, p.PalmKnownL ? p.LeftRot * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
-                p.TargetR.SetPositionAndRotation(origin + p.RightNow, p.PalmKnownR ? p.RightRot * p.PalmToBoneR : boneR != null ? boneR.rotation : Quaternion.identity);
+                p.TargetL.SetPositionAndRotation(origin + p.LeftNow, p.PalmKnownL ? p.LeftRotNow * p.PalmToBoneL : boneL != null ? boneL.rotation : Quaternion.identity);
+                p.TargetR.SetPositionAndRotation(origin + p.RightNow, p.PalmKnownR ? p.RightRotNow * p.PalmToBoneR : boneR != null ? boneR.rotation : Quaternion.identity);
                 __instance.handTargetL = p.TargetL;
                 __instance.handTargetR = p.TargetR;
                 __instance.SetHandIkEnabled(p.Is(LeftHand), p.Is(RightHand));
@@ -553,7 +561,7 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            float[] most = { 75f, 85f, 60f };
+            float[] most = MostCurl;
             for (int f = first; f < first + 4; f++)
             {
                 for (int j = 0; j < 3; j++)
@@ -743,10 +751,16 @@ namespace RavenfieldVR.Net
                     if (magazine)
                     {
                         bool left = !p.Is(GunInLeft);
-                        Quaternion turn = left ? p.LeftRot : p.RightRot;
+                        Quaternion turn = left ? p.LeftRotNow : p.RightRotNow;
                         Vector3 at = kv.Value.Actor.Position() + (left ? p.LeftNow : p.RightNow);
                         p.MagazineBox.transform.SetPositionAndRotation(at - turn * p.MagazineMiddle, turn);
                     }
+                }
+                if (kv.Value.Actor != null && kv.Value.Actor.dead && p.Heard > 0f)
+                {
+                    // Dead: the pose is the last life's. A quick respawn showed its hands, gun and head for up to 0.6 s (the pose was still
+                    // fresh; remote visuals scout, 2026-11-12). The next life starts from its own first word.
+                    p.Heard = -10f;
                 }
                 if (!Usable(kv.Value, out Actor _, out Pose _) && p.Eased)
                 {
