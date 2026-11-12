@@ -588,6 +588,12 @@ namespace RavenfieldVR.Weapons
 
             if (!prop.OnRail)
             {
+                if (_pullingIn == prop)
+                {
+                    // (Off its way in again, pulled back out or let go: lined up once more it seated itself with no push, as if pushed
+                    // home; magazine scout, 2026-11-12.)
+                    _pullingIn = null;
+                }
                 prop.RailHandOffset = 0f;
                 prop.RailLateral0 = 0f;
                 prop.FromSeat = false;
@@ -667,8 +673,9 @@ namespace RavenfieldVR.Weapons
                         lined = false;
                     }
                 }
-                if (enBloc && !lined && lateral < 0.15f && along > -0.12f && along < prop.RailLength + 0.05f)
+                if (enBloc && !lined && lateral < 0.15f && along > -0.12f && along < prop.RailLength + 0.05f && Log.DebugOn)
                 {
+                    // (Only with the debug log: built every frame the clip hovered there, though logged once.)
                     Log.InfoOnce("enbloc-near:" + Data.Key, $"{Data.Key}: a clip near the open action, not on its way in yet: {along * 100f:0.0} cm along its {prop.RailLength * 100f:0.0} cm way, {lateral * 100f:0.0} cm aside (6 at most), turned {angle:0} deg, {prop.Rounds} round(s).");
                 }
                 if (lined)
