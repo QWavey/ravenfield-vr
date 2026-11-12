@@ -791,7 +791,8 @@ namespace RavenfieldVR.Weapons
 
         private static void GiveBackTexture(RenderTexture t)
         {
-            if (SpareTextures.Count < 3)
+            // (Not kept with the lenses turned off: three spares at 2048 held some 200 MB for the session; optics scout, 2026-11-12.)
+            if (SpareTextures.Count < 3 && VRConfig.VRScopes.Value)
             {
                 SpareTextures.Add(t);
                 return;
