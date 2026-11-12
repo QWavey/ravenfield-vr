@@ -29,6 +29,10 @@ namespace RavenfieldVR.Net
 
         private readonly Action<byte[], int> _send;
         private readonly List<Piece> _waiting = new List<Piece>(); // sent or queued, not yet answered; in order of number
+
+        /// <summary>When the peer was last heard on the line (the transport's clock; below 0: not yet), and how many pieces wait.</summary>
+        internal double Heard = -1;
+        internal int Waiting => _waiting.Count;
         private readonly Dictionary<ushort, (byte[] data, bool more)> _ahead = new Dictionary<ushort, (byte[], bool)>();
         private readonly List<byte[]> _joining = new List<byte[]>();
         /// <summary>The bytes of the pieces being joined, and the most one message may come to.</summary>

@@ -276,6 +276,10 @@ namespace RavenfieldVR.Net
         {
             if (kind == Hello)
             {
+                // Read first: a short or broken hello from a player's address threw only after he had been dropped (transport scout,
+                // 2026-11-12); now it throws before, and he stays.
+                int protocol = r.VarInt();
+                NetPlayerInfo info = NetPlayerInfo.Read(ref r);
                 if (_byPeer.TryGetValue(from, out byte known) && _players.TryGetValue(known, out NetPlayer was))
                 {
                     if (!was.Spoke && _now - was.JoinedAt < 4.0) // (his hellos come every 2 s until the welcome reaches him)
@@ -287,8 +291,6 @@ namespace RavenfieldVR.Net
                     // 2026-11-11). The old one goes now and the new one is taken in below.
                     Drop(was, "joined again", close: false); // (his line stays open: the same address is the newcomer's)
                 }
-                int protocol = r.VarInt();
-                NetPlayerInfo info = NetPlayerInfo.Read(ref r);
                 string refuse = protocol != ProtocolVersion ? $"the host plays protocol {ProtocolVersion}, you have {protocol}: both need the same version of the mod"
                     : info.GameBuild != LocalInfo.GameBuild ? $"the host runs game build {LocalInfo.GameBuild}, you run {info.GameBuild}: update the game on both PCs"
                     // (The mod's own version: sent since the start and never looked at. Two versions agree on the wire's format, but not on

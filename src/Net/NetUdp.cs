@@ -97,6 +97,8 @@ namespace RavenfieldVR.Net
 
         /// <summary>The most reliable channels at a time (a session has 16 players at most).</summary>
         internal const int MaxChannels = 64;
+        private const double IdleChannel = 60.0;
+        private readonly List<ulong> _idleNow = new List<ulong>();
         /// <summary>Messages whose handling threw, and the last one's fault in words.</summary>
         internal int Faults;
         internal string LastFault = "";
@@ -179,13 +181,18 @@ namespace RavenfieldVR.Net
                 // SteamTransport guards each of its messages; scout, 2026-11-11).
                 try
                 {
+                    if (_channels.TryGetValue(peer, out ReliableChannel heard))
+                    {
+                        heard.Heard = now;
+                    }
                     if (_in[0] == ReliableChannel.KindUnreliable)
                     {
                         Buffer.BlockCopy(_in, 1, _message, 0, length - 1);
                         received(peer, _message, length - 1);
                     }
-                    else if (_channels.ContainsKey(peer) || _channels.Count < MaxChannels)
+                    else if (heard != null || _channels.Count < MaxChannels && _in[0] == ReliableChannel.KindPiece && length >= 4)
                     {
+                        // (A new channel only for a real piece: any first byte made one, and junk filled the table.)
                         // (No more channels than a session and some newcomers need: every address that sent one piece got a
                         // channel of its own for good.)
                         _deliverTo = received;
@@ -200,6 +207,7 @@ namespace RavenfieldVR.Net
                 }
             }
             _lostNow.Clear();
+            _idleNow.Clear();
             foreach (KeyValuePair<ulong, ReliableChannel> c in _channels)
             {
                 c.Value.Update(now);
@@ -207,11 +215,30 @@ namespace RavenfieldVR.Net
                 {
                     _lostNow.Add(c.Key);
                 }
+                else if (c.Value.Heard < 0)
+                {
+                    c.Value.Heard = now;
+                }
+                else if (now - c.Value.Heard > IdleChannel && c.Value.Waiting == 0)
+                {
+                    // Not heard for a minute with nothing to send: let go. A dropped player still sending opened a channel again
+                    // that nothing ever took away, and 64 of them shut out every newcomer ("no answer from the host"; transport
+                    // scout, 2026-11-12). A player in a game is heard many times a second.
+                    _idleNow.Add(c.Key);
+                }
             }
-            foreach (ulong peer in _lostNow)
+            foreach (ulong peer in _idleNow)
             {
                 _channels.Remove(peer);
-                lost(peer);
+            }
+            if (_lostNow.Count > 0)
+            {
+                // (A copy: a handler that leaves polls again, and that poll clears the list under this loop.)
+                foreach (ulong peer in _lostNow.ToArray())
+                {
+                    _channels.Remove(peer);
+                    lost(peer);
+                }
             }
         }
 
