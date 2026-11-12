@@ -88,6 +88,9 @@ if ($LASTEXITCODE -ne 0) { $code = 1 }
 # Every setting in the README's table exists with the default it gives (tools/tests/readme_settings_test.py).
 python -I (Join-Path $PSScriptRoot 'readme_settings_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
+# Every multiplayer message kind reaches its own handler (tools/tests/net_dispatch_test.py).
+python -I (Join-Path $PSScriptRoot 'net_dispatch_test.py')
+if ($LASTEXITCODE -ne 0) { $code = 1 }
 # uninstall.ps1 on a made-up install in a temporary folder (tools/tests/uninstall_ps1_test.py).
 python -I (Join-Path $PSScriptRoot 'uninstall_ps1_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }

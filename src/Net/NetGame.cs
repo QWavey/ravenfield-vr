@@ -1268,11 +1268,18 @@ namespace RavenfieldVR.Net
                     case KilledBy:
                         TakeKill(sender, ref r);
                         break;
+                    // (The vehicles' kinds in one group, each other kind on its own: the pings' case, put inside this group in 1.17.12, took
+                    // five of the vehicles' seven kinds, and the scores' after it: no vehicle reached a joined PC; multiplayer scout,
+                    // 2026-11-12.)
                     case VehicleInfo:
                     case VehicleStates:
                     case VehicleGone:
                     case VehicleSeat:
                     case VehicleOwner:
+                    case VehicleHit:
+                    case VehicleKilled:
+                        NetVehicles.OnMessage(kind, sender, ref r);
+                        break;
                     case Scores:
                         TakeScores(sender, ref r);
                         break;
@@ -1281,10 +1288,6 @@ namespace RavenfieldVR.Net
                         {
                             TakePings(ref r);
                         }
-                        break;
-                    case VehicleHit:
-                    case VehicleKilled:
-                        NetVehicles.OnMessage(kind, sender, ref r);
                         break;
                     case DropGone:
                     {
