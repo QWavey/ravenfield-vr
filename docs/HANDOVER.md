@@ -2,6 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-12 (1.17.15 INSTALLED on this PC; Tasks 384; work-until-limit 85 running)
+
+- **1.17.12 to 1.17.14 had shared vehicles broken** (the pings' and scores' message cases inside the vehicles' group): fixed in 1.17.15, with an offline test (`tools/tests/net_dispatch_test.py`). Both PCs need 1.17.15.
+- New this morning: the shared scoreboard (kind 39), knock-overs told (Fallen bit), the joined PC's loading until the match is in, a missing map back to the menu; drops keep an open bolt; the magazine pull-back seat; HUD notices queued. Nothing of it run in the game yet.
+
 ## State 2026-11-11 late night, run PAUSED (1.17.14 INSTALLED on this PC; Tasks 383.19)
 
 - 1.17.14 is built (`dist/`, notes `dist/notes-1.17.14.md`, 1.17.13 and 1.17.12 before it) and installed here; the friend needs the same version. The user paused the run (work-until-limit 85, at 58%) to sleep; a last read-only scout (soldiers' guns, gun collision) was still reading. Commits after `53f5ec2` (the other player's fingers, magazine and air smoothing, the cockpit, panel and vehicle-adoption fixes, passenger jolts) are for 1.17.13 (`dist/notes-1.17.13.md`), built at the run's end.
