@@ -487,7 +487,10 @@ namespace RavenfieldVR.Rig
                 }
                 // Knocked over: the view at his own head as he falls and lies, not the game's camera behind him (the user, 2026-11-11:
                 // "when I fall I want to fall in first person"). The head's place only; its turn is the player's own (no roll).
-                if (actor != null && !actor.dead && actor.fallenOver && VRConfig.FallInFirstPerson.Value && FallenHead(actor) != null)
+                // (Kept for a frame whose head is not found: it fell through to the feet's view and back, a blackout each way, and the
+                // fall's heading was latched again from the turned lying body; falling scout, 2026-11-12. Not over a match's end.)
+                if (actor != null && !actor.dead && actor.fallenOver && VRConfig.FallInFirstPerson.Value && !player.playingVictoryAnimation
+                    && (FallenHead(actor) != null || Mode == RigMode.Anchored && ReferenceEquals(_anchorKey, actor.ragdoll) && _hasFallPose))
                 {
                     mode = RigMode.Anchored;
                     key = actor.ragdoll;
@@ -606,6 +609,8 @@ namespace RavenfieldVR.Rig
         private int _modeChanges;
 
         private Seat _anchorSeat;
+        private RigidPose _lastFallPose;
+        private bool _hasFallPose;
 
         private void OnModeChanged(RigMode from, RigMode to, object key, FpsActorController player)
         {
@@ -651,6 +656,10 @@ namespace RavenfieldVR.Rig
             // a turn made lying was undone on getting up; view scout, 2026-11-11.)
             bool fromFall = from == RigMode.Anchored && _anchorKey is ActiveRaggy;
             float fallHeading = _fallYaw + _seatYawOffset - _neutralHead.rotation.eulerAngles.y;
+            if (!(key is ActiveRaggy))
+            {
+                _hasFallPose = false;
+            }
             if (to == RigMode.Anchored && key is ActiveRaggy && player != null && player.actor != null)
             {
                 _fallYaw = player.actor.transform.eulerAngles.y; // (latched: getting up the game turns the body to the lying spine)
@@ -1370,7 +1379,13 @@ namespace RavenfieldVR.Rig
                 {
                     ShrinkHead(head);
                     // (A little above the head bone, at the eyes: inside the skull the face's own mesh filled the view.)
-                    return new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, _fallYaw, 0f));
+                    _lastFallPose = new RigidPose(head.position + Vector3.up * 0.08f, Quaternion.Euler(0f, _fallYaw, 0f));
+                    _hasFallPose = true;
+                    return _lastFallPose;
+                }
+                if (_hasFallPose)
+                {
+                    return _lastFallPose; // (a frame with no head found: where it last was)
                 }
             }
             Transform root = player.fpCameraRoot;

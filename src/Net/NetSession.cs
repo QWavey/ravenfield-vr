@@ -534,19 +534,25 @@ namespace RavenfieldVR.Net
             }
             _out.Reset();
             _out.Byte(Bye);
-            if (IsHost)
+            // Reliably, and twice more straight away unreliably: the line closes right after, so the reliable one is sent once and
+            // never again, and lost the others waited 12 s for a "timed out" (Steam and transport scouts, 2026-11-12). A second
+            // goodbye is nobody's any more and is ignored.
+            for (int copy = 0; copy < 3; copy++)
             {
-                foreach (NetPlayer p in _players.Values)
+                if (IsHost)
                 {
-                    if (p.Id != 0)
+                    foreach (NetPlayer p in _players.Values)
                     {
-                        _transport.Send(p.Peer, _out.Buffer, _out.Length, true);
+                        if (p.Id != 0)
+                        {
+                            _transport.Send(p.Peer, _out.Buffer, _out.Length, copy == 0);
+                        }
                     }
                 }
-            }
-            else
-            {
-                _transport.Send(_hostPeer, _out.Buffer, _out.Length, true);
+                else
+                {
+                    _transport.Send(_hostPeer, _out.Buffer, _out.Length, copy == 0);
+                }
             }
             // (One more pump so the goodbye leaves with this frame's packets.)
             _transport.Poll(_now, (a, b, c) => { }, a => { });

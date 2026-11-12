@@ -926,7 +926,10 @@ namespace RavenfieldVR.Input
 
         private static void UpdateStickJumpCrouch(Actor actor)
         {
-            if (!VRConfig.StickJumpCrouch.Value)
+            // (Nor lying down: the stick's push up was a jump there too, and the game deploys its parachute on a jump with no check
+            // for a fallen body; its end stood the fallen player up at once; falling scout, 2026-11-12. A ladder's and the water's jump
+            // stay: the game's own way off or up.)
+            if (!VRConfig.StickJumpCrouch.Value || actor == null || actor.fallenOver)
             {
                 return;
             }
