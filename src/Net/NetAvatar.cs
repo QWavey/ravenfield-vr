@@ -244,6 +244,8 @@ namespace RavenfieldVR.Net
             p.Heard = Time.unscaledTime;
         }
 
+        private static Material _magazineMaterial;
+
         private static readonly float[] MostCurl = { 75f, 85f, 60f }; // (one array, not one a call: a hand's curl per frame per remote)
 
         private static bool Usable(NetGame.Remote r, out Actor a, out Pose p)
@@ -746,9 +748,14 @@ namespace RavenfieldVR.Net
                     Object.Destroy(p.MagazineBox.GetComponent<Collider>());
                     p.MagazineBox.name = "RavenfieldVR Net Magazine";
                     p.MagazineBox.transform.localScale = new Vector3(0.026f, 0.12f, 0.062f);
-                    Shader lit = Shader.Find("Standard");
                     var renderer = p.MagazineBox.GetComponent<Renderer>();
-                    renderer.material = new Material(lit != null ? lit : Shader.Find("Sprites/Default")) { color = new Color(0.13f, 0.13f, 0.14f) };
+                    // (One material for all of them: one made for each box was never destroyed with it, a leak each reload; scout.)
+                    if (_magazineMaterial == null)
+                    {
+                        Shader lit = Shader.Find("Standard");
+                        _magazineMaterial = new Material(lit != null ? lit : Shader.Find("Sprites/Default")) { color = new Color(0.13f, 0.13f, 0.14f) };
+                    }
+                    renderer.sharedMaterial = _magazineMaterial;
                     renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 }
                 if (p.MagazineBox != null)

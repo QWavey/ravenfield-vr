@@ -42,6 +42,7 @@ namespace RavenfieldVR.Net
             public ushort Id;
             public Actor Actor;
             public string Name = "", Weapon = "";
+            public string TagShown;
 
             /// <summary>Everything he carries, by slot (null: only the weapon in his hands was told), and the slot in his hands.</summary>
             public string[] Loadout;
@@ -2839,9 +2840,10 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            if (r.Tag.text.Length != r.Name.Length || r.Tag.text != r.Name)
+            if (!ReferenceEquals(r.TagShown, r.Name))
             {
-                r.Tag.text = r.Name;
+                r.Tag.text = r.Name; // (the shown name kept: the text's getter made a new string each read, two a frame per player)
+                r.TagShown = r.Name;
             }
             Camera eyes = Camera.main;
             Vector3 at = a.CenterPosition() + Vector3.up * 1.15f;
