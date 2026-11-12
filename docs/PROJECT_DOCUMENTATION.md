@@ -721,7 +721,8 @@ join from the list, by a friend's invitation, or by address.
   the shooter's PC (passed on once if the vehicle changed hands meanwhile); a stand-in's own hits are dropped (its PC sends them); the owner
   tells the shooter's PC of a disable or kill (`VehicleKilled`, the game's `OnGotVehicleKill`). A destroyed vehicle dies on every PC by the
   owner's word. The self-check (`--netcheck`, joining side) tells a vehicle, moves it and takes it away.
-- **Not carried yet:** a soldier knocked over or held (ragdolls are each PC's own), the fingers of a VR player, a mutator's own objects.
+- **Scoreboard (kind 39):** each PC tells its own soldiers' kills, deaths, flags and vehicles (on change every 2 s, all every 10 s) and the others set them on the stand-ins' rows; a kill credited from another PC (`KilledBy`) runs the game's `OnGotKill` on the player (the KILLED line and his own row). Weapon keys are kept per entry (`KeyOfEntry`): built per soldier each telling, they were the multiplayer's main garbage.
+- **Not carried yet:** a soldier knocked over or held (ragdolls are each PC's own), a mutator's own objects, a dud grenade (pin in).
 - **Checks:** offline `tools/tests/net-tests.ps1` (wire, reliability on a bad line, session over memory and UDP loopback; in
   `run-tests.ps1`); in the game `python -I tools/vrshots.py --netcheck --fast`: the game hosts on UDP port 7141 and a second player made
   in the same process joins and sends what a real one does (join, stand-in made and following, a hit passed out, a hit taken, death and
