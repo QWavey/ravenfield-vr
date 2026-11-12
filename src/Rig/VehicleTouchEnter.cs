@@ -123,9 +123,22 @@ namespace RavenfieldVR.Rig
             Seat best = null;
             float bestSqr = float.MaxValue;
             int hits = Physics.OverlapSphereNonAlloc(palm, TouchRadius, _hits);
+            Rigidbody lastBody = null;
             for (int k = 0; k < hits; k++)
             {
-                Vehicle v = _hits[k].GetComponentInParent<Vehicle>();
+                // (Each of a vehicle's colliders under the palm is the same vehicle: looked up once per body, not once per collider;
+                // the parent search ran for every hit of both hands each frame; vehicle entry scout.)
+                Rigidbody body = _hits[k].attachedRigidbody;
+                if (body != null && body == lastBody)
+                {
+                    continue;
+                }
+                lastBody = body;
+                Vehicle v = body != null ? body.GetComponent<Vehicle>() : null; // (a Unity null is no ??'s null: tested plainly)
+                if (v == null)
+                {
+                    v = _hits[k].GetComponentInParent<Vehicle>();
+                }
                 if (v == null || v.dead || v.isLocked || v.ownerTeam >= 0 && v.ownerTeam != actor.team)
                 {
                     continue;
