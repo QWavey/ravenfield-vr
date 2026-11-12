@@ -1391,7 +1391,7 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>The most soldiers of one player's that are stood in for (the game's largest matches have some hundreds in all).</summary>
-        private const int MaxRemotesOfOne = 300;
+        private const int MaxRemotesOfOne = 600;
 
         private static Remote Get(byte owner, ushort id)
         {
@@ -1404,7 +1404,7 @@ namespace RavenfieldVR.Net
                 int ofOwner = 0;
                 foreach (Remote other in Remotes.Values)
                 {
-                    ofOwner += other.Owner == owner ? 1 : 0;
+                    ofOwner += other.Owner == owner && Time.unscaledTime - other.Heard < 60f ? 1 : 0; // (heard in the last minute: the long dead of a match with scripted waves filled the count, and no new soldier was shown; multiplayer scout)
                 }
                 if (ofOwner >= MaxRemotesOfOne)
                 {
