@@ -89,6 +89,21 @@ namespace RavenfieldVR.Net
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.LeaveSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnLeaveSeat)));
             harmony.Patch(AccessTools.Method(typeof(Vehicle), "FixedUpdate"), postfix: new HarmonyMethod(typeof(NetVehicles), nameof(AfterFixedUpdate)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnSwitchSeat)));
+            harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.OnGotVehicleKill)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnGotVehicleKill)));
+        }
+
+        /// <summary>
+        /// A vehicle killed here by another PC's player (his stand-in the damage's source): not this PC's to show or count. A player's
+        /// stand-in is not AI, so the game put "DESTROYED ..." on this player's screen for a kill he did not make (vehicle scout,
+        /// 2026-11-12); the killer's own PC credits it (<see cref="NetGame.VehicleKilled"/>) and the shared scoreboard carries it.
+        /// </summary>
+        private static bool OnGotVehicleKill(Actor __instance) => !NetGame.IsRemote(__instance);
+
+        /// <summary>Whether the owner's player, as his PC last told, sits in its driver's seat.</summary>
+        private static bool OwnerDrives(Shared s)
+        {
+            NetGame.Remote taker = NetGame.RemoteOf(s.Owner, 0);
+            return taker != null && taker.SeatVehicle == s.Id && taker.SeatIndex == 0;
         }
 
         private static readonly AccessTools.FieldRef<Vehicle, Vector3> CachedVelocity = AccessTools.FieldRefAccess<Vehicle, Vector3>("cachedVelocity");
@@ -283,8 +298,11 @@ namespace RavenfieldVR.Net
             }
             foreach (Shared s in Scratch)
             {
+                // (By the host, or by the PC that drove it: gone on its owner's PC, the host kept a frozen ghost that fell back in
+                // as his own 5 s later; vehicle scout.)
+                bool tell = session.IsHost || s.Owner == session.LocalId;
                 Forget(s);
-                if (session.IsHost)
+                if (tell)
                 {
                     Out.Reset();
                     Out.UShort(s.Id);
@@ -770,12 +788,24 @@ namespace RavenfieldVR.Net
                     Vector3 pos = r.Vector();
                     Quaternion rot = r.Rotation();
                     Vector3 vel = r.SmallVector();
-                    if (owner != sender && owner != 0)
+                    if (owner != sender && owner != 0 && sender != 0)
                     {
-                        break; // (one takes a vehicle for himself, or gives it to the host: no other word)
+                        break; // (one takes a vehicle for himself, or gives it to the host: no other word; the host names anyone)
                     }
                     if (ById.TryGetValue(id, out Shared s) && Finite(pos) && Finite(vel))
                     {
+                        if (owner == 0 && sender != 0 && sender != s.Owner)
+                        {
+                            break; // (a give-back from one who is no longer its owner, come late: the new owner's word stands; vehicle scout)
+                        }
+                        // Two joined PCs taking it at once: the host's table holds the first, the second is told who has it (each took
+                        // the other's word and nobody drove it, frozen for both until one got out; vehicle scout, 2026-11-12).
+                        if (session.IsHost && sender != 0 && owner == sender && s.Owner != 0 && s.Owner != sender && s.Owner != session.LocalId
+                            && (Time.unscaledTime - s.OwnerSince < 5f || OwnerDrives(s)))
+                        {
+                            SetOwner(session, s, s.Owner, tell: true, force: true);
+                            break;
+                        }
                         // (Taken by another while this PC's player drives it too, both at once: the host's word holds, the other gives way.)
                         if (s.Owner == session.LocalId && owner != session.LocalId && sender != 0 && session.IsHost && DrivenHere(s))
                         {
@@ -989,8 +1019,9 @@ namespace RavenfieldVR.Net
             if (s.Owner != session.LocalId)
             {
                 // Handed on since it was sent (its driver got in or out): passed to the owner now, once (it was lost; vehicle scout).
-                if (sender == shooterPc && s.Owner != shooterPc)
+                if (sender == shooterPc)
                 {
+                    // (Also when the shooter has taken it since: he did not apply his own shot, not owning it then; vehicle scout.)
                     Out.Reset();
                     Out.UShort(id);
                     Out.Byte(shooterPc);
