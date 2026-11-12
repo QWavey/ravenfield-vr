@@ -2009,7 +2009,7 @@ namespace RavenfieldVR.Weapons
                     // The gun meeting a wall, a crate or the ground is felt, not only seen: a short knock, harder the faster
                     // the hand came in (at most four a second).
                     _contactKnockAt = Time.unscaledTime;
-                    float amp = Mathf.Clamp01(0.2f + main.Velocity.magnitude * 0.35f);
+                    float amp = Mathf.Clamp01(0.2f + main.BodyRelativeVelocity.magnitude * 0.35f); // (the hand's own speed: in a car at 25 m/s every touch knocked full; seat weapons scout)
                     main.Haptic(0.02f, 90f, amp);
                     if (TwoHanded)
                     {
