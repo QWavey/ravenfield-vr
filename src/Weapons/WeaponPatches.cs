@@ -254,6 +254,12 @@ namespace RavenfieldVR.Weapons
             _turned = null;
             HeldWeapon held = WeaponSystem.Instance != null ? WeaponSystem.Instance.Held : null;
             WeaponRig rig = held != null ? held.ActiveRig : null;
+            if (rig == null || !ReferenceEquals(rig.Weapon, w))
+            {
+                // (Or the free hand's second weapon: its shots left along the crooked muzzle part, off its sights; dual scout, 2026-11-12.)
+                SecondWeapon second = WeaponSystem.Instance != null ? WeaponSystem.Instance.Second : null;
+                rig = second != null && ReferenceEquals(second.Weapon, w) ? second.Rig : rig;
+            }
             if (muzzle == null || rig == null || !ReferenceEquals(rig.Weapon, w) || w.configuration == null || w is ThrowableWeapon || w is MeleeWeapon)
             {
                 return;
