@@ -232,9 +232,12 @@ namespace RavenfieldVR.Net
         {
             if (!IsHost)
             {
-                if (peer == _hostPeer)
+                if (peer == _hostPeer && State != NetState.Connecting)
                 {
-                    Close(State == NetState.Connecting ? "the host could not be reached" : "the host left");
+                    // (While joining, a failed line is not the end: the hello goes again every two seconds and reopens it, and the
+                    // hello's own wait says when it is over; a first hello before the host had admitted the joiner ended the join
+                    // at once. Steam scout, 2026-11-12.)
+                    Close("the line to the host was lost");
                 }
                 return;
             }

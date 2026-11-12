@@ -111,7 +111,14 @@ namespace RavenfieldVR.Net
             int n;
             do
             {
-                n = SteamNetworkingMessages.ReceiveMessagesOnChannel(Channel, _incoming, _incoming.Length);
+                try
+                {
+                    n = SteamNetworkingMessages.ReceiveMessagesOnChannel(Channel, _incoming, _incoming.Length);
+                }
+                catch (InvalidOperationException)
+                {
+                    return; // (Steam already shut down, the game closing: nothing to receive; Steam scout)
+                }
                 for (int i = 0; i < n; i++)
                 {
                     IntPtr handle = _incoming[i];
@@ -153,7 +160,14 @@ namespace RavenfieldVR.Net
             {
                 var who = new SteamNetworkingIdentity();
                 who.SetSteamID64(peer);
-                SteamNetworkingMessages.CloseSessionWithUser(ref who);
+                try
+                {
+                    SteamNetworkingMessages.CloseSessionWithUser(ref who);
+                }
+                catch (InvalidOperationException)
+                {
+                    // (Steam already shut down: the line is gone with it.)
+                }
             }
         }
 
@@ -368,6 +382,13 @@ namespace RavenfieldVR.Net
                 Current = result.m_ulSteamIDLobby;
                 Owner = false;
                 _host = SteamMatchmaking.GetLobbyOwner(new CSteamID(Current)).m_SteamID;
+                if (_host == 0)
+                {
+                    // (Steam named no owner: the lobby was left again, not kept joined but untracked; it read "Not joined: null.")
+                    Leave();
+                    done(0, "Steam did not name that game's host");
+                    return;
+                }
                 done(_host, null);
             });
         }
@@ -418,7 +439,14 @@ namespace RavenfieldVR.Net
         {
             if (Current != 0)
             {
-                SteamMatchmaking.LeaveLobby(new CSteamID(Current));
+                try
+                {
+                    SteamMatchmaking.LeaveLobby(new CSteamID(Current));
+                }
+                catch (InvalidOperationException)
+                {
+                    // (Steam already shut down: the lobby went with it, and the rest of the leaving still runs.)
+                }
             }
             Current = 0;
             Owner = false;

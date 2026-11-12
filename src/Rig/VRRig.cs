@@ -668,6 +668,13 @@ namespace RavenfieldVR.Rig
         private void HandleTurning(FpsActorController player)
         {
             TurnInputThisFrame = 0f;
+            // The snap latch follows the stick also while turning is blocked (a menu, a panel, a cockpit grip): let go meanwhile,
+            // the first push after was lost (locomotion scout, 2026-11-12).
+            float heldX = Mathf.Abs(VRInput.TurnStick.x);
+            if (heldX < 0.35f)
+            {
+                _snapLatch = false;
+            }
             // Nor while the match is paused behind the SteamVR dashboard or with the headset off (no menu of the game's is open
             // then, so GameMenuOpen stays false): a stick pushed meanwhile turned the view (rig hunt, 2026-10-20 night).
             if (VRConfig.Turn.Value == TurnMode.Off || GameContext.GameMenuOpen || VRGameInput.SticksOnPanel
@@ -953,14 +960,25 @@ namespace RavenfieldVR.Rig
             VRGameInput.PhysicalCrouch = _physicalCrouch;
         }
 
+        private float _offHandYaw;
+        private bool _offHandYawSet;
+
         private void AlignMovementReference(FpsActorController player)
         {
             float yaw;
             if (VRConfig.MoveDirection.Value == MoveReference.OffHand && SetOff.Tracked)
             {
                 Vector3 f = SetOff.TrackedPointer.Forward; // the hand with the move stick, wherever the weapon is (its controller: input, never slowed)
+                // Steeper than 60 degrees up or down the hand's heading is held as it was: past straight up its flat part turns round,
+                // and forward on the stick walked backwards (it swung wildly just before, too; locomotion scout, 2026-11-12).
+                bool steep = Mathf.Abs(f.y) > 0.866f;
                 f.y = 0f;
-                yaw = f.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(f).eulerAngles.y : Head.eulerAngles.y;
+                if (!steep && f.sqrMagnitude > 1e-4f)
+                {
+                    _offHandYaw = Quaternion.LookRotation(f).eulerAngles.y;
+                    _offHandYawSet = true;
+                }
+                yaw = _offHandYawSet ? _offHandYaw : Head.eulerAngles.y;
             }
             else
             {

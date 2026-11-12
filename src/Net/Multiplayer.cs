@@ -20,6 +20,8 @@ namespace RavenfieldVR.Net
         private static SteamLobbies _lobbies;
         private static float _nextDescribe;
         private static bool _busy, _listening;
+        private static float _busySince, _listSince;
+        private const float SteamAnswerWait = 25f;
         private static int _request;
         private static float _nextListenTry;
 
@@ -159,12 +161,34 @@ namespace RavenfieldVR.Net
                 }
                 if (session.State != NetState.Closed)
                 {
-                    session.Leave();
+                    try
+                    {
+                        session.Leave();
+                    }
+                    catch (Exception e)
+                    {
+                        // (Steam already gone, the game closing: the transport and the lobby are still let go below; Steam scout.)
+                        Log.WarnOnce("mp-leave", "Multiplayer: leaving threw: " + e.Message);
+                    }
                 }
             }
-            _transport?.Dispose();
+            try
+            {
+                _transport?.Dispose();
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("mp-dispose", "Multiplayer: closing the line threw: " + e.Message);
+            }
             _transport = null;
-            _lobbies?.Leave();
+            try
+            {
+                _lobbies?.Leave();
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("mp-lobby-leave", "Multiplayer: leaving the lobby threw: " + e.Message);
+            }
             _busy = false;
             _request++;
             HostLines = new string[0];
@@ -179,6 +203,7 @@ namespace RavenfieldVR.Net
         {
             if (_busy)
             {
+                StillWaiting();
                 return;
             }
             if (Steam == null)
@@ -188,6 +213,7 @@ namespace RavenfieldVR.Net
             }
             End("Opening a lobby ...");
             _busy = true;
+            _busySince = Time.unscaledTime;
             int request = ++_request;
             Steam.Create(maxPlayers, friendsOnly, (lobby, problem) =>
             {
@@ -220,6 +246,7 @@ namespace RavenfieldVR.Net
         {
             if (_busy)
             {
+                StillWaiting();
                 return;
             }
             End("Not in a game.");
@@ -242,6 +269,7 @@ namespace RavenfieldVR.Net
         {
             if (_busy)
             {
+                StillWaiting();
                 return;
             }
             if (Steam == null)
@@ -251,6 +279,7 @@ namespace RavenfieldVR.Net
             }
             End("Joining ...");
             _busy = true;
+            _busySince = Time.unscaledTime;
             int request = ++_request;
             Steam.Join(lobby, (host, problem) =>
             {
@@ -265,7 +294,7 @@ namespace RavenfieldVR.Net
                 _busy = false;
                 if (host == 0)
                 {
-                    Say("Not joined: " + problem + ".");
+                    Say("Not joined: " + (problem ?? "Steam did not say why") + ".");
                     return;
                 }
                 var transport = new SteamTransport { Accept = id => _lobbies != null && _lobbies.IsMember(id) };
@@ -279,6 +308,7 @@ namespace RavenfieldVR.Net
         {
             if (_busy)
             {
+                StillWaiting();
                 return;
             }
             End("Not in a game.");
@@ -323,10 +353,15 @@ namespace RavenfieldVR.Net
                 return;
             }
             Listing = true;
+            _listSince = Time.unscaledTime;
             ListStatus = "Asking Steam ...";
             Changed?.Invoke();
             Steam.List((list, problem) =>
             {
+                if (!Listing)
+                {
+                    return; // (given up on already: Update's wait ran out)
+                }
                 Listing = false;
                 if (list == null)
                 {
@@ -376,6 +411,27 @@ namespace RavenfieldVR.Net
                     ListenForInvitations();
                 }
             }
+            // Steam never answering a lobby's making or joining (offline mid-call): the buttons came back only with a restart (every
+            // click was ignored while busy, and no Leave is shown then). Given up after a while, and said (Steam scout, 2026-11-12).
+            if (_busy && Session == null && Time.unscaledTime - _busySince > SteamAnswerWait)
+            {
+                _busy = false;
+                _request++;
+                try
+                {
+                    _lobbies?.Leave();
+                }
+                catch (Exception)
+                {
+                }
+                Say("Steam did not answer. Try again.");
+            }
+            if (Listing && Time.unscaledTime - _listSince > SteamAnswerWait)
+            {
+                Listing = false;
+                ListStatus = "Steam did not answer with the list. It is asked again shortly.";
+                Changed?.Invoke();
+            }
             NetSession session = Session;
             if (session == null)
             {
@@ -393,16 +449,45 @@ namespace RavenfieldVR.Net
             if (Hosting && OverSteam && _lobbies != null && Time.unscaledTime >= _nextDescribe)
             {
                 _nextDescribe = Time.unscaledTime + 5f;
-                _lobbies.Describe(session.LocalInfo.Name + "'s game", Map, Mode, session.PlayerCount, GameBuild, InMatch);
+                try
+                {
+                    _lobbies.Describe(session.LocalInfo.Name + "'s game", Map, Mode, session.PlayerCount, GameBuild, InMatch);
+                }
+                catch (Exception e)
+                {
+                    // (Steam gone while hosting: it threw into the game's update every 5 s; Steam scout.)
+                    Log.WarnOnce("mp-describe", "Multiplayer: describing the lobby threw: " + e.Message);
+                }
             }
         }
 
         /// <summary>The plugin is going (F6 reload, the game closing): the others are told, the lobby left.</summary>
         public static void Shutdown()
         {
-            Leave();
-            _lobbies?.Dispose();
-            _lobbies = null;
+            try
+            {
+                Leave();
+            }
+            finally
+            {
+                try
+                {
+                    _lobbies?.Dispose();
+                }
+                catch (Exception e)
+                {
+                    Log.WarnOnce("mp-lobbies-dispose", "Multiplayer: letting Steam's lobbies go threw: " + e.Message);
+                }
+                _lobbies = null;
+                // (Asked for again once Steam is there: after a VR setup that failed mid-game, a friend's invitation was ignored
+                // until the panel was opened; Steam scout.)
+                _listening = false;
+            }
+        }
+
+        private static void StillWaiting()
+        {
+            Say("Still waiting for Steam's answer ...");
         }
     }
 }
