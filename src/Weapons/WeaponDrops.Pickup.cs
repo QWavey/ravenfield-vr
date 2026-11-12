@@ -16,9 +16,11 @@ namespace RavenfieldVR.Weapons
     {
         // ---- picking up -------------------------------------------------------------------------------
 
+        private System.Action _buildWhileIdle;
+
         public void Update()
         {
-            Log.Guard("idle drop builds", BuildWhileIdle);
+            Log.Guard("idle drop builds", _buildWhileIdle ?? (_buildWhileIdle = BuildWhileIdle)); // (one delegate, not one a frame)
             ParkedPartsCache.WriteIfDue();
             BakePendingShape();
             UpdateLateFits();
