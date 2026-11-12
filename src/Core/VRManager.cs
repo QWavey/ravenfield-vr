@@ -704,11 +704,18 @@ namespace RavenfieldVR.Core
             OpenVRRuntime.Stop();
         }
 
-        private void OnApplicationQuit() => Shutdown();
+        // The shared game ends with the game (or the plugin), not with VR: it is played flat too, and VR's teardown (a setup that
+        // failed on F6, SteamVR closed) ended a game the player hosted for a friend (startup scout, 2026-11-12).
+        private void OnApplicationQuit()
+        {
+            Shutdown();
+            Log.Guard("Multiplayer.Shutdown", Net.Multiplayer.Shutdown);
+        }
 
         private void OnDestroy()
         {
             Shutdown();
+            Log.Guard("Multiplayer.Shutdown", Net.Multiplayer.Shutdown);
             if (Instance == this)
             {
                 Instance = null;

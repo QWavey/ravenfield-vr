@@ -426,7 +426,6 @@ namespace RavenfieldVR.UI
             Log.Guard("UI.Sandbox.Dispose", () => SandboxPanel?.Dispose());
             Log.Guard("UI.Multiplayer.Dispose", () => MultiplayerPanel?.Dispose());
             Log.Guard("UI.StartChoice.Dispose", () => StartChoice?.Dispose());
-            Log.Guard("Multiplayer.Shutdown", Net.Multiplayer.Shutdown);
             Log.Guard("UI.SandboxTool.Destroy", () => _sandboxTool?.Destroy());
             Log.Guard("UI.Keyboard.Dispose", () => _keyboard?.Dispose());
             Log.Guard("UI.Laser.Destroy", () => _laser?.Destroy());
