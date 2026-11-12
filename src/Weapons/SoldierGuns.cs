@@ -121,10 +121,15 @@ namespace RavenfieldVR.Weapons
                 // it does not take it; round-3 skeptic, 2026-10-28.)
                 // (Nor a fist that just landed a blow, as BodyGrab's: its squeeze was the punch's. Stopped on him after the blow, beside his
                 // gun and still within the squeeze's window, it could take the gun on that squeeze.)
+                bool squeezed = VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow);
+                if (squeezed && Log.DebugOn || squeezed && soldier.isFrozen)
+                {
+                    WhyNotTaken(i, hand, soldier, gun, distance, palm);
+                }
                 if (hand.Role == HandRole.Free && hand.Held == null && !VRGameInput.GunInputBlocked
                     && Time.unscaledTime - MeleeHandler.LastHandBlow[i] > 0.6f
                     && hand.BodyRelativeVelocity.sqrMagnitude <= SwingSpeed * SwingSpeed
-                    && VRInput.GetPressedRecently(DigitalAction.Grab, hand.Side, GrabWindow) && distance + 0.02f < BodyDistance(palm))
+                    && squeezed && distance + 0.02f < BodyDistance(palm))
                 {
                     bool done = OnMagazine(gun, palm) ? TakeMagazine(hand, soldier, gun) || Wrest(i, hand, soldier, gun) : Wrest(i, hand, soldier, gun);
                     if (done)
@@ -140,6 +145,31 @@ namespace RavenfieldVR.Weapons
                     KnockAside(soldier, gun, swing, hand);
                 }
             }
+        }
+
+        /// <summary>
+        /// Why a squeeze on a soldier's gun did not take it, logged once per reason (the user, 2026-11-12: "on freezed enemys i cannot
+        /// take their guns"; the log then had no line of it at all). For a frozen soldier always, else with the debug log.
+        /// </summary>
+        private static void WhyNotTaken(int i, VRHand hand, Actor soldier, Weapon gun, float distance, Vector3 palm)
+        {
+            string why = hand.Role != HandRole.Free ? "the hand is busy (" + hand.Role + ")"
+                : hand.Held != null ? "the hand holds something"
+                : VRGameInput.GunInputBlocked ? "the gun input is blocked (a panel or menu)"
+                : Time.unscaledTime - MeleeHandler.LastHandBlow[i] <= 0.6f ? "the hand just landed a blow"
+                : hand.BodyRelativeVelocity.sqrMagnitude > SwingSpeed * SwingSpeed ? "the hand moved as fast as a swing"
+                : null;
+            float body = BodyDistance(palm);
+            if (why == null && distance + 0.02f >= body)
+            {
+                why = $"his body is as near as the gun (gun {distance * 100f:0} cm, body {body * 100f:0} cm)";
+            }
+            if (why == null)
+            {
+                return; // (taken, or on to Wrest: its own reasons below)
+            }
+            Log.InfoOnce("soldiergun-not:" + (soldier.isFrozen ? "frozen:" : "") + why.Split('(')[0],
+                $"A squeeze on {gun.name} of {(soldier.isFrozen ? "a frozen " : "")}{soldier.name} did not take it: {why}.");
         }
 
         /// <summary>The soldiers on their feet near either hand this frame, with their positions (<see cref="GatherClose"/>).</summary>
@@ -382,6 +412,9 @@ namespace RavenfieldVR.Weapons
             Actor player = GameContext.PlayerActor;
             if (slot < 0 || other < 0 || !soldier.CanUnholsterWeapon() || _sys.Drops == null || player == null || !player.CanUnholsterWeapon())
             {
+                Log.InfoOnce("soldiergun-held:" + (slot < 0 ? "slot" : other < 0 ? "other" : !soldier.CanUnholsterWeapon() ? "his" : "mine"),
+                    $"{gun.name} of {(soldier.isFrozen ? "a frozen " : "")}{soldier.name} held, not taken: "
+                    + (slot < 0 ? "not one of his weapons" : other < 0 ? "he has no other weapon to draw" : !soldier.CanUnholsterWeapon() ? "he cannot draw (down, a ladder, water)" : "this player cannot draw now") + ".");
                 return KnockAndHold(i, hand, soldier, gun);
             }
             DroppedWeapon drop = _sys.Drops.DropFromHands(soldier, gun, hand.Velocity * 0.3f / BodyGrab.SlowMotion()); // (game units)
