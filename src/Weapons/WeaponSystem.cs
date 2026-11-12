@@ -618,10 +618,25 @@ namespace RavenfieldVR.Weapons
             }
             // (Timed on its own in a profiled run: a new weapon object, the drawn one after a respawn, builds its rig here.)
             bool timed = PerfProbe.Part("draw: rig");
-            WeaponRig rig = RigFor(weapon);
-            if (timed)
+            WeaponRig rig;
+            try
             {
-                PerfProbe.End("draw: rig");
+                rig = RigFor(weapon);
+            }
+            catch (Exception e)
+            {
+                // (Its analysis and its fallback both threw: tried again every frame, the weapon never handled and the log filling;
+                // analyzer scout, 2026-11-12. Left to the game's own handling for this weapon object, as an attach that fails.)
+                _attachFailed.Add(weapon);
+                Log.ExceptionOnce("rig:" + weapon.name, e);
+                return;
+            }
+            finally
+            {
+                if (timed)
+                {
+                    PerfProbe.End("draw: rig");
+                }
             }
             try
             {
