@@ -140,6 +140,7 @@ namespace RavenfieldVR.UI
                 });
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
             Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01((d > 0 ? Mathf.Floor(VRConfig.Vignette.Value * 10f + 1e-4f) + 1f : Mathf.Ceil(VRConfig.Vignette.Value * 10f - 1e-4f) - 1f) / 10f));
+            Choice("Tunnel in vehicles", VRConfig.VehicleVignette, new[] { true, false }, new[] { "On fast turns", "Off" });
             Stepper("Vibration", () => VRConfig.HapticStrength.Value <= 0f ? "off" : $"{VRConfig.HapticStrength.Value * 100f:0}%",
                 d => VRConfig.HapticStrength.Value = Mathf.Clamp(Mathf.Round((VRConfig.HapticStrength.Value + d * 0.25f) * 4f) / 4f, 0f, 2f));
             TogglePair("Physical crouch", VRConfig.PhysicalCrouch, "Seated play", VRConfig.SeatedMode);

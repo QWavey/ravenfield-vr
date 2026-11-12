@@ -401,6 +401,7 @@ namespace RavenfieldVR.Rig
 
             // (Not a stick held down into a menu or a pause: nothing moves there, and the tunnel stayed over the menu until it was let go.)
             float moving = Mode == RigMode.OnFoot && !GameContext.GameMenuOpen && !GameManager.IsPaused() ? VRGameInput.MoveStick.magnitude : 0f;
+            moving = Mathf.Max(moving, SeatTurnMotion(player));
             // (Through the goggles the edge of the view stays dark: the game's tube picture, which in VR was a flat frame, as the tunnel draws it.)
             _vignette.Update(Mathf.Max(moving * (VRGameInput.SprintActive ? 1f : 0.75f), Mathf.Abs(TurnInputThisFrame)), VRConfig.Vignette.Value,
                 NightVision.isEnabled ? VRConfig.GogglesTube.Value : 0f);
@@ -958,6 +959,35 @@ namespace RavenfieldVR.Rig
                 _physicalCrouch = false;
             }
             VRGameInput.PhysicalCrouch = _physicalCrouch;
+        }
+
+        private Quaternion _lastSeatTurn;
+        private bool _hasSeatTurn;
+
+        /// <summary>
+        /// How hard the seat turns, 0..1, for the tunnel (<see cref="VRConfig.VehicleVignette"/>): from 40 degrees a second, full at 160.
+        /// Read from the seat's own turn frame to frame, so a vehicle another PC drives (moved by the word, its body still) counts too.
+        /// The research of 2026-11-12 (headset makers' comfort advice, racing games' fixed horizon and crash tunnel): the turn the body
+        /// does not feel is what makes riders sick; a steady drive keeps the whole view.
+        /// </summary>
+        private float SeatTurnMotion(FpsActorController player)
+        {
+            Seat seat = Mode == RigMode.Anchored && player != null && player.actor != null ? player.actor.seat : null;
+            if (seat == null || !VRConfig.VehicleVignette.Value || GameContext.GameMenuOpen || GameManager.IsPaused() || Time.deltaTime <= 0f)
+            {
+                _hasSeatTurn = false;
+                return 0f;
+            }
+            Quaternion now = seat.transform.rotation;
+            float motion = 0f;
+            if (_hasSeatTurn)
+            {
+                float degreesPerSecond = Quaternion.Angle(_lastSeatTurn, now) / Time.deltaTime;
+                motion = Mathf.Clamp01((degreesPerSecond - 40f) / 120f);
+            }
+            _lastSeatTurn = now;
+            _hasSeatTurn = true;
+            return motion;
         }
 
         private float _offHandYaw;

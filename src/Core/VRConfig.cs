@@ -58,6 +58,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> SmoothTurnSpeed;
         public static ConfigEntry<MoveReference> MoveDirection;
         public static ConfigEntry<float> Vignette;
+        public static ConfigEntry<bool> VehicleVignette;
         public static ConfigEntry<bool> PhysicalCrouch;
         public static ConfigEntry<float> PhysicalCrouchRatio;
         public static ConfigEntry<bool> RoomscaleMovement;
@@ -214,6 +215,9 @@ namespace RavenfieldVR.Core
                 "Whether the movement stick follows where you look or where your off hand points.");
             Vignette = cfg.Bind("Comfort", "Vignette", 0.35f,
                 new ConfigDescription("Tunnel vignette strength while moving or smooth turning (0 = off).", new AcceptableValueRange<float>(0f, 1f)));
+            VehicleVignette = cfg.Bind("Comfort", "VehicleVignette", true,
+                "The tunnel vignette also in a vehicle while it turns fast (a plane's roll, a car's skid): the turn the body does not feel " +
+                "is what makes riders sick (the advice of headset makers and racing games). At the Vignette strength; off with it at 0.");
             PhysicalCrouch = cfg.Bind("Comfort", "PhysicalCrouch", true,
                 "Crouching in real life makes your soldier crouch.");
             PhysicalCrouchRatio = cfg.Bind("Comfort", "PhysicalCrouchRatio", 0.75f,
