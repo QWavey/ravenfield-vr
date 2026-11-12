@@ -66,6 +66,13 @@ namespace RavenfieldVR.Rig
         private Seat _palmSeat; // the seat the pair was taken in (none yet for a seat just entered: the palm is read as before)
 
         private Hand? _stickHand;
+
+        // The plane's throttle lever, at the other hand's rest by the seat (the pilot's off hand: where the game puts it on the
+        // throttle). Pushed forward for more, pulled back for less and past the line for the airbrake; it stays where let go.
+        private Transform _throttle;
+        private Hand? _throttleHand;
+        private float _throttleAtGrab, _throttleZ0, _throttleShown;
+        private const float ThrottleThrow = 0.12f; // metres of hand travel from cruise to full
         private Vector3 _stickStartLocal;
         private Vector3 _stickLocal; // the stick's last deflection (seat space), kept over a pause
         private bool _wasPaused;
@@ -82,6 +89,7 @@ namespace RavenfieldVR.Rig
             if (seat != _seat)
             {
                 ReleaseAll();
+                VehicleInput.Throttle = null; // (another seat: the last plane's lever is not this one's)
                 _seat = seat;
                 _palmSeat = null; // back in the same seat, its pair was the last ride's (a stale grab offset the stick until let go)
                 FindControls();
@@ -118,6 +126,11 @@ namespace RavenfieldVR.Rig
                     {
                         _stickStartLocal = PalmInSeat(hand) - _stickLocal;
                     }
+                    if (_throttleHand == hand.Side)
+                    {
+                        _throttleAtGrab = VehicleInput.Throttle ?? 0f;
+                        _throttleZ0 = PalmInSeat(hand).z;
+                    }
                 }
             }
             foreach (VRHand hand in _rig.Hands)
@@ -151,6 +164,7 @@ namespace RavenfieldVR.Rig
         {
             _wheel = null;
             _stick = null;
+            _throttle = null;
             if (_seat == null)
             {
                 return;
@@ -190,6 +204,11 @@ namespace RavenfieldVR.Rig
             if (_stick == null && (kind == VehicleKind.Helicopter || kind == VehicleKind.Airplane))
             {
                 _stick = VRConfig.LeftHanded ? _seat.handTargetL : _seat.handTargetR;
+            }
+            if (kind == VehicleKind.Airplane)
+            {
+                Transform offRest = VRConfig.LeftHanded ? _seat.handTargetR : _seat.handTargetL;
+                _throttle = offRest != _stick ? offRest : null;
             }
         }
 
@@ -244,6 +263,43 @@ namespace RavenfieldVR.Rig
                     hand.Model.CockpitStick = true;
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
+                }
+                else if (_throttle != null && _throttleHand == null && _stickHand != hand.Side
+                         && Vector3.Distance(palm, InSeat(_throttle.position)) < 0.16f)
+                {
+                    _throttleHand = hand.Side;
+                    _throttleAtGrab = VehicleInput.Throttle ?? 0f;
+                    _throttleShown = _throttleAtGrab;
+                    _throttleZ0 = palm.z;
+                    VehicleInput.Throttle = _throttleAtGrab;
+                    hand.Role = HandRole.Cockpit;
+                    hand.Model.CockpitStick = true;
+                    VRInput.Consume(DigitalAction.Grab, hand.Side);
+                    hand.Haptic(0.03f, 120f, 0.4f);
+                }
+            }
+
+            if (_throttleHand == hand.Side)
+            {
+                if (!holding)
+                {
+                    _throttleHand = null; // (let go: the lever stays where it is, VehicleInput.Throttle kept)
+                    hand.Role = HandRole.Free;
+                }
+                else
+                {
+                    float value = Mathf.Clamp(_throttleAtGrab + (palm.z - _throttleZ0) / ThrottleThrow, -1f, 1f);
+                    if (Mathf.Abs(value) < 0.06f)
+                    {
+                        value = 0f; // (a notch at cruise: found by feel, held without effort)
+                    }
+                    // A click in the hand at the notch and at the airbrake's line, crossed either way.
+                    if (value == 0f != (_throttleShown == 0f) || value < -0.3f != _throttleShown < -0.3f)
+                    {
+                        hand.Haptic(0.02f, 160f, 0.5f);
+                    }
+                    _throttleShown = value;
+                    VehicleInput.Throttle = value;
                 }
             }
 
@@ -534,6 +590,15 @@ namespace RavenfieldVR.Rig
                 }
                 _onWheel[i] = false;
             }
+            if (_throttleHand.HasValue)
+            {
+                VRHand h = _rig.Hands[(int)_throttleHand.Value];
+                if (h.Role == HandRole.Cockpit)
+                {
+                    h.Role = HandRole.Free;
+                }
+            }
+            _throttleHand = null; // (the lever's setting stays: a menu or a pause does not move it)
             _stickHand = null;
             _steer = 0f;
             VehicleInput.WheelSteer = null;

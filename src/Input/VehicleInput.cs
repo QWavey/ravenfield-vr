@@ -18,6 +18,13 @@ namespace RavenfieldVR.Input
         /// <summary>Set while a hand holds the flight stick: x = roll right, y = nose down; -1..1.</summary>
         public static Vector2? FlightStick;
 
+        /// <summary>
+        /// A plane's throttle lever as the hand left it (<see cref="RavenfieldVR.Rig.CockpitControls"/>): -1..1 as the game reads it (0 cruise,
+        /// 1 full, under -0.3 the airbrake). It stays where it was let go, as a real lever does (VTOL VR's, the research of 2026-11-12);
+        /// a push of the left stick takes the throttle back from it. Null: none set, the stick as before.
+        /// </summary>
+        public static float? Throttle;
+
         public static bool BlocksTurning(VehicleKind kind) =>
             kind == VehicleKind.Helicopter || kind == VehicleKind.Airplane;
 
@@ -48,7 +55,19 @@ namespace RavenfieldVR.Input
             // drawn showed a quarter of the throw the helicopter was given; scout.)
             bool plane = GameContext.SeatKind == VehicleKind.Airplane;
             Vector2 stick = FlightStick ?? (plane ? new Vector2(Expo(right.x), Expo(right.y)) : right);
-            return new Vector4(left.x, left.y, stick.x, stick.y);
+            float throttle = left.y;
+            if (Throttle.HasValue)
+            {
+                if (!plane || Mathf.Abs(left.y) > 0.3f)
+                {
+                    Throttle = null; // (the stick pushed: it has the throttle again, the lever's setting dropped)
+                }
+                else
+                {
+                    throttle = Throttle.Value;
+                }
+            }
+            return new Vector4(left.x, throttle, stick.x, stick.y);
         }
 
         /// <summary>A stick's value with a gentler middle and the same ends. Pure: the offline tests check it.</summary>
