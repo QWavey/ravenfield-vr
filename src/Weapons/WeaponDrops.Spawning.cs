@@ -76,6 +76,7 @@ namespace RavenfieldVR.Weapons
             DroppedWeapon dropped = Spawn(w.weaponEntry, new RigidPose(hold.position, hold.rotation), holdScale, velocity, Mathf.Max(0, w.ammo), spare, open: actor.CenterPosition());
             if (dropped != null)
             {
+                dropped.DiedWith = actor;
                 dropped.MagOut = SoldierGuns.LeftUnloaded(w); // (a magazine pulled out of it: picked up it read 0 with one seated)
                 dropped.SubAmmo = SubAmmoOf(w);
                 if (dropped.MagOut)

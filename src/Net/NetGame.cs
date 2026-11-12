@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -858,6 +858,62 @@ namespace RavenfieldVR.Net
             session.Send(Dropped, Out, true);
         }
 
+        /// <summary>This PC's player took a gun a soldier dropped dying: the others take their copy of it away (each PC made its own).</summary>
+        internal static void OnDeathDropTaken(Actor diedWith, string weapon)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected || session.PlayerCount < 2 || diedWith == null || string.IsNullOrEmpty(weapon))
+            {
+                return;
+            }
+            byte owner;
+            ushort id;
+            if (Owned.TryGetValue(diedWith, out Own own))
+            {
+                owner = session.LocalId;
+                id = own.Id;
+            }
+            else if (ByActor.TryGetValue(diedWith, out Remote remote))
+            {
+                owner = remote.Owner;
+                id = remote.Id;
+            }
+            else
+            {
+                return;
+            }
+            Out.Reset();
+            Out.Byte(owner);
+            Out.UShort(id);
+            Out.String(weapon, 120);
+            session.Send(DeathDropTaken, Out, true);
+        }
+
+        private static void TakeDeathDropTaken(ref NetReader r)
+        {
+            byte owner = r.Byte();
+            ushort id = r.UShort();
+            string weapon = r.String(120);
+            NetSession session = _session;
+            if (session == null)
+            {
+                return;
+            }
+            Actor diedWith = null;
+            if (owner == session.LocalId)
+            {
+                OwnedById.TryGetValue(id, out diedWith);
+            }
+            else
+            {
+                diedWith = RemoteOf(owner, id)?.Actor;
+            }
+            if (diedWith != null)
+            {
+                Weapons.WeaponSystem.Instance?.Drops?.RemoveTakenElsewhere(diedWith, weapon);
+            }
+        }
+
         internal static void OnOwnDropGone(int id)
         {
             NetSession session = _session;
@@ -1301,6 +1357,9 @@ namespace RavenfieldVR.Net
                         {
                             TakePings(ref r);
                         }
+                        break;
+                    case DeathDropTaken:
+                        TakeDeathDropTaken(ref r);
                         break;
                     case DropGone:
                     {

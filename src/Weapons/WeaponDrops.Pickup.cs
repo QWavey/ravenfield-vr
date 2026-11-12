@@ -502,6 +502,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             RestoreAmmo(equipped, drop);
+            if (drop.DiedWith != null && drop.Entry != null)
+            {
+                Net.NetGame.OnDeathDropTaken(drop.DiedWith, drop.Entry.name); // (the other PCs' copies of it go)
+            }
             Remove(drop);
             _sys.Zones.LoadoutChanged(); // (its holster at once: asked earlier this frame, the slot had none until the next)
             if (beside && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))

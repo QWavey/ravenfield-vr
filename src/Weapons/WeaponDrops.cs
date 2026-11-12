@@ -35,6 +35,8 @@ namespace RavenfieldVR.Weapons
         public bool PlayerOwned;
         /// <summary>Another PC's player's own gun, shown where he let go of it in a shared match: not to be picked up here (it is his).</summary>
         public bool Shown;
+        /// <summary>The soldier whose death left it (null: not a death's): in a shared match each PC makes its own, and a pickup is told.</summary>
+        public Actor DiedWith;
         /// <summary>In a shared match, the number this PC's own dropped gun is told by (0: not told).</summary>
         public int NetId;
         /// <summary>Put down with its magazine out: it comes back without one (the rounds in that magazine are the magazine's).</summary>
@@ -221,6 +223,24 @@ namespace RavenfieldVR.Weapons
             if (d != null && d.Shown && _drops.Contains(d))
             {
                 Remove(d);
+            }
+        }
+
+        /// <summary>
+        /// Another PC's player took the gun this soldier dropped dying: this PC's copy of it goes too. Each PC runs the death and makes
+        /// its own drop, and a gun taken on one still lay on the other, so both players could take it (drops scout, 2026-11-12).
+        /// The newest of that soldier's with that weapon (a pooled soldier dies more than once).
+        /// </summary>
+        internal void RemoveTakenElsewhere(Actor diedWith, string weapon)
+        {
+            for (int i = _drops.Count - 1; i >= 0; i--)
+            {
+                DroppedWeapon d = _drops[i];
+                if (d.DiedWith == diedWith && d.Entry != null && d.Entry.name == weapon)
+                {
+                    Remove(d);
+                    return;
+                }
             }
         }
 
