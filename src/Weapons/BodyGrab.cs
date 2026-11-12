@@ -2211,6 +2211,12 @@ namespace RavenfieldVR.Weapons
             {
                 return; // (a friend it is strapped to dies of it as well: the player chose to strap it there)
             }
+            if (Net.NetGame.IsRemote(a))
+            {
+                // (Another PC's soldier: his own PC decides, from the blast's hit sent there. Killed here as well, he died on this PC
+                // only, or his kill was counted twice; throw scout, 2026-11-12.)
+                return;
+            }
             try
             {
                 a.Kill(new DamageInfo(DamageInfo.DamageSourceType.Explosion, by, _projectile != null ? _projectile.sourceWeapon : null)

@@ -949,16 +949,19 @@ namespace RavenfieldVR.Net
             Out.Reset();
             Out.Byte((byte)slot);
             Out.Vector(p.transform.position);
-            Out.SmallVector(Vector3.ClampMagnitude(velocity, 60f));
+            // (Up to 150 m/s: a throw from a car or a jet leaves faster than 60, and the others saw it at 60, landing short; throw scout.)
+            Out.SmallVector(Vector3.ClampMagnitude(velocity, MaxThrowSpeed));
             session.Send(Thrown, Out, true);
         }
+
+        private const float MaxThrowSpeed = 150f;
 
         private static void ShowThrow(byte sender, ref NetReader r)
         {
             int slot = r.Byte();
             Vector3 from = r.Vector(), velocity = r.SmallVector();
             if (!Remotes.TryGetValue(sender << 16, out Remote thrower) || thrower.Actor == null || thrower.Actor.dead || !InMatch
-                || float.IsNaN(velocity.x) || float.IsNaN(from.x) || velocity.sqrMagnitude > 61f * 61f)
+                || float.IsNaN(velocity.x) || float.IsNaN(from.x) || velocity.sqrMagnitude > (MaxThrowSpeed + 1f) * (MaxThrowSpeed + 1f))
             {
                 return;
             }

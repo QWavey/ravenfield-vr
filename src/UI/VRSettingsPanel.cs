@@ -149,7 +149,7 @@ namespace RavenfieldVR.UI
 
         private void BuildWeapons()
         {
-            Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right", "Left (restart)" });
+            Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right (restart)", "Left (restart)" });
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
             Choice("Magazine well", VRConfig.MagazineInsertHelp, new[] { MagazineHelp.Exact, MagazineHelp.Normal, MagazineHelp.Easy }, new[] { "Exact", "Normal", "Easy" });
             // Read when a weapon is drawn: the panel said it applied at once (review, 2026-10-20).

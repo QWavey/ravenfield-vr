@@ -20,6 +20,7 @@ namespace RavenfieldVR.UI
         private string _modsSaid;
         private int _kickArmed = -1;
         private float _kickArmedAt;
+        private NetPlayer _kickArmedFor;
 
         private void Awake()
         {
@@ -180,6 +181,7 @@ namespace RavenfieldVR.UI
         {
             GUILayout.Space(8f);
             GUILayout.Label(session.IsHost ? "Your game. In it:" : "In it:");
+            NetPlayer kick = null;
             foreach (NetPlayer p in session.Players)
             {
                 string name = p.Info != null && !string.IsNullOrEmpty(p.Info.Name) ? p.Info.Name : "Player " + p.Id;
@@ -189,22 +191,30 @@ namespace RavenfieldVR.UI
                 if (menus && session.IsHost && p.Id != session.LocalId)
                 {
                     // (Pressed twice, as on the VR panel.)
-                    bool armed = _kickArmed == p.Id && Time.unscaledTime - _kickArmedAt < 4f;
+                    // (Armed for this player, not his number: one who left and a newcomer with his number was kicked on one press.)
+                    bool armed = _kickArmed == p.Id && ReferenceEquals(_kickArmedFor, p) && Time.unscaledTime - _kickArmedAt < 4f;
                     if (GUILayout.Button(armed ? "Sure?" : "Kick", GUILayout.Width(70f)))
                     {
                         if (armed)
                         {
                             _kickArmed = -1;
-                            session.Kick(p.Id);
+                            _kickArmedFor = null;
+                            kick = p;
                         }
                         else
                         {
                             _kickArmed = p.Id;
+                            _kickArmedFor = p;
                             _kickArmedAt = Time.unscaledTime;
                         }
                     }
                 }
                 GUILayout.EndHorizontal();
+            }
+            if (kick != null)
+            {
+                // (After the list: kicked inside it, the players' table changed under the loop and the window's layout broke; settings scout.)
+                session.Kick(kick.Id);
             }
             if (!string.IsNullOrEmpty(Multiplayer.Map))
             {

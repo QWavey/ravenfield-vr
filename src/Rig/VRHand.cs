@@ -397,6 +397,9 @@ namespace RavenfieldVR.Rig
             _hasLastRig = true;
 
             Vector3 own = raw.valid ? rig.rotation * raw.velocity : Scripted[(int)Side].HasValue ? ScriptedVelocity[(int)Side] : Vector3.zero;
+            // (One spiked sample on tracking coming back set a throw's speed, the history leaning on its largest: no hand moves over
+            // 25 m/s, and a NaN is none; throw scout, 2026-11-12.)
+            own = float.IsNaN(own.x) || float.IsNaN(own.y) || float.IsNaN(own.z) || float.IsInfinity(own.sqrMagnitude) ? Vector3.zero : Vector3.ClampMagnitude(own, 25f);
             Vector3 ownSpin = raw.valid ? rig.rotation * raw.angularVelocity : Vector3.zero;
             if (TestVelocityNoise > 0f)
             {
