@@ -1482,6 +1482,7 @@ namespace RavenfieldVR.Net
                 Out.Reset();
                 Out.UShort(shooterId);
                 Out.UShort(victimId);
+                Out.Byte((byte)info.type); // (the kind of the kill: a blow or a kick counted as a shot; multiplayer scout)
                 _session.SendTo(sender, KilledBy, Out, true);
             }
         }
@@ -1502,7 +1503,13 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            var info = new DamageInfo(DamageInfo.DamageSourceType.Projectile, player, player.activeWeapon);
+            DamageInfo.DamageSourceType kind = DamageInfo.DamageSourceType.Projectile;
+            if (r.Remaining > 0)
+            {
+                int told = r.Byte();
+                kind = Enum.IsDefined(typeof(DamageInfo.DamageSourceType), told) ? (DamageInfo.DamageSourceType)told : DamageInfo.DamageSourceType.Projectile;
+            }
+            var info = new DamageInfo(kind, player, player.activeWeapon);
             try
             {
                 GameManager.gameResultsTracker.AddPlayerKill(info, hit);
