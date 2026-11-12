@@ -792,7 +792,7 @@ namespace RavenfieldVR.Input
                 // (A hand on the wheel or the stick of a vehicle going faster than a walk: not, the controls would be let go at speed
                 // and the plane or car left with nobody at them; a scout of 2026-11-06 found that of the left stick's click. Said why.)
                 Rig.VRRig rigNow = Rig.VRRig.Instance;
-                bool steeringNow = rigNow != null && (rigNow.Hands[0].Role == Rig.HandRole.Cockpit || rigNow.Hands[1].Role == Rig.HandRole.Cockpit);
+                bool steeringNow = rigNow != null && rigNow.Hands != null && (rigNow.Hands[0]?.Role == Rig.HandRole.Cockpit || rigNow.Hands[1]?.Role == Rig.HandRole.Cockpit);
                 bool moving = here.vehicle != null && here.vehicle.Velocity().sqrMagnitude > 3f * 3f;
                 bool press = VRInput.GetPressed(DigitalAction.Kick) || click;
                 if (press && steeringNow && moving && here.IsDriverSeat())
@@ -837,7 +837,7 @@ namespace RavenfieldVR.Input
             // Not with a hand on the wheel or stick: a stray click of the left stick left the seat at speed, the engine off or an AI at the
             // controls (vehicles scout, 2026-11-06). Let go and click.
             Rig.VRRig seatRig = Rig.VRRig.Instance;
-            bool steering = seatRig != null && (seatRig.Hands[0].Role == Rig.HandRole.Cockpit || seatRig.Hands[1].Role == Rig.HandRole.Cockpit);
+            bool steering = seatRig != null && seatRig.Hands != null && (seatRig.Hands[0]?.Role == Rig.HandRole.Cockpit || seatRig.Hands[1]?.Role == Rig.HandRole.Cockpit);
             if (VRInput.GetPressed(DigitalAction.Sprint) && !steering)
             {
                 int next = NextSeatIndex(actor.seat);
