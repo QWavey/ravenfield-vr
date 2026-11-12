@@ -818,7 +818,7 @@ namespace RavenfieldVR.Input
                 // work the weapon, the car keeps the sticks and the wheel.
                 HandleWeaponButtons(actor.activeWeapon);
                 SprintActive = false;
-                _jumpLatch = _downLatch = false;
+                HoldStickLatches(); // (spent, not cleared: a stick still pushed on getting out was a fresh flick on foot; input scout)
                 return;
             }
             // No weapon in hand from the seat: a fire-mode press made on foot does not switch anything here.
@@ -828,7 +828,7 @@ namespace RavenfieldVR.Input
             if (GunInputBlocked)
             {
                 SprintActive = false;
-                _jumpLatch = _downLatch = false;
+                HoldStickLatches(); // (spent, not cleared: a stick still pushed on getting out was a fresh flick on foot; input scout)
                 return;
             }
             // Seat switching: Sprint has no job in a seat (it is read on foot only, in UpdateSprint), so its press moves the
@@ -860,7 +860,7 @@ namespace RavenfieldVR.Input
                 Set(GameContext.SeatKind == VehicleKind.Helicopter ? KeyBinds.AutoHover : KeyBinds.FireMode, true);
             }
             SprintActive = false;
-            _jumpLatch = _downLatch = false;
+            HoldStickLatches(); // (spent, not cleared: a stick still pushed on getting out was a fresh flick on foot; input scout)
         }
 
         private static void UpdateSprint(Actor actor)
@@ -922,6 +922,17 @@ namespace RavenfieldVR.Input
                     ProneToggled = false;
                 }
             }
+        }
+
+        /// <summary>
+        /// In a seat the stick's flicks are the seat's: their latches marked held and spent, released on foot only once the stick is
+        /// back (they were cleared, and a stick pushed up or down on getting out jumped or crouched at once; input scout, 2026-11-12).
+        /// </summary>
+        private static void HoldStickLatches()
+        {
+            _jumpLatch = true;
+            _downLatch = true;
+            _proneTriggeredThisHold = true;
         }
 
         private static void UpdateStickJumpCrouch(Actor actor)
