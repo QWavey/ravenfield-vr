@@ -178,6 +178,26 @@ namespace RavenfieldVR.Net
             {
                 return 0;
             }
+            // Counted once a second at most: the flat window asks on every repaint (several a frame), and each count asks Steam
+            // about every one of the host's mods (match flow scout, 2026-11-12).
+            if (Time.unscaledTime - _missingAt < 1f && _missingFor == HostCount)
+            {
+                switchedOff = _offCounted;
+                return _missingCounted;
+            }
+            _missingAt = Time.unscaledTime;
+            _missingFor = HostCount;
+            _missingCounted = CountMissing(out _offCounted);
+            switchedOff = _offCounted;
+            return _missingCounted;
+        }
+
+        private static float _missingAt = -10f;
+        private static int _missingFor, _missingCounted, _offCounted;
+
+        private static int CountMissing(out int switchedOff)
+        {
+            switchedOff = 0;
             var here = new Dictionary<ulong, bool>();
             ModManager manager = ModManager.instance;
             if (manager != null && manager.mods != null)
