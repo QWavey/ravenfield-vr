@@ -2340,9 +2340,19 @@ namespace RavenfieldVR.Net
             {
                 return "";
             }
+            // (Kept per entry: built anew for every soldier's weapon fifteen times a second, a modded match made some 900 strings a
+            // second for the collector.)
+            if (KeyOfEntry.TryGetValue(e, out string known))
+            {
+                return known;
+            }
             ModInformation mod = e.sourceMod;
-            return mod != null && mod.IsWorkshopItem() ? e.name + KeySeparator + mod.workshopItemId.m_PublishedFileId : e.name;
+            string key = mod != null && mod.IsWorkshopItem() ? e.name + KeySeparator + mod.workshopItemId.m_PublishedFileId : e.name;
+            KeyOfEntry[e] = key;
+            return key;
         }
+
+        private static readonly Dictionary<WeaponManager.WeaponEntry, string> KeyOfEntry = new Dictionary<WeaponManager.WeaponEntry, string>();
 
         private const char KeySeparator = '\u001F';
 
