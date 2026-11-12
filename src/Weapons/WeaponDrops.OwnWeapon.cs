@@ -112,6 +112,7 @@ namespace RavenfieldVR.Weapons
             };
             BeltStateOf(w, out drop.CoverOpen, out drop.BeltUnlaid);
             ChamberStateOf(w, out drop.SpentCases, out drop.ActionOpen);
+            BoltStateOf(w, drop);
             drop.Reach = ReachOf(root.transform, colliders);
             PropPhysics.IgnoreBodiesNear(colliders, root.transform.position, 1.5f, drop.IgnoredBodies);
             _drops.Add(drop);

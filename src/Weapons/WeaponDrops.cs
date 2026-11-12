@@ -60,6 +60,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>A break action or revolver put down: its fired cases not yet thrown out, and whether it lay open. They came back gone, and it came back shut.</summary>
         public int SpentCases;
         public bool ActionOpen;
+        /// <summary>
+        /// Put down with its bolt, pump or lever left open by hand (and how far), or a fired case still in the chamber: it comes back so.
+        /// Picked up again it came back shut and ready to fire, without the bolt ever pushed home, the case gone (reload scout, 2026-11-12).
+        /// </summary>
+        public bool BoltOpen, SpentInChamber;
+        public float BoltLeftAt;
         /// <summary>Radius from the root that holds every collider (rotation-invariant), so a far drop is skipped whole.</summary>
         public float Reach;
         /// <summary>Reach measured again after its first physics step (the colliders' boxes may not be set the frame they are added).</summary>

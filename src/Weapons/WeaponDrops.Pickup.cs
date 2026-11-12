@@ -228,7 +228,8 @@ namespace RavenfieldVR.Weapons
             // locked back gets its state made here and set as it was put down: AdoptWeaponAmmo alone reads a magazine in and a
             // round chambered from the count, so a magazine-out pistol came back with its magazine seated (a fresh one was
             // refused) and a locked-back gun came back with its slide free and a round chambered (30 came back 29+1).
-            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.SlideHome || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid || d.SpentCases > 0 || d.ActionOpen);
+            AmmoState state = WeaponSystem.Instance?.StateFor(w, create: d.MagOut || d.SlideBack || d.SlideHome || d.EmptyChamber || d.CoverOpen || d.BeltUnlaid || d.SpentCases > 0 || d.ActionOpen
+                                                                         || d.BoltOpen || d.SpentInChamber);
             state?.AdoptWeaponAmmo();
             if (state != null && (d.SpentCases > 0 || d.ActionOpen))
             {
@@ -255,6 +256,18 @@ namespace RavenfieldVR.Weapons
                 state.Sync();
                 Log.InfoOnce("putdown:" + d.Entry.name, $"{d.Entry.name} comes back as it was put down: magazine {(d.MagOut ? "out" : "in")}, slide {(d.SlideBack ? "locked back" : "free")}.");
             }
+            if (state != null && (d.BoltOpen || d.SpentInChamber))
+            {
+                // (After the rest: AdoptWeaponAmmo shut the bolt and took the count's round as chambered.)
+                if (d.SpentInChamber)
+                {
+                    state.Chambered = false;
+                    state.SpentInChamber = true;
+                }
+                state.BoltOpen = d.BoltOpen;
+                state.BoltLeftAt = d.BoltLeftAt;
+                state.Sync();
+            }
             if (state != null && d.SlideHome && !d.SlideBack && state.SlideLocked)
             {
                 state.SlideLocked = false; // (AdoptWeaponAmmo catches an empty gun's slide, as for a spawn: this one was put down home)
@@ -276,6 +289,15 @@ namespace RavenfieldVR.Weapons
             AmmoState st = WeaponSystem.Instance?.StateFor(w, create: false);
             spent = st != null ? st.SpentCases : 0;
             open = st != null && st.Open;
+        }
+
+        /// <summary>The bolt left open by hand, how far, and a fired case in the chamber, as the gun is put down (see DroppedWeapon.BoltOpen).</summary>
+        private static void BoltStateOf(Weapon w, DroppedWeapon d)
+        {
+            AmmoState st = WeaponSystem.Instance?.StateFor(w, create: false);
+            d.BoltOpen = st != null && st.Participates && st.BoltOpen;
+            d.BoltLeftAt = st != null ? st.BoltLeftAt : 0f;
+            d.SpentInChamber = st != null && st.Participates && st.SpentInChamber;
         }
 
         /// <summary>
@@ -439,6 +461,7 @@ namespace RavenfieldVR.Weapons
                 swapped.EmptyChamber = EmptyChamberOf(current);
                 BeltStateOf(current, out swapped.CoverOpen, out swapped.BeltUnlaid);
                 ChamberStateOf(current, out swapped.SpentCases, out swapped.ActionOpen);
+                BoltStateOf(current, swapped);
                 Net.NetGame.OnOwnDrop(swapped, Vector3.zero); // (shown on the other PCs as a gun let go is: a swapped-away one was not; scout)
             }
             // A weapon picked up by the free hand while the gun is held goes beside it when the two pair (primary, secondary,

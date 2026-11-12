@@ -2825,6 +2825,7 @@ The game closed (not started from here). Code, offline tests, read-only Haiku sc
 
 - [x] 384.1 The last scout of 2026-11-11 (soldiers' guns, gun collision), read and done: see 383.19.
 - [x] 384.2 The scoreboard shared: each PC tells its own soldiers' kills, deaths, flags and vehicles (kind 39, `TellScores`/`TakeScores`: on change every 2 s, all every 10 s) and the others set them on the stand-ins' rows; a kill credited from another PC goes through the game's own `OnGotKill` (the "KILLED" line, its chime, the player's own row). Before, each PC counted only what happened on it: the host's soldiers showed no kills on a joined PC, the joined player's own row none of his kills there. Unrun.
+- [x] 384.3 From a scout of the reload and ammo core (Haiku, read-only, 1 finding, read first): a bolt-action or pump gun put down with its bolt left open by hand came back shut and ready to fire (the trigger fired with the bolt never pushed home), and a fired case in its chamber vanished: the drop keeps `BoltOpen`, `BoltLeftAt` and `SpentInChamber` (`BoltStateOf`) and the pickup puts them back after `AdoptWeaponAmmo`. A multiplayer weapon key kept per entry (some 900 strings a second in a modded match).
 
 ### 383. Work until the limit while the user and a friend play 1.17.8 (user, 2026-11-11 night: "he installed it, we're playing now cont the worktilllim"; work-until-limit 75)
 
