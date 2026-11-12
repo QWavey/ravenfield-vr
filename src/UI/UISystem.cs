@@ -377,9 +377,11 @@ namespace RavenfieldVR.UI
                 }
             }
             _laser.Update(show, pointer.TrackedPointer.position, end, hit, _module != null && _module.HoveredObject != null);
-            _wrist.BeforeRender();
-            _squad.BeforeRender();
+            Log.Guard("UI.Wrist", WristStep ?? (WristStep = _wrist.BeforeRender)); // (each on its own guard, as the steps before them)
+            Log.Guard("UI.Squad", SquadStep ?? (SquadStep = _squad.BeforeRender));
         }
+
+        private System.Action WristStep, SquadStep;
 
         public void OnSceneChanged()
         {

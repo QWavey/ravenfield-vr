@@ -148,7 +148,7 @@ namespace RavenfieldVR.Weapons
             {
                 RouteToMixer();
             }
-            pitch = Mathf.Clamp(pitch, 0.5f, 2f);
+            pitch = float.IsNaN(pitch) || float.IsInfinity(pitch) ? 1f : Mathf.Clamp(pitch, 0.5f, 2f); // (NaN passed the clamp and held the voice busy for good)
             src.Stop();
             src.transform.position = position;
             src.clip = clip;

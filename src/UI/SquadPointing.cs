@@ -57,9 +57,12 @@ namespace RavenfieldVR.UI
 
         private const float VehicleDegrees = 8f;
 
-        /// <summary>A go-to along the line has somewhere to go: the game's own ray, ground or water (<c>IssueSquadRaycastOrder</c>).</summary>
-        internal static bool LandsSomewhere() =>
-            Physics.Raycast(Line, 999999f, 1) || WaterLevel.Raycast(Line, out _);
+        /// <summary>
+        /// A go-to along the line has somewhere to go: the game's own test (<c>IssueSquadRaycastOrder</c>), which orders only when the
+        /// ground is hit; water only moves the point to its surface. Open water alone read "GO TO", and the game gave no order, only
+        /// its grunt and commit sound (squad scout, 2026-11-12).
+        /// </summary>
+        internal static bool LandsSomewhere() => Physics.Raycast(Line, 999999f, 1);
 
         /// <summary>How far off the pointing line an enemy may be (degrees), or the body's own half width there when wider.</summary>
         private const float EnemyDegrees = 4f;
@@ -396,9 +399,10 @@ namespace RavenfieldVR.UI
             {
                 return ui.aimActor.CenterPosition();
             }
-            if (Physics.Raycast(Line, out RaycastHit hit, 2000f, 1))
+            if (Physics.Raycast(Line, out RaycastHit hit, 999999f, 1))
             {
-                return hit.point;
+                // (At the water's surface when that is nearer, as the order goes there: the arrow pointed at the seabed.)
+                return WaterLevel.Raycast(Line, out RaycastHit water) && water.distance < hit.distance ? water.point : hit.point;
             }
             return Line.origin + Line.direction * 50f;
         }

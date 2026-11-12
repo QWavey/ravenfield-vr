@@ -409,6 +409,13 @@ namespace RavenfieldVR.Weapons
         public void Play(MechSound kind, Vector3 position, float volume = 1f)
         {
             _kind = kind;
+            if (kind == MechSound.SlideBack)
+            {
+                // (A new pull: the last one's rack is not this one's. Kept, a pull played whole left it, and the next release played the
+                // home stroke of an earlier pull; sounds scout, 2026-11-12.)
+                _rackClip = null;
+                _rackSliceClip = null;
+            }
             // (The showcase's sound event, said once here: a gun's own cue does not go through the voices' Play.)
             if (SoundVoices.Showcased != null && kind != MechSound.Casing && kind != MechSound.CasingSoft)
             {

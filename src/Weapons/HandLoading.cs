@@ -154,7 +154,7 @@ namespace RavenfieldVR.Weapons
                 Casings.RoundOut(mag.Owner != null ? mag.Owner.Rig : null, mag.WeaponKey, mag.Owner, top + up * 0.012f,
                     Quaternion.LookRotation(front, up), h.Velocity + up * 0.7f + front * 0.35f);
                 // (The start of its gun's magazine-out sound, as the round leaves the lips: game audio only, GameSounds.)
-                float fullness = mag.Owner != null && mag.Owner.Weapon != null ? (float)mag.Rounds / mag.Owner.Capacity : 0.5f;
+                float fullness = mag.Owner != null && mag.Owner.Weapon != null && mag.Owner.Capacity > 0 ? (float)mag.Rounds / mag.Owner.Capacity : 0.5f;
                 GameSounds.PlayPart(mag.Data, MechSound.MagOut, top, 0f, 0.25f, 0.25f, 1f + 0.3f * fullness);
                 h.Haptic(0.015f, 180f, 0.3f);
                 if (mag.Rounds == 0)
