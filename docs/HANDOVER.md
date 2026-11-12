@@ -2,7 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-12 (1.17.15 INSTALLED on this PC; Tasks 384; work-until-limit 85 running)
+## State 2026-11-12 evening (**1.17.16 INSTALLED** on this PC, Defender clean; Tasks 384 to 384.37; run paused by the user at 68%)
+
+- 1.17.16 holds everything below; notes in `dist/notes-1.17.16.md`. **Both PCs need 1.17.16** (new message kinds 40 and 41). Nothing of the day run in the game yet: first try the plane throttle lever (where the off hand rests), the vehicle tunnel, two players at one seat, a dead soldier's gun taken on one PC, and **the frozen soldiers' guns** (the log now says why a squeeze did not take one; asked the user what happens).
+
+## State 2026-11-12 (1.17.15 installed in the morning)
 
 - **1.17.12 to 1.17.14 had shared vehicles broken** (the pings' and scores' message cases inside the vehicles' group): fixed in 1.17.15, with an offline test (`tools/tests/net_dispatch_test.py`). Both PCs need 1.17.15.
 - New this morning: the shared scoreboard (kind 39), knock-overs told (Fallen bit), the joined PC's loading until the match is in, a missing map back to the menu; drops keep an open bolt; the magazine pull-back seat; HUD notices queued. Nothing of it run in the game yet.
