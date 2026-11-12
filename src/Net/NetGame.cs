@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -96,6 +96,8 @@ namespace RavenfieldVR.Net
             public bool Told;
             /// <summary>Tellings of his place since he died (the first second in full, then one in thirty).</summary>
             public int DeadTicks;
+            /// <summary>His scoreboard numbers as last told (see TellScores).</summary>
+            public int ScoreTold = int.MinValue;
         }
 
         // Who is told how often (the user, 2026-11-10: "make sure we optimize multiplayer playing"). Every soldier's place went out
@@ -1271,6 +1273,9 @@ namespace RavenfieldVR.Net
                     case VehicleGone:
                     case VehicleSeat:
                     case VehicleOwner:
+                    case Scores:
+                        TakeScores(sender, ref r);
+                        break;
                     case Pings:
                         if (sender == 0 && _session != null && !_session.IsHost)
                         {
@@ -1489,6 +1494,9 @@ namespace RavenfieldVR.Net
             try
             {
                 GameManager.gameResultsTracker.AddPlayerKill(info, hit);
+                // (And the game's own kill handling: the "KILLED" line, its chime and his scoreboard row. Only the results counted it: his row
+                // here had none of the kills he made on another PC's soldiers, and with the rows shared it overwrote the host's.)
+                player.OnGotKill(hit);
             }
             catch (Exception e)
             {
@@ -1639,6 +1647,16 @@ namespace RavenfieldVR.Net
             catch (Exception e)
             {
                 Log.WarnOnce("net-vehicles-update", "Multiplayer: the shared vehicles' update threw: " + e);
+            }
+            if (session.PlayerCount > 1 && Time.unscaledTime >= _nextScoreTell)
+            {
+                bool all = Time.unscaledTime >= _nextScoreAll;
+                _nextScoreTell = Time.unscaledTime + 2f;
+                if (all)
+                {
+                    _nextScoreAll = Time.unscaledTime + 10f;
+                }
+                TellScores(session, all);
             }
             if (session.IsHost && Time.unscaledTime >= _nextMatchTell)
             {
@@ -1832,7 +1850,86 @@ namespace RavenfieldVR.Net
             }
         }
 
-        private static float _nextPingTell;
+        private static float _nextPingTell, _nextScoreTell, _nextScoreAll;
+
+        /// <summary>
+        /// The scoreboard numbers (kills, deaths, flags, vehicles) of this PC's own soldiers, told when they change (every 2 s at most)
+        /// and all of them every 10 s. Each PC counts only what happens on it: the host's soldiers showed no kills on a joined PC, his
+        /// player none of the kills he made there, and the scoreboards of the two PCs never agreed (the open list: "the score of each
+        /// PC's own soldiers").
+        /// </summary>
+        private static void TellScores(NetSession session, bool all)
+        {
+            Out.Reset();
+            int countAt = Out.Length;
+            Out.Byte(0);
+            int n = 0;
+            foreach (KeyValuePair<Actor, Own> kv in Owned)
+            {
+                ScoreboardActorEntry e = kv.Key != null ? kv.Key.scoreboardEntry : null;
+                if (e == null)
+                {
+                    continue;
+                }
+                int hash = ((e.kills * 397 + e.deaths) * 397 + e.flagCaptures) * 397 + e.vehicleKills;
+                if (!all && hash == kv.Value.ScoreTold)
+                {
+                    continue;
+                }
+                kv.Value.ScoreTold = hash;
+                Out.UShort(kv.Value.Id);
+                Out.VarInt(e.kills);
+                Out.VarInt(e.deaths);
+                Out.VarInt(e.flagCaptures);
+                Out.VarInt(e.vehicleKills);
+                if (++n == 120)
+                {
+                    Out.Buffer[countAt] = (byte)n;
+                    session.Send(Scores, Out, true);
+                    Out.Reset();
+                    Out.Byte(0);
+                    n = 0;
+                }
+            }
+            if (n > 0)
+            {
+                Out.Buffer[countAt] = (byte)n;
+                session.Send(Scores, Out, true);
+            }
+        }
+
+        /// <summary>Another PC's soldiers' scoreboard numbers set on their stand-ins' rows here.</summary>
+        private static void TakeScores(byte sender, ref NetReader r)
+        {
+            int n = r.Byte();
+            for (int i = 0; i < n; i++)
+            {
+                ushort id = r.UShort();
+                int kills = r.VarInt(), deaths = r.VarInt(), flags = r.VarInt(), vehicles = r.VarInt();
+                Remote remote = RemoteOf(sender, id);
+                ScoreboardActorEntry e = remote != null && remote.Actor != null ? remote.Actor.scoreboardEntry : null;
+                if (e == null || e.kills == kills && e.deaths == deaths && e.flagCaptures == flags && e.vehicleKills == vehicles)
+                {
+                    continue;
+                }
+                try
+                {
+                    e.kills = kills;
+                    e.deaths = deaths;
+                    e.flagCaptures = flags;
+                    e.vehicleKills = vehicles;
+                    if (e.kText != null) e.kText.text = kills.ToString();
+                    if (e.dText != null) e.dText.text = deaths.ToString();
+                    if (e.fText != null) e.fText.text = flags.ToString();
+                    if (e.vText != null) e.vText.text = vehicles.ToString();
+                    e.Sort();
+                }
+                catch (Exception ex)
+                {
+                    Log.WarnOnce("net-scores", "Multiplayer: a scoreboard row could not be set: " + ex.Message);
+                }
+            }
+        }
 
         /// <summary>The host's pings to the others: another joined player's ping here is his to the host and this PC's own to the host.</summary>
         private static void TakePings(ref NetReader r)

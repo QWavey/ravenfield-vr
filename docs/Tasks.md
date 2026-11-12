@@ -2819,6 +2819,13 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 384. Improvements and bug hunts, the mod in general and multiplayer (user, 2026-11-12 morning: "lets continue to make improvements bug hunts etc, focus on the mdo in general but also on multiplayer"; work-until-limit 85)
+
+The game closed (not started from here). Code, offline tests, read-only Haiku scouts (each finding read in the code first), builds.
+
+- [x] 384.1 The last scout of 2026-11-11 (soldiers' guns, gun collision), read and done: see 383.19.
+- [x] 384.2 The scoreboard shared: each PC tells its own soldiers' kills, deaths, flags and vehicles (kind 39, `TellScores`/`TakeScores`: on change every 2 s, all every 10 s) and the others set them on the stand-ins' rows; a kill credited from another PC goes through the game's own `OnGotKill` (the "KILLED" line, its chime, the player's own row). Before, each PC counted only what happened on it: the host's soldiers showed no kills on a joined PC, the joined player's own row none of his kills there. Unrun.
+
 ### 383. Work until the limit while the user and a friend play 1.17.8 (user, 2026-11-11 night: "he installed it, we're playing now cont the worktilllim"; work-until-limit 75)
 
 The game runs the whole time: code, offline tests and builds into the project folder only, nothing installed. Both PCs need the next version (1.17.9) when they stop.
