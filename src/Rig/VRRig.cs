@@ -605,8 +605,22 @@ namespace RavenfieldVR.Rig
 
         private int _modeChanges;
 
+        private Seat _anchorSeat;
+
         private void OnModeChanged(RigMode from, RigMode to, object key, FpsActorController player)
         {
+            Seat seatNow = player != null && player.actor != null && !player.actor.dead && player.actor.IsSeated() ? player.actor.seat : null;
+            if (from == RigMode.Anchored && to == RigMode.Anchored && seatNow != null && ReferenceEquals(seatNow, _anchorSeat)
+                && !(key is ActiveRaggy) && !(_anchorKey is ActiveRaggy))
+            {
+                // The same seat, only its camera swapped (its gun taken up or put away, the game's third-person toggle): the view
+                // turned by the stick stayed only until then, snapped to the seat's front behind a blackout each time (seat view
+                // scout, 2026-11-12). The new camera is taken; the turn, the neutral head and the toggles stay.
+                Log.Info($"View: the seat's camera changed ({key})");
+                _anchorKey = key;
+                return;
+            }
+            _anchorSeat = to == RigMode.Anchored ? seatNow : null;
             // (The "taller than saved" count starts again: it is counted on foot only, so begun before a seat, a ladder or a death
             // and never ended, its three seconds were long over on the first frame back and the saved eye height was raised at
             // once, written to the settings too; scout, 2026-11-11.)
@@ -963,6 +977,8 @@ namespace RavenfieldVR.Rig
 
         private Quaternion _lastSeatTurn;
         private bool _hasSeatTurn;
+        private float _seatTurnAt, _seatTurnRate;
+        private Seat _seatTurnSeat;
 
         /// <summary>
         /// How hard the seat turns, 0..1, for the tunnel (<see cref="VRConfig.VehicleVignette"/>): from 40 degrees a second, full at 160.
@@ -978,16 +994,33 @@ namespace RavenfieldVR.Rig
                 _hasSeatTurn = false;
                 return 0f;
             }
+            // Over the time since the seat last moved, not since the last frame: a vehicle turns in physics steps (50 a second against
+            // 90 frames), so frame by frame the rate read nothing, then nearly twice the turn, and the tunnel pulsed (seat view scout;
+            // VehicleFeel's jolt had the same fix). Still for over a tenth of a second: not turning.
             Quaternion now = seat.transform.rotation;
-            float motion = 0f;
-            if (_hasSeatTurn)
+            float t = Time.time;
+            if (!_hasSeatTurn || seat != _seatTurnSeat)
             {
-                float degreesPerSecond = Quaternion.Angle(_lastSeatTurn, now) / Time.deltaTime;
-                motion = Mathf.Clamp01((degreesPerSecond - 40f) / 120f);
+                _seatTurnSeat = seat;
+                _lastSeatTurn = now;
+                _seatTurnAt = t;
+                _seatTurnRate = 0f;
+                _hasSeatTurn = true;
+                return 0f;
             }
-            _lastSeatTurn = now;
-            _hasSeatTurn = true;
-            return motion;
+            float angle = Quaternion.Angle(_lastSeatTurn, now);
+            if (angle > 0.01f)
+            {
+                float dt = t - _seatTurnAt;
+                _seatTurnRate = dt > 1e-4f ? Mathf.Min(angle / dt, 2000f) : _seatTurnRate;
+                _lastSeatTurn = now;
+                _seatTurnAt = t;
+            }
+            else if (t - _seatTurnAt > 0.1f)
+            {
+                _seatTurnRate = 0f;
+            }
+            return Mathf.Clamp01((_seatTurnRate - 40f) / 120f);
         }
 
         private float _offHandYaw;
