@@ -427,9 +427,11 @@ namespace RavenfieldVR.Sandbox
                 problem = "not in a match";
                 return null;
             }
-            if (Net.Multiplayer.Active)
+            // The host's vehicles are shared since 1.17.10 (made by the game's own spawning, as a map's spawner does: the others make
+            // their copy from the same prefab). A joined player's own would be his alone, so the field stays the host's (sandbox scout).
+            if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
             {
-                problem = "a shared match is on foot for now (vehicles are not shared yet)";
+                problem = "in a shared match the host places the vehicles";
                 return null;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);

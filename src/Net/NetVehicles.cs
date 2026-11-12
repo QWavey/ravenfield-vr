@@ -773,6 +773,20 @@ namespace RavenfieldVR.Net
                     Gone.Add(id);
                     if (ById.TryGetValue(id, out Shared s))
                     {
+                        // This player out first if he sits in it (the host's sandbox removed it under him): destroyed with him in its
+                        // seat, he sat on in nothing (the game's own death of a vehicle puts its riders out; sandbox scout, 2026-11-12).
+                        Actor me = LocalPlayer.actor;
+                        if (s.V != null && me != null && me.IsSeated() && me.seat != null && me.seat.vehicle == s.V)
+                        {
+                            try
+                            {
+                                me.LeaveSeat(false);
+                            }
+                            catch (Exception e)
+                            {
+                                Log.WarnOnce("net-vehicle-gone-seat", "Multiplayer: getting out of a vehicle that went threw: " + e.Message);
+                            }
+                        }
                         Forget(s);
                         if (s.Copy && s.V != null)
                         {
