@@ -343,10 +343,15 @@ namespace RavenfieldVR.UI
             }
         }
 
+        private static readonly System.Action AvatarStep = Net.NetAvatar.BeforeRender;
+
         public void BeforeRender()
         {
             // (The notice first: a step below that threw each frame left it up for good, never timed out; HUD scout, 2026-11-12.)
             Notice?.BeforeRender(_rig.Head);
+            // (The other players' hands, guns and heads on their own guard, before the panels: after ten other steps in one guard,
+            // any of them throwing each frame stopped every remote hand; remote visuals scout, 2026-11-12.)
+            Log.Guard("remote avatars", AvatarStep);
             Canvases.BeforeRender();
             Settings.BeforeRender();
             _sights.BeforeRender(_rig.Head);
@@ -354,7 +359,6 @@ namespace RavenfieldVR.UI
             SandboxPanel.BeforeRender();
             MultiplayerPanel.BeforeRender();
             StartChoice.BeforeRender();
-            Net.NetAvatar.BeforeRender();
             _sandboxTool.BeforeRender();
             VRHand pointer = _rig.Hand(_pointerHand);
             bool show = _module != null && _module.PointerActive && pointer.Tracked;
