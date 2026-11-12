@@ -659,7 +659,7 @@ namespace RavenfieldVR.Weapons
                 foreach (Collider b in _boxes)
                 {
                     // (Unity refuses a pair unless both are enabled and active.)
-                    if (b != null && b.enabled && c.enabled && b.gameObject.activeInHierarchy)
+                    if (b != null && b.enabled && c.enabled && b.gameObject.activeInHierarchy && c.gameObject.activeInHierarchy) // (both, as SetIgnored(Collider) asks)
                     {
                         Physics.IgnoreCollision(b, c, ignore);
                     }
@@ -723,6 +723,19 @@ namespace RavenfieldVR.Weapons
             GunCollider g = Current;
             if (g == null || g._go == null || !g._enabled)
             {
+                if (_hiddenDepth > 0 && g != null && g._go != null)
+                {
+                    // (Switched off between a hide and its show: put back as it was, or it stayed a trigger on the hidden layer and
+                    // passed through walls once on again; scout, 2026-11-11.)
+                    g._go.layer = g._layer;
+                    foreach (Collider b in g._boxes)
+                    {
+                        if (b != null)
+                        {
+                            b.isTrigger = false;
+                        }
+                    }
+                }
                 _hiddenDepth = 0;
                 return;
             }
@@ -811,6 +824,13 @@ namespace RavenfieldVR.Weapons
             ShapeFit.Bake(pieces);
             _pieces = pieces;
             _boxes.AddRange(ShapeFit.AddColliders(_go, pieces));
+            if (_hiddenDepth > 0 && ReferenceEquals(Current, this))
+            {
+                foreach (Collider c in _boxes)
+                {
+                    c.isTrigger = true; // (made while hidden from the player's move: as the others are until it ends; scout)
+                }
+            }
             PropPhysics.IgnorePlayer(_boxes);
             foreach (Collider c in _passing)
             {
@@ -918,6 +938,8 @@ namespace RavenfieldVR.Weapons
             int layer = PropPhysics.Layer;
             if (layer < 0 || rig.GunBody == null)
             {
+                Current?.Destroy(); // (the last gun's stand-in went on colliding after the switch; scout)
+                Current = null;
                 return null;
             }
             WeaponRigData d = rig.Data;

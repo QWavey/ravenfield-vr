@@ -367,7 +367,12 @@ namespace RavenfieldVR.Weapons
             for (int s = 0; s < soldier.weapons.Length && other < 0; s++)
             {
                 // (Not a grenade, nor a toggled item such as goggles: switched to, it only toggles, and he was left with no gun out.)
-                if (s != slot && soldier.weapons[s] != null && !(soldier.weapons[s] is ThrowableWeapon) && !soldier.weapons[s].IsToggleable())
+                // (Nor a kit: an ammo bag, a medic kit or a repair tool left him drawing it, unarmed; scout, 2026-11-11.)
+                WeaponManager.WeaponEntry.LoadoutType kind = soldier.weapons[s] != null && soldier.weapons[s].weaponEntry != null
+                    ? soldier.weapons[s].weaponEntry.type : WeaponManager.WeaponEntry.LoadoutType.Normal;
+                bool kit = kind == WeaponManager.WeaponEntry.LoadoutType.ResupplyAmmo || kind == WeaponManager.WeaponEntry.LoadoutType.ResupplyHealth
+                           || kind == WeaponManager.WeaponEntry.LoadoutType.Repair;
+                if (s != slot && soldier.weapons[s] != null && !kit && !(soldier.weapons[s] is ThrowableWeapon) && !soldier.weapons[s].IsToggleable())
                 {
                     other = s;
                 }
