@@ -777,7 +777,7 @@ namespace RavenfieldVR.Rig
         internal Vector3 GraspOffsetNext()
         {
             StepPalm();
-            return NextGraspOffset(PlacedTarget(), Time.unscaledDeltaTime);
+            return NextGraspOffset(PlacedTarget(), Mathf.Min(Time.unscaledDeltaTime, 0.05f)); // (clamped as Apply draws it: a hitch put the two a centimetre apart)
         }
 
         /// <summary>Applies placement and finger curls. Call after the hand pose and any override are set.</summary>
