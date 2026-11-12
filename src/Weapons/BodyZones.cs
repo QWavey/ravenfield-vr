@@ -304,7 +304,7 @@ namespace RavenfieldVR.Weapons
             int slot = -1;
             for (int i = 0; i < SpotCount; i++)
             {
-                if (_spotSlot[i] < 0 || _spotSlot[i] == skipSlot || !includeChest && IsChest((Spot)i))
+                if (!Live(i) || _spotSlot[i] == skipSlot || !includeChest && IsChest((Spot)i))
                 {
                     // The chest sits where a shouldered rifle's grip hand is: callers leave it out while aiming.
                     continue;
@@ -312,6 +312,29 @@ namespace RavenfieldVR.Weapons
                 Check(point, Position((Spot)i), _spotSlot[i], ref best, ref slot);
             }
             return slot;
+        }
+
+        /// <summary>
+        /// A spot with something to draw: not a thrown-out grenade (its spot kept, so the others do not move mid-match, but it is
+        /// shown empty), and for the pouch's test nor the weapon already in the free hand (it is put back by its own spot, so the draw
+        /// and put-back lookups keep it). Counted, the empty spot beat a live holster beside it and refused the pouch's squeezes near it
+        /// (holster scout, 2026-11-12).
+        /// </summary>
+        private bool Live(int i, bool skipSecond = false)
+        {
+            int slot = _spotSlot[i];
+            if (slot < 0)
+            {
+                return false;
+            }
+            Actor actor = GameContext.PlayerActor;
+            Weapon w = actor != null && actor.weapons != null && slot < actor.weapons.Length ? actor.weapons[slot] : null;
+            if (w == null || HolsterDisplay.Spent(w))
+            {
+                return false;
+            }
+            WeaponSystem sys = skipSecond ? WeaponSystem.Instance : null;
+            return sys == null || sys.Second == null || !ReferenceEquals(sys.Second.Weapon, w);
         }
 
         private int _assignedFrame = -1;
@@ -486,7 +509,7 @@ namespace RavenfieldVR.Weapons
             float pouch = Vector3.Distance(point, Pouch);
             for (int i = 0; i < SpotCount; i++)
             {
-                if (_spotSlot[i] >= 0 && _spotSlot[i] != skipSlot && Vector3.Distance(point, Position((Spot)i)) < Mathf.Min(pouch, HolsterRadius))
+                if (Live(i, skipSecond: true) && _spotSlot[i] != skipSlot && Vector3.Distance(point, Position((Spot)i)) < Mathf.Min(pouch, HolsterRadius))
                 {
                     return true;
                 }

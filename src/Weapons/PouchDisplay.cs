@@ -51,6 +51,8 @@ namespace RavenfieldVR.Weapons
             if (!show)
             {
                 SetVisible(false);
+                _hover = 0f; // (shown again, its magazine was still lifted and the next reach gave no tick; holster scout)
+                _reachingLast = false;
                 return;
             }
             PropKind kind = ammo.UsesDetachableMag ? PropKind.Magazine : rig.Data.Action == ActionType.SingleShot ? PropKind.Rocket : PropKind.Shell;
