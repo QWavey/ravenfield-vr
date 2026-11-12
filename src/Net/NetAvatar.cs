@@ -635,6 +635,15 @@ namespace RavenfieldVR.Net
                     {
                         continue;
                     }
+                    // (And only while he looks about level and the body's way: the game's own look-at turns the head toward his aim
+                    // before this runs, and a head learnt turned stayed off by that angle for his life; remote visuals scout.)
+                    Vector3 facing = r.Facing;
+                    Vector3 flat = new Vector3(facing.x, 0f, facing.z);
+                    if (facing.sqrMagnitude > 1e-4f && (Mathf.Abs(facing.normalized.y) > 0.2f
+                        || flat.sqrMagnitude > 1e-4f && Vector3.Angle(flat, a.transform.forward) > 10f))
+                    {
+                        continue;
+                    }
                     // (Learnt as he stands: the animation holds the head about the body's way then.)
                     h = new Head { Bone = bone, LocalForward = Quaternion.Inverse(bone.rotation) * a.transform.forward };
                     Heads[r] = h;
