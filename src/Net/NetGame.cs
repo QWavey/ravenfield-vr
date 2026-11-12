@@ -32,6 +32,8 @@ namespace RavenfieldVR.Net
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
         internal const int OnLadder = 256, Airborne = 512, Swimming = 1024;
+        /// <summary>Knocked over on his owner's PC (a blast, a blow, a kick there): the stand-in falls too (multiplayer scout, 2026-11-12).</summary>
+        internal const int Fallen = 2048;
 
         /// <summary>A soldier owned by another PC, and its stand-in here.</summary>
         internal sealed class Remote
@@ -1137,6 +1139,13 @@ namespace RavenfieldVR.Net
                 UI.UISystem.Instance?.Notice?.Show($"The host started on a map this PC does not have: {file}{where}. Subscribe to it and join again.", 12f);
                 Log.Warn("Multiplayer: the host's map is not on this PC: " + scene);
                 GiveRulesBack(); // (no match here: the host's mutators and skins stayed this PC's, in its own menu too, until the session ended)
+                // Out of the match this PC was in: it stayed on the old map, and the host's new soldiers, numbered from 1 again, took over
+                // its stand-ins and his flags were set on the old map by their order (multiplayer scout, 2026-11-12).
+                Clear(true);
+                if (InMatch)
+                {
+                    GameManager.ReturnToMenu();
+                }
                 return;
             }
             GameModeInfo mode = Sandbox.Sandbox.ModeByName(modeName)
@@ -1570,6 +1579,14 @@ namespace RavenfieldVR.Net
                 _loadingSince = -1f;
                 Log.WarnOnce("net-loading-long", "Multiplayer: a level said to be loading for 90 s; taken as loaded.");
             }
+            if (_loading && _scenesSinceLoad > 0 && InMatch)
+            {
+                _loading = false; // (the map is in and the player in it)
+            }
+            if (!_loading)
+            {
+                _scenesSinceLoad = 0;
+            }
             NetMods.Keep(session); // (the host's mods told again when they change)
             bool inMatchNow = InMatch && !_loading;
             if (session.IsHost && _hostWasInMatch && !inMatchNow && !_loading && session.PlayerCount > 1)
@@ -1854,6 +1871,7 @@ namespace RavenfieldVR.Net
         }
 
         private static float _nextPingTell, _nextScoreTell, _nextScoreAll;
+        private static int _scenesSinceLoad;
 
         /// <summary>
         /// The scoreboard numbers (kills, deaths, flags, vehicles) of this PC's own soldiers, told when they change (every 2 s at most)
@@ -2278,7 +2296,8 @@ namespace RavenfieldVR.Net
                     {
                         flags |= (c.Crouch() || a.stance == Actor.Stance.Crouch ? Crouched : 0) | (a.stance == Actor.Stance.Prone ? Proned : 0) | (c.IsSprinting() ? Sprinting : 0)
                                  | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0)
-                                 | (a.IsOnLadder() ? OnLadder : 0) | (!a.IsSeated() && !a.IsOnLadder() && !c.OnGround() ? Airborne : 0) | (a.IsSwimming() ? Swimming : 0);
+                                 | (a.IsOnLadder() ? OnLadder : 0) | (!a.IsSeated() && !a.IsOnLadder() && !c.OnGround() ? Airborne : 0) | (a.IsSwimming() ? Swimming : 0)
+                                 | (a.fallenOver ? Fallen : 0);
                         velocity = a.Velocity();
                         facing = c.FacingDirection();
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
@@ -2613,8 +2632,30 @@ namespace RavenfieldVR.Net
                     // Knocked over here only (a blast, a blow, a hand: none of that is told yet, his owner has him on his feet):
                     // he lies for two and a half seconds, then stands where his owner has him. Without it he lay behind, 1.8 m
                     // off and getting up in the game's own time, while his owner's soldier walked on (net check, 2026-11-10).
+                    if (r.Is(Fallen) && r.Is(Alive) && !a.fallenOver && !a.dead && !a.IsSeated())
+                    {
+                        // (Knocked over on his owner's PC: here too. He stayed on his feet aiming while his owner had him lying.)
+                        _applying = true;
+                        try
+                        {
+                            a.KnockOver(Vector3.zero);
+                        }
+                        catch (Exception)
+                        {
+                            // (the game refused it: he stays up)
+                        }
+                        finally
+                        {
+                            _applying = false;
+                        }
+                    }
                     if (a.fallenOver)
                     {
+                        if (r.Is(Fallen))
+                        {
+                            r.FallenSince = -1f; // (his owner has him lying: he lies here as long, and gets up by the word)
+                            continue;
+                        }
                         if (r.FallenSince < 0f)
                         {
                             r.FallenSince = now;
@@ -2820,7 +2861,13 @@ namespace RavenfieldVR.Net
 
         internal static void OnSceneChanged()
         {
-            _loading = false;
+            // (A start goes through the loading screen's own scene first: cleared at that change, the map's whole load went unguarded,
+            // drops told meanwhile were lost and the host's way back to the menu ignored; multiplayer scout, 2026-11-12. Over once the
+            // match is in: see Update.)
+            if (_loading)
+            {
+                _scenesSinceLoad++;
+            }
             EntryByKey.Clear(); // (the weapons found by name are the last scene's)
             ShownDrops.Clear(); // (their copies went with the scene; the drops told during the load are kept: PendingDrops)
             NetVehicles.Clear();
