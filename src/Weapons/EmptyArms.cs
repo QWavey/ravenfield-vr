@@ -306,6 +306,9 @@ namespace RavenfieldVR.Weapons
             // Not while a hand holds a soldier: that glove is on him, drawn (as with a gun in the other hand: HeldWeapon keeps it), and an
             // arm sent to the controller left it hidden and the hand off the body (review, 2026-10-30).
             show &= _root != null && AllMeshes() && sys.Rig.Hands[0].Role != HandRole.Body && sys.Rig.Hands[1].Role != HandRole.Body;
+            // (Nor dead: they hung on the controllers through the death screen; arms scout, 2026-11-12.)
+            Actor me = Util.GameContext.PlayerActor;
+            show &= me == null || !me.dead;
             // Shown by its own state, and the gloves given back by whether this class hid them: a copy made again in the frame the
             // old one went (a mesh gone) cleared a shown flag, and a soldier taken then left the gloves hidden with no arms (review).
             if (_root != null && _root.activeSelf != show)

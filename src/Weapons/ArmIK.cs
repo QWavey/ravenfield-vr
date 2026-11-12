@@ -492,6 +492,7 @@ namespace RavenfieldVR.Weapons
         }
 
         private static readonly Dictionary<Transform, BendMemory> Bends = new Dictionary<Transform, BendMemory>();
+        private static readonly List<Transform> BendGone = new List<Transform>();
 
         private static Vector3 SteadyBend(Transform arm, Vector3 bend, Vector3 dir)
         {
@@ -504,7 +505,24 @@ namespace RavenfieldVR.Weapons
             {
                 if (Bends.Count > 24)
                 {
-                    Bends.Clear(); // (arms of guns put away long ago)
+                    // (Arms of guns put away long ago: only those gone. Cleared whole, the arm solved just before lost its memory, and its
+                    // elbow was free for a frame; arms scout.)
+                    BendGone.Clear();
+                    foreach (Transform t in Bends.Keys)
+                    {
+                        if (t == null)
+                        {
+                            BendGone.Add(t);
+                        }
+                    }
+                    foreach (Transform t in BendGone)
+                    {
+                        Bends.Remove(t);
+                    }
+                    if (Bends.Count > 48)
+                    {
+                        Bends.Clear(); // (many alive at once, a rare case: as before)
+                    }
                 }
                 Bends[arm] = memory = new BendMemory { Frame = -10 };
             }
