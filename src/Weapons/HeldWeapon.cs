@@ -2112,10 +2112,10 @@ namespace RavenfieldVR.Weapons
                 // With several sight modes the lens shows only in a magnified one: switched to the red dot or the irons, its
                 // dark disc stayed over them for as long as the weapon was held.
                 bool magnified = Rig.Data.Sights == null || Rig.Data.Sights.Length < 2 || Weapon.GetAimFov() < 40f;
-                _scope.SetShown(magnified);
+                _scope?.SetShown(magnified); // (none if its rebuild could not make one)
                 if (magnified)
                 {
-                    _scope.BeforeRender(Aiming);
+                    _scope?.BeforeRender(Aiming);
                 }
             }
             UpdateScopeLenses();
@@ -2132,7 +2132,31 @@ namespace RavenfieldVR.Weapons
         /// on the first sight's eye point and dimmed as the eye sat on the magnifier's line; drawn in red dot, the same magnifier was right (scopes scout, 2026-11-06).
         /// </summary>
         private static VRScope LensFor(VRRig vrRig, WeaponRig rig, int mode) =>
-            HasOwnLine(rig, mode) ? new VRScope(vrRig, rig, rig.Data.Sights[mode]) : new VRScope(vrRig, rig);
+            SafeLens(rig, () => HasOwnLine(rig, mode) ? new VRScope(vrRig, rig, rig.Data.Sights[mode]) : new VRScope(vrRig, rig));
+
+        /// <summary>
+        /// A lens, or none if it cannot be made (its picture's texture refused on a card short of memory at 2048): thrown out of the
+        /// draw, the whole gun lost the mod's handling for the session, not only its lens (optics scout, 2026-11-12). Its iron sights stay.
+        /// </summary>
+        private static VRScope SafeLens(WeaponRig rig, System.Func<VRScope> make)
+        {
+            if (LensFailed.Contains(rig.Data.Key))
+            {
+                return null;
+            }
+            try
+            {
+                return make();
+            }
+            catch (System.Exception e)
+            {
+                LensFailed.Add(rig.Data.Key);
+                Log.WarnOnce("lens-failed:" + rig.Data.Key, $"{rig.Data.Key}: its scope lens could not be made, the gun is used without it: {e.Message}");
+                return null;
+            }
+        }
+
+        private static readonly System.Collections.Generic.HashSet<string> LensFailed = new System.Collections.Generic.HashSet<string>();
 
         private int _modeOptic = -1; // whether the model has an optic for its narrower sight modes (-1: not looked yet)
 
@@ -2171,7 +2195,11 @@ namespace RavenfieldVR.Weapons
                 bool wanted = i == mode && line.Magnified && _modeOptic == 1;
                 if (wanted && _modeScopes[i] == null)
                 {
-                    _modeScopes[i] = new VRScope(_system.Rig, Rig, line);
+                    _modeScopes[i] = SafeLens(Rig, () => new VRScope(_system.Rig, Rig, line));
+                    if (_modeScopes[i] == null)
+                    {
+                        continue;
+                    }
                     Log.InfoOnce($"modelens:{Rig.Data.Key}:{i}", $"{Rig.Data.Key}: the mod's lens drawn for sight mode {i} ({line.Fov:0} degrees), "
                                                                 + $"{(Rig.Data.SightPartPaths.Count > 0 ? "parts move with the mode" : "a magnifier in the model")}.");
                 }
