@@ -6,6 +6,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 - **1.17.12 to 1.17.14 had shared vehicles broken** (the pings' and scores' message cases inside the vehicles' group): fixed in 1.17.15, with an offline test (`tools/tests/net_dispatch_test.py`). Both PCs need 1.17.15.
 - New this morning: the shared scoreboard (kind 39), knock-overs told (Fallen bit), the joined PC's loading until the match is in, a missing map back to the menu; drops keep an open bolt; the magazine pull-back seat; HUD notices queued. Nothing of it run in the game yet.
+- After 1.17.15 (for 1.17.16, Tasks 384.9-384.14, scouts of Steam joining, walking, the transport, shared vehicles, cockpit input and the sandbox): Steam waits time out, a joining hiccup no longer ends the join, Steam calls guarded after shutdown; idle UDP channels let go (junk no longer shuts newcomers out, net test); the host decides two claims on one vehicle, a vehicle gone on its owner's PC told, no kill line for a stand-in; the host places sandbox vehicles in a shared match (unrun); the off-hand walking heading held when steep. Notes in `dist/notes-1.17.16.md`.
 
 ## State 2026-11-11 late night, run PAUSED (1.17.14 INSTALLED on this PC; Tasks 383.19)
 
