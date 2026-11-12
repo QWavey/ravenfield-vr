@@ -1018,7 +1018,7 @@ namespace RavenfieldVR.Net
             int slot = r.Byte();
             Vector3 from = r.Vector(), velocity = r.SmallVector();
             if (!Remotes.TryGetValue(sender << 16, out Remote thrower) || thrower.Actor == null || thrower.Actor.dead || !InMatch
-                || float.IsNaN(velocity.x) || float.IsNaN(from.x) || velocity.sqrMagnitude > (MaxThrowSpeed + 1f) * (MaxThrowSpeed + 1f))
+                || !Finite(velocity) || !Finite(from) || velocity.sqrMagnitude > (MaxThrowSpeed + 1f) * (MaxThrowSpeed + 1f))
             {
                 return;
             }
@@ -1494,6 +1494,19 @@ namespace RavenfieldVR.Net
             Out.SmallVector(info.direction);
             Out.SmallVector(info.impactForce);
             _session.SendTo(victim.Owner, Hit, Out, true);
+        }
+
+        /// <summary>
+        /// A stand-in's side changed, its hitboxes with it: the game sets a hitbox's team once at its start, and a soldier switched
+        /// sides kept his old one, so the shooter's PC judged friendly fire on him by the old side (damage scout, 2026-11-12).
+        /// </summary>
+        private static void SetTeamAndHitboxes(Actor a, int team)
+        {
+            a.SetTeam(team);
+            foreach (Hitbox h in a.GetComponentsInChildren<Hitbox>(true)) // (a side change is rare: looked up then only)
+            {
+                h.team = team;
+            }
         }
 
         private static bool Finite(Vector3 v) =>
@@ -2600,7 +2613,7 @@ namespace RavenfieldVR.Net
                 {
                     if (a.team != r.Team)
                     {
-                        a.SetTeam(r.Team);
+                        SetTeamAndHitboxes(a, r.Team);
                     }
                     a.SpawnAt(r.Position, Quaternion.Euler(0f, r.Yaw, 0f), LoadoutOf(r));
                     r.WeaponChanged = false;
@@ -2654,7 +2667,7 @@ namespace RavenfieldVR.Net
                 {
                     // (Switched side alive, by a map's or mod's script on its owner's PC: taken on at once, not at his next death; this PC's
                     // own soldiers took him for the other side meanwhile. Modded multiplayer hunt, 2026-11-11.)
-                    a.SetTeam(r.Team);
+                    SetTeamAndHitboxes(a, r.Team);
                 }
                 {
                     if (r.WeaponChanged)
