@@ -409,6 +409,13 @@ namespace RavenfieldVR.Tests
             // A client claiming to be another: the host puts the true sender in.
             Check(host.Messages.All(m => m.sender != 0) && b.Messages.Where(m => m.text == "hello all").All(m => m.sender == a.Session.LocalId), "the sender's number is the host's word, not the message's");
 
+            // A hello that does not read, from a player's own address (one byte, the hello's kind only): he stays (he was dropped
+            // before the body failed to read; transport scout, 2026-11-12).
+            byte annaId = a.Session.LocalId;
+            a.Transport.Send(100, new byte[] { 1 }, 1, true);
+            Step(0.5);
+            Check(host.Session.PlayerCount == 4 && !host.Log.Contains("left " + annaId), "a broken hello from a player's address does not drop him");
+
             // Unreliable states on the lossy line: most arrive, none twice is not promised (the game takes the newest).
             for (int i = 0; i < 200; i++)
             {
@@ -564,6 +571,45 @@ namespace RavenfieldVR.Tests
                 client.Session.Leave();
                 Pump(1, () => host.Session.PlayerCount == 1);
                 Check(host.Session.PlayerCount == 1, "the host hears the client leave over UDP");
+            }
+            // Junk from 70 addresses (a first byte that is no piece): a newcomer still gets in. Each made a reliable channel for good,
+            // and from the 64th on nobody could join (transport scout, 2026-11-12).
+            using (var hostT = new UdpTransport(0))
+            using (var clientT = new UdpTransport(0))
+            {
+                ulong hostPeer = UdpTransport.PeerOf(new IPEndPoint(IPAddress.Loopback, hostT.Port));
+                Seat host = Sit(NetSession.Host(hostT, Info("Host")), hostT);
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var junk = new List<System.Net.Sockets.UdpClient>();
+                try
+                {
+                    for (int i = 0; i < 70; i++)
+                    {
+                        var u = new System.Net.Sockets.UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+                        junk.Add(u);
+                        u.Send(new byte[] { 7, 7, 7, 7, 7 }, 5, new IPEndPoint(IPAddress.Loopback, hostT.Port));
+                    }
+                    for (int i = 0; i < 50; i++)
+                    {
+                        host.Session.Update(clock.Elapsed.TotalSeconds);
+                        System.Threading.Thread.Sleep(1);
+                    }
+                    Seat client = Sit(NetSession.Join(clientT, hostPeer, Info("Late")), clientT);
+                    for (double end = clock.Elapsed.TotalSeconds + 3; clock.Elapsed.TotalSeconds < end && client.Session.State != NetState.Connected;)
+                    {
+                        host.Session.Update(clock.Elapsed.TotalSeconds);
+                        client.Session.Update(clock.Elapsed.TotalSeconds);
+                        System.Threading.Thread.Sleep(1);
+                    }
+                    Check(client.Session.State == NetState.Connected, $"junk from 70 addresses does not shut a newcomer out ({client.Session.State})");
+                }
+                finally
+                {
+                    foreach (var u in junk)
+                    {
+                        u.Close();
+                    }
+                }
             }
         }
     }
