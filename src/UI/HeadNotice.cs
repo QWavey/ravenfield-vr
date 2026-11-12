@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -42,6 +43,18 @@ namespace RavenfieldVR.UI
         /// <summary>Shows <paramref name="message"/> (wrapped to short lines) for <paramref name="seconds"/>.</summary>
         public void Show(string message, float seconds)
         {
+            // A shorter message while a longer one still has more than a second and a half to show: after it, not over it (the start's
+            // warnings went after two seconds under a seat's "That seat is taken"; HUD scout, 2026-11-12). Three wait at most.
+            float left = _until - Time.unscaledTime;
+            if (_until >= 0f && left > 1.5f && seconds < left && message != _shown)
+            {
+                if (_queue.Count < 3 && !_queue.Exists(q => q.Key == message))
+                {
+                    _queue.Add(new KeyValuePair<string, float>(message, seconds));
+                }
+                return;
+            }
+            _shown = message;
             _text.text = "Ravenfield VR\n" + Wrap(message, 48);
             _until = Time.unscaledTime + seconds;
             _refitFrames = 2; // (laid out only once drawn: fitted this frame and the next)
@@ -57,6 +70,14 @@ namespace RavenfieldVR.UI
             if (Time.unscaledTime > _until || head == null)
             {
                 _until = -1f;
+                _shown = null;
+                if (_queue.Count > 0 && head != null)
+                {
+                    KeyValuePair<string, float> next = _queue[0];
+                    _queue.RemoveAt(0);
+                    Show(next.Key, next.Value);
+                    return;
+                }
                 _go.SetActive(false);
                 return;
             }
@@ -70,6 +91,10 @@ namespace RavenfieldVR.UI
                 _plate.Fit();
             }
         }
+
+        private readonly System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, float>> _queue =
+            new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, float>>();
+        private string _shown;
 
         public void Destroy()
         {

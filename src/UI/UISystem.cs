@@ -345,10 +345,11 @@ namespace RavenfieldVR.UI
 
         public void BeforeRender()
         {
+            // (The notice first: a step below that threw each frame left it up for good, never timed out; HUD scout, 2026-11-12.)
+            Notice?.BeforeRender(_rig.Head);
             Canvases.BeforeRender();
             Settings.BeforeRender();
             _sights.BeforeRender(_rig.Head);
-            Notice?.BeforeRender(_rig.Head);
             ModKeys.BeforeRender();
             SandboxPanel.BeforeRender();
             MultiplayerPanel.BeforeRender();
