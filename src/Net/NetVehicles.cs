@@ -849,6 +849,44 @@ namespace RavenfieldVR.Net
                         remote.SeatVehicle = seat == 255 ? (ushort)0 : vehicle;
                         remote.SeatIndex = seat == 255 ? 0 : seat;
                     }
+                    // Two players sitting down in one seat at the same moment, each on his own PC before the other's word came: both
+                    // stayed, each seated on his own PC (vehicle scout, 2026-11-12). The host decides: a player's claim on a seat another
+                    // player already has in the host's game is refused, and that PC puts its player out.
+                    if (session.IsHost && actor == 0 && seat != 255 && ById.TryGetValue(vehicle, out Shared claimed) && claimed.V != null
+                        && seat < claimed.V.seats.Count)
+                    {
+                        Actor occupant = claimed.V.seats[seat].occupant;
+                        Actor claimant = remote != null ? remote.Actor : null;
+                        bool otherPlayer = occupant != null && occupant != claimant
+                                           && (occupant == LocalPlayer.actor || NetGame.RemoteOfActor(occupant)?.Id == 0);
+                        if (otherPlayer)
+                        {
+                            Out.Reset();
+                            Out.UShort(vehicle);
+                            Out.Byte((byte)seat);
+                            session.SendTo(sender, NetGame.VehicleSeatRefused, Out, true);
+                        }
+                    }
+                    break;
+                }
+                case NetGame.VehicleSeatRefused:
+                {
+                    ushort vehicle = r.UShort();
+                    int seat = r.Byte();
+                    Actor me = LocalPlayer.actor;
+                    if (sender == 0 && me != null && me.seat != null && ById.TryGetValue(vehicle, out Shared refused) && refused.V != null
+                        && me.seat.vehicle == refused.V && seat < refused.V.seats.Count && refused.V.seats[seat] == me.seat)
+                    {
+                        try
+                        {
+                            me.LeaveSeat(false);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.WarnOnce("net-seat-refused", "Multiplayer: getting out of a seat the host refused threw: " + e.Message);
+                        }
+                        UI.UISystem.Instance?.Notice?.Show("That seat was just taken by another player.", 2.5f);
+                    }
                     break;
                 }
                 case NetGame.VehicleHit:
