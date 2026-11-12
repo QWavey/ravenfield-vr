@@ -120,7 +120,7 @@ namespace RavenfieldVR.Weapons
         private Actor _carriedActor;
         private int _carriedFrame = -1;
         private readonly Rigidbody[] _anchors = new Rigidbody[2];
-        private static readonly Collider[] Near = new Collider[48];
+        private static readonly Collider[] Near = new Collider[128]; // (48 filled in a crowd, the nearest soldier left out; grab scout)
 
         private sealed class Hold
         {
@@ -835,7 +835,7 @@ namespace RavenfieldVR.Weapons
                 // under a grip with nothing in it, and could not get up while it lasted).
                 _holds[i] = null;
                 ResumeAi(a);
-                Attach(i, hand, a, hand.PalmCentre);
+                AttachOrLetGo(i, hand, a);
                 if (_holds[i] == null)
                 {
                     Release(i, hand, thrown: false); // (no bone to hold: the hand stayed on him for good, with no hold to end it; soldier scout)
@@ -862,11 +862,28 @@ namespace RavenfieldVR.Weapons
             _holds[i] = null;
             if (a.ragdoll != null && a.ragdoll.IsRagdoll())
             {
-                Attach(i, hand, a, hand.PalmCentre);
+                AttachOrLetGo(i, hand, a);
             }
             if (_holds[i] == null)
             {
                 Release(i, hand, thrown: false); // (the hand free again)
+            }
+        }
+
+        /// <summary>
+        /// The neck hold become a body's: thrown, the hand kept its hold role with no hold, and could neither grab nor punch until a
+        /// weapon was drawn (grab scout, 2026-11-12). The hold's end below lets it go.
+        /// </summary>
+        private void AttachOrLetGo(int i, VRHand hand, Actor a)
+        {
+            try
+            {
+                Attach(i, hand, a, hand.PalmCentre);
+            }
+            catch (System.Exception e)
+            {
+                Log.WarnOnce("bodygrab-neck-attach", "Body grab: the neck hold could not become a body hold: " + e.Message);
+                _holds[i] = null;
             }
         }
 
