@@ -199,7 +199,12 @@ namespace RavenfieldVR.Sandbox
             }
             _wavePatched = true;
             Patcher.Patch(AccessTools.Method(typeof(GameModeBase), nameof(GameModeBase.SpawnActorListDeferred)), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldWave)));
+            // A map's own squads (a trigger spawning them, also again on its timer) do not come through the wave: on a quiet
+            // battlefield they appeared all the same (sandbox scout, 2026-11-12).
+            Patcher.Patch(AccessTools.Method(typeof(Ravenfield.Trigger.TriggerSpawnSquad), "SpawnAll"), prefix: new HarmonyMethod(typeof(Sandbox), nameof(HoldSquad)));
         }
+
+        private static bool HoldSquad() => !Quiet;
 
         /// <summary>The battlefield made quiet (its soldiers taken off, none coming) or given back to the match (the next wave brings them).</summary>
         /// <summary>In a shared match this PC is not the host's: the field and its soldiers are his to change.</summary>
