@@ -27,6 +27,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private const float HoldToEnter = 0.45f;
         private readonly float[] _holdSince = { -1f, -1f };
+        private readonly float[] _seenAt = new float[2]; // when each hand last had a vehicle in reach (unscaled)
 
         public VehicleTouchEnter(VRRig rig)
         {
@@ -53,10 +54,18 @@ namespace RavenfieldVR.Rig
                 Seat seat = NearestFreeSeatInReach(hand.Palm.position, actor, out Vehicle vehicle);
                 if (seat == null)
                 {
+                    // A frame or two off the 10 cm reach (the hand on a moving door, tracking's tremor) keeps the hold: one frame out
+                    // reset it, the squeeze had to be made again and the tick of finding the vehicle sounded again (vehicle entry
+                    // scout, 2026-11-12). Its seat is found again on the way back; out for longer, it ends.
+                    if (_touching[i] != null && Time.unscaledTime - _seenAt[i] < 0.15f)
+                    {
+                        continue;
+                    }
                     _touching[i] = null;
                     _holdSince[i] = -1f;
                     continue;
                 }
+                _seenAt[i] = Time.unscaledTime;
                 if (_touching[i] != vehicle)
                 {
                     _touching[i] = vehicle;
