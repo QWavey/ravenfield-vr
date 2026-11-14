@@ -74,6 +74,7 @@ namespace RavenfieldVR.Rig
         private float _throttleAtGrab, _throttleZ0, _throttleShown;
         private const float ThrottleThrow = 0.12f; // metres of hand travel from cruise to full
         private float _throttleClickAt;
+        private Vector2 _stickTrimAtGrab;
 
         private static float StickThrottle() => Mathf.Clamp(Input.VRGameInput.MoveStick.y, -1f, 1f);
         private Vector3 _stickStartLocal;
@@ -94,11 +95,13 @@ namespace RavenfieldVR.Rig
                 // (Also when the seat was destroyed under him: a destroyed seat equals null, so "another seat" never fired and the
                 // lever's setting waited for the next plane; review, 2026-11-12.)
                 VehicleInput.Throttle = null;
+                VehicleInput.Trim = null;
             }
             if (seat != _seat)
             {
                 ReleaseAll();
                 VehicleInput.Throttle = null; // (another seat: the last plane's lever is not this one's)
+                VehicleInput.Trim = null;
                 _seat = seat;
                 _palmSeat = null; // back in the same seat, its pair was the last ride's (a stale grab offset the stick until let go)
                 FindControls();
@@ -266,6 +269,8 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = palm;
+                    _stickTrimAtGrab = VehicleInput.Trim ?? Vector2.zero; // (taken again from where it was let go: no jump to the middle)
+                    VehicleInput.Trim = null;
                     _stickStartTurn = PalmTurnInSeat(hand);
                     _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
@@ -362,6 +367,10 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = null;
                     hand.Role = HandRole.Free;
+                    // A plane's stick let go holds where it was (the trim), a small throw excepted (the hand's own drift as it opens).
+                    Vector2? last = VehicleInput.FlightStick;
+                    VehicleInput.Trim = VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && last.HasValue
+                                        && last.Value.sqrMagnitude > 0.08f * 0.08f ? last : null;
                     VehicleInput.FlightStick = null;
                 }
                 else
@@ -379,7 +388,8 @@ namespace RavenfieldVR.Rig
                                           Mathf.Abs(tilt01.y) > Mathf.Abs(throw01.y) ? tilt01.y : throw01.y);
                     // A small centre zone (6 mm), rescaled so the input still starts from nothing: the hand's own tremor
                     // (2-3 mm) was a steady 2-4% of stick and the aircraft drifted.
-                    VehicleInput.FlightStick = Input.VRGameInput.ApplyDeadzoneSquare(throw01, StickDeadzone);
+                    Vector2 moved = Input.VRGameInput.ApplyDeadzoneSquare(throw01, StickDeadzone);
+                    VehicleInput.FlightStick = new Vector2(Mathf.Clamp(_stickTrimAtGrab.x + moved.x, -1f, 1f), Mathf.Clamp(_stickTrimAtGrab.y + moved.y, -1f, 1f));
                 }
             }
         }

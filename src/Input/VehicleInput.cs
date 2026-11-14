@@ -25,6 +25,13 @@ namespace RavenfieldVR.Input
         /// </summary>
         public static float? Throttle;
 
+        /// <summary>
+        /// A plane's stick as the hand let go of it: held there, as a trimmed stick holds the attitude it was flying, not sprung back
+        /// to the middle (the invention of 2026-11-14: the release sets the trim; VTOL VR's players name the stick that does not stay
+        /// as its pitfall). A push of the thumbstick takes the stick back from it; a new seat clears it. Null: none.
+        /// </summary>
+        public static Vector2? Trim;
+
         public static bool BlocksTurning(VehicleKind kind) =>
             kind == VehicleKind.Helicopter || kind == VehicleKind.Airplane;
 
@@ -54,7 +61,11 @@ namespace RavenfieldVR.Input
             // (The game reads AirplaneInput for a helicopter's cockpit stick too: there it is the helicopter's own, linear, or the stick
             // drawn showed a quarter of the throw the helicopter was given; scout.)
             bool plane = GameContext.SeatKind == VehicleKind.Airplane;
-            Vector2 stick = FlightStick ?? (plane ? new Vector2(Expo(right.x), Expo(right.y)) : right);
+            if (Trim.HasValue && (!plane || right.sqrMagnitude > 0.3f * 0.3f))
+            {
+                Trim = null; // (the thumbstick pushed, or not a plane: the trim is let go)
+            }
+            Vector2 stick = FlightStick ?? Trim ?? (plane ? new Vector2(Expo(right.x), Expo(right.y)) : right);
             float throttle = left.y;
             if (Throttle.HasValue)
             {
