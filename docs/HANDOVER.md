@@ -2,7 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-14 late night (1.18.0 in code; Tasks 395-396; work-until-limit 85)
+## State 2026-11-14 late night (**1.18.0 INSTALLED** 21:46, Defender clean; Tasks 395-397; paused at the user's word)
+
+- Packages in `dist/`: `RavenfieldVR-Setup-1.18.0.exe`, `RavenfieldVR-1.18.0.zip`, `RavenfieldMultiplayer-1.18.0.zip` (flat, VR off), notes `dist/notes-1.18.0.md`. **Both PCs need 1.18.0.**
+- Checks at the end: `--splitcheck` 0 problems (every extra player in first person), `--autotest --fast` 8 problems (the 7 known + one smoothness jump), `--netcheck`/`--lobbycheck` 0. The autotest now measures the mod's gloves whatever `Hands` is saved (the user's `WeaponArms` made every grip read 0/4).
+- Open: R870 pump glove 1/4 pulled (386.5), asval o (385.22), CZ Bren 2 mode-0 camera; real controllers, two physical keyboards and mice, splitscreen beside VR: for the user to try.
 
 - **Local play** (plan `docs/Plan-Local-Multiplayer.md`): Multiplayer asks Local (LAN with discovery, Splitscreen) or Online (Steam, IP), in the headset panel and the F8 window. Splitscreen in `src/Local/` (`SplitPlayers`, `XInput`, `RawInput`, `FlatPlayerInput`): extra players are AI soldiers driven through the AI's answers, cameras in parts of the window, the game's HUD in player 1's part, vehicles (RB/E), off on a joined PC. Steam status: `Net/SteamStatus.cs`. LAN: `Net/LanDiscovery.cs` (UDP 7134). Flat edition zip from `build.ps1 -Package`.
 - Checks: `vrshots --splitcheck` (Steam status sent, LAN heard, 4 and 2 players walk, turn, fire, reload, pictures; 0 problems at 20:35), `--dashcheck`, `--netcheck --fast`, `--lobbycheck`.
