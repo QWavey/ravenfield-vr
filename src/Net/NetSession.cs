@@ -98,6 +98,9 @@ namespace RavenfieldVR.Net
         public event Action<NetPlayer> Joined, Left;
         public event Action Connected;
         public event Action<string> Closed;
+
+        /// <summary>The host turned someone away at the door: who, and why (as the newcomer was told).</summary>
+        public event Action<NetPlayerInfo, string> Refused;
         public event NetMessageHandler Message;
 
 #pragma warning disable 0649 // (set by the offline tests alone so far, from outside this assembly)
@@ -302,6 +305,7 @@ namespace RavenfieldVR.Net
                     : Admit?.Invoke(info, from);
                 if (refuse != null)
                 {
+                    Refused?.Invoke(info, refuse); // (said on the host's side too: he only saw nobody come)
                     _out.Reset();
                     _out.Byte(Reject);
                     _out.String(refuse, 256);

@@ -113,6 +113,12 @@ namespace RavenfieldVR.Net
                 Say($"{p.Info.Name} joined{(p.Info.Vr ? " (VR)" : "")}.");
                 _nextDescribe = 0f;
             };
+            session.Refused += (info, why) =>
+            {
+                string who = info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : "A player";
+                Say($"{who} could not join: {why}.");
+                UI.UISystem.Instance?.Notice?.Show($"{who} could not join: {why}.", 8f);
+            };
             session.Left += p =>
             {
                 Say($"{p.Info.Name} left.");

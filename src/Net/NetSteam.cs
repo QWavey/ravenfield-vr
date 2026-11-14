@@ -198,6 +198,9 @@ namespace RavenfieldVR.Net
         /// <summary>Why this player cannot join it (null: he can).</summary>
         public string Mismatch(int gameBuild) =>
             Protocol != NetSession.ProtocolVersion ? $"another version of the mod ({ModVersion})"
+            // (The mod's own version too: the host refuses another one at the door, the list showed it joinable; the user, 2026-11-14:
+            // "if one pc has a older version it needs to tell the player it".)
+            : !string.IsNullOrEmpty(ModVersion) && ModVersion != PluginInfo.Version ? $"Ravenfield VR {ModVersion} there, {PluginInfo.Version} here: both need the same version"
             : GameBuild != gameBuild ? $"another build of the game ({GameBuild})"
             : Players >= MaxPlayers ? "full" : null;
     }

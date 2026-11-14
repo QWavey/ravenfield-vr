@@ -2819,6 +2819,12 @@ array (debug option only).
    (not thrown), Grip to hold off with a second weapon (kept, put back at its holster), the sandbox closed during a game test
    (SteamVR back on the user's settings).
 
+### 385. Improve, optimize, new things; five inventions (user, 2026-11-14: "Improve, optimize, make better and maybe even introduce new stuff", work-until-limit 75, /invent 5; focus multiplayer, vehicles, new features; the wire format may change, "we always update both PCs to the newest version. if one pc has a older version it needs to tell the player it")
+
+The inventions (each with its idea engine): (1) **trim-hold flight stick**: a plane's grabbed stick let go holds the attitude it had (the release sets the trim), grabbed again it blends back in (contradiction: a real stick needs a hand on it, a VR player lets go); (2) **point-to-spot shared marks**: the index finger pointed and a click puts a mark with its distance on both PCs (military hand signals x a ping system; a small new message); (3) **a magazine handed to the friend**: let go at his hand (known here from his pose) and his PC gets its rounds (assumption inversion: ammo from the partner, not the pouch); (4) **a brace grip in vehicles**: a passenger's free hand on the frame steadies his gun (real gunnery's bracing); (5) **engine-voiced rumble**: the engine hum follows the engine sound's own pitch (audio x haptics).
+
+- [x] 385.1 A version mismatch said on both sides: the Steam list marks a lobby of another mod version (it compared the protocol only and showed it joinable), and the host is told who could not join and why (`NetSession.Refused`; he only saw nobody come).
+
 ### 384. Improvements and bug hunts, the mod in general and multiplayer (user, 2026-11-12 morning: "lets continue to make improvements bug hunts etc, focus on the mdo in general but also on multiplayer"; work-until-limit 85)
 
 The game closed (not started from here). Code, offline tests, read-only Haiku scouts (each finding read in the code first), builds.
