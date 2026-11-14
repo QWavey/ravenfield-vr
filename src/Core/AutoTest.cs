@@ -404,6 +404,197 @@ namespace RavenfieldVR.Core
             }
         }
 
+        /// <summary>
+        /// The other players' soldiers as this game shows them, told against done (a line each): walking in place, aiming elsewhere
+        /// (the user, 2026-11-14: "moonwalking on the same position when standing still and are not aiming in the correct position").
+        /// </summary>
+        internal static List<string> StandInLines()
+        {
+            var lines = new List<string>();
+            foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
+            {
+                Actor sa = r.Actor;
+                if (sa == null || r.Id != 0 || sa.dead)
+                {
+                    continue;
+                }
+                Vector3 body = sa.transform.forward, told = r.Facing;
+                Transform muzzle = null;
+                try
+                {
+                    muzzle = sa.activeWeapon != null ? sa.activeWeapon.CurrentMuzzle() : null;
+                }
+                catch (Exception)
+                {
+                }
+                Vector3 gun = muzzle != null ? muzzle.forward : body; // (the barrel's way: the model's forward is not the barrel)
+                bool anim = sa.animator != null && sa.animator.GetBool(Actor.ANIM_PAR_MOVING);
+                float bodyOff = Vector3.Angle(Vector3.ProjectOnPlane(body, Vector3.up), Vector3.ProjectOnPlane(told, Vector3.up));
+                float gunOff = Vector3.Angle(gun, told);
+                lines.Add($"stand-in of {r.Name} {DateTime.Now:HH:mm:ss.f}: told speed {new Vector3(r.Velocity.x, 0f, r.Velocity.z).magnitude:0.0}, moving {(r.Moving ? "yes" : "no")}, walk animation {(anim ? "ON" : "off")}, own speed {Vector3.ProjectOnPlane(sa.Velocity(), Vector3.up).magnitude:0.0}; "
+                          + $"told aim yaw {Mathf.Atan2(told.x, told.z) * Mathf.Rad2Deg:0} pitch {Mathf.Asin(Mathf.Clamp(told.y, -1f, 1f)) * Mathf.Rad2Deg:0}, body {bodyOff:0} deg off it, gun {gunOff:0} deg off it"
+                          + $", team {r.Team}" + (r.Pose != null ? ", VR pose told" : ""));
+            }
+            return lines;
+        }
+
+        /// <summary>-rfvr-joinflatcheck (VR): a flat game started on this PC hosts a LAN game, this VR game joins it, plays, and both sides' views of the other player are reported.</summary>
+        private static readonly bool JoinFlatCheck = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-joinflatcheck", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>-rfvr-lanhostonly (flat, started by the join check): hosts a LAN game, reports the joined player's soldier into its log, closes when he leaves.</summary>
+        private static readonly bool LanHostOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-lanhostonly", StringComparison.OrdinalIgnoreCase));
+
+        private static string LanHostLog => System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, "RavenfieldVR-lanhost.log");
+
+        private static void LanHostNote(string line)
+        {
+            Log.Info("[lan host] " + line);
+            try
+            {
+                System.IO.File.AppendAllText(LanHostLog, $"{DateTime.Now:HH:mm:ss} {line}{Environment.NewLine}");
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static IEnumerator LanHostRun()
+        {
+            PlayerCanBeHurt = true;
+            Net.Multiplayer.HostLan(Local.SplitGames.GamePort, 8);
+            LanHostNote($"flat game hosting on port {Local.SplitGames.GamePort}: {(Net.Multiplayer.LanHosting ? "yes" : "NOT HOSTING")}");
+            bool joined = false;
+            for (float until = Time.realtimeSinceStartup + 200f; Time.realtimeSinceStartup < until;)
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+                int remotes = Net.NetGame.RemoteCount;
+                if (remotes > 0 && !joined)
+                {
+                    joined = true;
+                    LanHostNote("a player joined");
+                }
+                if (joined)
+                {
+                    foreach (string line in StandInLines())
+                    {
+                        LanHostNote(line);
+                    }
+                }
+                if (joined && !Net.Multiplayer.Active)
+                {
+                    break;
+                }
+                if (System.IO.File.Exists(LanHostLog + ".stop"))
+                {
+                    break;
+                }
+            }
+            LanHostNote("flat host done");
+            Application.Quit();
+        }
+
+        private static IEnumerator JoinFlatRun(Action<string> report)
+        {
+            string hostLog = LanHostLog;
+            try
+            {
+                System.IO.File.Delete(hostLog);
+                System.IO.File.Delete(hostLog + ".stop");
+            }
+            catch (Exception)
+            {
+            }
+            // The flat game: the same game and mod, VR off, a LAN host on this map.
+            string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+            string map = Environment.GetCommandLineArgs().SkipWhile(a => a != "-map").Skip(1).FirstOrDefault()
+                         ?? Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("-map ", StringComparison.Ordinal))?.Substring(5) ?? "island2023";
+            var start = new System.Diagnostics.ProcessStartInfo(exe, $"-novr -nointro -map {map} -screen-fullscreen 0 -screen-width 960 -screen-height 540 -rfvr-autotest -rfvr-lanhostonly -rfvr-mods=none")
+            { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe) };
+            foreach (string key in start.EnvironmentVariables.Keys.Cast<string>().ToList())
+            {
+                if (key.StartsWith("DOORSTOP", StringComparison.OrdinalIgnoreCase))
+                {
+                    start.EnvironmentVariables.Remove(key);
+                }
+            }
+            System.Diagnostics.Process host = System.Diagnostics.Process.Start(start);
+            report("vr-flat: the flat host game started");
+            string text = "";
+            for (float until = Time.realtimeSinceStartup + 120f; Time.realtimeSinceStartup < until && !text.Contains("flat game hosting");)
+            {
+                yield return new WaitForSecondsRealtime(1f);
+                try
+                {
+                    text = System.IO.File.Exists(hostLog) ? System.IO.File.ReadAllText(hostLog) : "";
+                }
+                catch (Exception)
+                {
+                }
+            }
+            if (!text.Contains("flat game hosting: yes"))
+            {
+                report("vr-flat: the flat game DID NOT HOST in 120 s");
+                yield break;
+            }
+            Net.Multiplayer.JoinAddress("127.0.0.1:" + Local.SplitGames.GamePort);
+            report("vr-flat: this VR game joins the flat host");
+            for (float until = Time.realtimeSinceStartup + 60f; Time.realtimeSinceStartup < until && !(Net.Multiplayer.Active && Net.NetGame.RemoteCount > 0 && LocalPlayer.actor != null);)
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            report($"vr-flat: joined {(Net.Multiplayer.Active ? "yes" : "NO")}, other players seen {Net.NetGame.RemoteCount}");
+            yield return new WaitForSecondsRealtime(5f);
+            if (LocalPlayer.actor != null && LocalPlayer.actor.dead)
+            {
+                yield return Deploy();
+            }
+            report($"vr-flat: this VR player {(LocalPlayer.actor != null && !LocalPlayer.actor.dead ? "on the field" : "NOT ON THE FIELD")}");
+            // Stand 4 s, walk 3 s, stand 4 s: the flat host logs this VR player's soldier meanwhile.
+            report("vr-flat: standing");
+            for (float t = 0f; t < 4f; t += 0.5f)
+            {
+                foreach (string line in StandInLines())
+                {
+                    report("vr-flat (this VR game sees the flat host): " + line);
+                }
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            report("vr-flat: walking");
+            Input.VRInput.SimulatedMove = new Vector2(0f, 1f);
+            yield return new WaitForSecondsRealtime(3f);
+            Input.VRInput.SimulatedMove = Vector2.zero;
+            report("vr-flat: standing again");
+            yield return new WaitForSecondsRealtime(4f);
+            Net.Multiplayer.Leave();
+            yield return new WaitForSecondsRealtime(3f);
+            try
+            {
+                System.IO.File.WriteAllText(hostLog + ".stop", "");
+                text = System.IO.File.Exists(hostLog) ? System.IO.File.ReadAllText(hostLog) : "";
+            }
+            catch (Exception)
+            {
+            }
+            foreach (string line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
+            {
+                report("vr-flat (the flat host sees this VR player): " + line);
+            }
+            try
+            {
+                if (!host.HasExited)
+                {
+                    host.WaitForExit(8000);
+                }
+                if (!host.HasExited)
+                {
+                    host.Kill();
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         private static IEnumerator Run()
         {
             Application.runInBackground = true;
@@ -482,6 +673,28 @@ namespace RavenfieldVR.Core
                     Application.Quit();
                     yield break;
                 }
+                if (LanHostOnly)
+                {
+                    _context = "flat LAN host";
+                    yield return LanHostRun();
+                    yield break;
+                }
+                if (JoinFlatCheck)
+                {
+                    _context = "VR joins a flat host";
+                    yield return JoinFlatRun(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[vr-flat] " + l);
+                        }
+                        Log.Info("[vr-flat check] " + l);
+                        Results.Add(l);
+                    });
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (SplitGamesCheck)
                 {
                     _context = "splitscreen copies check";
@@ -505,28 +718,8 @@ namespace RavenfieldVR.Core
                     {
                         yield return new WaitForSecondsRealtime(0.5f);
                         // Player 2's soldier as this game shows it: told against done (walking in place, aiming elsewhere: the user, 2026-11-14).
-                        foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
+                        foreach (string line in StandInLines())
                         {
-                            Actor sa = r.Actor;
-                            if (sa == null || r.Id != 0 || sa.dead)
-                            {
-                                continue;
-                            }
-                            Vector3 body = sa.transform.forward, told = r.Facing;
-                            Transform muzzle = null;
-                            try
-                            {
-                                muzzle = sa.activeWeapon != null ? sa.activeWeapon.CurrentMuzzle() : null;
-                            }
-                            catch (Exception)
-                            {
-                            }
-                            Vector3 gun = muzzle != null ? muzzle.forward : body; // (the barrel's way: the model's forward is not the barrel)
-                            bool anim = sa.animator != null && sa.animator.GetBool(Actor.ANIM_PAR_MOVING);
-                            float bodyOff = Vector3.Angle(Vector3.ProjectOnPlane(body, Vector3.up), Vector3.ProjectOnPlane(told, Vector3.up));
-                            float gunOff = Vector3.Angle(gun, told);
-                            string line = $"stand-in {DateTime.Now:HH:mm:ss.f}: told speed {new Vector3(r.Velocity.x, 0f, r.Velocity.z).magnitude:0.0}, moving {(r.Moving ? "yes" : "no")}, walk animation {(anim ? "ON" : "off")}, own speed {Vector3.ProjectOnPlane(sa.Velocity(), Vector3.up).magnitude:0.0}; "
-                                          + $"told aim yaw {Mathf.Atan2(told.x, told.z) * Mathf.Rad2Deg:0} pitch {Mathf.Asin(Mathf.Clamp(told.y, -1f, 1f)) * Mathf.Rad2Deg:0}, body {bodyOff:0} deg off it, gun {gunOff:0} deg off it";
                             Results.Add("copies: " + line);
                             Log.Info("[copies check] " + line);
                         }
