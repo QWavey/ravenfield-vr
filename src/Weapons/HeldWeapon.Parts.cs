@@ -90,6 +90,10 @@ namespace RavenfieldVR.Weapons
                 bool hide = !Ammo.MagInserted;
                 if (hide)
                 {
+                    if (!_magHidden)
+                    {
+                        CutSkinnedMagazine(true); // (before the bones fold: the cut is found with the magazine where it sits)
+                    }
                     Vector3 tiny = Vector3.one * 1e-4f;
                     foreach (Transform part in Rig.MagazineParts)
                     {
@@ -620,8 +624,185 @@ namespace RavenfieldVR.Weapons
             _boltTurned = turned;
         }
 
+        /// <summary>The gun's skinned meshes and the copies of them without the magazine, while the magazine is out.</summary>
+        private readonly List<(SkinnedMeshRenderer smr, Mesh whole, Mesh cut)> _magCuts = new List<(SkinnedMeshRenderer, Mesh, Mesh)>();
+        private bool _magCutsFound;
+
+        /// <summary>Each magazine-out copy of a gun mesh to the gun's own: a magazine copied from the gun takes its triangles there.</summary>
+        private static readonly Dictionary<Mesh, Mesh> WholeOfCut = new Dictionary<Mesh, Mesh>();
+
+        /// <summary>The gun's own mesh for one swapped for a magazine-out copy (<see cref="CutSkinnedMagazine"/>), else the mesh itself.</summary>
+        internal static Mesh WholeMesh(Mesh m) => m != null && WholeOfCut.TryGetValue(m, out Mesh whole) && whole != null ? whole : m;
+
+        /// <summary>
+        /// A skinned magazine is hidden by folding its bones to nothing, and on the ARS guns (MP9, HK416, Glock 19) that left a
+        /// magazine drawn in the gun: part of it is weighted to the gun's body bone ('Body 1': 1581 vertices in the seated
+        /// magazine's place with it out, the deep check), and vertices weighted partly to a folded bone were pulled half way
+        /// into a misshapen block. The user's ARS MP9 (2026-11-14): "the mag will go out but its not the same mag its a thick mag
+        /// that becomes visible and invisible again". While it is out the gun's mesh is swapped for a copy without the
+        /// triangles that touch a magazine bone or lie wholly in the seated magazine's box (the box as measured, not grown: the
+        /// grip's walls round a magazine in the grip stay). Found once per hold, with the magazine seated.
+        /// </summary>
+        private void CutSkinnedMagazine(bool cut)
+        {
+            if (!cut)
+            {
+                foreach ((SkinnedMeshRenderer smr, Mesh whole, Mesh _) in _magCuts)
+                {
+                    if (smr != null && whole != null)
+                    {
+                        smr.sharedMesh = whole;
+                    }
+                }
+                return;
+            }
+            if (!Rig.Data.MagazineIsSkinned || Rig.GunBody == null || Weapon == null)
+            {
+                return;
+            }
+            if (!_magCutsFound)
+            {
+                _magCutsFound = true;
+                try
+                {
+                    FindMagazineCuts();
+                }
+                catch (System.Exception e)
+                {
+                    Log.WarnOnce("magcut:" + Rig.Data.Key, $"{Rig.Data.Key}: the skinned magazine could not be cut out of the gun's mesh: {e.Message}");
+                }
+            }
+            foreach ((SkinnedMeshRenderer smr, Mesh _, Mesh cutMesh) in _magCuts)
+            {
+                if (smr != null && cutMesh != null)
+                {
+                    smr.sharedMesh = cutMesh;
+                }
+            }
+        }
+
+        private void FindMagazineCuts()
+        {
+            var magBones = new HashSet<Transform>();
+            foreach (Transform part in Rig.MagazineParts)
+            {
+                if (part != null)
+                {
+                    foreach (Transform t in part.GetComponentsInChildren<Transform>(true))
+                    {
+                        magBones.Add(t);
+                    }
+                }
+            }
+            RigidPose seat = Rig.GunBodyPose.Multiply(Rig.Data.MagSeat);
+            Bounds box = Rig.Data.MagBounds;
+            box.Expand(-0.002f); // (a wall touching the magazine's face stays)
+            var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+            int removed = 0;
+            foreach (SkinnedMeshRenderer smr in Weapon.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                Mesh shared = smr.sharedMesh;
+                if (arms.Contains(smr) || shared == null || !shared.isReadable || smr.bones == null)
+                {
+                    continue;
+                }
+                Transform[] bones = smr.bones;
+                var isMag = new bool[bones.Length];
+                bool anyMag = false;
+                for (int b = 0; b < bones.Length; b++)
+                {
+                    isMag[b] = bones[b] != null && magBones.Contains(bones[b]);
+                    anyMag |= isMag[b];
+                }
+                if (!anyMag)
+                {
+                    continue; // (not this mesh's magazine)
+                }
+                BoneWeight[] w = shared.boneWeights;
+                var baked = new Mesh();
+                Vector3[] v;
+                try
+                {
+                    smr.BakeMesh(baked);
+                    v = baked.vertices;
+                }
+                finally
+                {
+                    Object.Destroy(baked);
+                }
+                if (v.Length != shared.vertexCount || w.Length != v.Length)
+                {
+                    continue;
+                }
+                var drop = new bool[v.Length];
+                var inBox = new bool[v.Length];
+                Vector3 at = smr.transform.position;
+                Quaternion rot = smr.transform.rotation;
+                for (int i = 0; i < v.Length; i++)
+                {
+                    BoneWeight bw = w[i];
+                    drop[i] = Touches(isMag, bw.boneIndex0, bw.weight0) || Touches(isMag, bw.boneIndex1, bw.weight1)
+                              || Touches(isMag, bw.boneIndex2, bw.weight2) || Touches(isMag, bw.boneIndex3, bw.weight3);
+                    inBox[i] = Runtime.BoundsMath.Contains(box, seat.InverseTransformPoint(at + rot * v[i]));
+                }
+                Mesh cutMesh = Object.Instantiate(shared);
+                cutMesh.name = shared.name + " (magazine out)";
+                int before = 0, after = 0;
+                for (int sub = 0; sub < shared.subMeshCount; sub++)
+                {
+                    int[] tris = shared.GetTriangles(sub);
+                    var keep = new List<int>(tris.Length);
+                    for (int t = 0; t + 2 < tris.Length; t += 3)
+                    {
+                        int a = tris[t], b = tris[t + 1], c = tris[t + 2];
+                        bool gone = drop[a] || drop[b] || drop[c] || inBox[a] && inBox[b] && inBox[c];
+                        if (!gone)
+                        {
+                            keep.Add(a);
+                            keep.Add(b);
+                            keep.Add(c);
+                        }
+                    }
+                    before += tris.Length / 3;
+                    after += keep.Count / 3;
+                    cutMesh.SetTriangles(keep, sub, false);
+                }
+                if (after == before)
+                {
+                    Object.Destroy(cutMesh);
+                    continue;
+                }
+                removed += before - after;
+                _magCuts.Add((smr, shared, cutMesh));
+                WholeOfCut[cutMesh] = shared;
+            }
+            if (removed > 0)
+            {
+                Log.InfoOnce("magcut:" + Rig.Data.Key, $"{Rig.Data.Key}: the skinned magazine is cut out of the gun's mesh while it is out ({removed} triangle(s) in {_magCuts.Count} mesh(es)).");
+            }
+        }
+
+        private static bool Touches(bool[] isMag, int bone, float weight) => weight > 0.01f && bone >= 0 && bone < isMag.Length && isMag[bone];
+
+        /// <summary>The cut meshes back to the gun's own and destroyed (the gun is let go).</summary>
+        private void ForgetMagazineCuts()
+        {
+            CutSkinnedMagazine(false);
+            foreach ((SkinnedMeshRenderer _, Mesh _, Mesh cutMesh) in _magCuts)
+            {
+                if (cutMesh != null)
+                {
+                    WholeOfCut.Remove(cutMesh);
+                    Object.Destroy(cutMesh);
+                }
+            }
+            _magCuts.Clear();
+            _magCutsFound = false;
+        }
+
         private void RestoreMagazine()
         {
+            CutSkinnedMagazine(false);
             for (int i = 0; i < Rig.MagazineParts.Length; i++)
             {
                 if (Rig.MagazineParts[i] != null)

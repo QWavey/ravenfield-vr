@@ -19,6 +19,121 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static readonly Regex SubmachineHandleName = new Regex(@"拉机柄|charging ?handle|cocking ?handle", RegexOptions.IgnoreCase);
 
+        /// <summary>The drawn gun's reach along the aim from its muzzle point (<see cref="WeaponRigData.ModelRearFromMuzzle"/>).</summary>
+        private static void MeasureModelReach(WeaponRigData d, Transform root, Transform gunBody, HashSet<Renderer> armRenderers, PoseSampler sampler,
+            RigidPose gunIdle, Weapon w)
+        {
+            Transform tp = w.thirdPersonTransform;
+            bool skipTp = tp != null && tp != root && gunBody != null && gunBody != tp && !gunBody.IsChildOf(tp) && !tp.IsChildOf(gunBody);
+            RigidPose rootIdle = sampler.Idle(root);
+            float front = float.PositiveInfinity, rear = float.NegativeInfinity;
+            foreach (KeyValuePair<Transform, Bounds> box in sampler.ShownMeshBoxes(root))
+            {
+                Transform t = box.Key;
+                Renderer r = t.GetComponent<Renderer>();
+                if (r != null && armRenderers.Contains(r) || skipTp && t.IsChildOf(tp) || r is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+                Bounds b = box.Value;
+                if (b.size.magnitude > 3f)
+                {
+                    continue; // (a sight's far quad or a helper box: not the gun)
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 c = new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                    float behind = Vector3.Dot(d.MuzzlePoint - gunIdle.InverseTransformPoint(rootIdle.TransformPoint(c)), d.AimAxis);
+                    front = Mathf.Min(front, behind);
+                    rear = Mathf.Max(rear, behind);
+                }
+            }
+            if (rear > front && rear - front < 3f)
+            {
+                d.ModelFrontFromMuzzle = front;
+                d.ModelRearFromMuzzle = rear;
+            }
+        }
+
+        private static readonly Regex TwinSuffix = new Regex(@"\s*[\(\[][^\)\]]*[\)\]]\s*$");
+
+        /// <summary>
+        /// An armless gun (no hand bones: its grip was put 36 cm behind the muzzle) whose name is another gun's with a part in
+        /// brackets added, "ARS M500 (Bot Friendly)" to "ARS M500": its hands where its twin's arms hold that gun, at the same
+        /// share of its own length. The ARS Telum's Bot Friendly guns were drawn 10 to 20 cm off the gloves, the M500's beside the
+        /// hands altogether: the user's Mossberg 500 that "isnt even in the hand and floats in the air" (2026-11-14).
+        /// </summary>
+        private static void GripFromTwin(WeaponRigData d)
+        {
+            if (d.ModelRearFromMuzzle <= d.ModelFrontFromMuzzle || WeaponManager.instance == null || WeaponManager.instance.allWeapons == null)
+            {
+                return;
+            }
+            int hash = d.Key.IndexOf('#');
+            string name = hash > 0 ? d.Key.Substring(0, hash) : d.Key;
+            string baseName = TwinSuffix.Replace(name, "");
+            if (baseName.Length == 0 || baseName == name)
+            {
+                return;
+            }
+            WeaponManager.WeaponEntry twin = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == baseName);
+            Weapon tw = twin != null ? twin.prefab.GetComponent<Weapon>() : null;
+            if (tw == null)
+            {
+                return;
+            }
+            WeaponRigData t = Get(tw, twin);
+            float tLen = t.ModelRearFromMuzzle - t.ModelFrontFromMuzzle, len = d.ModelRearFromMuzzle - d.ModelFrontFromMuzzle;
+            if (t.HandsMethod == "estimated" || tLen < 0.05f || len < 0.05f)
+            {
+                return;
+            }
+            // A skinned twin's length is read from its mesh's own box, which can be far off what is drawn (the ARS MP9's 'Body'
+            // read 145 cm): its grip then landed at the M500's very butt and the gun left the hands. Taken only where it falls
+            // in the gun's span a hand can hold (30 to 85% of its length from the front); else a long gun's usual share.
+            float twinShare = (Vector3.Dot(t.MuzzlePoint - t.GripPoint, t.AimAxis) - t.ModelFrontFromMuzzle) / tLen;
+            if (twinShare < 0.3f || twinShare > 0.85f)
+            {
+                float gripShare = d.IsPistol ? 0.75f : 0.62f;
+                Vector3 before = d.GripPoint;
+                d.GripPoint = d.MuzzlePoint - d.AimAxis * (d.ModelFrontFromMuzzle + gripShare * len) - d.Up * 0.04f;
+                if (!d.IsPistol)
+                {
+                    d.SupportPoint = d.MuzzlePoint - d.AimAxis * (d.ModelFrontFromMuzzle + 0.3f * len) - d.Up * 0.03f;
+                    d.HasSupportPoint = true;
+                }
+                d.HandsMethod = "by its length";
+                d.Warnings.Remove("no right-hand bone: grip position estimated");
+                Log.Info($"{d.Key}: no arms of its own, its twin '{baseName}' measured unsure (its grip at {twinShare * 100f:0}% of its length): the grip put at "
+                         + $"{gripShare * 100f:0}% of this gun's {len * 100f:0} cm ({Vector3.Distance(before, d.GripPoint) * 100f:0} cm from the estimate).");
+                return;
+            }
+            float k = len / tLen;
+            Vector3 Place(Vector3 p)
+            {
+                // Its share of the twin's length behind the muzzle, and its height off the bore and side in the same scale.
+                Vector3 off = p - t.MuzzlePoint;
+                float behind = Vector3.Dot(-off, t.AimAxis);
+                float share = (behind - t.ModelFrontFromMuzzle) / tLen;
+                float up = Vector3.Dot(off, t.Up);
+                Vector3 tRight = Vector3.Cross(t.Up, t.AimAxis).normalized, right = Vector3.Cross(d.Up, d.AimAxis).normalized;
+                float side = Vector3.Dot(off, tRight);
+                return d.MuzzlePoint - d.AimAxis * (d.ModelFrontFromMuzzle + share * len) + d.Up * (up * k) + right * (side * k);
+            }
+            Vector3 was = d.GripPoint;
+            d.GripPoint = Place(t.GripPoint);
+            if (t.HasSupportPoint)
+            {
+                d.SupportPoint = Place(t.SupportPoint);
+                d.HasSupportPoint = true;
+            }
+            d.HandsMethod = "from its twin";
+            d.Warnings.Remove("no right-hand bone: grip position estimated");
+            d.Notes += $"hands as its twin '{baseName}' holds it (scaled x{k:F2}; the grip {Vector3.Distance(was, d.GripPoint) * 100f:0} cm from the estimate) ";
+            Log.Info($"{d.Key}: no arms of its own: hands placed as '{baseName}' holds it (its length {len * 100f:0} cm against {tLen * 100f:0}, the grip "
+                     + $"{Vector3.Distance(was, d.GripPoint) * 100f:0} cm from where it was estimated).");
+        }
+
         private static void AnalyzeHands(WeaponRigData d, Transform handR, Transform handL, PoseSampler sampler, RigidPose gunIdle, Weapon w, Transform[] all)
         {
             d.IsPistol = d.Slot == 1;

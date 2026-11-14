@@ -963,7 +963,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Triangles whose vertices are driven mostly by the given bones, baked in the renderer's space.</summary>
         private static Mesh ExtractBoneTriangles(SkinnedMeshRenderer smr, HashSet<Transform> bones)
         {
-            Mesh shared = smr.sharedMesh;
+            Mesh shared = HeldWeapon.WholeMesh(smr.sharedMesh); // (the gun's own, while a magazine-out copy is drawn: same vertices)
             if (shared == null || !shared.isReadable || smr.bones == null)
             {
                 return null;

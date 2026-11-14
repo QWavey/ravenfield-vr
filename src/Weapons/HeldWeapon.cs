@@ -2721,6 +2721,7 @@ namespace RavenfieldVR.Weapons
             {
                 RestoreMagazine();
             }
+            ForgetMagazineCuts();
             if (Rig.Slide != null)
             {
                 Rig.Slide.localPosition = Rig.Data.SlideRestLocal;

@@ -22,7 +22,7 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal static class ParkedPartsCache
     {
-        private const string Header = "# RavenfieldVR parked ammunition v1";
+        private const string Header = "# RavenfieldVR parked ammunition v2";
 
         public static string FilePath => Path.Combine(Paths.CachePath, "RavenfieldVR-parked-parts.txt");
 

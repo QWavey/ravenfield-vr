@@ -608,7 +608,7 @@ namespace RavenfieldVR.Weapons
         /// with the hand, gets a slim latch (BoltPiece's T; it was a cube, task 299) where the hand takes it, as a bolt baked into
         /// the receiver does: GREASER's bolt was 0% seen and PPSh-41's 3% (check-1017f), and racked, nothing visible moved.
         /// Measured once per weapon type, from four sides with and without the slide (a few small pictures). A slide seen at
-        /// least 5% from outside gets nothing: the hand takes the slide itself.
+        /// least 20% from outside gets nothing: the hand takes the slide itself.
         /// </summary>
         private void KnobOnHiddenSlide()
         {
@@ -682,11 +682,15 @@ namespace RavenfieldVR.Weapons
             AddKnobOnHiddenSlide(seen);
         }
 
-        /// <summary>The knob on a slide seen less than 5% from outside (see <see cref="KnobOnHiddenSlide"/>).</summary>
+        /// <summary>
+        /// The knob on a slide seen less than 20% from outside (see <see cref="KnobOnHiddenSlide"/>). Was 5%: the GREASER's bolt, 18%
+        /// seen only through its ejection port, got none, and the hand closed round the receiver tube with no finger on the bolt
+        /// (0/4 in the check): the user's "the pulling back doesnt even work" (2026-11-14).
+        /// </summary>
         private void AddKnobOnHiddenSlide(float seen)
         {
             WeaponRigData d = Rig.Data;
-            if (seen < 0f || seen >= 0.05f || _boltPiece != null)
+            if (seen < 0f || seen >= 0.2f || _boltPiece != null)
             {
                 return;
             }
@@ -866,13 +870,25 @@ namespace RavenfieldVR.Weapons
                 {
                     smr.BakeMesh(baked); // with the renderer's scale: only its position and rotation are left to apply
                     Vector3[] v = baked.vertices;
+                    // (Only vertices a triangle draws: with the magazine out a copy without it is drawn, its vertices all kept.)
+                    var drawn = new bool[v.Length];
+                    for (int sub = 0; sub < smr.sharedMesh.subMeshCount; sub++)
+                    {
+                        foreach (int ti in smr.sharedMesh.GetTriangles(sub))
+                        {
+                            if (ti >= 0 && ti < drawn.Length)
+                            {
+                                drawn[ti] = true;
+                            }
+                        }
+                    }
                     BoneWeight[] w = smr.sharedMesh.boneWeights;
                     Transform[] bones = smr.bones;
                     Vector3 at = smr.transform.position;
                     Quaternion rot = smr.transform.rotation;
                     for (int i = 0; i < v.Length; i++)
                     {
-                        if (!Runtime.BoundsMath.Contains(box, seat.InverseTransformPoint(at + rot * v[i])))
+                        if (!drawn[i] || !Runtime.BoundsMath.Contains(box, seat.InverseTransformPoint(at + rot * v[i])))
                         {
                             continue;
                         }

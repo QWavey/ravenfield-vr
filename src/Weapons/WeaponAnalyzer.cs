@@ -703,6 +703,11 @@ namespace RavenfieldVR.Weapons
                 // Each rule is guarded on its own (2026-10-19): a rule that throws leaves its result out, and the rules after it
                 // still run. The rules used to share this try, so one throw replaced the whole rig with the fallback.
                 Guarded(d, "hands", () => AnalyzeHands(d, handR, handL, sampler, gunIdle, w, all));
+                Guarded(d, "model reach", () => MeasureModelReach(d, root, gunBody, armRenderers, sampler, gunIdle, w));
+                if (handR == null)
+                {
+                    Guarded(d, "hands from a twin", () => GripFromTwin(d));
+                }
                 Guarded(d, "sights", () => AnalyzeSights(d, sampler));
                 Guarded(d, "eye", () => AlignEyeToScopeModel(d, root, armRelated, sampler, w, gunIdle));
                 Guarded(d, "sight modes", () => AnalyzeSightModes(d, sampler, w));

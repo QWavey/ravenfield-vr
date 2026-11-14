@@ -325,6 +325,12 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public float BarrelFrontAlong = float.NegativeInfinity;
         /// <summary>
+        /// How far the drawn gun reaches ahead of the muzzle point (negative: a barrel past it) and behind it, along the aim, in
+        /// metres (its meshes shown at rest, arms and a separate third-person model left out). 0 and 0 when not measured. Used to
+        /// place the hands of an armless twin (<see cref="WeaponAnalyzer"/>'s GripFromTwin).
+        /// </summary>
+        public float ModelFrontFromMuzzle, ModelRearFromMuzzle;
+        /// <summary>
         /// How far the gun reaches ahead of its grip along the aim (metres): the muzzle's, or the drawn barrel's front where the
         /// muzzle transform sits well inside the gun (<see cref="BarrelFrontAlong"/>). The muzzle's for every other gun.
         /// </summary>

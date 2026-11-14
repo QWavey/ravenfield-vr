@@ -435,6 +435,7 @@ namespace RavenfieldVR.Weapons
             {
                 CollectMagazineParts(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
                 MagKeyframes(d, all, index, root, gunBody, muzzle, slide, mag, armRelated, gunBones, sampler, toggles);
+                CollectReloadOnlyPieces(d, all, index, root, gunBody, mag, sampler);
             }
             // A skinned gun's other magazine bones where its magazine sits (the ARS guns' "MagSwap", the magazine their own
             // reload brings in, drawn in the same place): hidden with it, not copied (Tasks 232).
@@ -689,6 +690,69 @@ namespace RavenfieldVR.Weapons
                 }
                 d.SparePartPaths.Add(WeaponRig.PathOf(root, t));
                 d.Notes += $"spare magazine '{t.name}' ({Vector3.Distance(sampler.RelIdle[index[t]].position, d.GripPoint) * 100f:0} cm from the grip) hidden while held ";
+            }
+        }
+
+        /// <summary>
+        /// Pieces the flat reload only draws while it plays (hidden at rest, shown during it): a fresh magazine carried in by the flat
+        /// view's other hand, or a whole second model of the gun. In VR the gun's animation still switches them on, and they
+        /// flickered in and out around the real magazine: the GREASER's "Grease gun (remake)_low" (mesh 'Magazine.001', 96 cm long,
+        /// on its arms) was the user's "thick mag that becomes visible and invisible again" (2026-11-14). Hidden while held as the
+        /// spare magazines are. Only one named as ammunition (by itself or its mesh) or the size of a gun: a part that only shows in the
+        /// reload and is neither (a hand's prop, a flash) is left as the animation has it.
+        /// </summary>
+        private static void CollectReloadOnlyPieces(WeaponRigData d, Transform[] all, Dictionary<Transform, int> index, Transform root,
+            Transform gunBody, Transform mag, PoseSampler sampler)
+        {
+            bool single = d.Action == ActionType.SingleShot;
+            var known = new List<Transform>();
+            foreach (List<int[]> list in new[] { d.SparePartPaths, d.MagazinePartPaths, d.MagHideOnlyPaths, d.SightPartPaths, d.ArmRendererPaths })
+            {
+                foreach (int[] path in list)
+                {
+                    Transform k = WeaponRig.Resolve(root, path);
+                    if (k != null)
+                    {
+                        known.Add(k);
+                    }
+                }
+            }
+            int added = 0;
+            foreach (Transform t in all)
+            {
+                Renderer r = t.GetComponent<Renderer>();
+                if (r == null || !(r is MeshRenderer || r is SkinnedMeshRenderer) || t == root || t == gunBody
+                    || gunBody != null && gunBody.IsChildOf(t) || mag != null && (t == mag || t.IsChildOf(mag) || mag.IsChildOf(t))
+                    || !index.TryGetValue(t, out int i) || ShownAtIdle(t, sampler) || sampler.ReloadVisible == null || sampler.ReloadVisible[i] == null
+                    || System.Array.IndexOf(sampler.ReloadVisible[i], true) < 0
+                    || known.Exists(k => k == t || t.IsChildOf(k) || k.IsChildOf(t)))
+                {
+                    continue;
+                }
+                Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : t.GetComponent<MeshFilter>() is MeshFilter mf ? mf.sharedMesh : null;
+                string meshName = mesh != null ? mesh.name : "";
+                float size = sampler.LocalBounds(t).size.magnitude;
+                bool ammo = HelperNamedAsAmmunition(t.name, single) || meshName.Length > 0 && HelperNamedAsAmmunition(meshName, single);
+                bool wholeGun = size > 0.5f && !single && !OpticName.IsMatch(t.name); // (not a launcher: its fresh tube comes in that way)
+                if (!ammo && !wholeGun)
+                {
+                    continue;
+                }
+                if (added >= 4 || d.SparePartPaths.Count >= 16)
+                {
+                    d.Warnings.Add($"more pieces shown only in the reload than hidden: '{t.name}' and later ones stay as the animation has them");
+                    break;
+                }
+                int[] p = WeaponRig.PathOf(root, t);
+                if (p == null)
+                {
+                    continue;
+                }
+                d.SparePartPaths.Add(p);
+                known.Add(t);
+                added++;
+                d.Notes += $"'{t.name}'{(meshName.Length > 0 && meshName != t.name ? $" (mesh '{meshName}')" : "")} shown only in the reload "
+                           + $"({(wholeGun ? $"{size * 100f:0} cm, a gun's size" : "named as ammunition")}) hidden while held ";
             }
         }
 
