@@ -850,6 +850,12 @@ namespace RavenfieldVR.Weapons
                 // with its 14 rounds during a slow push, and no branch could be named from the code; 252 ae).
                 Log.Info($"Magazine ({Rounds} rounds) dropped from the {HeldBy.Side} hand by {by}{(LostByHand ? " (lost by the hand)" : "")}.");
             }
+            // Let go by the hand at another PC's player's hand, with a gun it fits in his: his now (invention 3, 2026-11-14).
+            if (HeldBy != null && !LostByHand && Net.Multiplayer.Active && Net.NetHandover.TryGive(this))
+            {
+                Destroy("handed over");
+                return;
+            }
             LostByHand = false;
             _fresh = false; // caught or picked up again later, it eases into the hand (it jumped up to 13 cm in one frame; review, 2026-10-20)
             if (_sectionEasing)

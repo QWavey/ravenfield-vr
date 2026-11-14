@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -1366,6 +1366,9 @@ namespace RavenfieldVR.Net
                         break;
                     case Spot:
                         NetSpots.Take(sender, ref r);
+                        break;
+                    case GiveRounds:
+                        NetHandover.Take(sender, ref r);
                         break;
                     case DropGone:
                     {
