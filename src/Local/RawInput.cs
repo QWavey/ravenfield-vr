@@ -503,7 +503,13 @@ namespace RavenfieldVR.Local
             }
             else if (vkey < 256)
             {
-                d.Keys[vkey] = (flags & 1) == 0; // (RI_KEY_BREAK: let go)
+                bool down = (flags & 1) == 0; // (RI_KEY_BREAK: let go)
+                d.Keys[vkey] = down;
+                // The left and right Shift, Ctrl and Alt as the plain ones too (the game's bindings name LeftShift and LeftControl; some
+                // keyboards tell the sided keys: Sprint and Crouch would never be held; input scout, 2026-11-14).
+                if (vkey == 0xA0 || vkey == 0xA1) d.Keys[0x10] = down;
+                if (vkey == 0xA2 || vkey == 0xA3) d.Keys[0x11] = down;
+                if (vkey == 0xA4 || vkey == 0xA5) d.Keys[0x12] = down;
             }
         }
     }

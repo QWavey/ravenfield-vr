@@ -65,7 +65,7 @@ namespace RavenfieldVR.Local
                         }
                         note($"copy test: spawned (team {me.team}) after {t:0.0} s");
                         _from = me.Position();
-                        Next(1);
+                        Next(10);
                         return;
                     }
                     if (t % 2f < 0.15f)
@@ -77,6 +77,15 @@ namespace RavenfieldVR.Local
                         note($"copy test: NOT SPAWNED in 25 s ({(_step == 0 ? "first deploy" : "after the team switch")})");
                         Next(Done);
                         note("copy test: done");
+                    }
+                    break;
+                case 10: // stand still 3 s, looking ahead (the stand-in on the host must stand: no walking in place)
+                    if (t > 3f)
+                    {
+                        Camera c = Cam;
+                        note($"copy test: stood still 3 s, moved {Vector3.Distance(me.Position(), _from):0.00} m; looking yaw {(c != null ? c.transform.eulerAngles.y : 0f):0} pitch {(c != null ? -Mathf.DeltaAngle(0f, c.transform.eulerAngles.x) : 0f):0}");
+                        _from = me.Position();
+                        Next(1);
                     }
                     break;
                 case 1: // forward 2 s

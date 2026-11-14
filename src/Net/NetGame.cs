@@ -718,6 +718,8 @@ namespace RavenfieldVR.Net
             NetVehicles.Patch(_harmony);
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Velocity)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteVelocity)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.FacingDirection)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteFacing)));
+            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.IsMoving)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteIsMoving)));
+            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.IdlePose)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteIdlePose)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.WantsToFire)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteFire)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Crouch)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteCrouch)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(NetGame), nameof(RemoteProne)));
@@ -835,6 +837,31 @@ namespace RavenfieldVR.Net
             bool enclosed = seated && a.seat.enclosed;
             bool byDirectFire = seated && a.seat.enclosedDamagedByDirectFire;
             return !(!info.isPiercing && enclosed && (!byDirectFire || info.isSplashDamage));
+        }
+
+        /// <summary>
+        /// A stand-in walks (its walk animation, Actor's "moving") only while its player does: the AI's own answer is its path, and a
+        /// stand-in with a path to its squad's goal walked in place for as long as its player stood (the copies check of 2026-11-14:
+        /// "told speed 0, walk animation ON" for 10 s; the user: "the users are still moonwalking on the same position when standing").
+        /// </summary>
+        private static void RemoteIsMoving(AiActorController __instance, ref bool __result)
+        {
+            if (_anyRemote && ByActor.TryGetValue(__instance.actor, out Remote r))
+            {
+                __result = r.Moving || r.Walking;
+            }
+        }
+
+        /// <summary>
+        /// A stand-in holds its gun up, toward where its player looks, as a player does: the AI's idle pose (not alert) carries it low and
+        /// to the side, 105-111 degrees off the told aim while walking (the copies check; the user: "not aiming in the correct position").
+        /// </summary>
+        private static void RemoteIdlePose(AiActorController __instance, ref bool __result)
+        {
+            if (_anyRemote && ByActor.TryGetValue(__instance.actor, out Remote r))
+            {
+                __result = false;
+            }
         }
 
         private static void RemoteFacing(AiActorController __instance, ref Vector3 __result)

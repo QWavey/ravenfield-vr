@@ -174,7 +174,7 @@ namespace RavenfieldVR.Local
                 // copy's view left, check of 22:50, 2026-11-14; "Mouse Y" as Unity's default, up positive.)
                 float v = name == "Mouse X" ? -dx * MouseAxisPerCount
                     : name == "Mouse Y" ? -dy * MouseAxisPerCount // (Windows counts down as positive, Unity up)
-                    : name == "Mouse ScrollWheel" ? wheel / 120f * 0.1f
+                    : name == "Mouse ScrollWheel" ? (SteelInput.instance != null && !SteelInput.instance.scrollEnabled ? 0f : wheel / 120f * 0.1f) // (the game's own scroll gate: not while scoped or in a menu)
                     : 0f; // (the joystick axes: each copy reads its own controller, ReadPad)
                 if (a.invertUnityAxis)
                 {

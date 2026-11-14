@@ -500,9 +500,41 @@ namespace RavenfieldVR.Core
                     Local.SplitGames.TestCopies = true;
                     Local.Splitscreen.On = true;
                     string text = "";
+                    float nextRead = 0f;
                     for (float until = Time.realtimeSinceStartup + 170f; Time.realtimeSinceStartup < until && !text.Contains("copy test: done");)
                     {
-                        yield return new WaitForSecondsRealtime(2f);
+                        yield return new WaitForSecondsRealtime(0.5f);
+                        // Player 2's soldier as this game shows it: told against done (walking in place, aiming elsewhere: the user, 2026-11-14).
+                        foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
+                        {
+                            Actor sa = r.Actor;
+                            if (sa == null || r.Id != 0 || sa.dead)
+                            {
+                                continue;
+                            }
+                            Vector3 body = sa.transform.forward, told = r.Facing;
+                            Transform muzzle = null;
+                            try
+                            {
+                                muzzle = sa.activeWeapon != null ? sa.activeWeapon.CurrentMuzzle() : null;
+                            }
+                            catch (Exception)
+                            {
+                            }
+                            Vector3 gun = muzzle != null ? muzzle.forward : body; // (the barrel's way: the model's forward is not the barrel)
+                            bool anim = sa.animator != null && sa.animator.GetBool(Actor.ANIM_PAR_MOVING);
+                            float bodyOff = Vector3.Angle(Vector3.ProjectOnPlane(body, Vector3.up), Vector3.ProjectOnPlane(told, Vector3.up));
+                            float gunOff = Vector3.Angle(gun, told);
+                            string line = $"stand-in {DateTime.Now:HH:mm:ss.f}: told speed {new Vector3(r.Velocity.x, 0f, r.Velocity.z).magnitude:0.0}, moving {(r.Moving ? "yes" : "no")}, walk animation {(anim ? "ON" : "off")}, own speed {Vector3.ProjectOnPlane(sa.Velocity(), Vector3.up).magnitude:0.0}; "
+                                          + $"told aim yaw {Mathf.Atan2(told.x, told.z) * Mathf.Rad2Deg:0} pitch {Mathf.Asin(Mathf.Clamp(told.y, -1f, 1f)) * Mathf.Rad2Deg:0}, body {bodyOff:0} deg off it, gun {gunOff:0} deg off it";
+                            Results.Add("copies: " + line);
+                            Log.Info("[copies check] " + line);
+                        }
+                        if (Time.realtimeSinceStartup < nextRead)
+                        {
+                            continue;
+                        }
+                        nextRead = Time.realtimeSinceStartup + 2f;
                         try
                         {
                             text = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : "";
