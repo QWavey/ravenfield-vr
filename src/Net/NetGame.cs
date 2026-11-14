@@ -790,9 +790,11 @@ namespace RavenfieldVR.Net
                 // the game refused had left the gun dry for the whole of his owner's (review, 2026-11-14).
                 if (started && !held.reloading && held.unholstered)
                 {
-                    if (held.spareAmmo == 0)
+                    if (!held.HasSpareAmmo())
                     {
-                        held.spareAmmo = held.configuration.ammo; // (a stand-in's reserve is the told reloads', never its own count)
+                        // (A stand-in's reserve is the told reloads', never its own count: -1 or 0 here, and the game refused the reload;
+                        // the first in-game net check of it, 2026-11-14.)
+                        held.spareAmmo = held.configuration.ammo;
                     }
                     try
                     {
