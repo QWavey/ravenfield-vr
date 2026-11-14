@@ -61,7 +61,7 @@ namespace RavenfieldVR.Local
         {
             Actor a = _p.Actor;
             Camera world = _p.Cam;
-            Weapon w = a != null && !a.dead && world != null ? a.activeWeapon : null;
+            Weapon w = a != null && !a.dead && !a.fallenOver && world != null ? a.activeWeapon : null; // (none while down or knocked over: the view is over the body)
             if (w != null && w.weaponEntry == null)
             {
                 w = null; // (no prefab to copy: a vehicle's own gun)
@@ -427,7 +427,7 @@ namespace RavenfieldVR.Local
         private static void BeforeDraw(Camera cam)
         {
             SplitPlayer p = SplitPlayers.OwnerOf(cam);
-            if (p == null || p.Actor == null || p.Actor.dead)
+            if (p == null || p.Actor == null || p.Actor.dead || p.Actor.fallenOver)
             {
                 return;
             }

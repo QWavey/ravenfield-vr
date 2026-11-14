@@ -3,6 +3,7 @@ using System.Collections;
 using System.Linq;
 using RavenfieldVR.Core;
 using RavenfieldVR.Net;
+using RavenfieldVR.Util;
 using UnityEngine;
 
 namespace RavenfieldVR.Local
@@ -144,6 +145,27 @@ namespace RavenfieldVR.Local
                     p.Simulated = new PadState { Connected = true };
                 }
                 yield return Wait(0.5f);
+                if (name == "side-by-side" && all.Count > 0 && all[0].Actor != null && !all[0].Actor.dead)
+                {
+                    // Down, then back by its own button (the user, 2026-11-14: "I died and cant respawn").
+                    SplitPlayer d = all[0];
+                    d.Actor.KillSilently();
+                    yield return Wait(0.3f);
+                    bool down = d.Actor.dead;
+                    yield return Wait(SplitLife.RespawnDelay + 0.3f);
+                    string downShot = Shots.FileFor("split-down");
+                    System.IO.Directory.CreateDirectory(Shots.Dir);
+                    ScreenCapture.CaptureScreenshot(downShot);
+                    yield return Wait(0.3f);
+                    d.Simulated = new PadState { Connected = true, RightTrigger = 1f };
+                    yield return Wait(0.3f);
+                    d.Simulated = new PadState { Connected = true };
+                    yield return Wait(1f);
+                    bool back = d.Actor != null && !d.Actor.dead;
+                    float apart = d.Actor != null && GameContext.Player != null && GameContext.Player.actor != null ? Vector3.Distance(d.Actor.Position(), GameContext.Player.actor.Position()) : -1f;
+                    report($"local: splitscreen respawn: player {d.Index + 1} {(down ? "went down" : "DID NOT GO DOWN")}, "
+                           + (back ? $"back in by its fire button, {apart:0.0} m from player 1; deaths counted {d.Deaths}" : "NOT BACK after its fire button"));
+                }
                 string file = Shots.FileFor("split-" + name);
                 System.IO.Directory.CreateDirectory(Shots.Dir); // (ScreenCapture writes no folder of its own)
                 ScreenCapture.CaptureScreenshot(file);

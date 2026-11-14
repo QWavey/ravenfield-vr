@@ -25,6 +25,13 @@ namespace RavenfieldVR.Local
         public Rect Viewport;
         public int Kills, Deaths;
         public bool WasDead;
+        /// <summary>Its life beyond moving and shooting (SplitLife): when it went down, where it comes back, its markers and flashes.</summary>
+        public float DiedAt, HitMarkUntil, HurtUntil;
+        public bool SpawnAtFlag, KillMark, FirePressed, LastFire;
+        public Vector3 HurtFrom;
+        /// <summary>A weapon slot picked by its number key (-1: none this frame).</summary>
+        public int SlotPick = -1;
+        public int LastWheel;
     }
 
     /// <summary>
@@ -264,11 +271,14 @@ namespace RavenfieldVR.Local
         private static void AssignDevices()
         {
             int pair = 0;
+            bool anyKeys = false;
             foreach (SplitPlayer p in Players)
             {
-                p.KeysPair = p.Simulated.HasValue || XInput.Read(PadOf(p)).Connected ? -1 : ++pair;
+                // (Try mode: player 2 takes the first keyboard and mouse, the game's own player gets none.)
+                p.KeysPair = p.Simulated.HasValue || XInput.Read(PadOf(p)).Connected ? -1 : TryMode && p.Index == 1 ? 0 : ++pair;
+                anyKeys |= p.KeysPair >= 0;
             }
-            bool keys = pair > 0 && !Runtime.OpenVRRuntime.Running;
+            bool keys = anyKeys && !Runtime.OpenVRRuntime.Running;
             // (Only while the game holds the mouse for play: its menu, the deploy map after a death and the loadout need the pointer, and
             // with the merged mouse kept from it the game's own player could not click "Deploy".)
             bool playing = Cursor.lockState == CursorLockMode.Locked && !GameManager.IsPaused();
@@ -291,8 +301,15 @@ namespace RavenfieldVR.Local
             }
             GamePadsMuted = pads;
             FlatPlayerInput.Pad = pads && Splitscreen.FirstPad > 0 ? Splitscreen.FirstPad - 1 : -1;
+            FlatPlayerInput.OnlyPause = TryMode;
             FlatPlayerInput.Active = (keys || FlatPlayerInput.Pad >= 0) && playing;
         }
+
+        /// <summary>
+        /// Try mode (-rfvr-splittry, the user 2026-11-14: "i control the 2nd player only ... i wanna test how its for the other players"):
+        /// player 2 on the first keyboard and mouse (or the first controller), the game's own player standing idle; Esc still pauses.
+        /// </summary>
+        internal static bool TryMode;
 
         /// <summary>The game's own controller input muted: each controller belongs to one player (see AssignDevices).</summary>
         internal static bool GamePadsMuted;
@@ -317,7 +334,7 @@ namespace RavenfieldVR.Local
 
         private static void ReadInput(SplitPlayer p)
         {
-            if (p.KeysPair > 0)
+            if (p.KeysPair >= 0)
             {
                 ReadKeys(p);
                 return;
@@ -364,6 +381,17 @@ namespace RavenfieldVR.Local
             }
             p.Fire = m != null && m.Left;
             p.Aim = m != null && m.Right;
+            p.SlotPick = -1;
+            for (int n = 0; n < 5; n++)
+            {
+                if (Key(0x31 + n))
+                {
+                    p.SlotPick = n; // (1 to 5: that weapon slot, as the game's own number keys)
+                }
+            }
+            int wheel = m != null ? m.Wheel : 0;
+            bool wheelNext = wheel < p.LastWheel;
+            p.LastWheel = wheel;
             ushort buttons = (ushort)((Key(0x20) ? PadState.A : 0) | (Key(0x43) ? PadState.B : 0) | (Key(0x10) ? PadState.LeftThumb : 0)
                                       | (Key(0x52) ? PadState.X : 0) | (Key(0x51) ? PadState.Y : 0) | (Key(0x45) ? PadState.RightShoulder : 0));
             bool Pressed(ushort b) => (buttons & b) != 0 && (p.LastButtons & b) == 0;
@@ -374,7 +402,7 @@ namespace RavenfieldVR.Local
             }
             p.Sprint = Key(0x10) && p.Move.y > 0f;
             p.Reload = Pressed(PadState.X);
-            p.NextWeapon = Pressed(PadState.Y);
+            p.NextWeapon = Pressed(PadState.Y) || wheelNext;
             p.Seat = Pressed(PadState.RightShoulder);
             p.LastButtons = buttons;
         }
@@ -386,18 +414,38 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            p.FirePressed = p.Fire && !p.LastFire;
+            p.LastFire = p.Fire;
             if (a.dead != p.WasDead)
             {
                 if (a.dead)
                 {
                     p.Deaths++;
+                    p.DiedAt = Time.time;
                     p.Crouch = p.Sprint = false; // (comes back standing, as the game's own player does)
                 }
                 p.WasDead = a.dead;
             }
             if (a.dead)
             {
+                SplitLife.WhileDown(p); // (back in by its own button, SplitLife)
                 return;
+            }
+            if (a.fallenOver)
+            {
+                return; // (knocked over: the game gets it up)
+            }
+            if (p.SlotPick >= 0 && a.weapons != null && p.SlotPick < a.weapons.Length && a.weapons[p.SlotPick] != null && p.SlotPick != a.activeWeaponSlot)
+            {
+                _switching = true;
+                try
+                {
+                    a.SwitchWeapon(p.SlotPick);
+                }
+                finally
+                {
+                    _switching = false;
+                }
             }
             if (p.Seat)
             {
@@ -622,6 +670,12 @@ namespace RavenfieldVR.Local
         }
 
         /// <summary>After the game moved the soldiers: each camera at its soldier's eyes.</summary>
+        /// <summary>Where a player starts beside the game's own one (SplitLife's respawn as well).</summary>
+        internal static Vector3 GroundBeside(Vector3 me, float yaw, int index, out string where) => OnGroundBeside(me, yaw, index, out where);
+
+        /// <summary>The splitscreen player a soldier is, or null.</summary>
+        internal static SplitPlayer PlayerOf(Actor a) => a != null && Players.Count > 0 && ByActor.TryGetValue(a, out SplitPlayer p) ? p : null;
+
         /// <summary>The splitscreen player a camera is the world view of, or null.</summary>
         internal static SplitPlayer OwnerOf(Camera cam)
         {
@@ -648,7 +702,7 @@ namespace RavenfieldVR.Local
                     continue;
                 }
                 Actor a = p.Actor;
-                if (!a.dead)
+                if (!a.dead && !a.fallenOver)
                 {
                     float eye = a.IsSeated() ? 1.2f : p.Crouch ? 1.0f : 1.6f;
                     p.Cam.transform.SetPositionAndRotation(a.Position() + Vector3.up * eye, Quaternion.Euler(-p.Pitch, p.Yaw, 0f));
@@ -674,31 +728,14 @@ namespace RavenfieldVR.Local
         {
             foreach (SplitPlayer p in Players)
             {
-                Actor a = p.Actor;
-                if (a == null)
+                if (p.Actor == null)
                 {
                     continue;
                 }
                 // Unity's viewport is from the bottom; the GUI's from the top.
                 Rect r = new Rect(p.Viewport.x * Screen.width, (1f - p.Viewport.y - p.Viewport.height) * Screen.height,
                                   p.Viewport.width * Screen.width, p.Viewport.height * Screen.height);
-                GUI.color = Color.white;
-                if (a.dead)
-                {
-                    GUI.Label(new Rect(r.x + 20f, r.y + r.height * 0.5f, r.width - 40f, 40f), $"Player {p.Index + 1}: down. Back at the next wave.");
-                    continue;
-                }
-                GUI.Label(new Rect(r.center.x - 8f, r.center.y - 12f, 20f, 24f), "+");
-                if (p.KeysPair > 0 && Runtime.OpenVRRuntime.Running)
-                {
-                    // (keyboards and mice are told apart without a headset only: this player waits for a controller)
-                    GUI.Label(new Rect(r.x + 20f, r.y + r.height * 0.5f + 24f, r.width - 40f, 40f), $"Player {p.Index + 1}: connect a controller (number {PadOf(p) + 1}).");
-                }
-                Weapon w = a.activeWeapon;
-                string ammo = w != null ? w.reloading ? "reloading" : $"{w.ammo}/{w.spareAmmo}" : "";
-                string weapon = w != null ? w.name.Replace("(Clone)", "").Trim() : "";
-                GUI.Label(new Rect(r.x + 16f, r.yMax - 52f, r.width - 32f, 24f), $"Player {p.Index + 1}   Health {Mathf.CeilToInt(a.health)}");
-                GUI.Label(new Rect(r.x + 16f, r.yMax - 30f, r.width - 32f, 24f), $"{weapon}   {ammo}");
+                SplitLife.Draw(p, r);
             }
         }
 
@@ -745,11 +782,29 @@ namespace RavenfieldVR.Local
             One(ai, nameof(AiActorController.BoatInput), nameof(SplitDrive), false);
             One(typeof(Actor), nameof(Actor.SwitchWeapon), nameof(SplitSwitch), true);
             One(typeof(Actor), nameof(Actor.EnterSeat), nameof(SplitSeat), true);
+            One(typeof(Actor), nameof(Actor.Damage), nameof(SplitDamaged), false);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam), nameof(MuteSteamPads), false);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity), nameof(MuteUnityPads), false);
         }
 
         private static bool _switching, _seating;
+
+        /// <summary>Hit markers, kills and hurt flashes for the splitscreen players (SplitLife).</summary>
+        private static void SplitDamaged(Actor __instance, DamageInfo info)
+        {
+            if (Players.Count == 0)
+            {
+                return;
+            }
+            try
+            {
+                SplitLife.OnDamage(__instance, info);
+            }
+            catch (Exception e)
+            {
+                Log.ExceptionOnce("split-damage", e);
+            }
+        }
 
         /// <summary>
         /// A splitscreen soldier gets into a vehicle only when its player asks (RB or E): its squad's AI took a nearby car by itself, and

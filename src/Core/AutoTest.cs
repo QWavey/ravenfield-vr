@@ -131,6 +131,9 @@ namespace RavenfieldVR.Core
         private static readonly bool NetCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-netcheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-splitcheck (with -rfvr-autotest -novr): only the local play's check (Local.SplitCheck): Steam status, LAN, splitscreen.</summary>
         private static readonly bool SplitCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitcheck", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>-rfvr-splittry (with -rfvr-autotest -novr): a match with splitscreen for 2 in try mode, left to the user to play (no checks, no quitting).</summary>
+        private static readonly bool SplitTry = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
         private static readonly bool WalkCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-walkcheck", StringComparison.OrdinalIgnoreCase));
 
@@ -475,6 +478,18 @@ namespace RavenfieldVR.Core
                     Write();
                     Application.Quit();
                     yield break;
+                }
+                if (SplitTry)
+                {
+                    _context = "splitscreen try";
+                    Local.Splitscreen.Players = 2;
+                    Local.SplitPlayers.TryMode = true;
+                    Local.Splitscreen.On = true;
+                    Log.Info("Splitscreen try: 2 players, player 2 on the first keyboard and mouse (or the first controller); the game's own player idle.");
+                    while (true)
+                    {
+                        yield return null; // (the user plays; the game is closed by them)
+                    }
                 }
                 if (SplitCheckOnly)
                 {

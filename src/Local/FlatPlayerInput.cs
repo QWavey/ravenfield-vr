@@ -12,6 +12,9 @@ namespace RavenfieldVR.Local
     {
         public static bool Active;
 
+        /// <summary>Try mode: the game's own player gets only Esc (the pause menu) from the first keyboard; the rest is player 2's.</summary>
+        public static bool OnlyPause;
+
         /// <summary>The controller the game's own player plays with while the merged ones are muted (-1: none), splitscreen.</summary>
         public static int Pad = -1;
 
@@ -31,6 +34,11 @@ namespace RavenfieldVR.Local
             Array.Clear(Held, 0, Count);
             RawDevice k = RawInput.Nth(false, 0), m = RawInput.Nth(true, 0);
             bool Key(int vk) => k != null && k.Keys[vk];
+            if (OnlyPause)
+            {
+                Held[(int)SteelInput.KeyBinds.TogglePauseMenu] = Key(0x1B);
+                return;
+            }
             float Pair(int plus, int minus) => (Key(plus) ? 1f : 0f) - (Key(minus) ? 1f : 0f);
             void Set(SteelInput.KeyBinds b, bool on) => Held[(int)b] |= on;
             void SetAxis(SteelInput.KeyBinds b, float v) => Axis[(int)b] = v;
