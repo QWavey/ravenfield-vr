@@ -909,7 +909,10 @@ namespace RavenfieldVR.Weapons
         {
             Bounds b = lens.bounds; // a disabled renderer keeps its bounds
             float radius = Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z));
-            return OffSightLine(sight, b.center) < Mathf.Max(0.015f, radius * 0.6f);
+            // (2.5 cm at least: the CZ Bren 2's ELCAN glasses sit 1.7 cm off its line and its scope showed nothing in its first sight
+            // mode, "the scope there doesnt work" (the user, 2026-11-14; the lensoff line of the test of 20:11). A flipped-out magnifier is
+            // much further off.)
+            return OffSightLine(sight, b.center) < Mathf.Max(0.025f, radius * 0.6f);
         }
 
         /// <summary>Self-test: the scope lenses (shown or hidden) and how far the scope camera is off the selected sight line.</summary>
