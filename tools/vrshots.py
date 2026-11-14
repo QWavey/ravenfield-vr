@@ -108,6 +108,7 @@ class NullHeadset:
             cfg['steamvr']['forcedDriver'] = 'null'
             cfg['steamvr']['activateMultipleDrivers'] = False
             cfg['steamvr']['enableHomeApp'] = False
+            cfg['steamvr']['startDashboardFromAppLaunch'] = False  # (its library panel stood over the game at every test start; user)
             cfg.setdefault('dashboard', {})['autoShowGameTheater'] = False  # (else the dashboard opened over the game at its start)
             cfg['driver_null'] = {'displayFrequency': 90, 'enable': True, 'renderHeight': h, 'renderWidth': w,
                                   'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
@@ -579,6 +580,7 @@ def main():
     ap.add_argument('--sandboxmode', action='store_true', help='with --sandboxcheck: the match is the Sandbox game mode itself (no soldiers of its own)')
     ap.add_argument('--sandboxcheck', action='store_true', help='only the sandbox check: soldiers by behaviour, quiet field, vehicle, weapon, panel (two minutes)')
     ap.add_argument('--netcheck', action='store_true', help='only the multiplayer check: a second player in the same game over UDP (a minute)')
+    ap.add_argument('--dashcheck', action='store_true', help="only VR's start: whether SteamVR's dashboard stands over the game, closed (half a minute)")
     ap.add_argument('--lobbycheck', action='store_true', help="only the main menu's part of multiplayer: the start choice, a joined player following the host (a minute)")
     ap.add_argument('--netcheck-flat', action='store_true', help='the multiplayer check of the joining side with no headset (a flat player following a host)')
     ap.add_argument('--walkcheck', action='store_true', help="with --grabcheck: only the soldier check's walks with a soldier held")
@@ -640,7 +642,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck), ('netcheck-flat', a.netcheck_flat),
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck), ('dashcheck', a.dashcheck), ('netcheck-flat', a.netcheck_flat),
                              ('showcase', a.showcase is not None)) if on]
     if not modes:
         ap.print_help()
@@ -696,6 +698,8 @@ def main():
             args, timeout = base + ['-rfvr-showcase'] + ([f'-rfvr-showcase-scenes={scenes}'] if scenes else [])                 + ([f'-rfvr-showcase-guns={a.guns}'] if a.guns else []) + (['-rfvr-showcase-night'] if a.night else []), a.timeout or 30
         elif mode == 'netcheck-flat':
             args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-netcheck'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 6
+        elif mode == 'dashcheck':
+            args, timeout = ['-vr', f'-map {a.map}', '-nointro', '-rfvr-dashcheck', '-rfvr-mods=none'], a.timeout or 3
         elif mode == 'lobbycheck':
             args, timeout = ['-vr', '-nointro', '-rfvr-lobbycheck'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 5
         elif mode == 'netcheck':

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using RavenfieldVR.Core;
 using UnityEngine;
@@ -139,6 +140,7 @@ namespace RavenfieldVR.Runtime
                 OpenVR.Compositor?.SetTrackingSpace(ETrackingUniverseOrigin.TrackingUniverseStanding);
 
                 ApplyLiveSettings();
+                IdentifyAsVRApp();
                 KeepTheaterShut();
                 Running = true;
                 LastError = null;
@@ -262,6 +264,130 @@ namespace RavenfieldVR.Runtime
             }
         }
 
+        private static float _startDashboardCheckAt = -1f;
+
+        /// <summary>
+        /// Tells SteamVR this process is a VR application of its own (a temporary manifest with key com.qwavey.ravenfieldvr). Started
+        /// by Steam, Ravenfield is a flat game to SteamVR ("valve.steam.desktopgame.636480"), and with SteamVR Home off SteamVR stood
+        /// its library dashboard over the game at every start, in the headset and in the test runs alike; the user had to close it
+        /// by hand (2026-11-14, priority one).
+        /// </summary>
+        private static void IdentifyAsVRApp()
+        {
+            const string key = "com.qwavey.ravenfieldvr";
+            try
+            {
+                if (OpenVR.Applications == null)
+                {
+                    return;
+                }
+                string dir = System.IO.Path.Combine(VRPlugin.PluginDir, "input");
+                System.IO.Directory.CreateDirectory(dir);
+                string manifest = System.IO.Path.Combine(dir, "ravenfieldvr.vrmanifest");
+                string exe = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                string actions = System.IO.Path.Combine(dir, "actions.json");
+                string Json(string v) => v.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                string text = "{\n  \"source\": \"builtin\",\n  \"applications\": [{\n"
+                              + $"    \"app_key\": \"{key}\",\n"
+                              + "    \"launch_type\": \"binary\",\n"
+                              + $"    \"binary_path_windows\": \"{Json(exe)}\",\n"
+                              + $"    \"action_manifest_path\": \"{Json(actions)}\",\n"
+                              + "    \"is_dashboard_overlay\": false,\n"
+                              + "    \"strings\": { \"en_us\": { \"name\": \"Ravenfield VR\", \"description\": \"Ravenfield in VR\" } }\n"
+                              + "  }]\n}\n";
+                System.IO.File.WriteAllText(manifest, text);
+                EVRApplicationError added = OpenVR.Applications.AddApplicationManifest(manifest, true);
+                EVRApplicationError named = OpenVR.Applications.IdentifyApplication((uint)System.Diagnostics.Process.GetCurrentProcess().Id, key);
+                Log.Info($"SteamVR told this is the VR application {key}: manifest {added}, identified {named}.");
+            }
+            catch (System.Exception e)
+            {
+                Log.Warn("SteamVR not told this is a VR application: " + e.Message);
+            }
+        }
+
+        private static int _dashboardHides;
+        private static float _nextDashboardLook;
+        private static readonly bool DashCheckOnly = System.Environment.GetCommandLineArgs()
+            .Any(a => a.Equals("-rfvr-dashcheck", System.StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// The first 20 seconds after VR came up: SteamVR's dashboard, opened over the game at its start (it takes the game for a flat
+        /// one and, with SteamVR Home off, shows its library; the user had to close it by hand at every start, 2026-11-14, priority
+        /// one), is closed with SteamVR's own tool (vrcmd --hidedashboard; OpenVR has no call to close it). Asked once a second, three
+        /// closings at most; a dashboard the player opens later is left alone. With -rfvr-dashcheck the game says what it saw and quits.
+        /// </summary>
+        private static void CheckStartDashboard()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (_startDashboardCheckAt < 0f)
+            {
+                _startDashboardCheckAt = now + 20f;
+                _nextDashboardLook = now + 1f;
+                return;
+            }
+            if (_startDashboardCheckAt == float.MaxValue || now < _nextDashboardLook)
+            {
+                return;
+            }
+            _nextDashboardLook = now + 1f;
+            bool open;
+            try
+            {
+                open = OpenVR.Overlay != null && OpenVR.Overlay.IsDashboardVisible();
+            }
+            catch (System.Exception e)
+            {
+                Log.Warn("SteamVR's dashboard not asked about: " + e.Message);
+                _startDashboardCheckAt = float.MaxValue;
+                return;
+            }
+            if (open && _dashboardHides < 3 && VRConfig.NoSteamVRTheater.Value)
+            {
+                _dashboardHides++;
+                HideDashboard();
+            }
+            if (DashCheckOnly && now >= _startDashboardCheckAt && now < 50f)
+            {
+                return; // (the check's game stays up past 40 s: a quicker end reads to vrshots as a start that failed)
+            }
+            if (now >= _startDashboardCheckAt)
+            {
+                _startDashboardCheckAt = float.MaxValue;
+                Log.Info($"SteamVR's dashboard at the start: {(open ? "OPEN OVER THE GAME" : "shut")} ({_dashboardHides} closing(s) asked).");
+                if (DashCheckOnly)
+                {
+                    Application.Quit();
+                }
+            }
+        }
+
+        private static void HideDashboard()
+        {
+            try
+            {
+                string runtime = OpenVR.RuntimePath();
+                string tool = string.IsNullOrEmpty(runtime) ? null : System.IO.Path.Combine(runtime, "bin", "win64", "vrcmd.exe");
+                if (tool == null || !System.IO.File.Exists(tool))
+                {
+                    Log.Warn("SteamVR's dashboard is open over the game and its tool to close it was not found (" + (tool ?? "no SteamVR path") + ").");
+                    return;
+                }
+                var start = new System.Diagnostics.ProcessStartInfo(tool, "--hidedashboard")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                };
+                System.Diagnostics.Process.Start(start)?.Dispose();
+                Log.Info($"SteamVR's dashboard was open over the game: closed (vrcmd --hidedashboard, {_dashboardHides} of 3).");
+            }
+            catch (System.Exception e)
+            {
+                Log.Warn("SteamVR's dashboard could not be closed: " + e.Message);
+            }
+        }
+
         /// <summary>Drains the OpenVR event queue. Called once per frame from the main thread.</summary>
         public static void PumpEvents()
         {
@@ -274,6 +400,7 @@ namespace RavenfieldVR.Runtime
             {
                 return;
             }
+            CheckStartDashboard();
             for (int i = 0; i < 64 && system.PollNextEvent(ref _event, EventSize); i++)
             {
                 switch ((EVREventType)_event.eventType)
