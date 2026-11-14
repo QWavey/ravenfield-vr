@@ -1127,6 +1127,17 @@ namespace RavenfieldVR.Input
     {
         private static void Prefix()
         {
+            if (Local.FlatPlayerInput.Active)
+            {
+                try
+                {
+                    Local.FlatPlayerInput.Compute(); // (the game's own player on its own keyboard and mouse, splitscreen)
+                }
+                catch (System.Exception e)
+                {
+                    Log.ExceptionOnce("FlatPlayerInput.Compute", e);
+                }
+            }
             if (!VRGameInput.Enabled)
             {
                 return;
@@ -1156,6 +1167,10 @@ namespace RavenfieldVR.Input
     {
         private static void Postfix(KeyBinds input, ref float __result)
         {
+            if (Local.FlatPlayerInput.Active)
+            {
+                __result = Local.FlatPlayerInput.MergeAxis(input, __result);
+            }
             if (VRGameInput.Enabled)
             {
                 __result = VRGameInput.MergeAxis(input, __result);
@@ -1168,6 +1183,10 @@ namespace RavenfieldVR.Input
     {
         private static void Postfix(KeyBinds input, ref bool __result)
         {
+            if (Local.FlatPlayerInput.Active)
+            {
+                __result = Local.FlatPlayerInput.MergeButton(input, __result);
+            }
             if (VRGameInput.Enabled)
             {
                 __result = VRGameInput.MergeButton(input, __result);
@@ -1180,6 +1199,10 @@ namespace RavenfieldVR.Input
     {
         private static void Postfix(KeyBinds input, ref bool __result)
         {
+            if (Local.FlatPlayerInput.Active)
+            {
+                __result = Local.FlatPlayerInput.MergeButtonDown(input, __result);
+            }
             if (VRGameInput.Enabled)
             {
                 __result = VRGameInput.MergeButtonDown(input, __result);
@@ -1192,6 +1215,10 @@ namespace RavenfieldVR.Input
     {
         private static void Postfix(KeyBinds input, ref bool __result)
         {
+            if (Local.FlatPlayerInput.Active)
+            {
+                __result = Local.FlatPlayerInput.MergeButtonUp(input, __result);
+            }
             if (VRGameInput.Enabled)
             {
                 __result = VRGameInput.MergeButtonUp(input, __result);

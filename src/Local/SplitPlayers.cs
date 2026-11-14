@@ -18,6 +18,8 @@ namespace RavenfieldVR.Local
         public ushort LastButtons;
         /// <summary>Input fed by a check instead of a controller (null: the controller).</summary>
         public PadState? Simulated;
+        /// <summary>Its keyboard and mouse pair (1: the second keyboard and mouse) when it has no controller, else -1.</summary>
+        public int KeysPair = -1;
         public Rect Viewport;
         public int Kills, Deaths;
         public bool WasDead;
@@ -62,6 +64,7 @@ namespace RavenfieldVR.Local
             {
                 Patch();
                 EnsurePlayers(Splitscreen.Players - 1);
+                AssignDevices();
                 foreach (SplitPlayer p in Players)
                 {
                     ReadInput(p);
@@ -171,6 +174,8 @@ namespace RavenfieldVR.Local
                 }
             }
             MainRects.Clear();
+            FlatPlayerInput.Active = false;
+            RawInput.Stop();
             if (_host != null)
             {
                 UnityEngine.Object.Destroy(_host);
@@ -179,8 +184,38 @@ namespace RavenfieldVR.Local
             Log.Info("Splitscreen: back to one screen.");
         }
 
+        /// <summary>
+        /// Each player's controller if it has one, else the next keyboard and mouse (the game's own player keeps the first). With any on
+        /// a keyboard, the keyboards and mice are told apart and kept from the game (its own player fed from the first; FlatPlayerInput),
+        /// except while the game's menu is open, where the mouse is the game's again.
+        /// </summary>
+        private static void AssignDevices()
+        {
+            int pair = 0;
+            foreach (SplitPlayer p in Players)
+            {
+                p.KeysPair = p.Simulated.HasValue || XInput.Read(PadOf(p)).Connected ? -1 : ++pair;
+            }
+            bool keys = pair > 0 && !Runtime.OpenVRRuntime.Running;
+            if (keys)
+            {
+                RawInput.Start();
+                RawInput.BlockLegacy(!GameManager.IsPaused());
+            }
+            else if (RawInput.Started)
+            {
+                RawInput.BlockLegacy(false);
+            }
+            FlatPlayerInput.Active = keys && !GameManager.IsPaused();
+        }
+
         private static void ReadInput(SplitPlayer p)
         {
+            if (p.KeysPair > 0)
+            {
+                ReadKeys(p);
+                return;
+            }
             PadState pad = p.Simulated ?? XInput.Read(PadOf(p));
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             p.Move = pad.LeftStick;
@@ -206,6 +241,34 @@ namespace RavenfieldVR.Local
             p.Reload = Pressed(PadState.X);
             p.NextWeapon = Pressed(PadState.Y);
             p.LastButtons = pad.Buttons;
+        }
+
+        /// <summary>A player on its own keyboard and mouse (WASD, the mouse, R, Space, C, Shift, Q), told apart by Raw Input.</summary>
+        private static void ReadKeys(SplitPlayer p)
+        {
+            RawDevice k = RawInput.Nth(false, p.KeysPair), m = RawInput.Nth(true, p.KeysPair);
+            bool Key(int vk) => k != null && k.Keys[vk];
+            p.Move = new Vector2((Key(0x44) ? 1f : 0f) - (Key(0x41) ? 1f : 0f), (Key(0x57) ? 1f : 0f) - (Key(0x53) ? 1f : 0f));
+            if (m != null)
+            {
+                Vector2 d = m.ConsumeDelta();
+                p.Yaw += d.x * 0.09f;
+                p.Pitch = Mathf.Clamp(p.Pitch - d.y * 0.09f, -80f, 80f);
+            }
+            p.Fire = m != null && m.Left;
+            p.Aim = m != null && m.Right;
+            ushort buttons = (ushort)((Key(0x20) ? PadState.A : 0) | (Key(0x43) ? PadState.B : 0) | (Key(0x10) ? PadState.LeftThumb : 0)
+                                      | (Key(0x52) ? PadState.X : 0) | (Key(0x51) ? PadState.Y : 0));
+            bool Pressed(ushort b) => (buttons & b) != 0 && (p.LastButtons & b) == 0;
+            p.Jump = Pressed(PadState.A);
+            if (Pressed(PadState.B))
+            {
+                p.Crouch = !p.Crouch;
+            }
+            p.Sprint = Key(0x10) && p.Move.y > 0f;
+            p.Reload = Pressed(PadState.X);
+            p.NextWeapon = Pressed(PadState.Y);
+            p.LastButtons = buttons;
         }
 
         private static void Act(SplitPlayer p)
