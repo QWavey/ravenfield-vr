@@ -161,10 +161,14 @@ namespace RavenfieldVR.UI
             int gpu = rate < 0 ? -1 : FrameBudget.RecentGpuTenths;
             // And how far the frame rate hold has lowered the preset (HoldFrameRate): settings changed under the player are said.
             int holdSteps = GraphicsPresets.HoldLevel; // (also with the frame rate line off: the hold's own line is apart from it)
+            // In a vehicle: its speed, its height over the ground in the air, and its health (the flat game's vehicle HUD, hidden in VR).
+            // Rounded to 5 km/h and 5 m so the text is rebuilt only now and then.
+            int vehicleInfo = VehicleInfo(actor, out string vehicleLine);
             // Rebuilt only when what it shows changes: no string garbage every frame.
             if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu || holdSteps != _shownHeld
-                || !ReferenceEquals(a, _shownAmmo))
+                || !ReferenceEquals(a, _shownAmmo) || vehicleInfo != _shownVehicle)
             {
+                _shownVehicle = vehicleInfo;
                 _shownHeld = holdSteps;
                 _shownAmmo = a;
                 _shownHp = hpWhole;
@@ -179,6 +183,7 @@ namespace RavenfieldVR.UI
                              // Frames late with the GPU well inside the interval: said in words (fewer bots helps, a lower preset hardly).
                              + (gpu >= 0 && FrameBudget.RecentPercent < 85 && FrameBudget.RecentHz > 0
                                 && !GraphicsPresets.RenderScaleHelps(gpu / 10f, 1000f / FrameBudget.RecentHz, false) ? "  \u00b7  CPU-bound" : "")
+                             + (vehicleLine != null ? "\n" + vehicleLine : "")
                              + (holdSteps > 0 ? "\nGraphics held down " + holdSteps + " step" + (holdSteps > 1 ? "s" : "") + " for the frame rate" : "");
                 _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
@@ -205,6 +210,34 @@ namespace RavenfieldVR.UI
         }
 
         private int _shownHp = int.MinValue;
+        private int _shownVehicle = int.MinValue;
+        private string _vehicleLine;
+
+        /// <summary>The vehicle line's numbers packed into one int (-1: not in a vehicle) and its text (made again only when they change).</summary>
+        private int VehicleInfo(Actor actor, out string line)
+        {
+            line = null;
+            Vehicle v = actor.IsSeated() && actor.seat != null ? actor.seat.vehicle : null;
+            if (v == null)
+            {
+                return -1;
+            }
+            int speed = Mathf.RoundToInt(v.Velocity().magnitude * 3.6f / 5f) * 5;
+            bool air = Util.GameContext.SeatKind == Util.VehicleKind.Airplane || Util.GameContext.SeatKind == Util.VehicleKind.Helicopter;
+            int height = 0;
+            if (air && Physics.Raycast(v.transform.position, Vector3.down, out RaycastHit ground, 3000f, 1, QueryTriggerInteraction.Ignore))
+            {
+                height = Mathf.RoundToInt(ground.distance / 5f) * 5;
+            }
+            int health = v.maxHealth > 0f ? Mathf.Clamp(Mathf.RoundToInt(v.health / v.maxHealth * 100f), 0, 100) : 100;
+            int packed = Mathf.Min(speed, 9995) / 5 * 1000000 + Mathf.Min(height, 4995) / 5 * 1000 + health;
+            if (packed != _shownVehicle || _vehicleLine == null)
+            {
+                _vehicleLine = speed + " km/h" + (air ? "  \u00b7  " + height + " m up" : "") + "  \u00b7  vehicle " + health + "%";
+            }
+            line = _vehicleLine;
+            return packed;
+        }
         private string _shownCounter;
         private int _shownSpare = int.MinValue;
         private AmmoState _shownAmmo;
