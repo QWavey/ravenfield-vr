@@ -102,7 +102,7 @@ namespace RavenfieldVR.Local
                 {
                     if (a.dead)
                     {
-                        Vector3 beside = me.Position() + Quaternion.Euler(0f, p.Yaw, 0f) * new Vector3(1.5f * p.Index, 0f, 0f);
+                        Vector3 beside = OnGroundBeside(me.Position(), p.Yaw, p.Index);
                         a.SpawnAt(beside, Quaternion.Euler(0f, p.Yaw, 0f), a.controller.GetLoadout());
                     }
                     if (a.controller is AiActorController ai && ai.squad == null)
@@ -127,6 +127,31 @@ namespace RavenfieldVR.Local
                 UnityEngine.Object.DontDestroyOnLoad(_host);
                 _host.AddComponent<SplitScreenHost>();
             }
+        }
+
+        /// <summary>
+        /// Where an extra player starts: beside the game's own player on the same ground, else just behind it. Put 1.5 m to the side
+        /// unchecked, one stood on a wall's edge or a ledge, fell over and slid, and could not shoot (check, 2026-11-14: "walked 8.3 m,
+        /// fired 0").
+        /// </summary>
+        private static Vector3 OnGroundBeside(Vector3 me, float yaw, int index)
+        {
+            Quaternion turn = Quaternion.Euler(0f, yaw, 0f);
+            foreach (Vector3 offset in new[] { new Vector3(1.5f * index, 0f, 0f), new Vector3(-1.5f * index, 0f, 0f), new Vector3(0f, 0f, -1.5f * index) })
+            {
+                Vector3 at = me + turn * offset;
+                // (from head height down: nothing in the way from where the player stands, and the ground there no more than half a metre off)
+                if (Physics.Raycast(me + Vector3.up * 1.5f, (at + Vector3.up * 1.5f - (me + Vector3.up * 1.5f)).normalized, offset.magnitude + 0.4f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    continue;
+                }
+                if (Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 3f, ~0, QueryTriggerInteraction.Ignore)
+                    && Mathf.Abs(hit.point.y - me.y) < 0.5f)
+                {
+                    return hit.point;
+                }
+            }
+            return me + turn * new Vector3(0f, 0f, -0.8f);
         }
 
         /// <summary>The controller of a player: the first free ones in order, from <see cref="Splitscreen.FirstPad"/>.</summary>
@@ -416,7 +441,15 @@ namespace RavenfieldVR.Local
             }
             if (best != null)
             {
-                a.EnterSeat(best, true, true);
+                _seating = true;
+                try
+                {
+                    a.EnterSeat(best, true, true);
+                }
+                finally
+                {
+                    _seating = false;
+                }
             }
         }
 
@@ -689,11 +722,26 @@ namespace RavenfieldVR.Local
             One(ai, nameof(AiActorController.CarInput), nameof(SplitDrive), false);
             One(ai, nameof(AiActorController.BoatInput), nameof(SplitDrive), false);
             One(typeof(Actor), nameof(Actor.SwitchWeapon), nameof(SplitSwitch), true);
+            One(typeof(Actor), nameof(Actor.EnterSeat), nameof(SplitSeat), true);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam), nameof(MuteSteamPads), false);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity), nameof(MuteUnityPads), false);
         }
 
-        private static bool _switching;
+        private static bool _switching, _seating;
+
+        /// <summary>
+        /// A splitscreen soldier gets into a vehicle only when its player asks (RB or E): its squad's AI took a nearby car by itself, and
+        /// the player found itself driving off with no gun in its hands (check, 2026-11-14: "walked 14.7 m, fired 0 ... seated").
+        /// </summary>
+        private static bool SplitSeat(Actor __instance, ref bool __result)
+        {
+            if (_seating || Players.Count == 0 || __instance == null || !ByActor.ContainsKey(__instance))
+            {
+                return true;
+            }
+            __result = false;
+            return false;
+        }
 
         /// <summary>
         /// A splitscreen soldier holds the gun its player picked: its AI's own choice is not taken (the net stand-ins' AI switched their

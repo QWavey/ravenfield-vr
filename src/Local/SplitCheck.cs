@@ -127,7 +127,7 @@ namespace RavenfieldVR.Local
                     report($"local: splitscreen {name}, player {p.Index + 1}: first-person view {(fp != null ? "shows " + fp : "NONE (no weapon in front of its camera)")}"
                            + $" (holding {(a.activeWeapon != null ? a.activeWeapon.name : "nothing")}{(a.IsSeated() ? ", seated" : "")})");
                     report($"local: splitscreen {name}, player {p.Index + 1}: walked {moved:0.0} m{(moved < 1f ? " (DID NOT WALK)" : "")}, turned {turned:0} deg"
-                           + $"{(turned < 30f ? " (DID NOT TURN)" : "")}, fired {fired} round(s){(fired <= 0 ? " (DID NOT FIRE)" : "")}; its part of the window "
+                           + $"{(turned < 30f ? " (DID NOT TURN)" : "")}, fired {fired} round(s){(fired <= 0 ? " (DID NOT FIRE)" : "")}{(a.fallenOver ? " (FALLEN OVER)" : "")}; its part of the window "
                            + $"x {v.x:0.00} y {v.y:0.00} w {v.width:0.00} h {v.height:0.00}, camera {(p.Cam != null && p.Cam.enabled ? "on" : "OFF")}");
                 }
                 // Reload by its button.

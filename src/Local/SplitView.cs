@@ -28,6 +28,7 @@ namespace RavenfieldVR.Local
         private Animator _anim;
         private readonly HashSet<int> _params = new HashSet<int>();
         private int _lastAmmo = -1;
+        private ParticleSystem[] _flash = new ParticleSystem[0];
         private bool _lastReloading;
 
         private static readonly int Fire = Animator.StringToHash("fire"), Aim = Animator.StringToHash("aim"), WantsToAim = Animator.StringToHash("wants to aim"),
@@ -158,6 +159,18 @@ namespace RavenfieldVR.Local
                 go.transform.localScale = Vector3.one;
                 go.SetActive(true);
                 _copy = c;
+                var flash = new List<ParticleSystem>();
+                if (c.configuration != null && c.configuration.muzzles != null)
+                {
+                    foreach (Transform m in c.configuration.muzzles)
+                    {
+                        if (m != null)
+                        {
+                            flash.AddRange(m.GetComponentsInChildren<ParticleSystem>(true));
+                        }
+                    }
+                }
+                _flash = flash.ToArray();
                 _anim = c.animator != null ? c.animator : go.GetComponentInChildren<Animator>();
                 if (_anim != null)
                 {
@@ -214,6 +227,13 @@ namespace RavenfieldVR.Local
             if (_lastAmmo >= 0 && ammo < _lastAmmo)
             {
                 Trigger(Fire);
+                foreach (ParticleSystem ps in _flash)
+                {
+                    if (ps != null)
+                    {
+                        ps.Play(false); // (the muzzle flash, as the game's own player's gun shows it)
+                    }
+                }
             }
             _lastAmmo = ammo;
             bool reloading = w.reloading;
