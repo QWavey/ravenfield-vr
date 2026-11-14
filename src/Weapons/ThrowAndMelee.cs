@@ -983,7 +983,7 @@ namespace RavenfieldVR.Weapons
             WeaponRig rig = held.Rig;
             Vector3 basePoint = rig.ToWorld(rig.Data.GripPoint + _bladeDir * Mathf.Min(0.08f, _bladeLength * 0.3f));
             Vector3 tip = rig.ToWorld(rig.Data.GripPoint + _bladeDir * _bladeLength);
-            float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 1f / 240f); // (a 2 ms frame read the hand's jitter as a swing; at 144 Hz a frame is 6.9 ms, untouched)
             Transform body = _sys.Rig.Root;
             if (_hasLast && !NoFrameTime)
             {
@@ -1254,7 +1254,7 @@ namespace RavenfieldVR.Weapons
             // and a butt stroke with its last 10 cm hit nothing at a fixed 20), the grip's heel on a handgun.
             Vector3 butt = rig.ToWorld(held.StockButt ?? (d.Handgun ? d.GripPoint - d.Up * 0.04f : d.GripPoint - d.AimAxis * 0.2f));
             Transform body = _sys.Rig.Root;
-            float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 1f / 240f); // (a 2 ms frame read the hand's jitter as a swing; at 144 Hz a frame is 6.9 ms, untouched)
             // Points at most 10 cm apart (4 to 12), from the butt to the muzzle: four on a rifle were 27 cm apart, and a head or an arm
             // passing between their 12 cm sweeps took no hit (user, 2026-10-24: "I cannot punch them with parts of my weapons").
             int count = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(butt, muzzle) / 0.1f) + 1, 4, MaxBashPoints);
@@ -1346,7 +1346,7 @@ namespace RavenfieldVR.Weapons
             bool canFist = user != null && !user.dead && Util.GameContext.PlayerOnFoot && !VRGameInput.GunInputBlocked;
             bool can = canFist && source != null;
             Transform body = _sys.Rig.Root;
-            float dt = Mathf.Max(Time.unscaledDeltaTime, 1e-4f);
+            float dt = Mathf.Max(Time.unscaledDeltaTime, 1f / 240f); // (a 2 ms frame read the hand's jitter as a swing; at 144 Hz a frame is 6.9 ms, untouched)
             for (int i = 0; i < 2; i++)
             {
                 VRHand h = _sys.Rig.Hands[i];
