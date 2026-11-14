@@ -417,6 +417,7 @@ namespace RavenfieldVR.Net
         {
             SteamStatus.Update(); // (friends see what the player is doing)
             LanDiscovery.Update(); // (a LAN host says so; the LAN page hears them)
+            Local.SplitPlayers.Update(); // (the splitscreen's players, while it is on and a match runs)
             if (!_listening && Time.unscaledTime >= _nextListenTry)
             {
                 // (Steam comes up with the game's first scene: asked until it is there, then never again.)

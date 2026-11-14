@@ -32,6 +32,9 @@ namespace RavenfieldVR.Local
 
         public static SplitLayout Layout = SplitLayout.SideBySide;
 
+        /// <summary>The controller the second player takes (0: the first; 1 when the game's own player uses the first controller).</summary>
+        public static int FirstPad;
+
         public static string LayoutName => Players > 2 ? "quarters (four parts)" : Layout == SplitLayout.SideBySide ? "side by side (left and right)" : "one above the other";
 
         public static void NextLayout() => Layout = Layout == SplitLayout.SideBySide ? SplitLayout.AboveBelow : SplitLayout.SideBySide;
