@@ -43,8 +43,11 @@ namespace RavenfieldVR.Weapons
             }
             else
             {
-                if (_slideMoved)
+                if (_slideMoved || d.SlideRestsBackInAnimation)
                 {
+                    // (Every frame where the gun's idle animation holds it back: the ARS MP9's bolt stayed 44 mm back after the
+                    // slide release, the animation's pose again once it was let go; the user's "pulling back doesnt even work",
+                    // 2026-11-14.)
                     // Home once when the offset drops to nothing in one step (a bolt let go near the front, a sub weapon
                     // switched mid-slam): the slide kept its last drawn place, up to 1.5 cm back. Only once: after that the
                     // gun's own animation moves it again (its shots).

@@ -163,6 +163,7 @@ namespace RavenfieldVR.Weapons
                     d.SlideRestLocal += localDelta;
                 }
                 restShift = slideVec;
+                d.SlideRestsBackInAnimation = !flatParent;
                 d.Notes += $"slide held back at idle (the fire motion runs {slideVec.magnitude * 100f:0.0} cm toward the muzzle): its rest is the forward place ";
                 slideVec = -slideVec;
             }

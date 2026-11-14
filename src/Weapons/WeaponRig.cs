@@ -330,6 +330,8 @@ namespace RavenfieldVR.Weapons
         /// place the hands of an armless twin (<see cref="WeaponAnalyzer"/>'s GripFromTwin).
         /// </summary>
         public float ModelFrontFromMuzzle, ModelRearFromMuzzle;
+        /// <summary>The gun's own idle animation holds the slide back (its rest was moved to the forward place): kept home while held.</summary>
+        public bool SlideRestsBackInAnimation;
         /// <summary>
         /// How far the gun reaches ahead of its grip along the aim (metres): the muzzle's, or the drawn barrel's front where the
         /// muzzle transform sits well inside the gun (<see cref="BarrelFrontAlong"/>). The muzzle's for every other gun.

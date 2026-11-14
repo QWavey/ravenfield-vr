@@ -6,7 +6,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 - **Both PCs need 1.17.17** (message kinds 42-48, the Reloading flag). Setup and zip in `dist/`, notes `dist/notes-1.17.17.md`.
 - The stand-in reload is proven in game (netcheck 0 problems: the check's wait had not sent the flag, 385.20).
-- Guns (the user named them: the SMG is the **ARS Telum MP9**, the shotgun its **Mossberg 500**, workshop 3066156660): the MP9's skinned magazine is cut out of the gun mesh while out (385.23); the "(Bot Friendly)" ARS guns are held from their twin's hands or by their length (385.24); the GREASER's bolt has a latch (385.21); a separate third-person model in a first-person gun is hidden while held (the MP9 carried a second MP9 1.78 m behind the player, 385.25). Checked with `vrshots --fast --mods 3066156660 --weapon MP9 --weapon M500`.
+- Guns (the user named them: the SMG is the **ARS Telum MP9**, the shotgun its **Mossberg 500**, workshop 3066156660): the MP9's skinned magazine is cut out of the gun mesh while out (385.23); the "(Bot Friendly)" ARS guns are held from their twin's hands or by their length (385.24); the GREASER's bolt has a latch (385.21); a separate third-person model in a first-person gun is hidden while held (the MP9 carried a second MP9 1.78 m behind the player, 385.25); the MP9's bolt no longer stays back after the slide release (385.26). Checked with `vrshots --fast --mods 3066156660 --weapon MP9 --weapon M500`.
 - Still open: the "asval o" sheet's straight magazine (385.22, not the user's gun), the M500 pump's rack grip "not measured" (a bone). The user has not tried any of it in the headset yet.
 
 ## State 2026-11-14 (work-until-limit 75; Tasks 385; for 1.17.17, notes in `dist/notes-1.17.17.md`)
