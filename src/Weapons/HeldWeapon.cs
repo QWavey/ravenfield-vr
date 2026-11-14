@@ -620,6 +620,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Renderers that show the weapon's own scope camera's picture (the lens of a magnifier or scope).</summary>
         private readonly List<Renderer> _scopeLenses = new List<Renderer>();
         private readonly Dictionary<Renderer, int> _lensOffSaid = new Dictionary<Renderer, int>();
+        private readonly HashSet<Renderer> _lensWasOff = new HashSet<Renderer>();
 
         /// <summary>
         /// A scope camera of the gun's own that the game did not take as its render-texture camera: the game looks for one on the
@@ -692,6 +693,13 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     _scopeLenses.Add(child);
+                }
+            }
+            foreach (Renderer r in _scopeLenses)
+            {
+                if (r != null && !r.enabled)
+                {
+                    _lensWasOff.Add(r);
                 }
             }
             if (_scopeLenses.Count > 0 && Rig.Data.Sights != null && Rig.Data.Sights.Length > 1)
@@ -2227,7 +2235,10 @@ namespace RavenfieldVR.Weapons
 
         private static readonly System.Collections.Generic.HashSet<string> LensFailed = new System.Collections.Generic.HashSet<string>();
 
-        private int _modeOptic = -1; // whether the model has an optic for its narrower sight modes (-1: not looked yet)
+        private int _modeOptic = -1;
+
+        /// <summary>The mod's lens for one sight mode (its own method: a lambda in the loop made a closure every frame for each mode; scout).</summary>
+        private VRScope MakeModeLens(SightLine line) => SafeLens(Rig, () => new VRScope(_system.Rig, Rig, line)); // whether the model has an optic for its narrower sight modes (-1: not looked yet)
 
         private void UpdateModeScopes()
         {
@@ -2273,7 +2284,7 @@ namespace RavenfieldVR.Weapons
                 bool wanted = i == mode && line.Magnified && _modeOptic == 1;
                 if (wanted && _modeScopes[i] == null)
                 {
-                    _modeScopes[i] = SafeLens(Rig, () => new VRScope(_system.Rig, Rig, line));
+                    _modeScopes[i] = MakeModeLens(line);
                     if (_modeScopes[i] == null)
                     {
                         continue;
@@ -2798,10 +2809,11 @@ namespace RavenfieldVR.Weapons
             {
                 if (r != null)
                 {
-                    r.enabled = true;
+                    r.enabled = !_lensWasOff.Contains(r); // (as it was: one the game kept off was switched on at every release; scout)
                 }
             }
             _scopeLenses.Clear();
+            _lensWasOff.Clear();
             Rig.ShowSpareParts();
             if (_beltHidden && _beltParts != null)
             {
