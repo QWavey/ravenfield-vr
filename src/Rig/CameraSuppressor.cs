@@ -76,7 +76,9 @@ namespace RavenfieldVR.Rig
             for (int i = 0; i < count; i++)
             {
                 Camera c = _buffer[i];
-                if (c == null || c == _vrCamera || c.targetTexture != null || _ignored.Contains(c))
+                // (Nor a splitscreen player's camera: in VR the other players at this PC play on the monitor.)
+                if (c == null || c == _vrCamera || c.targetTexture != null || _ignored.Contains(c)
+                    || c.name.StartsWith("RavenfieldVR Split Camera", System.StringComparison.Ordinal))
                 {
                     continue;
                 }
