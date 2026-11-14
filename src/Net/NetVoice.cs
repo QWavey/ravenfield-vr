@@ -204,8 +204,14 @@ namespace RavenfieldVR.Net
 
         private static readonly Dictionary<byte, Voice> Voices = new Dictionary<byte, Voice>();
 
+        private static readonly Dictionary<byte, float> HeardAt = new Dictionary<byte, float>();
+
+        /// <summary>Whether a player's voice came in this last moment (his name tag says so).</summary>
+        internal static bool Talking(byte player) => HeardAt.Count > 0 && HeardAt.TryGetValue(player, out float at) && Time.unscaledTime - at < 0.4f;
+
         internal static void Take(byte sender, ref NetReader r)
         {
+            HeardAt[sender] = Time.unscaledTime;
             if (!VRConfig.VoiceChat.Value)
             {
                 return;

@@ -42,7 +42,7 @@ namespace RavenfieldVR.Net
             public ushort Id;
             public Actor Actor;
             public string Name = "", Weapon = "";
-            public string TagShown;
+            public string TagShown, NameTalking;
 
             /// <summary>Everything he carries, by slot (null: only the weapon in his hands was told), and the slot in his hands.</summary>
             public string[] Loadout;
@@ -2868,10 +2868,17 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            if (!ReferenceEquals(r.TagShown, r.Name))
+            // With "(talking)" under it while his voice comes in (the voice chat); the two texts are kept, compared by reference.
+            bool talking = NetVoice.Talking(r.Owner);
+            if (talking && (r.NameTalking == null || !r.NameTalking.StartsWith(r.Name, StringComparison.Ordinal)))
             {
-                r.Tag.text = r.Name; // (the shown name kept: the text's getter made a new string each read, two a frame per player)
-                r.TagShown = r.Name;
+                r.NameTalking = r.Name + "\n(talking)";
+            }
+            string wanted = talking ? r.NameTalking : r.Name;
+            if (!ReferenceEquals(r.TagShown, wanted))
+            {
+                r.Tag.text = wanted; // (the shown name kept: the text's getter made a new string each read, two a frame per player)
+                r.TagShown = wanted;
             }
             Camera eyes = Camera.main;
             Vector3 at = a.CenterPosition() + Vector3.up * 1.15f;
