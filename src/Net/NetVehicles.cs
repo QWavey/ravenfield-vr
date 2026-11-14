@@ -790,6 +790,15 @@ namespace RavenfieldVR.Net
                         Forget(s);
                         if (s.Copy && s.V != null)
                         {
+                            try
+                            {
+                                // (Out of the game's own lists first: destroyed in them, its vehicle loop and particles threw on it every frame;
+                                // the first in-game net check, 2026-11-14.)
+                                ActorManager.DropVehicle(s.V);
+                            }
+                            catch (Exception)
+                            {
+                            }
                             UnityEngine.Object.Destroy(s.V.gameObject);
                         }
                     }

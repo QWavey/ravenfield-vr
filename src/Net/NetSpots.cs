@@ -141,6 +141,18 @@ namespace RavenfieldVR.Net
             return new Mark { Go = go, Text = text, Plate = new UI.TextPlate(text, _font.material, 0.6f, 0.08f) };
         }
 
+        /// <summary>Whether a player's mark shows now, and where (the net check).</summary>
+        internal static bool Showing(byte player, out Vector3 at)
+        {
+            at = Vector3.zero;
+            if (Marks.TryGetValue(player, out Mark m) && m.Go != null && m.Go.activeSelf)
+            {
+                at = m.At;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>A player left, or the match or session ended: his mark (or all) goes.</summary>
         internal static void Forget(byte player)
         {

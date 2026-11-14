@@ -265,9 +265,44 @@ namespace RavenfieldVR.Net
                     w.UShort(vid);
                     host.Send(NetGame.VehicleGone, w, true);
                     yield return For(0.6f);
-                    report($"multiplayer shared vehicle '{prefab.gameObject.name}': {(copy != null ? "copy made" : "NO COPY MADE")}, {(kinematic ? "kinematic" : "NOT KINEMATIC")}, "
+                    report($"multiplayer shared vehicle '{prefab.gameObject.name}': {(made ? "copy made" : "NO COPY MADE")}, {(kinematic ? "kinematic" : "NOT KINEMATIC")}, "
                            + $"{(off >= 0f && off < 0.6f ? $"followed the host's word ({off * 100f:0} cm off)" : $"DID NOT FOLLOW ({off:0.00} m off)")}, smoke at 40% health {(smoke ? "shown" : "NOT SHOWN")}, "
                            + $"gone when told: {(!made ? "-" : copy == null ? "yes" : "NOT GONE")}");
+                }
+            }
+
+            // 5a2. The host's spot and a magazine he hands over (2026-11-14): his mark shows here where he pointed, and the rounds go
+            // into the reserve of this player's gun of that kind.
+            {
+                Actor me = LocalPlayer.actor;
+                if (me == null)
+                {
+                    report("multiplayer spot and handed magazine: skipped (no player)");
+                }
+                else
+                {
+                    Vector3 spotAt = me.Position() + me.transform.forward * 12f;
+                    w.Reset();
+                    w.Vector(spotAt);
+                    w.Bool(false);
+                    host.Send(NetGame.Spot, w, true);
+                    yield return For(0.6f);
+                    bool marked = NetSpots.Showing(0, out Vector3 markAt) && (markAt - spotAt).sqrMagnitude < 0.01f;
+                    Weapon gun = me.activeWeapon;
+                    string given = "skipped (no gun with a reserve)";
+                    if (gun != null && gun.weaponEntry != null && !gun.HasInfiniteSpareAmmo() && gun.configuration != null && gun.configuration.spareAmmo > 0)
+                    {
+                        gun.spareAmmo = Mathf.Max(0, gun.configuration.spareAmmo - 20);
+                        int reserveBefore = gun.spareAmmo;
+                        w.Reset();
+                        w.String(gun.weaponEntry.name, 120);
+                        w.VarInt(10);
+                        w.Bool(false);
+                        host.Send(NetGame.GiveRounds, w, true);
+                        yield return For(0.6f);
+                        given = gun.spareAmmo == reserveBefore + 10 ? $"10 rounds into the reserve ({reserveBefore} to {gun.spareAmmo})" : $"NOT ADDED ({reserveBefore} to {gun.spareAmmo})";
+                    }
+                    report($"multiplayer spot from the host: {(marked ? "shown where he pointed" : "NOT SHOWN")}; a magazine handed over: {given}");
                 }
             }
 
