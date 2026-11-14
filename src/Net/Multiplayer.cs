@@ -414,6 +414,7 @@ namespace RavenfieldVR.Net
         /// <summary>Once a frame, in the menu and in a match alike.</summary>
         public static void Update()
         {
+            SteamStatus.Update(); // (friends see what the player is doing)
             if (!_listening && Time.unscaledTime >= _nextListenTry)
             {
                 // (Steam comes up with the game's first scene: asked until it is there, then never again.)
