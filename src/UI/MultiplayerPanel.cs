@@ -120,7 +120,8 @@ namespace RavenfieldVR.UI
             foreach (NetPlayer p in session.Players.OrderBy(p => p.Id))
             {
                 string ping = p.Id == session.LocalId ? "you" : p.Ping >= 0 ? $"{p.Ping * 1000:0} ms" : "...";
-                string line = $"{(p.Id == 0 ? "Host   " : "Player ")}{p.Info.Name}{(p.Info.Vr ? "   VR" : "")}   ({ping})";
+                string shown = p.Info.Name != null && p.Info.Name.Length > 28 ? p.Info.Name.Substring(0, 27) + "..." : p.Info.Name; // (a 64-letter name ran under the Kick button)
+                string line = $"{(p.Id == 0 ? "Host   " : "Player ")}{shown}{(p.Info.Vr ? "   VR" : "")}   ({ping})";
                 if (session.IsHost && p.Id != session.LocalId)
                 {
                     // The host's Kick, pressed twice (a laser's stray click must not throw a friend out).

@@ -511,8 +511,12 @@ namespace RavenfieldVR.UI
 
         public void Close() => _root.SetActive(false);
 
+        private bool _placeWhenTracked;
+
         private void Place()
         {
+            // (Opened before the headset's first pose: placed again once the head is tracked, as the mod's other panels; settings scout.)
+            _placeWhenTracked = !_rig.HeadTracked;
             Transform head = _rig.Head;
             Vector3 forward = head.forward;
             forward.y = 0f;
@@ -532,6 +536,10 @@ namespace RavenfieldVR.UI
             {
                 _awaySince = -1f;
                 return;
+            }
+            if (_placeWhenTracked && _rig.HeadTracked)
+            {
+                Place();
             }
             // Looked away from it (more than 75 degrees) for 2 s, turned round in the room: it comes back in front, as the game's
             // menus do (CanvasManager.KeepMenusInView). It stayed behind the player (review, 2026-10-20).
