@@ -198,16 +198,19 @@ namespace RavenfieldVR.Local
                 p.KeysPair = p.Simulated.HasValue || XInput.Read(PadOf(p)).Connected ? -1 : ++pair;
             }
             bool keys = pair > 0 && !Runtime.OpenVRRuntime.Running;
+            // (Only while the game holds the mouse for play: its menu, the deploy map after a death and the loadout need the pointer, and
+            // with the merged mouse kept from it the game's own player could not click "Deploy".)
+            bool playing = Cursor.lockState == CursorLockMode.Locked && !GameManager.IsPaused();
             if (keys)
             {
                 RawInput.Start();
-                RawInput.BlockLegacy(!GameManager.IsPaused());
+                RawInput.BlockLegacy(playing);
             }
             else if (RawInput.Started)
             {
                 RawInput.BlockLegacy(false);
             }
-            FlatPlayerInput.Active = keys && !GameManager.IsPaused();
+            FlatPlayerInput.Active = keys && playing;
         }
 
         private static void ReadInput(SplitPlayer p)
