@@ -34,13 +34,15 @@ def main():
         if not 0.0 <= start < stop <= length + 0.02:
             failures.append(f"{name}: cut {start}-{stop} s is outside its {length} s")
 
-    # (The whole mod: a clip made in code is a sound made by the mod.)
+    # (The whole mod: a clip made in code is a sound made by the mod. The one exception is the voice chat's stream, which plays the
+    # other player's own voice as his microphone sent it, no sound made: NetVoice.cs, 2026-11-14.)
     made = []
+    voice_stream = {"NetVoice.cs"}
     for folder, _, files in os.walk(os.path.join(ROOT, "src")):
         for name in files:
             if name.endswith(".cs"):
                 with open(os.path.join(folder, name), encoding="utf-8") as f:
-                    if "AudioClip.Create" in f.read():
+                    if "AudioClip.Create" in f.read() and name not in voice_stream:
                         made.append(name)
     if made:
         failures.append("AudioClip.Create in " + ", ".join(made) + ": the mod's sounds are the game's only")
