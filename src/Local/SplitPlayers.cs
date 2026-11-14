@@ -18,6 +18,8 @@ namespace RavenfieldVR.Local
         public ushort LastButtons;
         /// <summary>Input fed by a check instead of a controller (null: the controller).</summary>
         public PadState? Simulated;
+        /// <summary>Its first-person view: the weapon in its hands and its own body not drawn for it.</summary>
+        internal SplitView View;
         /// <summary>Its keyboard and mouse pair (1: the second keyboard and mouse) when it has no controller, else -1.</summary>
         public int KeysPair = -1;
         public Rect Viewport;
@@ -142,10 +144,12 @@ namespace RavenfieldVR.Local
             }
             cam.targetTexture = null;
             cam.stereoTargetEye = StereoTargetEyeMask.None; // (the monitor, not the headset)
-            cam.nearClipPlane = 0.2f; // (inside the soldier's own head: its face is not drawn)
+            cam.nearClipPlane = 0.08f; // (its own body is not drawn in its view: SplitView)
             cam.fieldOfView = 70f;
             cam.depth = 50 + p.Index;
             cam.enabled = true;
+            p.View = new SplitView(p);
+            SplitView.HookBodies();
             return cam;
         }
 
@@ -175,6 +179,8 @@ namespace RavenfieldVR.Local
             {
                 UnityEngine.Object.Destroy(p.Cam.gameObject);
             }
+            p.View?.Destroy();
+            p.View = null;
         }
 
         public static void Teardown()
@@ -192,6 +198,7 @@ namespace RavenfieldVR.Local
             }
             MainRects.Clear();
             HudBack();
+            SplitView.UnhookBodies();
             FlatPlayerInput.Active = false;
             RawInput.Stop();
             if (_host != null)
@@ -560,6 +567,23 @@ namespace RavenfieldVR.Local
         }
 
         /// <summary>After the game moved the soldiers: each camera at its soldier's eyes.</summary>
+        /// <summary>The splitscreen player a camera is the world view of, or null.</summary>
+        internal static SplitPlayer OwnerOf(Camera cam)
+        {
+            if (cam == null)
+            {
+                return null;
+            }
+            foreach (SplitPlayer p in Players)
+            {
+                if (p.Cam == cam)
+                {
+                    return p;
+                }
+            }
+            return null;
+        }
+
         internal static void LateTick()
         {
             foreach (SplitPlayer p in Players)
@@ -579,6 +603,14 @@ namespace RavenfieldVR.Local
                     // Dead: looking down at where it fell from above, until the game brings it back.
                     p.Cam.transform.SetPositionAndRotation(a.CenterPosition() + Vector3.up * 3f - Quaternion.Euler(0f, p.Yaw, 0f) * Vector3.forward * 2f,
                                                            Quaternion.Euler(55f, p.Yaw, 0f));
+                }
+                try
+                {
+                    p.View?.Tick();
+                }
+                catch (Exception e)
+                {
+                    Log.ExceptionOnce("split-view", e);
                 }
             }
         }

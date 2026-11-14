@@ -71,6 +71,7 @@ namespace RavenfieldVR.Local
                     report(!started ? "local: keyboards and mice NOT TOLD APART (Raw Input did not start: see the log)"
                         : !sent ? "local: Raw Input on (window " + RawInput.Window.ToInt64().ToString("X") + "), the check's key could not be sent"
                         : keyHeard ? "local: Raw Input on the game's window " + RawInput.Window.ToInt64().ToString("X") + ", a key sent through Windows heard"
+                        : !RawInput.InFront ? "local: Raw Input on; the key test not checked (another window is in front, and Windows gives it the keys)"
                         : "local: Raw Input on, a key sent through Windows NOT HEARD within 30 frames");
                     report($"local: Raw Input: {RawInput.Messages} message(s) on the window, {RawInput.Errors} not read{(RawInput.LastError != null ? " (" + RawInput.LastError + ")" : "")}, "
                            + $"{RawInput.Count(false)} keyboard(s) and {RawInput.Count(true)} mouse/mice heard; messages on thread {RawInput.ProcThread}, Unity's {RawInput.MainThread}");
@@ -122,6 +123,9 @@ namespace RavenfieldVR.Local
                     float turned = Mathf.Abs(Mathf.DeltaAngle(yaw0[p], p.Yaw));
                     int fired = shots[p];
                     Rect v = p.Viewport;
+                    string fp = p.View?.ShownWeapon;
+                    report($"local: splitscreen {name}, player {p.Index + 1}: first-person view {(fp != null ? "shows " + fp : "NONE (no weapon in front of its camera)")}"
+                           + $" (holding {(a.activeWeapon != null ? a.activeWeapon.name : "nothing")}{(a.IsSeated() ? ", seated" : "")})");
                     report($"local: splitscreen {name}, player {p.Index + 1}: walked {moved:0.0} m{(moved < 1f ? " (DID NOT WALK)" : "")}, turned {turned:0} deg"
                            + $"{(turned < 30f ? " (DID NOT TURN)" : "")}, fired {fired} round(s){(fired <= 0 ? " (DID NOT FIRE)" : "")}; its part of the window "
                            + $"x {v.x:0.00} y {v.y:0.00} w {v.width:0.00} h {v.height:0.00}, camera {(p.Cam != null && p.Cam.enabled ? "on" : "OFF")}");

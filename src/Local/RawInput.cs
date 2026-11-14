@@ -186,6 +186,15 @@ namespace RavenfieldVR.Local
             return SendInput(1, i, Marshal.SizeOf(typeof(KeyInput))) == 1;
         }
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        /// <summary>
+        /// Check: the game's window is the one in front. Windows gives raw keys to a window behind only when the one in front has not asked
+        /// for them itself (a browser or chat app in front kept the check's key, 2026-11-14), so the key test means something only then.
+        /// </summary>
+        internal static bool InFront => _installed && GetForegroundWindow() == _window;
+
         /// <summary>Check: the window Raw Input listens on (zero: none found).</summary>
         internal static IntPtr Window => _installed ? _window : IntPtr.Zero;
 
