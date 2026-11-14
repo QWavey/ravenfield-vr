@@ -67,12 +67,26 @@ namespace RavenfieldVR.Local
                 }
                 yield return Wait(1.5f);
                 // Fire for a second.
-                var ammo0 = all.ToDictionary(p => p, p => p.Actor != null && p.Actor.activeWeapon != null ? p.Actor.activeWeapon.ammo : -1);
+                var shots = all.ToDictionary(p => p, p => 0);
+                var last = all.ToDictionary(p => p, p => p.Actor != null && p.Actor.activeWeapon != null ? p.Actor.activeWeapon.ammo : -1);
                 foreach (SplitPlayer p in all)
                 {
                     p.Simulated = new PadState { Connected = true, RightTrigger = 1f };
                 }
-                yield return Wait(1f);
+                // Shots counted as the magazine goes down, frame by frame (a reload in between is not a shot back).
+                for (float until = Time.unscaledTime + 1.5f; Time.unscaledTime < until;)
+                {
+                    foreach (SplitPlayer p in all)
+                    {
+                        int now = p.Actor != null && p.Actor.activeWeapon != null ? p.Actor.activeWeapon.ammo : -1;
+                        if (now >= 0 && last[p] >= 0 && now < last[p])
+                        {
+                            shots[p] += last[p] - now;
+                        }
+                        last[p] = now;
+                    }
+                    yield return null;
+                }
                 foreach (SplitPlayer p in all)
                 {
                     Actor a = p.Actor;
@@ -82,7 +96,7 @@ namespace RavenfieldVR.Local
                     }
                     float moved = Vector3.ProjectOnPlane(a.Position() - from[p], Vector3.up).magnitude;
                     float turned = Mathf.Abs(Mathf.DeltaAngle(yaw0[p], p.Yaw));
-                    int fired = ammo0[p] >= 0 && a.activeWeapon != null ? ammo0[p] - a.activeWeapon.ammo : -1;
+                    int fired = shots[p];
                     Rect v = p.Viewport;
                     report($"local: splitscreen {name}, player {p.Index + 1}: walked {moved:0.0} m{(moved < 1f ? " (DID NOT WALK)" : "")}, turned {turned:0} deg"
                            + $"{(turned < 30f ? " (DID NOT TURN)" : "")}, fired {fired} round(s){(fired <= 0 ? " (DID NOT FIRE)" : "")}; its part of the window "
@@ -103,6 +117,7 @@ namespace RavenfieldVR.Local
                 }
                 yield return Wait(0.5f);
                 string file = Shots.FileFor("split-" + name);
+                System.IO.Directory.CreateDirectory(Shots.Dir); // (ScreenCapture writes no folder of its own)
                 ScreenCapture.CaptureScreenshot(file);
                 yield return Wait(1f);
                 Log.Info("Shot: " + file);

@@ -479,7 +479,11 @@ namespace RavenfieldVR.Local
         {
             if (Mine(__instance, out SplitPlayer p))
             {
-                __result = p.Fire;
+                // A gun that is not automatic fires once per pull: held down, its trigger is pulled again about ten times a second (the AI
+                // holding "fire" fired a pistol or a shotgun once; the local check of 2026-11-14).
+                Weapon w = __instance.actor.activeWeapon;
+                bool auto = w == null || w.configuration == null || w.configuration.auto;
+                __result = p.Fire && (auto || Time.frameCount % 6 < 3);
             }
         }
 
