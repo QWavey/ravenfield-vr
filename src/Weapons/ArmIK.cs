@@ -165,6 +165,13 @@ namespace RavenfieldVR.Weapons
                 WeaponRigData data = _held.Rig.Data;
                 bool onSupport = !data.HasSupportPoint || (animatedGrip.position - _held.Rig.ToWorld(data.SupportPoint)).sqrMagnitude < 0.14f * 0.14f;
                 RigidPose grip = _supportGrip.SteadyEased(animatedGrip, _held.Rig.GunBodyPose, onSupport, GameReloading, Time.frameCount, Time.unscaledTime);
+                // On a pump the support grip is the pump: it goes back with it. The weapon's hand stayed on the pump's place at rest
+                // while the pump was worked (the user, 2026-11-14: "the hands (weapon hands) still dont move with the shotgun rack").
+                if (data.CyclesByHand && data.HasSupportPoint && _held.SlideOffset > 0.0005f && data.SlideTravel.sqrMagnitude > 1e-8f
+                    && Vector3.Distance(data.RackPoint, data.SupportPoint) < 0.22f && (off.Role == HandRole.Slide || off.Role == HandRole.Foregrip))
+                {
+                    grip = new RigidPose(grip.position + _held.Rig.DirToWorld(data.SlideTravel.normalized) * _held.SlideOffset, grip.rotation);
+                }
                 SayHeldOff("support hand", animatedGrip, grip, ref _saidSupportOff);
                 // Free: the grasp follows the controller palm, settled onto a bolt, handle or cover it works.
                 ArmChain c = _left.Chain;

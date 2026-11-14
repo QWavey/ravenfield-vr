@@ -346,8 +346,13 @@ namespace RavenfieldVR.Weapons
             // With the hand's trigger held as it squeezes: one round for the chamber, not a magazine (Weapons/ChamberByHand; the
             // user, 2026-11-11). The squeeze alone stays what it was: after the last shot the slide is back with the empty magazine
             // still in, and that squeeze wants the next magazine.
+            // (Only when it can go in now: the chamber open and empty, and the magazine not out. A finger resting on the trigger while
+            // reaching for a magazine took a round instead, "randomly" (the user, 2026-11-14: "the player grabs a ... bullet from the
+            // left side randomly ... while loading mags").)
+            bool chamberWaits = (Ammo.SlideLocked || Ammo.BoltOpen) && !Ammo.Chambered && !Ammo.SpentInChamber
+                                && (!Ammo.UsesDetachableMag || Ammo.MagInserted && Ammo.MagRounds > 0);
             if (HandLoading.ChamberEnabled && Ammo.Participates && Ammo.UsesChamber && Data.Action != ActionType.SingleShot && !Breaks
-                && VRInput.GetHeld(DigitalAction.Use, off.Side))
+                && chamberWaits && VRInput.GetHeld(DigitalAction.Use, off.Side))
             {
                 VRInput.Consume(DigitalAction.Use, off.Side);
                 if (!Ammo.InfiniteSpare && Ammo.SpareAmmo <= 0)
