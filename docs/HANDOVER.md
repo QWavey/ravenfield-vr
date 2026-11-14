@@ -2,6 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-14 night (the user playing 1.17.17 and reporting; bug-hunt run, work-until-limit 50; Tasks 387-393)
+
+- Fixed in code, installed by a watcher when the game closes (`build.ps1 -Package`, install, Defender), all unrun in the game: shotguns (trigger held works the pump shot after shot, glove and weapon hand on the pump, every held shell drawn, port at the receiver floor and in from below, next shell waits at the mouth), hand passes keep the glove, empty hands stop at walls, PPSh no made knob, 92g weapon hand on the glove's hold, MW MP9 own mag-in sound and semi loop cut, pouch round only when it can go in, CZ Bren 2 scope picture, no mod lens over the M417A2's scope.
+- To read after the user's next play: `lensoff:` lines (why a scope lens stays hidden), `sound:` lines (which sound each action plays), `maghold-off:` lines.
+
 ## State 2026-11-14 evening (**1.17.17 INSTALLED** on this PC, Defender clean; Tasks 385 to 385.24; work-until-limit 85)
 
 - **Both PCs need 1.17.17** (message kinds 42-48, the Reloading flag). Setup and zip in `dist/`, notes `dist/notes-1.17.17.md`.
