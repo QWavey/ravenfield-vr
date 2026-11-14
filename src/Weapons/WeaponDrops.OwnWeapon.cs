@@ -139,7 +139,9 @@ namespace RavenfieldVR.Weapons
             bool any = false;
             foreach (Renderer r in rig.Weapon.GetComponentsInChildren<Renderer>(false))
             {
-                if (!r.enabled || skip.Contains(r) || r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer)
+                // (Nor what the hand kept from being drawn: helper boxes, a separate third-person model, a spent magazine's rounds; the
+                // dropped copy showed the ARS guns' second copy beside it; scout, 2026-11-14.)
+                if (!r.enabled || r.forceRenderingOff || skip.Contains(r) || r is ParticleSystemRenderer || r is LineRenderer || r is TrailRenderer)
                 {
                     continue;
                 }

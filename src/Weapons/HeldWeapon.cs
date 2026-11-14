@@ -234,23 +234,7 @@ namespace RavenfieldVR.Weapons
                         _shadowOnly.Add(r);
                     }
                 }
-                // A separate third-person model carried in the first-person gun (the ARS guns' 'Body_TP': a whole second MP9 drawn
-                // 1.78 m behind the muzzle, behind the player's head, swinging with the reload animation) is not drawn while held: the
-                // flat view never showed it, in VR it hung in the world (2026-11-14). Not where it is the gun (the Bot Friendly guns).
-                Transform tpModel = weapon.thirdPersonTransform;
-                if (tpModel != null && tpModel != weapon.transform && rig.GunBody != null && rig.GunBody != tpModel && !rig.GunBody.IsChildOf(tpModel)
-                    && !tpModel.IsChildOf(rig.GunBody)
-                    && !System.Linq.Enumerable.Any(new[] { rig.Slide, rig.Magazine, rig.Handle, rig.Bolt, rig.Trigger }, p => p != null && p.IsChildOf(tpModel)))
-                {
-                    foreach (Renderer r in tpModel.GetComponentsInChildren<Renderer>(true))
-                    {
-                        if (!r.forceRenderingOff && !(r is ParticleSystemRenderer))
-                        {
-                            r.forceRenderingOff = true;
-                            _shadowOnly.Add(r); // (given back with them on release)
-                        }
-                    }
-                }
+                HideSeparateThirdPersonModel(rig, weapon, _shadowOnly);
                 // The flat game's casing particles give way to real cases (Casings), here and on its sub weapons.
                 Casings.HideFlat(weapon, _hiddenCasings);
                 Handling(rig.Data, weapon, out _oneHandRecoil, out _sagDegrees, out _followRate);
@@ -1208,6 +1192,31 @@ namespace RavenfieldVR.Weapons
         internal static int ContactKnocks { get; private set; }
         /// <summary>Shadow-only renderers switched off while the weapon is held (given back on release).</summary>
         private readonly List<Renderer> _shadowOnly = new List<Renderer>();
+
+        /// <summary>
+        /// A separate third-person model carried in the first-person gun (the ARS guns' 'Body_TP': a whole second MP9 drawn 1.78 m behind
+        /// the muzzle, behind the player's head, swinging with the reload animation) is not drawn while held: the flat view never showed
+        /// it, in VR it hung in the world (2026-11-14). Not where it is the gun (the Bot Friendly guns), nor where a part the rig uses is
+        /// under it. Its renderers go into <paramref name="hidden"/>, given back on release. In either hand (the free hand's too; scout).
+        /// </summary>
+        internal static void HideSeparateThirdPersonModel(WeaponRig rig, Weapon weapon, List<Renderer> hidden)
+        {
+            Transform tpModel = weapon != null ? weapon.thirdPersonTransform : null;
+            if (rig == null || tpModel == null || tpModel == weapon.transform || rig.GunBody == null || rig.GunBody == tpModel || rig.GunBody.IsChildOf(tpModel)
+                || tpModel.IsChildOf(rig.GunBody)
+                || System.Linq.Enumerable.Any(new[] { rig.Slide, rig.Magazine, rig.Handle, rig.Bolt, rig.Trigger }, p => p != null && p.IsChildOf(tpModel)))
+            {
+                return;
+            }
+            foreach (Renderer r in tpModel.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.forceRenderingOff && !(r is ParticleSystemRenderer))
+                {
+                    r.forceRenderingOff = true;
+                    hidden.Add(r);
+                }
+            }
+        }
         /// <summary>The weapon's casing particles, hidden while held (real cases fly instead).</summary>
         private readonly List<ParticleSystemRenderer> _hiddenCasings = new List<ParticleSystemRenderer>();
 

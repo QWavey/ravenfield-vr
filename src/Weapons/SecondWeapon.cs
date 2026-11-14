@@ -147,6 +147,7 @@ namespace RavenfieldVR.Weapons
                     _shadowOnly.Add(r);
                 }
             }
+            HeldWeapon.HideSeparateThirdPersonModel(Rig, weapon, _shadowOnly); // (its second copy hung behind the player in this hand too)
             if (Rig != null)
             {
                 HeldWeapon.Handling(Rig.Data, weapon, out _oneHandRecoil, out _, out _);
