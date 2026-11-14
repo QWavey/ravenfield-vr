@@ -54,6 +54,150 @@ namespace RavenfieldVR.Local
             _cam.allowHDR = false;
             Camera game = FpsActorController.instance != null ? FpsActorController.instance.fpViewModelCamera : null;
             _cam.fieldOfView = game != null ? game.fieldOfView : 60f;
+            // The game's own player's rig (PlayerFpParent): a shoulder on springs carrying the weapon's parent, at the same places.
+            _shoulder = new GameObject("Shoulder").transform;
+            _shoulder.SetParent(camGo.transform, false);
+            _weaponParent = new GameObject("Weapon Parent").transform;
+            _weaponParent.SetParent(_shoulder, false);
+            RestPoses();
+            _shoulder.localPosition = _shoulderRest;
+            _shoulder.localRotation = _shoulderRestRot;
+            _weaponParent.localPosition = _weaponRest;
+        }
+
+        // ---- the same rig as the game's own player (PlayerFpParent): springs, bob, look sway, recoil, snap, camera kick, FOV ----------
+
+        private readonly Transform _shoulder, _weaponParent;
+        private readonly Spring _posSpring = new Spring(150f, 10f, -Vector3.one * 0.2f, Vector3.one * 0.2f, 8);
+        private readonly Spring _rotSpring = new Spring(70f, 6f, -Vector3.one * 15f, Vector3.one * 15f, 8);
+        private static Vector3 _shoulderRest, _weaponRest = new Vector3(0f, 0f, 0f);
+        private static Quaternion _shoulderRestRot = Quaternion.identity;
+        private static bool _restKnown;
+        private float _lastYaw, _lastPitch, _walkMag, _stepPhase, _extraPitch = 0.1f, _fovRatio, _snapStart = -10f, _snapDur, _snapMag, _snapFreq, _kickStart = -10f;
+        private Vector3 _lastPos, _kickEuler;
+        private bool _rigStarted;
+
+        /// <summary>
+        /// Where the game's own player's shoulder and weapon parent sit against its camera at rest (read from its PlayerFpParent once, flat;
+        /// the game's own values: shoulder origin, weapon parent origin), so the extra players' guns are held exactly where player 1's is.
+        /// </summary>
+        private static void RestPoses()
+        {
+            if (_restKnown)
+            {
+                return;
+            }
+            PlayerFpParent fp = PlayerFpParent.instance;
+            if (fp == null || fp.fpCamera == null || fp.shoulderParent == null || fp.weaponParent == null || Runtime.OpenVRRuntime.Running)
+            {
+                return; // (VR moves the game's rig to the hands: the weapon at the camera then)
+            }
+            Transform cam = fp.fpCamera.transform, sp = fp.shoulderParent;
+            Matrix4x4 restShoulder = sp.parent.localToWorldMatrix * Matrix4x4.TRS(fp.shoulderParentOrigin, Quaternion.identity, Vector3.one);
+            Matrix4x4 rel = cam.worldToLocalMatrix * restShoulder;
+            _shoulderRest = rel.GetColumn(3);
+            _shoulderRestRot = Quaternion.LookRotation(rel.GetColumn(2), rel.GetColumn(1));
+            _weaponRest = fp.weaponParentOrigin;
+            _restKnown = true;
+            Log.Info($"Splitscreen: the extra players hold their guns as player 1 does (shoulder {_shoulderRest.x:0.000} {_shoulderRest.y:0.000} {_shoulderRest.z:0.000}, weapon {_weaponRest.x:0.000} {_weaponRest.y:0.000} {_weaponRest.z:0.000}).");
+        }
+
+        /// <summary>The game's player recoil for a shot of this gun (Weapon.ApplyRecoil, PlayerFpParent.ApplyRecoil and ApplyWeaponSnap).</summary>
+        private void Recoil(Weapon w)
+        {
+            if (w == null || w.configuration == null)
+            {
+                return;
+            }
+            Vector3 impulse = w.configuration.kickback * Vector3.back + UnityEngine.Random.insideUnitSphere * w.configuration.randomKick;
+            if (_p.Crouch)
+            {
+                impulse *= w.configuration.kickbackProneMultiplier > 0f ? Mathf.Lerp(1f, w.configuration.kickbackProneMultiplier, 0.5f) : 1f;
+            }
+            _posSpring.AddVelocity(impulse);
+            var v = new Vector3(impulse.z, impulse.x, -impulse.x);
+            float gain = 0.1f + _posSpring.position.magnitude / 0.2f;
+            _rotSpring.AddVelocity(v * gain * 100f);
+            _kickEuler = v * 0.7f;
+            _kickStart = Time.time;
+            _snapStart = Time.time;
+            _snapDur = Mathf.Max(0.01f, w.configuration.snapDuration);
+            _snapMag = w.configuration.snapMagnitude;
+            _snapFreq = w.configuration.snapFrequency;
+        }
+
+        /// <summary>The rig once a frame: as PlayerFpParent.FixedUpdate and LateUpdate, from this player's own movement and look.</summary>
+        private void Rig(Weapon w, Camera world)
+        {
+            Actor a = _p.Actor;
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+            if (!_rigStarted)
+            {
+                _rigStarted = true;
+                _lastYaw = _p.Yaw;
+                _lastPitch = _p.Pitch;
+                _lastPos = a.Position();
+            }
+            // Walking bob: the step cycle from the distance walked (the game's FirstPersonController step), its size from the speed.
+            Vector3 moved = a.Position() - _lastPos;
+            _lastPos = a.Position();
+            float speed = Vector3.ProjectOnPlane(moved, Vector3.up).magnitude / dt;
+            _stepPhase += speed * dt * 1.3f;
+            float target = a.IsSeated() ? 0f : Mathf.Clamp01(speed * speed / 60f) * (_p.Aim ? 0.003f : 0.04f);
+            if (w != null && !a.IsSeated())
+            {
+                target *= _p.Sprint ? w.sprintBobMultiplier : w.walkBobMultiplier;
+            }
+            _walkMag = Mathf.MoveTowards(_walkMag, target, dt * 0.06f);
+            float ph = _stepPhase;
+            var bob = new Vector3(Mathf.Cos(ph) * _walkMag, Mathf.Sin(ph * 2f) * _walkMag * 0.7f, 0f);
+            _posSpring.Update();
+            _rotSpring.Update();
+            // Look sway: the gun lags the turn (the game's rotation spring fed by the camera's turn).
+            float dPitch = -Mathf.DeltaAngle(_lastPitch, _p.Pitch), dYaw = Mathf.DeltaAngle(_lastYaw, _p.Yaw);
+            _lastPitch = _p.Pitch;
+            _lastYaw = _p.Yaw;
+            float snap = 0f;
+            float sr = (Time.time - _snapStart) / _snapDur;
+            if (sr < 1f)
+            {
+                float left = 1f - sr;
+                snap = left * Mathf.Sin(sr * (0.1f + left) * _snapFreq) * _snapMag;
+            }
+            _shoulder.localPosition = _shoulderRest + _shoulderRestRot * (_posSpring.position + new Vector3(0f, snap * -0.1f, 0f) + bob);
+            _shoulder.localRotation = _shoulderRestRot * Quaternion.Euler(_rotSpring.position + new Vector3(snap * -20f, 0f, 0f));
+            _rotSpring.position += new Vector3(-0.1f * dPitch, -0.1f * dYaw, 0f);
+            _posSpring.position += new Vector3(-0.0001f * dYaw, 0.0001f * dPitch, 0f);
+            _extraPitch = Mathf.MoveTowards(_extraPitch, _p.Aim ? 0f : 0.1f, dt);
+            _weaponParent.localPosition = _weaponRest;
+            _weaponParent.localEulerAngles = Vector3.right * -_p.Pitch * _extraPitch;
+            // The camera's kick on a shot.
+            float kr = (Time.time - _kickStart) / 0.2f;
+            if (kr < 1f)
+            {
+                world.transform.rotation *= Quaternion.Euler(Mathf.Sin(kr * Mathf.PI) * _kickEuler);
+            }
+            // The field of view: the game's own (its option) at the hip, the gun's aim view when aiming, eased as the game does.
+            PlayerFpParent fp = PlayerFpParent.instance;
+            float hip = fp != null ? fp.normalFov : 60f;
+            float aim = 45f;
+            if (w != null)
+            {
+                try
+                {
+                    aim = w.GetAimFov();
+                }
+                catch (Exception)
+                {
+                }
+            }
+            _fovRatio = Mathf.MoveTowards(_fovRatio, _p.Aim && w != null && !w.reloading ? 1f : 0f, dt * 5f);
+            world.fieldOfView = Mathf.Lerp(hip, aim, _fovRatio);
+            Camera vm = FpsActorController.instance != null ? FpsActorController.instance.fpViewModelCamera : null;
+            if (vm != null && !Runtime.OpenVRRuntime.Running)
+            {
+                _cam.fieldOfView = vm.fieldOfView;
+            }
         }
 
         /// <summary>Once a frame after the player's camera is placed: the right weapon, its animations, the camera over the player's part.</summary>
@@ -77,29 +221,17 @@ namespace RavenfieldVR.Local
             }
             if (!shown)
             {
-                if (world != null && world.fieldOfView != 70f)
+                _fovRatio = 0f;
+                if (world != null)
                 {
-                    world.fieldOfView = 70f; // (not left zoomed after dying or getting in while aiming)
+                    world.fieldOfView = PlayerFpParent.instance != null ? PlayerFpParent.instance.normalFov : 60f; // (not left zoomed after dying)
                 }
                 return;
             }
             _cam.rect = world.rect;
             _cam.depth = world.depth + 0.5f;
-            // Aiming down the sights zooms the view as the game's own player's does (the weapon's aim field of view), eased.
-            float fov = 70f;
-            if (_p.Aim && w != null && !w.reloading)
-            {
-                try
-                {
-                    fov = Mathf.Clamp(w.GetAimFov(), 5f, 70f);
-                }
-                catch (Exception)
-                {
-                    fov = 50f;
-                }
-            }
-            world.fieldOfView = Mathf.MoveTowards(world.fieldOfView, fov, 200f * Time.unscaledDeltaTime);
             Drive(w);
+            Rig(w, world);
         }
 
         private void Swap(Weapon w)
@@ -171,7 +303,7 @@ namespace RavenfieldVR.Local
                 }
                 c.SetupFirstPerson();
                 Arms(c, _p.Actor);
-                go.transform.SetParent(_cam.transform, false);
+                go.transform.SetParent(_weaponParent, false);
                 go.transform.localPosition = Vector3.zero;
                 go.transform.localRotation = Quaternion.identity;
                 go.transform.localScale = Vector3.one;
@@ -291,6 +423,7 @@ namespace RavenfieldVR.Local
             _lastShot = shot;
             if (fired)
             {
+                Recoil(w);
                 Trigger(Fire);
                 foreach (ParticleSystem ps in _flash)
                 {

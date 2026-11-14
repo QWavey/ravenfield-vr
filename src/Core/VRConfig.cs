@@ -42,6 +42,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<int> SplitPlayers;
         public static ConfigEntry<bool> SplitAboveBelow;
         public static ConfigEntry<int> SplitFirstController;
+        public static ConfigEntry<bool> SplitFullGames;
         public static ConfigEntry<Handedness> DominantHand;
 
         // Rendering
@@ -187,6 +188,8 @@ namespace RavenfieldVR.Core
                 "Start SteamVR yourself when the game launches and a headset driver reports a headset. Off: VR starts only if SteamVR is already running (or with -vr), so flat play never opens SteamVR.");
             SplitPlayers = cfg.Bind("Splitscreen", "Players", 2, "Players at this PC in a splitscreen match, 2 to 4 (Multiplayer, Local, Splitscreen).");
             SplitAboveBelow = cfg.Bind("Splitscreen", "AboveBelow", false, "Two players one above the other instead of side by side (three or four share quarters).");
+            SplitFullGames = cfg.Bind("Splitscreen", "FullGames", true,
+                "Each player plays a whole copy of the game in their part of the screen (the same view, display, deploy screen and features as player 1; they join a LAN game this PC hosts). Off: the other players are soldiers drawn in the first game (lighter on the PC).");
             SplitFirstController = cfg.Bind("Splitscreen", "FirstController", 0,
                 "The controller the second player takes (0: the first). 1 when the game's own player plays with the first controller.");
             NoSteamVRTheater = cfg.Bind("General", "NoSteamVRTheater", true,

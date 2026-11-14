@@ -55,14 +55,14 @@ namespace RavenfieldVR.Local
 
         public static bool Running => Players.Count > 0;
 
-        private static bool InMatch => ActorManager.instance != null && LocalPlayer.actor != null && GameManager.instance != null && !GameManager.instance.isInNoGameplayScene;
+        internal static bool InMatch => ActorManager.instance != null && LocalPlayer.actor != null && GameManager.instance != null && !GameManager.instance.isInNoGameplayScene;
 
         /// <summary>Once a frame (Multiplayer.Update): the players made or taken away, their controllers read.</summary>
         public static void Update()
         {
             // (Not on a PC that joined an online game: the host owns every soldier there and this PC none, so its own would clash. A
             // host's splitscreen players are soldiers of his, seen as any on the others' PCs.)
-            bool want = Splitscreen.On && InMatch && !(Net.Multiplayer.Active && !Net.Multiplayer.Hosting);
+            bool want = Splitscreen.On && !Splitscreen.FullGames && !SplitGames.IsClient && InMatch && !(Net.Multiplayer.Active && !Net.Multiplayer.Hosting);
             if (!want)
             {
                 if (Players.Count > 0)
@@ -741,7 +741,7 @@ namespace RavenfieldVR.Local
 
         // ---- the AI's answers, for the players' soldiers ----------------------------------------------------------------
 
-        private static void Patch()
+        internal static void Patch()
         {
             if (_harmony != null)
             {

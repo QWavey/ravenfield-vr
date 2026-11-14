@@ -18,6 +18,8 @@ namespace RavenfieldVR.Local
         public bool Left, Right, Middle;
         public Vector2 Delta; // (mouse movement since the frame's read; taken by Consume)
         public int Wheel;
+        /// <summary>Running totals of the mouse's counts (a copy of the game turns by the change since it last read, SplitGames).</summary>
+        public float TotalX, TotalY;
 
         public Vector2 ConsumeDelta()
         {
@@ -305,7 +307,7 @@ namespace RavenfieldVR.Local
         /// The game's own window: the Unity player's window of this process (Process.MainWindowHandle came back empty for it in the
         /// check, 2026-11-14: "no game window"), else the main window, else the active one.
         /// </summary>
-        private static IntPtr GameWindow()
+        internal static IntPtr GameWindow()
         {
             uint me = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
             IntPtr found = IntPtr.Zero, anyVisible = IntPtr.Zero;
@@ -426,6 +428,46 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            if (mouse)
+            {
+                // RAWMOUSE: usFlags at 0, usButtonFlags at 4, usButtonData at 6, lLastX at 12, lLastY at 16.
+                Apply(device, true, (ushort)Marshal.ReadInt16(_buffer, body), (ushort)Marshal.ReadInt16(_buffer, body + 4), Marshal.ReadInt16(_buffer, body + 6),
+                      Marshal.ReadInt32(_buffer, body + 12), Marshal.ReadInt32(_buffer, body + 16), 0);
+            }
+            else
+            {
+                // RAWKEYBOARD: MakeCode at 0, Flags at 2, Reserved at 4, VKey at 6.
+                Apply(device, false, (ushort)Marshal.ReadInt16(_buffer, body + 2), 0, 0, 0, 0, (ushort)Marshal.ReadInt16(_buffer, body + 6));
+            }
+        }
+
+        /// <summary>
+        /// A copy of the game in front gives its events to the host (SplitGames): Windows gives raw keys to the window in front only, and
+        /// the host tells every keyboard and mouse apart for all the players. Set on a copy; called for each event read on its window.
+        /// </summary>
+        internal static Action<long, bool, ushort, ushort, short, int, int, ushort> Forward;
+
+        /// <summary>An event from another copy of the game (SplitGames), taken as if it came on this window.</summary>
+        internal static void Inject(long device, bool mouse, ushort flags, ushort buttons, short data, int x, int y, ushort vkey)
+        {
+            lock (Gate)
+            {
+                Apply(new IntPtr(device), mouse, flags, buttons, data, x, y, vkey);
+            }
+        }
+
+        private static void Apply(IntPtr device, bool mouse, ushort flags, ushort buttonFlags, short buttonData, int x, int y, ushort vkey)
+        {
+            if (Forward != null && InFront)
+            {
+                try
+                {
+                    Forward(device.ToInt64(), mouse, flags, buttonFlags, buttonData, x, y, vkey);
+                }
+                catch (Exception)
+                {
+                }
+            }
             if (!Devices.TryGetValue(device, out RawDevice d))
             {
                 d = new RawDevice { Handle = device, IsMouse = mouse, Order = mouse ? _mice++ : _keyboards++ };
@@ -434,36 +476,27 @@ namespace RavenfieldVR.Local
             d.LastActive = Environment.TickCount / 1000f; // (not Unity's clock: the window's messages may come on a thread of their own)
             if (mouse)
             {
-                // RAWMOUSE: usFlags at 0, usButtonFlags at 4, usButtonData at 6, lLastX at 12, lLastY at 16.
-                var m = new RAWMOUSE
+                if ((flags & 1) == 0) // (relative movement, not an absolute position)
                 {
-                    Flags = (ushort)Marshal.ReadInt16(_buffer, body),
-                    ButtonFlags = (ushort)Marshal.ReadInt16(_buffer, body + 4),
-                    ButtonData = Marshal.ReadInt16(_buffer, body + 6),
-                    LastX = Marshal.ReadInt32(_buffer, body + 12),
-                    LastY = Marshal.ReadInt32(_buffer, body + 16),
-                };
-                if ((m.Flags & 1) == 0 && _blocking) // (relative movement, not an absolute position; only while playing, else a menu's movement landed as one turn)
-                {
-                    d.Delta += new Vector2(m.LastX, m.LastY);
+                    d.TotalX += x;
+                    d.TotalY += y;
+                    if (_blocking)
+                    {
+                        d.Delta += new Vector2(x, y); // (only while playing, else a menu's movement landed as one turn)
+                    }
                 }
-                ushort b = m.ButtonFlags;
+                ushort b = buttonFlags;
                 if ((b & 0x0001) != 0) d.Left = true;
                 if ((b & 0x0002) != 0) d.Left = false;
                 if ((b & 0x0004) != 0) d.Right = true;
                 if ((b & 0x0008) != 0) d.Right = false;
                 if ((b & 0x0010) != 0) d.Middle = true;
                 if ((b & 0x0020) != 0) d.Middle = false;
-                if ((b & 0x0400) != 0) d.Wheel += m.ButtonData;
+                if ((b & 0x0400) != 0) d.Wheel += buttonData;
             }
-            else
+            else if (vkey < 256)
             {
-                // RAWKEYBOARD: MakeCode at 0, Flags at 2, Reserved at 4, VKey at 6.
-                var k = new RAWKEYBOARD { Flags = (ushort)Marshal.ReadInt16(_buffer, body + 2), VKey = (ushort)Marshal.ReadInt16(_buffer, body + 6) };
-                if (k.VKey < 256)
-                {
-                    d.Keys[k.VKey] = (k.Flags & 1) == 0; // (RI_KEY_BREAK: let go)
-                }
+                d.Keys[vkey] = (flags & 1) == 0; // (RI_KEY_BREAK: let go)
             }
         }
     }

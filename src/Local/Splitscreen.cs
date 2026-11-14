@@ -47,6 +47,19 @@ namespace RavenfieldVR.Local
             }
         }
 
+        /// <summary>Each player in a whole copy of the game (SplitGames), else soldiers in this one (SplitPlayers). Kept in the settings.</summary>
+        public static bool FullGames
+        {
+            get => VRConfig.SplitFullGames == null || VRConfig.SplitFullGames.Value;
+            set
+            {
+                if (VRConfig.SplitFullGames != null)
+                {
+                    VRConfig.SplitFullGames.Value = value;
+                }
+            }
+        }
+
         /// <summary>The controller the second player takes (0: the first; 1 when the game's own player uses the first controller).</summary>
         public static int FirstPad
         {

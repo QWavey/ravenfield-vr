@@ -45,6 +45,12 @@ namespace RavenfieldVR.Net
         public static bool Active => Session != null && Session.State != NetState.Closed;
         public static bool Hosting => Active && Session.IsHost;
         public static bool OverSteam => _transport is SteamTransport;
+
+        /// <summary>Hosting a game on a UDP port (LAN, or the splitscreen's copies of the game on this PC).</summary>
+        public static bool LanHosting => Hosting && _transport is UdpTransport;
+
+        /// <summary>A line on the multiplayer pages' status (the splitscreen's notices).</summary>
+        internal static void Notice(string status) => Say(status);
         public static bool Busy => _busy;
 
         public static int GameBuild
@@ -418,6 +424,7 @@ namespace RavenfieldVR.Net
             SteamStatus.Update(); // (friends see what the player is doing)
             LanDiscovery.Update(); // (a LAN host says so; the LAN page hears them)
             Local.SplitPlayers.Update(); // (the splitscreen's players, while it is on and a match runs)
+            Local.SplitGames.Update(); // (or each player in a copy of the game of their own)
             if (!_listening && Time.unscaledTime >= _nextListenTry)
             {
                 // (Steam comes up with the game's first scene: asked until it is there, then never again.)

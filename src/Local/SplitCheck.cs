@@ -36,7 +36,12 @@ namespace RavenfieldVR.Local
             Multiplayer.Leave();
             yield return Wait(1f);
 
-            // 3. Splitscreen, four players, then two side by side and above and below.
+            // 3. Splitscreen, four players, then two side by side and above and below; the soldiers' kind (the copies have their own check).
+            // The player's own settings are put back after (the check left "above and below" saved, 2026-11-14).
+            int savedPlayers = Splitscreen.Players;
+            SplitLayout savedLayout = Splitscreen.Layout;
+            bool savedFull = Splitscreen.FullGames;
+            Splitscreen.FullGames = false;
             foreach ((int players, SplitLayout layout, string name) in new[]
                      {
                          (4, SplitLayout.SideBySide, "quarters"), (2, SplitLayout.SideBySide, "side-by-side"), (2, SplitLayout.AboveBelow, "above-below"),
@@ -175,6 +180,9 @@ namespace RavenfieldVR.Local
                 yield return Wait(1.5f);
                 report($"local: splitscreen {name} off: {SplitPlayers.All.Count} extra player(s) left{(SplitPlayers.All.Count > 0 ? " (NOT TAKEN AWAY)" : "")}");
             }
+            Splitscreen.Players = savedPlayers;
+            Splitscreen.Layout = savedLayout;
+            Splitscreen.FullGames = savedFull;
         }
 
         private static IEnumerator Wait(float seconds)

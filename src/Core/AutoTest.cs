@@ -484,6 +484,8 @@ namespace RavenfieldVR.Core
                     _context = "splitscreen try";
                     Local.Splitscreen.Players = 2;
                     Local.SplitPlayers.TryMode = true;
+                    Local.SplitGames.TryMode = true;
+                    Local.Splitscreen.FullGames = !Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitsoldiers", StringComparison.OrdinalIgnoreCase));
                     Local.Splitscreen.On = true;
                     Log.Info("Splitscreen try: 2 players, player 2 on the first keyboard and mouse (or the first controller); the game's own player idle.");
                     while (true)
