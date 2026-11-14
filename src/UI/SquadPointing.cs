@@ -290,7 +290,7 @@ namespace RavenfieldVR.UI
             // nobody to tell, or the sky on the line, it read GO TO, and the order's sound and grunt went out for nothing.
             SquadOrderPoint vehicle = VehiclePoint();
             string order = !Pointing ? "POINT WITH A HAND" : Enemy != null ? EnemyOrder(Enemy)
-                : !SquadHandSigns.HasSquadmates() ? "NO SQUAD"
+                : !SquadHandSigns.HasSquadmates() ? (SpotsShared ? "SPOT" : "NO SQUAD")
                 : Objective != null ? ObjectiveOrder(Objective)
                 : vehicle != null ? VehicleOrder(vehicle)
                 : Line.direction.y < -0.7f ? "REGROUP"
@@ -378,6 +378,19 @@ namespace RavenfieldVR.UI
                 _orderText = (defend ? "DEFEND " : "ATTACK ") + spawn.shortName;
             }
             return _orderText;
+        }
+
+        /// <summary>In a shared match with someone to show it to: a point made with no squad marks the spot for the others (NetSpots).</summary>
+        internal static bool SpotsShared => Net.Multiplayer.Active && Net.Multiplayer.Session != null && Net.Multiplayer.Session.PlayerCount > 1;
+
+        /// <summary>Where the pointing lands, for the others' mark (null: nowhere: the sky, or no line).</summary>
+        internal static Vector3? SpotPoint()
+        {
+            if (!Pointing || SquadPointUi.instance == null || Enemy == null && Objective == null && !LandsSomewhere())
+            {
+                return null;
+            }
+            return Target(SquadPointUi.instance);
         }
 
         /// <summary>Where the order would go: the capture point the line is on, the soldier picked, or the ground the line meets.</summary>
@@ -534,6 +547,13 @@ namespace RavenfieldVR.UI
             }
             try
             {
+                // The spot for the other players of a shared match (invention 2, 2026-11-14): an order's point, or a point made alone.
+                bool regroupLine = SquadPointing.Line.direction.y < -0.7f;
+                Vector3? spot = SquadPointing.SpotsShared && !regroupLine ? SquadPointing.SpotPoint() : null;
+                if (spot.HasValue)
+                {
+                    Net.NetSpots.Tell(spot.Value, SquadPointing.Enemy != null);
+                }
                 // (Alone with no enemy on the line there is no one to tell and nothing to mark: the order's sound and grunt for nothing,
                 // as the hand signs already knew.)
                 if (!SquadPointing.Pointing || SquadPointing.Enemy == null && !SquadHandSigns.HasSquadmates())

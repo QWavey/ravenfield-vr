@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -242,6 +242,7 @@ namespace RavenfieldVR.Net
             session.Left -= OnLeft;
             Application.onBeforeRender -= FlatBeforeRender;
             _session = null;
+            NetSpots.Clear();
             Log.Guard("Multiplayer: own rules back", GiveRulesBack);
             _lastStart = null;
             _loading = false;
@@ -675,6 +676,7 @@ namespace RavenfieldVR.Net
 
         private static void OnLeft(NetPlayer p)
         {
+            NetSpots.Forget(p.Id);
             foreach (Remote r in Remotes.Values.Where(r => r.Owner == p.Id).ToArray())
             {
                 Remove(r);
@@ -1362,6 +1364,9 @@ namespace RavenfieldVR.Net
                     case DeathDropTaken:
                         TakeDeathDropTaken(ref r);
                         break;
+                    case Spot:
+                        NetSpots.Take(sender, ref r);
+                        break;
                     case DropGone:
                     {
                         int key = sender << 16 | r.UShort();
@@ -1610,6 +1615,7 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
+            NetSpots.Update();
             // The match runs at one speed for everyone: no slow motion, no pause (a pause on one PC left its soldiers standing
             // still on all the others). (The user, 2026-11-10: "Slowmotion shouldnt work in multiplayer.")
             if (Time.timeScale != 1f && session.PlayerCount > 0)
@@ -2946,6 +2952,7 @@ namespace RavenfieldVR.Net
 
         internal static void OnSceneChanged()
         {
+            NetSpots.Clear(); // (a spot is of the map it was made on)
             // (A start goes through the loading screen's own scene first: cleared at that change, the map's whole load went unguarded,
             // drops told meanwhile were lost and the host's way back to the menu ignored; multiplayer scout, 2026-11-12. Over once the
             // match is in: see Update.)
