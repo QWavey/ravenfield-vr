@@ -52,7 +52,8 @@ namespace RavenfieldVR.Local
             }
             _line = at == null ? "Your team holds no flag: wait for the next wave.   T: switch team"
                 : _deployedAt > 0f ? $"Deploying at {at.shortName} ...   T: switch team"
-                : $"Fire / Space / A: deploy at {at.shortName}    Q / Y: next flag    T / D-pad right: switch team";
+                : $"{FlatPlayerInput.KeyName(SteelInput.KeyBinds.Fire)} / {FlatPlayerInput.KeyName(SteelInput.KeyBinds.Jump)} / A: deploy at {at.shortName}    "
+                  + $"{FlatPlayerInput.KeyName(SteelInput.KeyBinds.NextWeapon)} / Y: next flag    T / D-pad right: switch team";
             if (_deployedAt < 0f && at != null && (FlatPlayerInput.WentDown(SteelInput.KeyBinds.Fire) || FlatPlayerInput.WentDown(SteelInput.KeyBinds.Jump)))
             {
                 if (LoadoutUi.instance != null && !LoadoutUi.IsOpen() && !LoadoutUi.HasBeenOpen())

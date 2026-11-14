@@ -5,21 +5,21 @@ using UnityEngine;
 namespace RavenfieldVR.Local
 {
     /// <summary>
-    /// A splitscreen copy of the game played by a script, through the same binds the host sends it (-rfvr-splittest, started by the
-    /// check's host): deploy, walk, look down with the mouse, fire, reload, switch weapons, switch team and deploy on the other side. Each
-    /// result is a line in the copy's own log, which the host's check reads (the user, 2026-11-14: "cant walk ... my controls are inverted
-    /// ... can also not shoot or reload or switch weapons").
+    /// A splitscreen copy of the game played by a script (-rfvr-splittest, started by the check's host): keys and mouse given to the copy as
+    /// the host gives a player's, pressed by the game's own bindings (so whatever Options, Controls says): deploy, walk forward, strafe
+    /// right, turn right and look down with the mouse, fire, reload, switch weapons, switch team and deploy on the other side. Each result is
+    /// a line in the copy's own log, which the host's check reads (the user, 2026-11-14: "cant walk ... the other presses D and walks to the
+    /// left ... controls are also inverted ... can also not shoot or reload or switch weapons").
     /// </summary>
     internal static class CopyTest
     {
         public static bool Running => _step >= 0 && _step < Done;
 
-        private const int Done = 9;
+        private const int Done = 99;
         private static int _step = -1;
-        private static float _stepAt, _ammoLast;
-        private static Vector3 _from;
-        private static float _lookFrom;
-        private static int _shots, _slotFrom, _teamFrom, _deployTries;
+        private static float _stepAt, _ammoLast, _yawFrom, _lookFrom;
+        private static Vector3 _from, _rightFrom;
+        private static int _shots, _slotFrom, _teamFrom;
 
         private static void Next(int step)
         {
@@ -27,13 +27,15 @@ namespace RavenfieldVR.Local
             _stepAt = Time.unscaledTime;
         }
 
-        private static void Clear(FlatPlayerInput.Binds b)
+        private static void Clear(FlatPlayerInput.DeviceState s)
         {
-            Array.Clear(b.Axis, 0, b.Axis.Length);
-            Array.Clear(b.Held, 0, b.Held.Length);
+            Array.Clear(s.Keys, 0, s.Keys.Length);
+            s.Left = s.Right = s.Middle = s.X1 = s.X2 = false;
         }
 
-        public static void Update(FlatPlayerInput.Binds b, Action<string> note)
+        private static Camera Cam => FpsActorController.instance != null ? FpsActorController.instance.fpCamera : null;
+
+        public static void Update(FlatPlayerInput.DeviceState s, Action<string> note)
         {
             Actor me = LocalPlayer.actor;
             if (me == null)
@@ -41,32 +43,34 @@ namespace RavenfieldVR.Local
                 return;
             }
             float t = Time.unscaledTime - _stepAt;
-            Clear(b);
+            Clear(s);
+            void Press(SteelInput.KeyBinds b, bool positive = true) => FlatPlayerInput.PressBind(s, b, positive);
             switch (_step)
             {
                 case -1:
-                    note("copy test: started");
+                    note($"copy test: started (the game's bindings: forward {FlatPlayerInput.KeyName(SteelInput.KeyBinds.Vertical)}, fire {FlatPlayerInput.KeyName(SteelInput.KeyBinds.Fire)}, reload {FlatPlayerInput.KeyName(SteelInput.KeyBinds.Reload)})");
                     Next(0);
                     break;
-                case 0: // deploy: fire pressed every 2 s until alive
-                case 6: // deploy again on the other side
+                case 0: // deploy: the fire key pressed every 2 s until alive
+                case 20: // deploy again on the other side
                     if (!me.dead)
                     {
-                        note(_step == 0 ? $"copy test: spawned (team {me.team}) after {t:0.0} s" : $"copy test: spawned on the other side (team {me.team}, player team {GameManager.PlayerTeam()}) after {t:0.0} s");
-                        if (_step == 6)
+                        if (_step == 20)
                         {
+                            note($"copy test: spawned on the other side (team {me.team}, player team {GameManager.PlayerTeam()}) after {t:0.0} s");
                             note(me.team != _teamFrom ? "copy test: team switch worked" : "copy test: team switch DID NOT CHANGE THE SOLDIER'S TEAM");
                             Next(Done);
                             note("copy test: done");
                             return;
                         }
-                        Next(1);
+                        note($"copy test: spawned (team {me.team}) after {t:0.0} s");
                         _from = me.Position();
+                        Next(1);
                         return;
                     }
                     if (t % 2f < 0.15f)
                     {
-                        b.Held[(int)SteelInput.KeyBinds.Fire] = true;
+                        Press(SteelInput.KeyBinds.Fire);
                     }
                     if (t > 25f)
                     {
@@ -75,35 +79,61 @@ namespace RavenfieldVR.Local
                         note("copy test: done");
                     }
                     break;
-                case 1: // walk forward 2 s
-                    b.Axis[(int)SteelInput.KeyBinds.Vertical] = 1f;
+                case 1: // forward 2 s
+                    Press(SteelInput.KeyBinds.Vertical, true);
                     if (t > 2f)
                     {
-                        float moved = Vector3.ProjectOnPlane(me.Position() - _from, Vector3.up).magnitude;
-                        note($"copy test: walked {moved:0.0} m in 2 s{(moved < 1f ? " (DID NOT WALK)" : "")}");
-                        Camera cam = FpsActorController.instance != null ? FpsActorController.instance.fpCamera : null;
-                        _lookFrom = cam != null ? cam.transform.forward.y : 0f;
+                        Vector3 moved = Vector3.ProjectOnPlane(me.Position() - _from, Vector3.up);
+                        Vector3 fwd = Cam != null ? Vector3.ProjectOnPlane(Cam.transform.forward, Vector3.up).normalized : Vector3.forward;
+                        note($"copy test: forward key: moved {moved.magnitude:0.0} m, {Vector3.Dot(moved, fwd):0.0} m ahead{(Vector3.Dot(moved, fwd) < 1f ? " (DID NOT WALK FORWARD)" : "")}");
+                        _from = me.Position();
+                        _rightFrom = Cam != null ? Vector3.ProjectOnPlane(Cam.transform.right, Vector3.up).normalized : Vector3.right;
                         Next(2);
                     }
                     break;
-                case 2: // the mouse moved down (raw y grows toward the player) for half a second: the view must go down
-                    if (t < 0.5f)
+                case 2: // strafe right 1.5 s: the key the game's binding puts on the right (its sideways bind is positive to the left)
+                    Press(SteelInput.KeyBinds.Horizontal, false);
+                    if (t > 1.5f)
                     {
-                        b.MouseY += 6f;
-                    }
-                    else
-                    {
-                        Camera cam = FpsActorController.instance != null ? FpsActorController.instance.fpCamera : null;
-                        float now = cam != null ? cam.transform.forward.y : 0f;
-                        note($"copy test: mouse moved down: the view went {(now < _lookFrom - 0.02f ? "down" : now > _lookFrom + 0.02f ? "UP (INVERTED)" : "NOWHERE (NO LOOK)")} ({_lookFrom:0.00} -> {now:0.00})");
-                        b.MouseY -= 0f;
-                        _ammoLast = me.activeWeapon != null ? me.activeWeapon.ammo : -1;
-                        _shots = 0;
+                        float right = Vector3.Dot(me.Position() - _from, _rightFrom);
+                        note($"copy test: right key ({NegName(SteelInput.KeyBinds.Horizontal)}): moved {right:0.0} m to the right{(right < 0.5f ? (right < -0.5f ? " (WENT LEFT: INVERTED)" : " (DID NOT MOVE RIGHT)") : "")}");
+                        _yawFrom = Cam != null ? Cam.transform.eulerAngles.y : 0f;
                         Next(3);
                     }
                     break;
-                case 3: // fire 1.5 s
-                    b.Held[(int)SteelInput.KeyBinds.Fire] = t % 0.2f < 0.1f; // (pulled again and again: a semi-automatic fires too)
+                case 3: // the mouse moved right for half a second: the view must turn right
+                    if (t < 0.5f)
+                    {
+                        s.TotalX += 8f;
+                    }
+                    else
+                    {
+                        float turned = Cam != null ? Mathf.DeltaAngle(_yawFrom, Cam.transform.eulerAngles.y) : 0f;
+                        note($"copy test: mouse moved right: the view turned {turned:0} deg{(turned < 5f ? (turned < -5f ? " (TURNED LEFT: INVERTED)" : " (DID NOT TURN)") : " to the right")}");
+                        _lookFrom = Cam != null ? Cam.transform.forward.y : 0f;
+                        Next(4);
+                    }
+                    break;
+                case 4: // the mouse moved down (Windows' counts grow toward the player): the view must go down
+                    if (t < 0.4f)
+                    {
+                        s.TotalY += 6f;
+                    }
+                    else
+                    {
+                        float now = Cam != null ? Cam.transform.forward.y : 0f;
+                        note($"copy test: mouse moved down: the view went {(now < _lookFrom - 0.02f ? "down" : now > _lookFrom + 0.02f ? "UP (INVERTED)" : "NOWHERE (NO LOOK)")} ({_lookFrom:0.00} -> {now:0.00})");
+                        s.TotalY -= 0f;
+                        _ammoLast = me.activeWeapon != null ? me.activeWeapon.ammo : -1;
+                        _shots = 0;
+                        Next(5);
+                    }
+                    break;
+                case 5: // fire 1.5 s
+                    if (t % 0.2f < 0.1f)
+                    {
+                        Press(SteelInput.KeyBinds.Fire); // (pulled again and again: a semi-automatic fires too)
+                    }
                     if (me.activeWeapon != null)
                     {
                         if (me.activeWeapon.ammo < _ammoLast)
@@ -115,38 +145,58 @@ namespace RavenfieldVR.Local
                     if (t > 1.5f)
                     {
                         note($"copy test: fired {_shots} round(s){(_shots <= 0 ? " (DID NOT FIRE)" : "")} with {(me.activeWeapon != null ? me.activeWeapon.name : "nothing")}");
-                        Next(4);
+                        Next(6);
                     }
                     break;
-                case 4: // reload
-                    b.Held[(int)SteelInput.KeyBinds.Reload] = t < 0.15f;
+                case 6: // reload
+                    if (t < 0.15f)
+                    {
+                        Press(SteelInput.KeyBinds.Reload);
+                    }
                     if (t > 0.6f)
                     {
                         Weapon w = me.activeWeapon;
                         bool ok = w != null && (w.reloading || w.ammo == w.configuration.ammo);
-                        note($"copy test: reload {(ok ? "started" : "DID NOT START")}");
+                        note($"copy test: reload key: reload {(ok ? "started" : "DID NOT START")}");
                         _slotFrom = me.activeWeaponSlot;
-                        Next(5);
-                    }
-                    break;
-                case 5: // next weapon (after the reload)
-                    b.Held[(int)SteelInput.KeyBinds.NextWeapon] = t > 2.5f && t < 2.65f;
-                    if (t > 4f)
-                    {
-                        note($"copy test: next weapon: slot {_slotFrom + 1} -> {me.activeWeaponSlot + 1}{(me.activeWeaponSlot == _slotFrom ? " (DID NOT SWITCH)" : "")}");
-                        _teamFrom = me.team;
                         Next(7);
                     }
                     break;
-                case 7: // switch team
-                    b.Held[FlatPlayerInput.SwitchTeam] = t < 0.15f;
-                    if (t > 1f)
+                case 7: // next weapon (after the reload)
+                    if (t > 2.5f && t < 2.65f)
                     {
-                        note($"copy test: switch team pressed: player team {GameManager.PlayerTeam()}, soldier {(me.dead ? "down" : "STILL UP")}");
-                        _deployTries = 0;
-                        Next(6);
+                        Press(SteelInput.KeyBinds.NextWeapon);
+                    }
+                    if (t > 4f)
+                    {
+                        note($"copy test: next weapon key: slot {_slotFrom + 1} -> {me.activeWeaponSlot + 1}{(me.activeWeaponSlot == _slotFrom ? " (DID NOT SWITCH)" : "")}");
+                        _teamFrom = me.team;
+                        Next(8);
                     }
                     break;
+                case 8: // switch team (T)
+                    if (t < 0.15f)
+                    {
+                        s.Keys[0x54] = true;
+                    }
+                    if (t > 1f)
+                    {
+                        note($"copy test: T pressed: player team {GameManager.PlayerTeam()}, soldier {(me.dead ? "down" : "STILL UP")}");
+                        Next(20);
+                    }
+                    break;
+            }
+        }
+
+        private static string NegName(SteelInput.KeyBinds bind)
+        {
+            try
+            {
+                return SteelInput.GetInput(bind).negKeyCode.ToString();
+            }
+            catch (Exception)
+            {
+                return "?";
             }
         }
     }

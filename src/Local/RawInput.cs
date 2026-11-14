@@ -15,7 +15,7 @@ namespace RavenfieldVR.Local
         public int Order;
         public float LastActive;
         public readonly bool[] Keys = new bool[256];
-        public bool Left, Right, Middle;
+        public bool Left, Right, Middle, X1, X2;
         public Vector2 Delta; // (mouse movement since the frame's read; taken by Consume)
         public int Wheel;
         /// <summary>Running totals of the mouse's counts (a copy of the game turns by the change since it last read, SplitGames).</summary>
@@ -272,7 +272,7 @@ namespace RavenfieldVR.Local
                 foreach (RawDevice d in Devices.Values)
                 {
                     Array.Clear(d.Keys, 0, d.Keys.Length);
-                    d.Left = d.Right = d.Middle = false;
+                    d.Left = d.Right = d.Middle = d.X1 = d.X2 = false;
                     d.Delta = Vector2.zero;
                 }
             }
@@ -492,6 +492,10 @@ namespace RavenfieldVR.Local
                 if ((b & 0x0008) != 0) d.Right = false;
                 if ((b & 0x0010) != 0) d.Middle = true;
                 if ((b & 0x0020) != 0) d.Middle = false;
+                if ((b & 0x0040) != 0) d.X1 = true;
+                if ((b & 0x0080) != 0) d.X1 = false;
+                if ((b & 0x0100) != 0) d.X2 = true;
+                if ((b & 0x0200) != 0) d.X2 = false;
                 if ((b & 0x0400) != 0) d.Wheel += buttonData;
             }
             else if (vkey < 256)

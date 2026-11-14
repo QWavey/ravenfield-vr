@@ -88,13 +88,23 @@ namespace RavenfieldVR.Local
             public int Index;
             public Process Process;
             public IPEndPoint Input;
-            public readonly FlatPlayerInput.Binds Binds = new FlatPlayerInput.Binds();
+            public readonly FlatPlayerInput.DeviceState State = new FlatPlayerInput.DeviceState();
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
-        private static bool _hosting, _weHosted;
+        private static bool _hosting, _weHosted, _tryOnHost, _f12Was;
+        private static float _tryNoteUntil;
+
+        /// <summary>Changes when a player's keyboard and mouse change hands (F12 in try mode): the copy forgets its mouse's last totals.</summary>
+        private static byte _generation;
+
+        /// <summary>The host's line in try mode: whose keyboard it is now.</summary>
+        internal static string TryLine => TryMode && _hosting
+            ? (Time.unscaledTime < _tryNoteUntil ? $"Your keyboard and mouse now play PLAYER {(_tryOnHost ? 1 : 2)}" : $"Try mode: your keyboard and mouse play player {(_tryOnHost ? 1 : 2)}.   F12: the other player")
+            : null;
         private static UdpClient _hostSocket;
-        private static readonly byte[] Packet = new byte[16 + FlatPlayerInput.Count * 5];
+        private static GameObject _hostDrawer;
+        private static readonly byte[] Packet = new byte[64];
 
         /// <summary>Whether the copies are running (the Local page shows it).</summary>
         public static bool Running => _hosting;
@@ -171,6 +181,12 @@ namespace RavenfieldVR.Local
                 Log.Warn("Splitscreen: the copies' input port could not be opened: " + e.Message);
             }
             RawInput.Start();
+            if (_hostDrawer == null)
+            {
+                _hostDrawer = new GameObject("RavenfieldVR Split Host");
+                UnityEngine.Object.DontDestroyOnLoad(_hostDrawer);
+                _hostDrawer.AddComponent<SplitCopyHost>();
+            }
             SplitPlayers.Patch(); // (the game's merged controllers muted: each copy reads its own)
             SplitPlayers.GamePadsMuted = true;
             FlatPlayerInput.Keys = 0;
@@ -234,11 +250,36 @@ namespace RavenfieldVR.Local
                                     BitConverter.ToInt16(e, 14), BitConverter.ToInt32(e, 16), BitConverter.ToInt32(e, 20), BitConverter.ToUInt16(e, 24));
                 }
             }
+            if (TryMode)
+            {
+                // F12 hands the one keyboard and mouse to the other player (to try both with one keyboard).
+                RawDevice k0 = RawInput.Nth(false, 0);
+                bool f12 = k0 != null && k0.Keys[0x7B];
+                if (f12 && !_f12Was)
+                {
+                    _tryOnHost = !_tryOnHost;
+                    _generation++;
+                    FlatPlayerInput.ResetMouse();
+                    _tryNoteUntil = Time.unscaledTime + 4f;
+                    Log.Info($"Splitscreen try: the keyboard and mouse now play player {(_tryOnHost ? 1 : 2)}.");
+                }
+                _f12Was = f12;
+                FlatPlayerInput.OnlyPause = !_tryOnHost;
+            }
             foreach (Copy c in Copies)
             {
                 int keys = TryMode ? c.Index - 1 : c.Index;
-                FlatPlayerInput.FromKeys(c.Binds, RawInput.Nth(false, keys), RawInput.Nth(true, keys), false);
-                int length = Write(c.Binds);
+                if (TryMode && _tryOnHost)
+                {
+                    // (Its player gets nothing meanwhile: its keys let go, its mouse where it was.)
+                    Array.Clear(c.State.Keys, 0, 256);
+                    c.State.Left = c.State.Right = c.State.Middle = c.State.X1 = c.State.X2 = false;
+                }
+                else
+                {
+                    c.State.CopyFrom(RawInput.Nth(false, keys), RawInput.Nth(true, keys));
+                }
+                int length = Write(c.State);
                 try
                 {
                     _hostSocket?.Send(Packet, length, c.Input);
@@ -284,22 +325,31 @@ namespace RavenfieldVR.Local
             }
         }
 
-        private static int Write(FlatPlayerInput.Binds b)
+        /// <summary>A player's keyboard and mouse as a packet: 'K', 32 bytes of keys (a bit each), the mouse's buttons, its totals and wheel.</summary>
+        private static int Write(FlatPlayerInput.DeviceState d)
         {
             int at = 0;
-            Packet[at++] = (byte)'B';
-            Buffer.BlockCopy(BitConverter.GetBytes(b.MouseX), 0, Packet, at, 4);
-            at += 4;
-            Buffer.BlockCopy(BitConverter.GetBytes(b.MouseY), 0, Packet, at, 4);
-            at += 4;
-            Buffer.BlockCopy(BitConverter.GetBytes(b.Wheel), 0, Packet, at, 4);
-            at += 4;
-            for (int i = 0; i < FlatPlayerInput.Count; i++)
+            Packet[at++] = (byte)'K';
+            for (int i = 0; i < 32; i++)
             {
-                Buffer.BlockCopy(BitConverter.GetBytes(b.Axis[i]), 0, Packet, at, 4);
-                at += 4;
-                Packet[at++] = (byte)(b.Held[i] ? 1 : 0);
+                byte bits = 0;
+                for (int j = 0; j < 8; j++)
+                {
+                    if (d.Keys[i * 8 + j])
+                    {
+                        bits |= (byte)(1 << j);
+                    }
+                }
+                Packet[at++] = bits;
             }
+            Packet[at++] = (byte)((d.Left ? 1 : 0) | (d.Right ? 2 : 0) | (d.Middle ? 4 : 0) | (d.X1 ? 8 : 0) | (d.X2 ? 16 : 0));
+            Buffer.BlockCopy(BitConverter.GetBytes(d.TotalX), 0, Packet, at, 4);
+            at += 4;
+            Buffer.BlockCopy(BitConverter.GetBytes(d.TotalY), 0, Packet, at, 4);
+            at += 4;
+            Buffer.BlockCopy(BitConverter.GetBytes(d.Wheel), 0, Packet, at, 4);
+            at += 4;
+            Packet[at++] = _generation;
             return at;
         }
 
@@ -309,7 +359,7 @@ namespace RavenfieldVR.Local
         private static IPEndPoint _hostInput;
         private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
-        private static readonly FlatPlayerInput.Binds Received = new FlatPlayerInput.Binds();
+        private static readonly FlatPlayerInput.DeviceState Received = new FlatPlayerInput.DeviceState();
 
         private static void ClientUpdate()
         {
@@ -359,7 +409,7 @@ namespace RavenfieldVR.Local
             {
                 IPEndPoint from = null;
                 byte[] p = _clientSocket.Receive(ref from);
-                if (p.Length >= 13 + FlatPlayerInput.Count * 5 && p[0] == (byte)'B')
+                if (p.Length >= PacketLength && p[0] == (byte)'K')
                 {
                     if (!_heardHost)
                     {
@@ -396,20 +446,36 @@ namespace RavenfieldVR.Local
             }
         }
 
+        private const int PacketLength = 1 + 32 + 1 + 12 + 1;
+        private static int _lastGeneration = -1;
+
         private static void Read(byte[] p)
         {
             int at = 1;
-            Received.MouseX = BitConverter.ToSingle(p, at);
+            for (int i = 0; i < 32; i++)
+            {
+                byte bits = p[at++];
+                for (int j = 0; j < 8; j++)
+                {
+                    Received.Keys[i * 8 + j] = (bits & (1 << j)) != 0;
+                }
+            }
+            byte b = p[at++];
+            Received.Left = (b & 1) != 0;
+            Received.Right = (b & 2) != 0;
+            Received.Middle = (b & 4) != 0;
+            Received.X1 = (b & 8) != 0;
+            Received.X2 = (b & 16) != 0;
+            Received.TotalX = BitConverter.ToSingle(p, at);
             at += 4;
-            Received.MouseY = BitConverter.ToSingle(p, at);
+            Received.TotalY = BitConverter.ToSingle(p, at);
             at += 4;
             Received.Wheel = BitConverter.ToInt32(p, at);
             at += 4;
-            for (int i = 0; i < FlatPlayerInput.Count; i++)
+            if (p[at] != _lastGeneration)
             {
-                Received.Axis[i] = BitConverter.ToSingle(p, at);
-                at += 4;
-                Received.Held[i] = p[at++] != 0;
+                _lastGeneration = p[at];
+                FlatPlayerInput.ResetMouse(); // (the keyboard and mouse changed hands: no turn from the time it was the other player's)
             }
         }
 
@@ -487,6 +553,25 @@ namespace RavenfieldVR.Local
     /// <summary>A copy's own drawing: what to press while down (SplitDeploy).</summary>
     internal sealed class SplitCopyHost : MonoBehaviour
     {
-        private void OnGUI() => SplitDeploy.Draw();
+        private static GUIStyle _style;
+
+        private void OnGUI()
+        {
+            SplitDeploy.Draw();
+            string line = SplitGames.TryLine;
+            if (line != null)
+            {
+                if (_style == null)
+                {
+                    _style = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                    _style.normal.textColor = Color.white;
+                }
+                var r = new Rect(0f, 70f, Screen.width, 34f);
+                GUI.color = new Color(0f, 0f, 0f, 0.5f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = Color.white;
+                GUI.Label(r, line, _style);
+            }
+        }
     }
 }

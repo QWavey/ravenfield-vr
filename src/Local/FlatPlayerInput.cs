@@ -4,11 +4,16 @@ using UnityEngine;
 namespace RavenfieldVR.Local
 {
     /// <summary>
-    /// The game's own binds (SteelInput.KeyBinds) answered for this game's player from one keyboard and mouse and/or one controller,
-    /// merged into SteelInput's reads as the headset's controllers are (GameInputBridge). Used when the players at this PC each have their
-    /// own devices: the soldiers splitscreen (the game's own player on the first keyboard and mouse, read apart through Raw Input) and the
-    /// game copies splitscreen (<see cref="SplitGames"/>: the host reads every keyboard and mouse and sends each copy its player's binds,
-    /// <see cref="Receive"/>).
+    /// The game's own binds (SteelInput.KeyBinds) answered for this game's player from ONE keyboard and mouse and/or one controller, merged
+    /// into SteelInput's reads as the headset's controllers are (GameInputBridge). Used when the players at this PC each have their own
+    /// devices: the soldiers splitscreen and the game copies splitscreen (<see cref="SplitGames"/>).
+    /// <para>
+    /// The keys are the game's own: every bind is evaluated from the game's own key bindings (Options, Controls: each bind's positive and
+    /// negative key, or its mouse axis and whether it is inverted), as SteelInput.Axis.GetValue does, only from this player's keyboard and
+    /// mouse instead of the merged ones (the user, 2026-11-14: "these are not the standard controls in ravenfield. please use the standard
+    /// ones"; and D walked left, the mouse looked the wrong way: the game's sideways binds are positive to the left, which its own bindings
+    /// carry).
+    /// </para>
     /// </summary>
     internal static class FlatPlayerInput
     {
@@ -28,7 +33,7 @@ namespace RavenfieldVR.Local
 
         private static bool _active;
 
-        /// <summary>Try mode: the game's own player gets only Esc (the pause menu) from the first keyboard; the rest is player 2's.</summary>
+        /// <summary>Try mode: the game's own player gets only its pause menu key; the rest of that keyboard is player 2's.</summary>
         public static bool OnlyPause;
 
         /// <summary>The controller this game's player plays with while the merged ones are muted (-1: none).</summary>
@@ -41,129 +46,251 @@ namespace RavenfieldVR.Local
 
         /// <summary>The mod's own bind past the game's: switch team (T, the controller's D-pad right), for the splitscreen copies.</summary>
         internal static readonly int SwitchTeam = Count - 1;
+
         private static readonly float[] Axis = new float[Count];
         private static readonly bool[] Held = new bool[Count];
         private static readonly bool[] WasHeld = new bool[Count];
 
-        /// <summary>How far the view turns for a count of the mouse (as the game's own mouse look feels).</summary>
-        public static float MouseScale = 0.06f;
+        /// <summary>Unity's "Mouse X/Y" per count of the mouse (its input manager's sensitivity: the game turns it as its own mouse look).</summary>
+        public static float MouseAxisPerCount = 0.1f;
 
         /// <summary>The view's turn for a full right stick, in the game's aim units a second (about 4 degrees a unit: 180 degrees a second).</summary>
         public static float PadTurn = 45f;
 
-        // ---- the binds of one keyboard and mouse, as the host computes them for itself and for each copy ------------------------------
+        // ---- one keyboard and mouse's state, as the host reads it and sends it to a copy ---------------------------------------------
 
-        /// <summary>One player's binds from a keyboard and mouse: held buttons and axes; the mouse's look as running totals (see Compute).</summary>
-        internal sealed class Binds
+        /// <summary>One player's keyboard and mouse: keys held (by Windows' virtual key), mouse buttons, the mouse's running totals.</summary>
+        internal sealed class DeviceState
         {
-            public readonly float[] Axis = new float[Count];
-            public readonly bool[] Held = new bool[Count];
-            public float MouseX, MouseY; // (running totals of the mouse's counts: a copy turns by the change since it last read)
+            public readonly bool[] Keys = new bool[256];
+            public bool Left, Right, Middle, X1, X2;
+            public float TotalX, TotalY; // (running totals of the mouse's counts: a copy turns by the change since it last read)
             public int Wheel;
+
+            public void CopyFrom(RawDevice k, RawDevice m)
+            {
+                if (k != null)
+                {
+                    Array.Copy(k.Keys, Keys, 256);
+                }
+                else
+                {
+                    Array.Clear(Keys, 0, 256);
+                }
+                if (m != null)
+                {
+                    Left = m.Left;
+                    Right = m.Right;
+                    Middle = m.Middle;
+                    X1 = m.X1;
+                    X2 = m.X2;
+                    TotalX = m.TotalX;
+                    TotalY = m.TotalY;
+                    Wheel = m.Wheel;
+                }
+                else
+                {
+                    Left = Right = Middle = X1 = X2 = false;
+                }
+            }
         }
 
-        /// <summary>A keyboard and mouse's binds (WASD, the mouse, R, E, C, Shift, Space, F, M, Tab, Z, Esc, Q, 1-5, L, B).</summary>
-        internal static void FromKeys(Binds b, RawDevice k, RawDevice m, bool onlyPause)
+        // ---- the game's own bindings, evaluated from one keyboard and mouse ------------------------------------------------------------
+
+        /// <summary>Windows' virtual key for one of Unity's key codes (0: none, or a mouse button: see Down).</summary>
+        internal static int VirtualKey(KeyCode k)
         {
-            Array.Clear(b.Axis, 0, Count);
-            Array.Clear(b.Held, 0, Count);
-            bool Key(int vk) => k != null && k.Keys[vk];
-            float Pair(int plus, int minus) => (Key(plus) ? 1f : 0f) - (Key(minus) ? 1f : 0f);
-            void Set(SteelInput.KeyBinds bind, bool on) => b.Held[(int)bind] |= on;
-            void SetAxis(SteelInput.KeyBinds bind, float v) => b.Axis[(int)bind] = v;
-            if (m != null)
+            int c = (int)k;
+            if (c >= (int)KeyCode.A && c <= (int)KeyCode.Z) return 0x41 + c - (int)KeyCode.A;
+            if (c >= (int)KeyCode.Alpha0 && c <= (int)KeyCode.Alpha9) return 0x30 + c - (int)KeyCode.Alpha0;
+            if (c >= (int)KeyCode.Keypad0 && c <= (int)KeyCode.Keypad9) return 0x60 + c - (int)KeyCode.Keypad0;
+            if (c >= (int)KeyCode.F1 && c <= (int)KeyCode.F15) return 0x70 + c - (int)KeyCode.F1;
+            switch (k)
             {
-                b.MouseX = m.TotalX;
-                b.MouseY = m.TotalY;
-                b.Wheel = m.Wheel;
+                case KeyCode.Space: return 0x20;
+                case KeyCode.Return: case KeyCode.KeypadEnter: return 0x0D;
+                case KeyCode.Escape: return 0x1B;
+                case KeyCode.Tab: return 0x09;
+                case KeyCode.Backspace: return 0x08;
+                case KeyCode.LeftShift: case KeyCode.RightShift: return 0x10;
+                case KeyCode.LeftControl: case KeyCode.RightControl: return 0x11;
+                case KeyCode.LeftAlt: case KeyCode.RightAlt: case KeyCode.AltGr: return 0x12;
+                case KeyCode.CapsLock: return 0x14;
+                case KeyCode.UpArrow: return 0x26;
+                case KeyCode.DownArrow: return 0x28;
+                case KeyCode.LeftArrow: return 0x25;
+                case KeyCode.RightArrow: return 0x27;
+                case KeyCode.Insert: return 0x2D;
+                case KeyCode.Delete: return 0x2E;
+                case KeyCode.Home: return 0x24;
+                case KeyCode.End: return 0x23;
+                case KeyCode.PageUp: return 0x21;
+                case KeyCode.PageDown: return 0x22;
+                case KeyCode.BackQuote: return 0xC0;
+                case KeyCode.Minus: return 0xBD;
+                case KeyCode.Equals: return 0xBB;
+                case KeyCode.LeftBracket: return 0xDB;
+                case KeyCode.RightBracket: return 0xDD;
+                case KeyCode.Backslash: return 0xDC;
+                case KeyCode.Semicolon: return 0xBA;
+                case KeyCode.Quote: return 0xDE;
+                case KeyCode.Comma: return 0xBC;
+                case KeyCode.Period: return 0xBE;
+                case KeyCode.Slash: return 0xBF;
+                case KeyCode.KeypadPlus: return 0x6B;
+                case KeyCode.KeypadMinus: return 0x6D;
+                case KeyCode.KeypadMultiply: return 0x6A;
+                case KeyCode.KeypadDivide: return 0x6F;
+                case KeyCode.KeypadPeriod: return 0x6E;
+                default: return 0;
             }
-            if (onlyPause)
+        }
+
+        private static bool Down(DeviceState s, KeyCode k)
+        {
+            switch (k)
             {
-                Set(SteelInput.KeyBinds.TogglePauseMenu, Key(0x1B));
+                case KeyCode.None: return false;
+                case KeyCode.Mouse0: return s.Left;
+                case KeyCode.Mouse1: return s.Right;
+                case KeyCode.Mouse2: return s.Middle;
+                case KeyCode.Mouse3: return s.X1;
+                case KeyCode.Mouse4: return s.X2;
+            }
+            int vk = VirtualKey(k);
+            return vk > 0 && s.Keys[vk];
+        }
+
+        /// <summary>
+        /// One bind's value from one keyboard and mouse, as SteelInput.Axis.GetValueUnity gives it from the merged ones: its positive key
+        /// minus its negative key, or its mouse axis (this frame's counts) as Unity's input manager gives it, inverted when the binding is.
+        /// </summary>
+        private static float Value(SteelInput.Axis a, DeviceState s, float dx, float dy, int wheel)
+        {
+            if (a.useUnityAxis)
+            {
+                string name = a.unityAxis;
+                // (Ravenfield's input manager gives "Mouse X" the other way round from Windows' counts: a move to the right turned the
+                // copy's view left, check of 22:50, 2026-11-14; "Mouse Y" as Unity's default, up positive.)
+                float v = name == "Mouse X" ? -dx * MouseAxisPerCount
+                    : name == "Mouse Y" ? -dy * MouseAxisPerCount // (Windows counts down as positive, Unity up)
+                    : name == "Mouse ScrollWheel" ? wheel / 120f * 0.1f
+                    : 0f; // (the joystick axes: each copy reads its own controller, ReadPad)
+                if (a.invertUnityAxis)
+                {
+                    v = -v;
+                }
+                if (a.applyDeadzone && Mathf.Abs(v) <= 0.1f)
+                {
+                    v = 0f;
+                }
+                return v;
+            }
+            return (Down(s, a.posKeyCode) ? 1f : 0f) - (Down(s, a.negKeyCode) ? 1f : 0f);
+        }
+
+        /// <summary>A key or mouse button pressed on a state, the one the game's own binding gives a bind (positive or negative side): the check's way to press "move right".</summary>
+        internal static void PressBind(DeviceState s, SteelInput.KeyBinds bind, bool positive)
+        {
+            SteelInput.Axis a = SteelInput.GetInput(bind);
+            if (a.useUnityAxis && a.unityAxis == "Mouse ScrollWheel")
+            {
+                bool up = positive != a.invertUnityAxis;
+                s.Wheel += up ? 120 : -120; // (one notch of the wheel, the way that makes the bind positive)
                 return;
             }
-            SetAxis(SteelInput.KeyBinds.Horizontal, Pair(0x44, 0x41)); // D, A
-            SetAxis(SteelInput.KeyBinds.Vertical, Pair(0x57, 0x53)); // W, S
-            SetAxis(SteelInput.KeyBinds.CarSteer, Pair(0x44, 0x41));
-            SetAxis(SteelInput.KeyBinds.CarThrottle, Pair(0x57, 0x53));
-            SetAxis(SteelInput.KeyBinds.HeliPitch, Pair(0x57, 0x53));
-            SetAxis(SteelInput.KeyBinds.HeliRoll, Pair(0x44, 0x41));
-            SetAxis(SteelInput.KeyBinds.HeliYaw, Pair(0x45, 0x51)); // E, Q
-            SetAxis(SteelInput.KeyBinds.HeliThrottle, Pair(0x10, 0x11)); // Shift, Ctrl
-            SetAxis(SteelInput.KeyBinds.PlanePitch, Pair(0x57, 0x53));
-            SetAxis(SteelInput.KeyBinds.PlaneRoll, Pair(0x44, 0x41));
-            SetAxis(SteelInput.KeyBinds.PlaneYaw, Pair(0x45, 0x51));
-            SetAxis(SteelInput.KeyBinds.PlaneThrottle, Pair(0x10, 0x11));
-            if (m != null)
+            KeyCode k = positive ? a.posKeyCode : a.negKeyCode;
+            switch (k)
             {
-                Set(SteelInput.KeyBinds.Fire, m.Left);
-                Set(SteelInput.KeyBinds.Aim, m.Right);
+                case KeyCode.Mouse0: s.Left = true; return;
+                case KeyCode.Mouse1: s.Right = true; return;
+                case KeyCode.Mouse2: s.Middle = true; return;
             }
-            Set(SteelInput.KeyBinds.Reload, Key(0x52)); // R
-            Set(SteelInput.KeyBinds.Use, Key(0x45)); // E
-            Set(SteelInput.KeyBinds.Crouch, Key(0x43) || Key(0x11)); // C, Ctrl
-            Set(SteelInput.KeyBinds.Sprint, Key(0x10)); // Shift
-            Set(SteelInput.KeyBinds.Jump, Key(0x20)); // Space
-            Set(SteelInput.KeyBinds.Kick, Key(0x46)); // F
-            Set(SteelInput.KeyBinds.Map, Key(0x4D)); // M
-            Set(SteelInput.KeyBinds.Scoreboard, Key(0x09)); // Tab
-            Set(SteelInput.KeyBinds.Prone, Key(0x5A)); // Z
-            Set(SteelInput.KeyBinds.TogglePauseMenu, Key(0x1B)); // Esc
-            Set(SteelInput.KeyBinds.NextWeapon, Key(0x51)); // Q
-            Set(SteelInput.KeyBinds.Weapon1, Key(0x31));
-            Set(SteelInput.KeyBinds.Weapon2, Key(0x32));
-            Set(SteelInput.KeyBinds.Weapon3, Key(0x33));
-            Set(SteelInput.KeyBinds.Weapon4, Key(0x34));
-            Set(SteelInput.KeyBinds.Weapon5, Key(0x35));
-            Set(SteelInput.KeyBinds.OpenLoadout, Key(0x4C)); // L
-            Set(SteelInput.KeyBinds.FireMode, Key(0x42)); // B
-            b.Held[SwitchTeam] |= Key(0x54); // T
+            int vk = VirtualKey(k);
+            if (vk > 0)
+            {
+                s.Keys[vk] = true;
+            }
+        }
+
+        /// <summary>The game's own key for a bind, as a name (the copies' "what to press" line).</summary>
+        internal static string KeyName(SteelInput.KeyBinds bind)
+        {
+            try
+            {
+                SteelInput.Axis a = SteelInput.GetInput(bind);
+                KeyCode k = a.posKeyCode != KeyCode.None ? a.posKeyCode : a.negKeyCode;
+                return k == KeyCode.Mouse0 ? "Left mouse" : k == KeyCode.Mouse1 ? "Right mouse" : k.ToString();
+            }
+            catch (Exception)
+            {
+                return bind.ToString();
+            }
         }
 
         // ---- this game's player ---------------------------------------------------------------------------------------------------
 
-        private static readonly Binds Own = new Binds();
-        private static Binds _received;
+        private static readonly DeviceState Own = new DeviceState();
+        private static DeviceState _received;
         private static float _lastMouseX, _lastMouseY;
         private static int _lastWheel;
         private static bool _mouseKnown;
 
-        /// <summary>A copy's binds from the host (SplitGames): this game's player plays from them from now on.</summary>
-        internal static void Receive(Binds b) => _received = b;
+        /// <summary>A copy's keyboard and mouse from the host (SplitGames): this game's player plays from it from now on.</summary>
+        internal static void Receive(DeviceState s) => _received = s;
 
         /// <summary>Once a frame before the game reads its binds (GameInputBridge): this frame's binds from the player's devices.</summary>
         public static void Compute()
         {
             Array.Copy(Held, WasHeld, Count);
-            Binds b;
+            Array.Clear(Axis, 0, Count);
+            Array.Clear(Held, 0, Count);
+            DeviceState s;
             if (Keys >= 0)
             {
-                FromKeys(Own, RawInput.Nth(false, Keys), RawInput.Nth(true, Keys), OnlyPause);
-                b = Own;
+                Own.CopyFrom(RawInput.Nth(false, Keys), RawInput.Nth(true, Keys));
+                s = Own;
             }
             else
             {
-                b = _received;
+                s = _received;
             }
-            Array.Clear(Axis, 0, Count);
-            Array.Clear(Held, 0, Count);
-            if (b != null)
+            if (s != null)
             {
-                Array.Copy(b.Axis, Axis, Count);
-                Array.Copy(b.Held, Held, Count);
-                // The mouse's turn: the change in its running total since the last frame (a lost or repeated packet loses or doubles nothing).
+                // The mouse's move: the change in its running total since the last frame (a lost or repeated packet loses or doubles nothing).
+                float dx = 0f, dy = 0f;
+                int wheel = 0;
                 if (_mouseKnown)
                 {
-                    Axis[(int)SteelInput.KeyBinds.AimX] = (b.MouseX - _lastMouseX) * MouseScale;
-                    Axis[(int)SteelInput.KeyBinds.AimY] = -(b.MouseY - _lastMouseY) * MouseScale;
-                    int wheel = b.Wheel - _lastWheel;
-                    Held[(int)SteelInput.KeyBinds.NextWeapon] |= wheel < 0;
-                    Held[(int)SteelInput.KeyBinds.PreviousWeapon] |= wheel > 0;
+                    dx = s.TotalX - _lastMouseX;
+                    dy = s.TotalY - _lastMouseY;
+                    wheel = s.Wheel - _lastWheel;
                 }
-                _lastMouseX = b.MouseX;
-                _lastMouseY = b.MouseY;
-                _lastWheel = b.Wheel;
+                _lastMouseX = s.TotalX;
+                _lastMouseY = s.TotalY;
+                _lastWheel = s.Wheel;
                 _mouseKnown = true;
+                int binds = Count - 1;
+                for (int i = 0; i < binds; i++)
+                {
+                    var bind = (SteelInput.KeyBinds)i;
+                    if (OnlyPause && bind != SteelInput.KeyBinds.TogglePauseMenu)
+                    {
+                        continue;
+                    }
+                    float v;
+                    try
+                    {
+                        v = Value(SteelInput.GetInput(bind), s, dx, dy, wheel);
+                    }
+                    catch (Exception)
+                    {
+                        continue; // (a bind this game version has no binding for)
+                    }
+                    Axis[i] = v;
+                    Held[i] = v > 0f; // (as SteelInput.Axis.Update: held while its value is above zero)
+                }
+                Held[SwitchTeam] = !OnlyPause && s.Keys[0x54]; // T
             }
             if (Pad >= 0 && !OnlyPause)
             {
@@ -174,7 +301,10 @@ namespace RavenfieldVR.Local
         /// <summary>Forgets the mouse's last totals (a new keyboard and mouse, or a new host): the first frame after turns nothing.</summary>
         public static void ResetMouse() => _mouseKnown = false;
 
-        /// <summary>The game's own player's controller, as the game's own controller layout has it.</summary>
+        /// <summary>
+        /// The player's controller, as Ravenfield's own controller layout (Steam Input) has it. The game's sideways binds are positive to
+        /// the left (its Steam pad actions give -x), so the sticks' x is turned round for them.
+        /// </summary>
         private static void ReadPad(PadState s)
         {
             if (!s.Connected)
@@ -190,20 +320,20 @@ namespace RavenfieldVR.Local
                 }
             }
             Vector2 l = s.LeftStick, r = s.RightStick;
-            Stick(SteelInput.KeyBinds.Horizontal, l.x);
+            Stick(SteelInput.KeyBinds.Horizontal, -l.x);
             Stick(SteelInput.KeyBinds.Vertical, l.y);
-            Stick(SteelInput.KeyBinds.CarSteer, l.x);
+            Stick(SteelInput.KeyBinds.CarSteer, -l.x);
             Stick(SteelInput.KeyBinds.CarThrottle, s.RightTrigger - s.LeftTrigger);
-            Stick(SteelInput.KeyBinds.HeliRoll, l.x);
+            Stick(SteelInput.KeyBinds.HeliRoll, -l.x);
             Stick(SteelInput.KeyBinds.HeliPitch, l.y);
-            Stick(SteelInput.KeyBinds.HeliYaw, r.x);
+            Stick(SteelInput.KeyBinds.HeliYaw, -r.x);
             Stick(SteelInput.KeyBinds.HeliThrottle, r.y);
-            Stick(SteelInput.KeyBinds.PlaneRoll, l.x);
+            Stick(SteelInput.KeyBinds.PlaneRoll, -l.x);
             Stick(SteelInput.KeyBinds.PlanePitch, l.y);
-            Stick(SteelInput.KeyBinds.PlaneYaw, r.x);
+            Stick(SteelInput.KeyBinds.PlaneYaw, -r.x);
             Stick(SteelInput.KeyBinds.PlaneThrottle, s.RightTrigger - s.LeftTrigger);
             float turn = PadTurn * Time.unscaledDeltaTime;
-            Stick(SteelInput.KeyBinds.AimX, r.x * turn);
+            Stick(SteelInput.KeyBinds.AimX, -r.x * turn);
             Stick(SteelInput.KeyBinds.AimY, r.y * turn);
             Set(SteelInput.KeyBinds.Fire, s.RightTrigger > 0.4f);
             Set(SteelInput.KeyBinds.Aim, s.LeftTrigger > 0.4f);
@@ -222,7 +352,7 @@ namespace RavenfieldVR.Local
             Held[SwitchTeam] |= s.Has(PadState.Right);
         }
 
-        /// <summary>A bind held this frame by this player (for the copies' deploy by key).</summary>
+        /// <summary>A bind held this frame by this player.</summary>
         internal static bool IsHeld(SteelInput.KeyBinds b) => Held[(int)b];
 
         internal static bool WentDown(SteelInput.KeyBinds b) => Held[(int)b] && !WasHeld[(int)b];
