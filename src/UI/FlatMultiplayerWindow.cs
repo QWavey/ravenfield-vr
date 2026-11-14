@@ -235,7 +235,13 @@ namespace RavenfieldVR.UI
                 }
                 else if (missing > 0)
                 {
+                    GUILayout.BeginHorizontal();
                     GUILayout.Label($"Steam is fetching the host's mods: {missing} still to come. Start the game again once they are there.");
+                    if (menus && GUILayout.Button("Ask again", GUILayout.Width(100f)))
+                    {
+                        _modsSaid = NetMods.GetThem(); // (a download that failed: asked again)
+                    }
+                    GUILayout.EndHorizontal();
                 }
                 if (off > 0)
                 {

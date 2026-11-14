@@ -190,7 +190,7 @@ namespace RavenfieldVR.UI
                     }
                     else if (missing > 0)
                     {
-                        Label($"Steam is fetching the host's mods: {missing} still to come.", 22, FontStyle.Normal, UiKit.TextColor);
+                        ActionRow($"Steam is fetching the host's mods: {missing} still to come.", "Ask again", () => UISystem.Instance?.Notice?.Show(NetMods.GetThem(), 6f));
                         Label("Once they are downloaded, start the game again: the game loads mods only when it starts.", 18, FontStyle.Italic, UiKit.MutedText, 34f);
                     }
                     else

@@ -262,7 +262,8 @@ namespace RavenfieldVR.Net
             int asked = 0;
             foreach (ulong id in Hosts)
             {
-                if ((!known.Contains(id) || !Installed(id)) && Wanted.Add(id))
+                // (Asked again for any still not there: a download that failed was not asked for twice, and no button came back.)
+                if (!known.Contains(id) || !Installed(id))
                 {
                     try
                     {
