@@ -1620,6 +1620,11 @@ namespace RavenfieldVR.Weapons
                 strength = Mathf.Min(strength, VRConfig.RecoilStrength.Value) * RestedKick;
                 Log.InfoOnce("rested:" + fd.Key, $"{fd.Key}: fired laid on something solid, the kick halved ({(fd.BipodFoot.sqrMagnitude > 0f ? "on its bipod" : "under the support hand")}).");
             }
+            if (sub == null && !Supported && Braced())
+            {
+                strength *= BracedKick;
+                Log.InfoOnce("braced:" + fd.Key, $"{fd.Key}: fired from a seat with the free hand braced on the vehicle, the kick {BracedKick * 100f:0}%.");
+            }
             float kick = ShotKick(c, fd, kind, out float climbShare);
             float random = Mathf.Clamp(c.randomKick, 0f, 5f);
             // Critically damped spring peak = v0 / (omega * e), omega ~ 12 (StepRecoil): ~0.9 m/s per kick unit gives ~2.7 cm
@@ -1656,6 +1661,37 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>What a gun laid on something solid still kicks, of a shouldered gun's.</summary>
         private const float RestedKick = 0.5f;
+
+        /// <summary>A shot braced: the free hand holding on to the vehicle the player sits in (its frame, a door, a handle).</summary>
+        private const float BracedKick = 0.7f;
+
+        private static readonly Collider[] BraceHits = new Collider[16];
+
+        /// <summary>
+        /// The brace grip (invention 4 of 2026-11-14, from real gunnery's bracing against the hull): seated in a vehicle, the free
+        /// hand closed within 6 cm of that vehicle's own colliders takes part of the kick, as a passenger in a helicopter's door holds
+        /// on and fires. Asked at a shot only.
+        /// </summary>
+        private bool Braced()
+        {
+            Actor me = Util.GameContext.PlayerActor;
+            Vehicle v = me != null && me.IsSeated() && me.seat != null ? me.seat.vehicle : null;
+            VRHand off = _system.Rig.Off;
+            if (v == null || off == null || !off.Tracked || off.Role != HandRole.Free || off.Held != null || !off.GrabHeld)
+            {
+                return false;
+            }
+            int n = Physics.OverlapSphereNonAlloc(off.PalmCentre, 0.06f, BraceHits, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = BraceHits[i];
+                if (c != null && (c.attachedRigidbody != null && c.attachedRigidbody == v.rigidbody || c.transform.IsChildOf(v.transform)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>
         /// A long gun laid on something solid: its bipod's feet, or the gun under the support hand, just above a level surface, the gun itself
