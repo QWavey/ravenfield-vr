@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RavenfieldVR.Net;
+using RavenfieldVR.Local;
+using RavenfieldVR.Core;
 using RavenfieldVR.Rig;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,6 +28,8 @@ namespace RavenfieldVR.UI
         private NetPlayer _kickArmedFor;
         private float _nextListLook;
         private int _page;
+        /// <summary>The page outside a game: 0 the choice, 1 Local (LAN, splitscreen), 2 Online (Steam, IP).</summary>
+        private int _choice;
 
         protected override float CanvasWidth => 1000f;
         protected override float WorldWidth => 1.0f;
@@ -56,7 +60,16 @@ namespace RavenfieldVR.UI
         protected override int Shown()
         {
             // (Pings to the nearest 10 ms: a ping moving by a millisecond is no reason to build the panel again.)
-            int shown = (Multiplayer.Active ? 1 : 0) | (Following ? 2 : 0);
+            int shown = (Multiplayer.Active ? 1 : 0) | (Following ? 2 : 0) | _choice << 3;
+            if (!Multiplayer.Active && _choice == 1)
+            {
+                LanDiscovery.Listen(); // (the LAN page hears the hosts on this network while it shows)
+                foreach (LanGame g in LanDiscovery.Games)
+                {
+                    shown = shown * 31 + g.Address.GetHashCode() + g.Players * 7;
+                }
+                shown = shown * 31 + Splitscreen.Players * 3 + (int)Splitscreen.Layout;
+            }
             if (!Multiplayer.Active)
             {
                 // The open games asked for again every 15 s while the panel shows them (a game closed since kept its Join until
@@ -104,6 +117,22 @@ namespace RavenfieldVR.UI
             if (Multiplayer.Active)
             {
                 InGame();
+                return;
+            }
+            // Two ways first (the user, 2026-11-14: "when the player selects multiplayer just 2 optios, local or over the internet"):
+            // Local is this network (LAN) or this PC (splitscreen), Online is Steam or an address.
+            if (_choice == 0)
+            {
+                Section("How do you want to play?");
+                ActionRow("Local: on this network (LAN), or at this PC (splitscreen).", "Local", () => { _choice = 1; Rebuild(); });
+                ActionRow("Online: over Steam (friends, open games), or by an IP address.", "Online", () => { _choice = 2; Rebuild(); });
+                return;
+            }
+            ActionRow(_choice == 1 ? "Local play" : "Online play", "Back", () => { _choice = 0; Rebuild(); });
+            if (_choice == 1)
+            {
+                Lan();
+                SplitscreenRows();
             }
             else
             {
@@ -111,6 +140,40 @@ namespace RavenfieldVR.UI
                 Lobbies();
                 Address();
             }
+        }
+
+        private void Lan()
+        {
+            Section("LAN: this network");
+            ActionRow("Host a game here: others on this network see it in their list.", "Host", () => Multiplayer.HostLan());
+            List<LanGame> games = LanDiscovery.Games;
+            if (games.Count == 0)
+            {
+                Label("No game heard on this network yet (a host shows here within a second).", 19, FontStyle.Italic, UiKit.MutedText);
+            }
+            foreach (LanGame g in games)
+            {
+                string what = string.IsNullOrEmpty(g.Map) ? "in the menu" : g.Map + (string.IsNullOrEmpty(g.Mode) ? "" : ", " + g.Mode);
+                string line = Cut($"{Cut(g.Name, 28)}   {g.Players}/{g.MaxPlayers}   {what}", 70);
+                if (g.Version != PluginInfo.Version)
+                {
+                    Label(line, 22);
+                    Label($"   Cannot join: it runs Ravenfield VR {g.Version}, this PC {PluginInfo.Version}.", 19, FontStyle.Italic, UiKit.MutedText);
+                    continue;
+                }
+                string address = g.Address;
+                ActionRow(line, "Join", () => Multiplayer.JoinAddress(address), null, null, 150f);
+            }
+        }
+
+        private void SplitscreenRows()
+        {
+            Section("Splitscreen: this PC");
+            ActionRow($"Players: {Splitscreen.Players} (you and {Splitscreen.Players - 1} more, on controllers or a second keyboard and mouse).", "More",
+                      () => { Splitscreen.Players = Splitscreen.Players >= 4 ? 2 : Splitscreen.Players + 1; Rebuild(); });
+            ActionRow($"Screen: {Splitscreen.LayoutName}.", "Change", () => { Splitscreen.NextLayout(); Rebuild(); });
+            ActionRow(Splitscreen.On ? "Splitscreen is on: start a match from the game's menu." : "Turn it on, then start a match from the game's menu.",
+                      Splitscreen.On ? "Turn off" : "Turn on", () => { Splitscreen.On = !Splitscreen.On; Rebuild(); });
         }
 
         private void InGame()
@@ -220,16 +283,15 @@ namespace RavenfieldVR.UI
 
         private void Host()
         {
-            Section("Host a game");
+            Section("Host a game over Steam");
             RectTransform row = Row(UiKit.RowHeight);
-            Text t = UiKit.MakeText(row, SteamLobbies.Available ? "Over Steam: no port to open." : "Steam is not running: the LAN only.", 22, FontStyle.Normal,
+            Text t = UiKit.MakeText(row, SteamLobbies.Available ? "Over Steam: no port to open." : "Steam is not running: use Local, LAN, or an address.", 22, FontStyle.Normal,
                                     UiKit.TextColor, TextAnchor.MiddleLeft);
-            UiKit.Stretch(t.rectTransform, 34f, 34f + 3f * 198f);
-            ButtonIn(row, "LAN", 34f, 190f, () => Multiplayer.HostLan());
+            UiKit.Stretch(t.rectTransform, 34f, 34f + 2f * 198f);
             if (SteamLobbies.Available)
             {
-                ButtonIn(row, "Friends", 34f + 198f, 190f, () => Multiplayer.HostSteam(true));
-                ButtonIn(row, "Public", 34f + 2f * 198f, 190f, () => Multiplayer.HostSteam(false));
+                ButtonIn(row, "Friends", 34f, 190f, () => Multiplayer.HostSteam(true));
+                ButtonIn(row, "Public", 34f + 198f, 190f, () => Multiplayer.HostSteam(false));
             }
         }
 
@@ -273,7 +335,7 @@ namespace RavenfieldVR.UI
 
         private void Address()
         {
-            Section("Join by address (LAN)");
+            Section("Join by IP address");
             ActionRow(_address.Length > 0 ? _address : "No address typed.  Example: 192.168.1.20", _typing ? "Done" : "Type", () => _typing = !_typing,
                       "Join", () =>
                       {

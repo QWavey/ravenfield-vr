@@ -269,7 +269,8 @@ namespace RavenfieldVR.Net
                 NetSession session = NetSession.Host(transport, OwnInfo());
                 session.MaxPlayers = maxPlayers;
                 Begin(session, transport);
-                Say($"Hosting on port {port} (UDP). Others join by this PC's address.");
+                LanDiscovery.HostPort = port; // (said on the local network: others find it on their LAN page)
+                Say($"Hosting on port {port} (UDP). Others on this network see it under Local, LAN; others join by this PC's address.");
             }
             catch (Exception e)
             {
@@ -415,6 +416,7 @@ namespace RavenfieldVR.Net
         public static void Update()
         {
             SteamStatus.Update(); // (friends see what the player is doing)
+            LanDiscovery.Update(); // (a LAN host says so; the LAN page hears them)
             if (!_listening && Time.unscaledTime >= _nextListenTry)
             {
                 // (Steam comes up with the game's first scene: asked until it is there, then never again.)

@@ -97,11 +97,37 @@ namespace RavenfieldVR.UI
             {
                 GUILayout.Label("Open the game's menu (Esc) to host or join.");
             }
+            else if (_choice == 0)
+            {
+                // Two ways first, as in the headset's panel: Local (this network, this PC) or Online (Steam, an address).
+                GUILayout.Space(8f);
+                GUILayout.Label("How do you want to play?");
+                if (GUILayout.Button("Local: on this network (LAN), or at this PC (splitscreen)"))
+                {
+                    _choice = 1;
+                }
+                if (GUILayout.Button("Online: over Steam, or by an IP address"))
+                {
+                    _choice = 2;
+                }
+            }
             else
             {
-                Host();
-                Lobbies();
-                Address();
+                if (GUILayout.Button("Back", GUILayout.Width(80f)))
+                {
+                    _choice = 0;
+                }
+                if (_choice == 1)
+                {
+                    Lan();
+                    SplitscreenRows();
+                }
+                else
+                {
+                    Host();
+                    Lobbies();
+                    Address();
+                }
             }
             GUILayout.EndScrollView();
             if (GUILayout.Button("Close"))
@@ -111,15 +137,65 @@ namespace RavenfieldVR.UI
             GUI.DragWindow();
         }
 
-        private static void Host()
+        /// <summary>The page outside a game: 0 the choice, 1 Local, 2 Online.</summary>
+        private int _choice;
+
+        private static void Lan()
         {
+            LanDiscovery.Listen();
             GUILayout.Space(8f);
-            GUILayout.Label(SteamLobbies.Available ? "Host a game (over Steam: no port to open)" : "Host a game (Steam is not running: the LAN only)");
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("LAN"))
+            GUILayout.Label("LAN: this network");
+            if (GUILayout.Button("Host a game here"))
             {
                 Multiplayer.HostLan();
             }
+            System.Collections.Generic.List<LanGame> games = LanDiscovery.Games;
+            if (games.Count == 0)
+            {
+                GUILayout.Label("No game heard on this network yet.");
+            }
+            foreach (LanGame g in games)
+            {
+                GUILayout.BeginHorizontal();
+                bool same = g.Version == Core.PluginInfo.Version;
+                GUILayout.Label($"{g.Name}   {g.Players}/{g.MaxPlayers}   {(string.IsNullOrEmpty(g.Map) ? "in the menu" : g.Map)}{(same ? "" : $"   (it runs {g.Version}, this PC {Core.PluginInfo.Version})")}");
+                if (same && GUILayout.Button("Join", GUILayout.Width(80f)))
+                {
+                    Multiplayer.JoinAddress(g.Address);
+                }
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private static void SplitscreenRows()
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label("Splitscreen: this PC");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Players: {Local.Splitscreen.Players}");
+            if (GUILayout.Button("More", GUILayout.Width(80f)))
+            {
+                Local.Splitscreen.Players = Local.Splitscreen.Players >= 4 ? 2 : Local.Splitscreen.Players + 1;
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Screen: " + Local.Splitscreen.LayoutName);
+            if (GUILayout.Button("Change", GUILayout.Width(80f)))
+            {
+                Local.Splitscreen.NextLayout();
+            }
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button(Local.Splitscreen.On ? "Turn splitscreen off" : "Turn splitscreen on (then start a match from the game's menu)"))
+            {
+                Local.Splitscreen.On = !Local.Splitscreen.On;
+            }
+        }
+
+        private static void Host()
+        {
+            GUILayout.Space(8f);
+            GUILayout.Label(SteamLobbies.Available ? "Host a game over Steam (no port to open)" : "Steam is not running: use Local, LAN, or an address");
+            GUILayout.BeginHorizontal();
             if (SteamLobbies.Available && GUILayout.Button("Friends"))
             {
                 Multiplayer.HostSteam(true);
@@ -167,7 +243,7 @@ namespace RavenfieldVR.UI
         private void Address()
         {
             GUILayout.Space(8f);
-            GUILayout.Label("Join by address (LAN), e.g. 192.168.1.20");
+            GUILayout.Label("Join by IP address, e.g. 192.168.1.20");
             GUILayout.BeginHorizontal();
             _address = GUILayout.TextField(_address ?? "", 64);
             if (GUILayout.Button("Join", GUILayout.Width(80f)) && _address.Trim().Length > 0)
