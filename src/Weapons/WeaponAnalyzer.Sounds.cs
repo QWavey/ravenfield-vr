@@ -242,6 +242,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             FillFromBank(d);
+            MagInFromOwnReload(d);
             // The gun's own fire-mode sound, which the game plays only on a change to its sub weapon, for a selector with no clip named for it.
             AudioClip modeClip = w.changeFireModeAudio != null ? w.changeFireModeAudio.clip : null;
             if (!d.Cues.ContainsKey(MechSound.Selector) && modeClip != null && modeClip.length < WholeReloadSeconds)
@@ -383,6 +384,76 @@ namespace RavenfieldVR.Weapons
                     AddCue(d, kind.Value, ToCue(new SampledCue { Function = "PlaySoundBank", IntParameter = i }));
                 }
             }
+        }
+
+        /// <summary>
+        /// A gun whose own magazine-out sound is cut from a long reload clip, with no magazine-in sound of its own: its insert is in
+        /// the same clip, after the magazine came out. The MW MP9 family's "空仓换弹" (2.94 s) gave only its first 0.38 s, and the
+        /// magazine went in with the vanilla AK's lent click, quiet and not its own (the user, 2026-11-14). The strongest onset
+        /// after the magazine-out slice, up to three quarters of the clip (the bolt comes last), cut as the slices are refined.
+        /// </summary>
+        private static void MagInFromOwnReload(WeaponRigData d)
+        {
+            if (d.Cues.ContainsKey(MechSound.MagIn) || !d.Cues.TryGetValue(MechSound.MagOut, out List<SoundCue> outs))
+            {
+                return;
+            }
+            SoundCue magOut = outs.Find(c => c.Kind == CueKind.ClipSlice && c.Clip != null && c.Clip.length >= 1.2f);
+            if (magOut == null)
+            {
+                return;
+            }
+            AudioClip clip = magOut.Clip;
+            if (clip.loadType != AudioClipLoadType.DecompressOnLoad || clip.loadState != AudioDataLoadState.Loaded)
+            {
+                return;
+            }
+            float from = magOut.Start + magOut.Length + 0.15f, to = clip.length * 0.75f;
+            int freq = clip.frequency, channels = Mathf.Max(1, clip.channels);
+            int offset = Mathf.FloorToInt(from * freq), count = Mathf.FloorToInt((to - from) * freq);
+            if (count < freq * 0.1f || offset + count > clip.samples)
+            {
+                return;
+            }
+            var data = new float[count * channels];
+            if (!clip.GetData(data, offset))
+            {
+                return;
+            }
+            int frameLen = Mathf.Max(1, Mathf.RoundToInt(freq * 0.01f));
+            int frames = count / frameLen;
+            float prev = 0f, bestRise = 0f, peak = 0f;
+            int onset = -1;
+            for (int f = 0; f < frames; f++)
+            {
+                double sum = 0;
+                int n = frameLen * channels, b = f * n;
+                for (int i = 0; i < n; i++)
+                {
+                    sum += data[b + i] * data[b + i];
+                }
+                float rms = Mathf.Sqrt((float)(sum / n));
+                peak = Mathf.Max(peak, rms);
+                if (f > 0 && rms - prev > bestRise)
+                {
+                    bestRise = rms - prev;
+                    onset = f;
+                }
+                prev = rms;
+            }
+            if (onset < 0 || peak < 1e-4f || bestRise < peak * 0.15f)
+            {
+                return;
+            }
+            float at = from + onset * 0.01f;
+            float start = Mathf.Max(0f, at - 0.03f), end = Mathf.Min(clip.length, at + 0.45f);
+            AudioSlicing.Refine(clip, at, ref start, ref end, magOut.Start + magOut.Length);
+            if (end - start < 0.08f)
+            {
+                return;
+            }
+            AddCue(d, MechSound.MagIn, new SoundCue { Kind = CueKind.ClipSlice, Clip = clip, Start = start, Length = end - start, SourceTime = magOut.SourceTime + (at - magOut.Start) });
+            d.Notes += $"magazine-in sound cut from its own reload clip '{clip.name}' at {start:0.00}+{end - start:0.00} s (none of its own) ";
         }
 
         private static int OrderRank(MechSound kind)

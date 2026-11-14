@@ -110,7 +110,9 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public static void OnShot(Weapon w)
         {
-            if (!SemiByPlayer.Contains(w) || w.audioMode != Weapon.AudioMode.Looped)
+            // (Also semi by the weapon's own script, the MW MP9's fire-mode key: only the mod's selector was cut to a shot, and its
+            // automatic loop ran on for several shots on every semi one; the user, 2026-11-14.)
+            if (!(SemiByPlayer.Contains(w) || w.configuration != null && !w.configuration.auto) || w.audioMode != Weapon.AudioMode.Looped)
             {
                 return;
             }
