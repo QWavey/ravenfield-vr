@@ -1006,7 +1006,8 @@ namespace RavenfieldVR.Rig
             // Over the time since the seat last moved, not since the last frame: a vehicle turns in physics steps (50 a second against
             // 90 frames), so frame by frame the rate read nothing, then nearly twice the turn, and the tunnel pulsed (seat view scout;
             // VehicleFeel's jolt had the same fix). Still for over a tenth of a second: not turning.
-            Quaternion now = seat.transform.rotation;
+            // (The vehicle's own turn, not the seat's: a turret seat turns with its gun, and the tunnel came on as the gunner aimed.)
+            Quaternion now = seat.vehicle != null ? seat.vehicle.transform.rotation : seat.transform.rotation;
             float t = Time.time;
             if (!_hasSeatTurn || seat != _seatTurnSeat)
             {
