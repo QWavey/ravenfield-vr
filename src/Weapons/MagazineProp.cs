@@ -65,6 +65,9 @@ namespace RavenfieldVR.Weapons
         internal static void ReleasePassedHulls()
         {
             float now = Time.time;
+            Actor seated = Util.GameContext.PlayerActor;
+            Vehicle ride = seated != null && seated.IsSeated() && seated.seat != null ? seated.seat.vehicle : null;
+            Footwell.Clear();
             foreach (MagazineProp p in Alive)
             {
                 if (p._passedHulls.Count == 0 || now < p._hullCheckAt || p._colliders == null)
@@ -72,6 +75,20 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 p._hullCheckAt = now + 0.2f;
+                // Let go inside the vehicle the player rides in: to the footwell, its rounds back in the reserve as a magazine put away.
+                // A vehicle's hull is one convex shape with no floor of its own: the magazine went through it and lay on the road behind
+                // (seat weapons scout, 2026-11-12).
+                if (ride != null && p.IsDropped && p.HeldBy == null && now - p._dropTime > 0.3f)
+                {
+                    foreach (Collider hull in p._passedHulls)
+                    {
+                        if (hull != null && hull.transform.IsChildOf(ride.transform) && p.Go != null && hull.bounds.Contains(p.Go.transform.position))
+                        {
+                            Footwell.Add(p);
+                            break;
+                        }
+                    }
+                }
                 for (int k = p._passedHulls.Count - 1; k >= 0; k--)
                 {
                     Collider hull = p._passedHulls[k];
@@ -105,7 +122,18 @@ namespace RavenfieldVR.Weapons
                     p._passedHulls.RemoveAt(k);
                 }
             }
+            foreach (MagazineProp p in Footwell)
+            {
+                if (p.Rounds > 0)
+                {
+                    WeaponSystem.Instance?.ReturnRounds(p, p.Rounds);
+                }
+                p.Destroy("footwell");
+            }
+            Footwell.Clear();
         }
+
+        private static readonly List<MagazineProp> Footwell = new List<MagazineProp>();
         /// <summary>
         /// On the rail after being pulled out of its seat: where the hand was along the rail at the pull minus the
         /// magazine's depth then, so the magazine moves with the hand's pull from there (0 when it went onto the rail
