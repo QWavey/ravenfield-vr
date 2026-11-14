@@ -28,6 +28,7 @@ namespace RavenfieldVR.Local
         private Animator _anim;
         private readonly HashSet<int> _params = new HashSet<int>();
         private int _lastAmmo = -1;
+        private float _lastShot = -1f;
         private ParticleSystem[] _flash = new ParticleSystem[0];
         private bool _lastReloading;
 
@@ -76,6 +77,10 @@ namespace RavenfieldVR.Local
             }
             if (!shown)
             {
+                if (world != null && world.fieldOfView != 70f)
+                {
+                    world.fieldOfView = 70f; // (not left zoomed after dying or getting in while aiming)
+                }
                 return;
             }
             _cam.rect = world.rect;
@@ -108,14 +113,16 @@ namespace RavenfieldVR.Local
             _params.Clear();
             _source = w;
             _lastAmmo = -1;
+            _lastShot = w != null ? w.lastFiredTimestamp : -1f;
             _lastReloading = false;
             if (w == null)
             {
                 return;
             }
+            GameObject go = null;
             try
             {
-                GameObject go = UnityEngine.Object.Instantiate(w.weaponEntry.prefab);
+                go = UnityEngine.Object.Instantiate(w.weaponEntry.prefab);
                 go.name = "RavenfieldVR Split View Weapon " + (_p.Index + 1);
                 Weapon c = go.GetComponent<Weapon>();
                 if (c == null)
@@ -142,6 +149,17 @@ namespace RavenfieldVR.Local
                 foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true))
                 {
                     r.allowOcclusionWhenDynamic = false;
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; // (as the game sets its own player's gun, Weapon.FindRenderers)
+                    r.receiveShadows = false;
+                }
+                foreach (Rigidbody rb in go.GetComponentsInChildren<Rigidbody>(true))
+                {
+                    rb.isKinematic = true; // (a picture does not fall)
+                    rb.detectCollisions = false;
+                }
+                foreach (Light l in go.GetComponentsInChildren<Light>(true))
+                {
+                    l.enabled = false; // (12 km under the map it lights nothing; the real gun's flash lights the world)
                 }
                 foreach (Collider col in go.GetComponentsInChildren<Collider>(true))
                 {
@@ -152,13 +170,17 @@ namespace RavenfieldVR.Local
                     c.thirdPersonTransform.gameObject.SetActive(false);
                 }
                 c.SetupFirstPerson();
-                ShowParts(c);
                 Arms(c, _p.Actor);
                 go.transform.SetParent(_cam.transform, false);
                 go.transform.localPosition = Vector3.zero;
                 go.transform.localRotation = Quaternion.identity;
                 go.transform.localScale = Vector3.one;
                 go.SetActive(true);
+                ShowParts(c); // (after it is active: its parts' activeInHierarchy counts)
+                if (c.configuration != null && c.configuration.scopeAimObject != null)
+                {
+                    c.configuration.scopeAimObject.SetActive(false); // (as Weapon.OnWeaponAnimatorActivated: shown only aiming)
+                }
                 _copy = c;
                 var flash = new List<ParticleSystem>();
                 if (c.configuration != null && c.configuration.muzzles != null)
@@ -188,11 +210,12 @@ namespace RavenfieldVR.Local
             catch (Exception e)
             {
                 Log.WarnOnce("split-view-" + w.name, $"Splitscreen: no first-person view of {w.name} ({e.GetType().Name}: {e.Message}).");
-                if (_copy != null)
+                if (go != null)
                 {
-                    UnityEngine.Object.Destroy(_copy.gameObject);
+                    UnityEngine.Object.Destroy(go); // (a copy that failed half way is not left standing in the world)
                 }
                 _copy = null;
+                _anim = null;
             }
         }
 
@@ -262,7 +285,11 @@ namespace RavenfieldVR.Local
                 return;
             }
             int ammo = w.ammo;
-            if (_lastAmmo >= 0 && ammo < _lastAmmo)
+            // A shot by the time the gun took it (its magazine does not go down with infinite rounds: -1).
+            float shot = w.lastFiredTimestamp;
+            bool fired = _lastShot >= 0f && shot > _lastShot || _lastShot < 0f && _lastAmmo >= 0 && ammo >= 0 && ammo < _lastAmmo;
+            _lastShot = shot;
+            if (fired)
             {
                 Trigger(Fire);
                 foreach (ParticleSystem ps in _flash)
@@ -281,11 +308,16 @@ namespace RavenfieldVR.Local
             }
             _lastReloading = reloading;
             SetBool(Reloading, reloading);
+            GameObject scope = _copy.configuration != null ? _copy.configuration.scopeAimObject : null;
+            if (scope != null && scope.activeSelf != (_p.Aim && !reloading))
+            {
+                scope.SetActive(_p.Aim && !reloading); // (the scope's own picture while aiming, as Weapon.Update shows it)
+            }
             SetBool(Aim, _p.Aim && !reloading);
             SetBool(WantsToAim, _p.Aim);
             SetBool(Tuck, _p.Sprint && !reloading);
             SetInt(LoadedAmmo, ammo);
-            bool any = ammo > 0 || w.spareAmmo > 0;
+            bool any = w.HasLoadedAmmo() || w.HasSpareAmmo(); // (as the game: infinite rounds count)
             SetBool(NoAmmo, !any);
             SetFloat(NoAmmoBlend, any ? 0f : 1f);
         }

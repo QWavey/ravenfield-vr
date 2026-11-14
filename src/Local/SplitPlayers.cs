@@ -168,6 +168,21 @@ namespace RavenfieldVR.Local
         {
             var go = new GameObject("RavenfieldVR Split Camera " + (p.Index + 1));
             UnityEngine.Object.DontDestroyOnLoad(go);
+            try
+            {
+                return SetUpCamera(p, go);
+            }
+            catch (Exception)
+            {
+                UnityEngine.Object.Destroy(go); // (not left drawing over the screen with no player)
+                p.View?.Destroy();
+                p.View = null;
+                throw;
+            }
+        }
+
+        private static Camera SetUpCamera(SplitPlayer p, GameObject go)
+        {
             Camera cam = go.AddComponent<Camera>();
             Camera source = FpsActorController.instance != null && FpsActorController.instance.fpCamera != null ? FpsActorController.instance.fpCamera : Camera.main;
             if (source != null)
