@@ -129,6 +129,8 @@ namespace RavenfieldVR.Core
         internal static bool PlayerCanBeHurt;
         /// <summary>-rfvr-netcheck (with -rfvr-autotest -vr): only the multiplayer's check in a match (Net.NetGameCheck), under a minute.</summary>
         private static readonly bool NetCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-netcheck", StringComparison.OrdinalIgnoreCase));
+        /// <summary>-rfvr-splitcheck (with -rfvr-autotest -novr): only the local play's check (Local.SplitCheck): Steam status, LAN, splitscreen.</summary>
+        private static readonly bool SplitCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitcheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
         private static readonly bool WalkCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-walkcheck", StringComparison.OrdinalIgnoreCase));
 
@@ -466,6 +468,22 @@ namespace RavenfieldVR.Core
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (SplitCheckOnly)
+                {
+                    _context = "local play check";
+                    yield return Local.SplitCheck.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[local] " + l);
+                        }
+                        Log.Info("[local check] " + l);
+                        Results.Add(l);
+                    });
                     Write();
                     Application.Quit();
                     yield break;

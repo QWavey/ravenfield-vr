@@ -1,0 +1,123 @@
+using System;
+using System.Collections;
+using System.Linq;
+using RavenfieldVR.Core;
+using RavenfieldVR.Net;
+using UnityEngine;
+
+namespace RavenfieldVR.Local
+{
+    /// <summary>
+    /// The local play checked in a running match, flat (-rfvr-splitcheck with -novr; tools/vrshots.py --splitcheck): the Steam status, a LAN
+    /// game heard on this PC, and splitscreen with four and with two players driven by simulated controllers (moving, turning, firing,
+    /// reloading), their parts of the window, and pictures of each layout.
+    /// </summary>
+    internal static class SplitCheck
+    {
+        public static IEnumerator Run(Action<string> report)
+        {
+            // 1. The Steam status.
+            yield return Wait(4f);
+            report($"local: Steam status \"{SteamStatus.Build()}\" (sent: {(SteamStatus.Last != null ? "yes" : "NOT SENT (Steam not running?)")})");
+
+            // 2. A LAN game on this PC, heard on the LAN page.
+            const int port = 7199;
+            Multiplayer.HostLan(port, 4);
+            bool heard = false;
+            for (float until = Time.unscaledTime + 4f; Time.unscaledTime < until && !heard;)
+            {
+                LanDiscovery.Listen();
+                heard = LanDiscovery.Games.Any(g => g.Address == "127.0.0.1:" + port);
+                yield return null;
+            }
+            LanGame found = LanDiscovery.Games.FirstOrDefault(g => g.Address == "127.0.0.1:" + port);
+            report(heard ? $"local: LAN game heard: \"{found.Name}\" {found.Players}/{found.MaxPlayers}, version {found.Version}" : "local: LAN game NOT HEARD within 4 s");
+            Multiplayer.Leave();
+            yield return Wait(1f);
+
+            // 3. Splitscreen, four players, then two side by side and above and below.
+            foreach ((int players, SplitLayout layout, string name) in new[]
+                     {
+                         (4, SplitLayout.SideBySide, "quarters"), (2, SplitLayout.SideBySide, "side-by-side"), (2, SplitLayout.AboveBelow, "above-below"),
+                     })
+            {
+                Splitscreen.Players = players;
+                Splitscreen.Layout = layout;
+                Splitscreen.On = true;
+                yield return Wait(3f);
+                var all = SplitPlayers.All.ToList();
+                if (all.Count != players - 1)
+                {
+                    report($"local: splitscreen with {players}: {all.Count} extra player(s) made, NOT {players - 1}");
+                    continue;
+                }
+                foreach (SplitPlayer p in all)
+                {
+                    if (p.Actor == null || p.Actor.dead)
+                    {
+                        report($"local: splitscreen player {p.Index + 1}: NOT ON THE FIELD ({(p.Actor == null ? "no soldier" : "dead")})");
+                    }
+                }
+                // Walk forward and turn right for a second and a half.
+                var from = all.ToDictionary(p => p, p => p.Actor != null ? p.Actor.Position() : Vector3.zero);
+                var yaw0 = all.ToDictionary(p => p, p => p.Yaw);
+                foreach (SplitPlayer p in all)
+                {
+                    p.Simulated = new PadState { Connected = true, LeftStick = new Vector2(0f, 1f), RightStick = new Vector2(0.6f, 0f) };
+                }
+                yield return Wait(1.5f);
+                // Fire for a second.
+                var ammo0 = all.ToDictionary(p => p, p => p.Actor != null && p.Actor.activeWeapon != null ? p.Actor.activeWeapon.ammo : -1);
+                foreach (SplitPlayer p in all)
+                {
+                    p.Simulated = new PadState { Connected = true, RightTrigger = 1f };
+                }
+                yield return Wait(1f);
+                foreach (SplitPlayer p in all)
+                {
+                    Actor a = p.Actor;
+                    if (a == null)
+                    {
+                        continue;
+                    }
+                    float moved = Vector3.ProjectOnPlane(a.Position() - from[p], Vector3.up).magnitude;
+                    float turned = Mathf.Abs(Mathf.DeltaAngle(yaw0[p], p.Yaw));
+                    int fired = ammo0[p] >= 0 && a.activeWeapon != null ? ammo0[p] - a.activeWeapon.ammo : -1;
+                    Rect v = p.Viewport;
+                    report($"local: splitscreen {name}, player {p.Index + 1}: walked {moved:0.0} m{(moved < 1f ? " (DID NOT WALK)" : "")}, turned {turned:0} deg"
+                           + $"{(turned < 30f ? " (DID NOT TURN)" : "")}, fired {fired} round(s){(fired <= 0 ? " (DID NOT FIRE)" : "")}; its part of the window "
+                           + $"x {v.x:0.00} y {v.y:0.00} w {v.width:0.00} h {v.height:0.00}, camera {(p.Cam != null && p.Cam.enabled ? "on" : "OFF")}");
+                }
+                // Reload by its button.
+                foreach (SplitPlayer p in all)
+                {
+                    p.Simulated = new PadState { Connected = true, Buttons = PadState.X };
+                }
+                yield return null;
+                yield return null;
+                int reloading = all.Count(p => p.Actor != null && p.Actor.activeWeapon != null && (p.Actor.activeWeapon.reloading || p.Actor.activeWeapon.ammo == p.Actor.activeWeapon.configuration.ammo));
+                report($"local: splitscreen {name}: {reloading} of {all.Count} reloaded on their button");
+                foreach (SplitPlayer p in all)
+                {
+                    p.Simulated = new PadState { Connected = true };
+                }
+                yield return Wait(0.5f);
+                string file = Shots.FileFor("split-" + name);
+                ScreenCapture.CaptureScreenshot(file);
+                yield return Wait(1f);
+                Log.Info("Shot: " + file);
+                Splitscreen.On = false;
+                yield return Wait(1.5f);
+                report($"local: splitscreen {name} off: {SplitPlayers.All.Count} extra player(s) left{(SplitPlayers.All.Count > 0 ? " (NOT TAKEN AWAY)" : "")}");
+            }
+        }
+
+        private static IEnumerator Wait(float seconds)
+        {
+            for (float until = Time.unscaledTime + seconds; Time.unscaledTime < until;)
+            {
+                yield return null;
+            }
+        }
+    }
+}
