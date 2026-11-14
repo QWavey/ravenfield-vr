@@ -433,9 +433,27 @@ namespace RavenfieldVR.Core
                 float gunOff = Vector3.Angle(gun, told);
                 lines.Add($"stand-in of {r.Name} {DateTime.Now:HH:mm:ss.f}: told speed {new Vector3(r.Velocity.x, 0f, r.Velocity.z).magnitude:0.0}, moving {(r.Moving ? "yes" : "no")}, walk animation {(anim ? "ON" : "off")}, own speed {Vector3.ProjectOnPlane(sa.Velocity(), Vector3.up).magnitude:0.0}; "
                           + $"told aim yaw {Mathf.Atan2(told.x, told.z) * Mathf.Rad2Deg:0} pitch {Mathf.Asin(Mathf.Clamp(told.y, -1f, 1f)) * Mathf.Rad2Deg:0}, body {bodyOff:0} deg off it, gun {gunOff:0} deg off it"
-                          + $", team {r.Team}" + (r.Pose != null ? ", VR pose told" : ""));
+                          + $", team {r.Team}" + (r.Pose != null ? ", VR pose told" : "") + $", AI soldiers aiming at him {TargetedBy(sa)}");
             }
             return lines;
+        }
+
+        /// <summary>How many of this game's AI soldiers have a soldier as their target (the user: no damage from the enemies).</summary>
+        private static int TargetedBy(Actor target)
+        {
+            int n = 0;
+            if (ActorManager.instance == null)
+            {
+                return 0;
+            }
+            foreach (Actor a in ActorManager.instance.actors)
+            {
+                if (a != null && !a.dead && a.controller is AiActorController ai && ai.target == target)
+                {
+                    n++;
+                }
+            }
+            return n;
         }
 
         /// <summary>-rfvr-joinflatcheck (VR): a flat game started on this PC hosts a LAN game, this VR game joins it, plays, and both sides' views of the other player are reported.</summary>
@@ -745,6 +763,21 @@ namespace RavenfieldVR.Core
                                         healthDamage = 25f, point = r.Actor.CenterPosition(), direction = (r.Actor.CenterPosition() - me.CenterPosition()).normalized,
                                     });
                                     Results.Add($"copies: player 1 hit player 2's soldier for 25 (team {r.Actor.team}, player 1 team {me.team})");
+                                    // And an enemy AI soldier's hit (the user: one player took no damage from the enemies): owned here, its
+                                    // hit goes to player 2's game as a player's does.
+                                    Actor bot = ActorManager.instance.actors.FirstOrDefault(x => x != null && !x.dead && x.aiControlled && x.team != r.Actor.team && !Net.NetGame.IsRemote(x));
+                                    if (bot != null)
+                                    {
+                                        r.Actor.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, bot, bot.activeWeapon)
+                                        {
+                                            healthDamage = 25f, point = r.Actor.CenterPosition(), direction = (r.Actor.CenterPosition() - bot.CenterPosition()).normalized,
+                                        });
+                                        Results.Add($"copies: an enemy AI soldier ({bot.name}, team {bot.team}) hit player 2's soldier for 25");
+                                    }
+                                    else
+                                    {
+                                        Results.Add("copies: no enemy AI soldier to hit player 2's soldier");
+                                    }
                                 }
                             }
                         }

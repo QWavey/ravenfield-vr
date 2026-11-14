@@ -261,7 +261,7 @@ namespace RavenfieldVR.Local
                     if (t > 6f)
                     {
                         float took = _healthFrom - (me.dead ? 0f : me.health);
-                        note($"copy test: player 1's hit: this player's health {_healthFrom:0} -> {(me.dead ? "down" : me.health.ToString("0"))}{(took < 1f ? " (TOOK NO DAMAGE)" : "")}");
+                        note($"copy test: player 1's and an enemy AI's hits (25 each): this player's health {_healthFrom:0} -> {(me.dead ? "down" : me.health.ToString("0"))}{(took < 1f ? " (TOOK NO DAMAGE)" : took < 40f ? " (ONE HIT LOST)" : "")}");
                         Next(Done);
                         note("copy test: done");
                     }
