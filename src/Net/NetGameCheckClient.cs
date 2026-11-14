@@ -213,6 +213,7 @@ namespace RavenfieldVR.Net
                     for (float until = Time.unscaledTime + 1.5f; Time.unscaledTime < until && !reloaded;)
                     {
                         reloaded = gun.reloading;
+                        Pump(); // (the word goes out only from Pump: a bare wait sent nothing, and the stand-in never heard it)
                         yield return null;
                     }
                     extraFlags = 0;
