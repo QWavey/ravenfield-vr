@@ -90,6 +90,11 @@ namespace RavenfieldVR.Net
                 int n = Multiplayer.Session.PlayerCount;
                 company = Multiplayer.Hosting ? $"hosting multiplayer ({n} player{(n == 1 ? "" : "s")})" : $"in a multiplayer game ({n} players)";
             }
+            if (Local.SplitPlayers.Running)
+            {
+                int n = Local.SplitPlayers.All.Count + 1;
+                company = (company.Length > 0 ? company + ", " : "") + $"splitscreen with {n} players at one PC";
+            }
             if (!GameContext.InGame)
             {
                 return $"{how} · {(company.Length > 0 ? company + " · " : "")}in the main menu";
