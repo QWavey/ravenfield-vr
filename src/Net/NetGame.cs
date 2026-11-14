@@ -817,6 +817,22 @@ namespace RavenfieldVR.Net
             }
         }
 
+        /// <summary>
+        /// Whether the game would let this damage through to him (its own Actor.Damage's first tests): an invulnerable soldier, or
+        /// one in a closed seat hit by a shot that does not pierce, takes none, and his hit marker showed all the same (damage scout).
+        /// </summary>
+        private static bool WouldTake(Actor a, DamageInfo info)
+        {
+            if (a.isInvulnerable || a.dead)
+            {
+                return false;
+            }
+            bool seated = a.IsSeated() && a.seat != null;
+            bool enclosed = seated && a.seat.enclosed;
+            bool byDirectFire = seated && a.seat.enclosedDamagedByDirectFire;
+            return !(!info.isPiercing && enclosed && (!byDirectFire || info.isSplashDamage));
+        }
+
         private static void RemoteFacing(AiActorController __instance, ref Vector3 __result)
         {
             if (_anyRemote && ByActor.TryGetValue(__instance.actor, out Remote r))
@@ -1326,7 +1342,7 @@ namespace RavenfieldVR.Net
                 if (source != null && !sourceRemote && Owned.TryGetValue(source, out Own shooter))
                 {
                     SendHit(victim, shooter.Id, info);
-                    if (source == LocalPlayer.actor && !__instance.dead)
+                    if (source == LocalPlayer.actor && !__instance.dead && WouldTake(__instance, info))
                     {
                         // His hit marker, as on any soldier: the game's own Damage, which shows it, does not run on a stand-in (the
                         // hit is his owner's to apply), and a hit on another PC's soldier showed nothing (scout, 2026-11-11).
