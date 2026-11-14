@@ -193,6 +193,21 @@ foreach ($old in $ours) {
         }
     }
 }
+# The flat edition ("Ravenfield Multiplayer", for players without a headset): VR off in the settings, the rest as it is.
+if (Test-Path (Join-Path $Source 'FLAT-EDITION.txt')) {
+    $cfg = Join-Path $GameDir 'BepInEx/config/com.qwavey.ravenfieldvr.cfg'
+    New-Item -ItemType Directory -Force (Split-Path $cfg) | Out-Null
+    if (Test-Path $cfg) {
+        $text = Get-Content -LiteralPath $cfg -Raw
+        if ($text -match '(?m)^EnableVR = ') { $text = $text -replace '(?m)^EnableVR = .*$', 'EnableVR = false' }
+        else { $text = $text -replace '(?m)^\[General\]\s*$', "[General]`r`nEnableVR = false" }
+        Set-Content -LiteralPath $cfg -Value $text -Encoding UTF8 -NoNewline
+    }
+    else {
+        Set-Content -LiteralPath $cfg -Value "[General]`r`n`r`nEnableVR = false`r`n" -Encoding UTF8
+    }
+    Write-Step 'Flat edition: VR is off (Multiplayer: F8 or the game menu)'
+}
 $script:completed = $true
 
 }

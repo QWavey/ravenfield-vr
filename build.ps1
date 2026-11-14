@@ -221,4 +221,19 @@ using System.Runtime.InteropServices;
         (Join-Path $Root 'installer/Setup.cs'), (Join-Path $Root 'installer/SteamLaunchOption.cs'), (Join-Path $Root 'installer/SteamPlayEntry.cs'), $setupInfo
     )
     Write-Step "Setup: $setupExe"
+
+    # The flat edition, "Ravenfield Multiplayer": the same mod for players without a headset (VR off; multiplayer, LAN, splitscreen).
+    $flat = Join-Path $Build 'flat'
+    if (Test-Path $flat) { Remove-Item $flat -Recurse -Force }
+    Copy-Item $dist $flat -Recurse
+    Set-Content -Path (Join-Path $flat 'FLAT-EDITION.txt') -Encoding UTF8 -Value @(
+        "Ravenfield Multiplayer $version (the Ravenfield VR mod, for players without a headset)",
+        '',
+        'Install: run install.cmd (it finds Ravenfield through Steam). VR is switched off in its settings.',
+        'Play: in the main menu press F8 (or open the game menu): Multiplayer -> Local (LAN, Splitscreen) or Online (Steam, IP).',
+        'Everyone in a game needs the same version. Splitscreen: up to 4 players at one PC with Xbox-style controllers.')
+    $flatZip = Join-Path $Root "dist/RavenfieldMultiplayer-$version.zip"
+    if (Test-Path $flatZip) { Remove-Item $flatZip -Force }
+    Compress-Archive -Path (Join-Path $flat '*') -DestinationPath $flatZip
+    Write-Step "Flat edition zip: $flatZip"
 }
