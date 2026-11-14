@@ -53,6 +53,19 @@ namespace RavenfieldVR.Net
 
             /// <summary>The magazine in his free hand, as a plain dark box (the gun's own magazine model is the weapon mod's; this shows the reload's moves).</summary>
             public GameObject MagazineBox;
+            /// <summary>
+            /// The gun in his free hand (his second weapon): its slot (-1: none), where it is and how it is turned (its weapon's own
+            /// root, as his PC holds it), and his shots with it counted (a new count is a shot here: its sound at his hand).
+            /// </summary>
+            public int SecondSlot = -1;
+            public Vector3 SecondAt;
+            public Quaternion SecondRot = Quaternion.identity;
+            public byte SecondShots;
+            public bool SecondShotsKnown;
+            public GameObject SecondCopy;
+            public Weapon SecondCopyOf;
+            public Vector3 SecondModelPos;
+            public Quaternion SecondModelRot = Quaternion.identity;
             /// <summary>The weapon whose magazine the copy in his hand is (made again when he holds another), and its middle in the copy.</summary>
             public Weapon MagazineOf;
             public Vector3 MagazineMiddle;
@@ -111,6 +124,10 @@ namespace RavenfieldVR.Net
                 {
                     Object.Destroy(remote.Pose.MagazineBox);
                 }
+                if (remote.Pose.SecondCopy != null)
+                {
+                    Object.Destroy(remote.Pose.SecondCopy);
+                }
                 if (remote.Pose.TargetL != null)
                 {
                     Object.Destroy(remote.Pose.TargetL.gameObject);
@@ -167,6 +184,72 @@ namespace RavenfieldVR.Net
             w.Byte((byte)Mathf.RoundToInt(Mathf.Clamp01(gripR) * 255f));
         }
 
+        private static byte _secondShots;
+
+        /// <summary>This player fired the gun in his free hand: counted, so the others hear it at his hand.</summary>
+        internal static void OnSecondShot() => _secondShots++;
+
+        /// <summary>His shot with the gun in his free hand: that gun's own report (the game's sound of it) at his hand.</summary>
+        private static void SecondShot(NetGame.Remote remote, Pose p)
+        {
+            Actor a = remote.Actor;
+            Weapon w = a != null && a.weapons != null && p.SecondSlot < a.weapons.Length ? a.weapons[p.SecondSlot] : null;
+            AudioSource sound = w != null ? w.audio : null;
+            if (sound == null || sound.clip == null)
+            {
+                return;
+            }
+            Vector3 at = a.Position() + p.SecondAt;
+            AudioSource.PlayClipAtPoint(sound.clip, at, Mathf.Clamp01(sound.volume));
+        }
+
+        /// <summary>
+        /// The copy of his second weapon in his free hand, each frame before the eyes are drawn: its third-person model at the place
+        /// his PC holds the weapon (the model's own offset under its weapon kept); gone when he has none in that hand.
+        /// </summary>
+        private static void PlaceSecond(NetGame.Remote remote, Pose p)
+        {
+            Actor a = remote.Actor;
+            bool show = p.SecondSlot >= 0 && Usable(remote, out _, out _) && a.weapons != null && p.SecondSlot < a.weapons.Length;
+            Weapon w = show ? a.weapons[p.SecondSlot] : null;
+            if (p.SecondCopy != null && (!show || !ReferenceEquals(p.SecondCopyOf, w)))
+            {
+                Object.Destroy(p.SecondCopy);
+                p.SecondCopy = null;
+                p.SecondCopyOf = null;
+            }
+            if (w == null || w.thirdPersonTransform == null)
+            {
+                return;
+            }
+            if (p.SecondCopy == null)
+            {
+                p.SecondCopy = Object.Instantiate(w.thirdPersonTransform.gameObject);
+                p.SecondCopy.name = "RavenfieldVR Net Second Weapon";
+                p.SecondCopy.SetActive(true);
+                foreach (MonoBehaviour script in p.SecondCopy.GetComponentsInChildren<MonoBehaviour>(true))
+                {
+                    Object.Destroy(script);
+                }
+                foreach (Collider collider in p.SecondCopy.GetComponentsInChildren<Collider>(true))
+                {
+                    Object.Destroy(collider);
+                }
+                foreach (ParticleSystem particles in p.SecondCopy.GetComponentsInChildren<ParticleSystem>(true))
+                {
+                    particles.gameObject.SetActive(false);
+                }
+                p.SecondCopy.transform.SetParent(null, false);
+                p.SecondCopy.transform.localScale = w.thirdPersonTransform.lossyScale;
+                p.SecondCopyOf = w;
+                // (Where the model sits under its weapon's root: placed on the told root, the model is where his gun is.)
+                p.SecondModelPos = w.transform.InverseTransformPoint(w.thirdPersonTransform.position);
+                p.SecondModelRot = Quaternion.Inverse(w.transform.rotation) * w.thirdPersonTransform.rotation;
+            }
+            Vector3 root = a.Position() + p.SecondAt;
+            p.SecondCopy.transform.SetPositionAndRotation(root + p.SecondRot * Vector3.Scale(p.SecondModelPos, w.transform.lossyScale), p.SecondRot * p.SecondModelRot);
+        }
+
         /// <summary>My own pose told (a VR player on his feet), thirty times a second with another player near.</summary>
         internal static void Tell(NetSession session)
         {
@@ -218,6 +301,17 @@ namespace RavenfieldVR.Net
             Out.Reset();
             Put(Out, flags, rig.Head.forward, left.Palm.position - origin, left.Palm.rotation, right.Palm.position - origin, right.Palm.rotation, muzzle, muzzleRot,
                 left.Grip, right.Grip);
+            // The gun in the free hand, if any (the others saw it on his hip and never firing; 2026-11-14): its slot, its shots, and
+            // where its weapon is.
+            Weapons.SecondWeapon second = Weapons.WeaponSystem.Instance != null ? Weapons.WeaponSystem.Instance.Second : null;
+            int secondSlot = second != null && second.Weapon != null && player.weapons != null ? System.Array.IndexOf(player.weapons, second.Weapon) : -1;
+            Out.Byte((byte)(secondSlot >= 0 && secondSlot < 255 ? secondSlot : 255));
+            Out.Byte(_secondShots);
+            if (secondSlot >= 0)
+            {
+                Out.SmallVector(Vector3.ClampMagnitude(second.Weapon.transform.position - origin, 4f));
+                Out.Rotation(second.Weapon.transform.rotation);
+            }
             session.Send(NetGame.VrPose, Out, false);
         }
 
@@ -236,6 +330,24 @@ namespace RavenfieldVR.Net
             {
                 p.GripL = r.Byte() / 255f;
                 p.GripR = r.Byte() / 255f;
+            }
+            p.SecondSlot = -1;
+            if (r.Remaining >= 2)
+            {
+                int slot = r.Byte();
+                byte shots = r.Byte();
+                if (slot != 255 && r.Remaining > 0)
+                {
+                    p.SecondSlot = slot;
+                    p.SecondAt = Vector3.ClampMagnitude(r.SmallVector(), 4f);
+                    p.SecondRot = r.Rotation();
+                }
+                if (p.SecondShotsKnown && shots != p.SecondShots && p.SecondSlot >= 0)
+                {
+                    SecondShot(remote, p);
+                }
+                p.SecondShots = shots;
+                p.SecondShotsKnown = true;
             }
             // (Held to what an arm can do: a broken or made-up message does not throw a hand a kilometre off.)
             p.Left = Vector3.ClampMagnitude(p.Left, 3f);
@@ -714,6 +826,7 @@ namespace RavenfieldVR.Net
                 {
                     continue;
                 }
+                PlaceSecond(kv.Value, p);
                 // The magazine in his free hand while he reloads by hand.
                 bool magazine = p.Is(Magazine) && Usable(kv.Value, out Actor holder, out Pose _);
                 Weapon held = kv.Value.Actor != null ? kv.Value.Actor.activeWeapon : null;
@@ -985,7 +1098,8 @@ namespace RavenfieldVR.Net
             for (int slot = 0; slot < 2; slot++)
             {
                 Weapon w = alive && a.weapons != null && slot < a.weapons.Length ? a.weapons[slot] : null;
-                bool show = w != null && w != a.activeWeapon && w.thirdPersonTransform != null && !a.fallenOver;
+                bool show = w != null && w != a.activeWeapon && w.thirdPersonTransform != null && !a.fallenOver
+                            && !(r.Pose != null && r.Pose.Fresh && r.Pose.SecondSlot == slot); // (in his free hand, not on his hip)
                 Carried c = slots[slot];
                 if (c != null && (c.Copy == null || c.Source != w))
                 {

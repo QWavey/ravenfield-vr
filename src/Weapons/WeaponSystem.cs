@@ -820,6 +820,7 @@ namespace RavenfieldVR.Weapons
             if (Second != null && Fires(weapon, Second.Weapon))
             {
                 Second.OnShot();
+                Net.NetAvatar.OnSecondShot(); // (the others hear it at his hand)
                 _lensFlash?.OnShot(Second.Rig, weapon); // its lens flash too (none came: bug hunt 2026-10-19, task 287)
                 return;
             }
