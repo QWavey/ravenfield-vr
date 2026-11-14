@@ -15,6 +15,7 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     internal sealed class ArmIK
     {
+        private bool _saidMagHoldOff;
         private sealed class Arm
         {
             public ArmChain Chain;
@@ -244,7 +245,11 @@ namespace RavenfieldVR.Weapons
                         // The reload's hold puts the hand off where the glove holds this magazine (the 92g's, its copy 18 cm across, the
                         // hold 3 cm off its part): the arm stays with the glove's hand, which holds it right (the user, 2026-11-14: "the 92g
                         // mag gets held weirdly and not in the hand, floats in the air a little", with the weapon's arms only).
-                        Log.InfoOnce("maghold-off:" + _held.Rig.Data.Key, $"{_held.Rig.Data.Key}: its reload's magazine hold is {(onIt.position - free.position).magnitude * 100f:0.0} cm off the glove's hold: the weapon's hand stays with the glove.");
+                        if (!_saidMagHoldOff)
+                        {
+                            _saidMagHoldOff = true; // (once: the line's strings were made every frame the hand held it)
+                            Log.InfoOnce("maghold-off:" + _held.Rig.Data.Key, $"{_held.Rig.Data.Key}: its reload's magazine hold is {(onIt.position - free.position).magnitude * 100f:0.0} cm off the glove's hold: the weapon's hand stays with the glove.");
+                        }
                         onMag = false;
                     }
                     else

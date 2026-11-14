@@ -619,6 +619,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Renderers that show the weapon's own scope camera's picture (the lens of a magnifier or scope).</summary>
         private readonly List<Renderer> _scopeLenses = new List<Renderer>();
+        private readonly Dictionary<Renderer, int> _lensOffSaid = new Dictionary<Renderer, int>();
 
         /// <summary>
         /// A scope camera of the gun's own that the game did not take as its render-texture camera: the game looks for one on the
@@ -842,8 +843,9 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     bool inUse = cameraOnLine && (sight == null || LensOnLine(sight, r));
-                    if (!inUse && sight != null && cam != null)
+                    if (!inUse && sight != null && cam != null && (!_lensOffSaid.TryGetValue(r, out int saidMode) || saidMode != Weapon.GetSightModeIndex()))
                     {
+                        _lensOffSaid[r] = Weapon.GetSightModeIndex(); // (once per lens and mode: the line's strings were made every frame)
                         Log.InfoOnce($"lensoff:{Rig.Data.Key}:{Weapon.GetSightModeIndex()}:{r.name}", $"{Rig.Data.Key}: sight mode {Weapon.GetSightModeIndex()}: lens '{r.name}' hidden "
                             + $"(scope camera {OffSightLine(sight, cam.transform.position) * 100f:0.0} cm off the line, looking "
                             + $"{Vector3.Angle(cam.transform.forward, Rig.DirToWorld(sight.EyeDirection)):0} deg off it; the lens {OffSightLine(sight, r.bounds.center) * 100f:0.0} cm off).");
