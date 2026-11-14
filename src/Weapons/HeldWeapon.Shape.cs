@@ -833,9 +833,11 @@ namespace RavenfieldVR.Weapons
                 }
                 else if (r is SkinnedMeshRenderer smr && smr.bones != null)
                 {
-                    foreach (Transform b in smr.bones)
+                    bool[] weighted = WeightedBones(smr.sharedMesh, smr.bones.Length);
+                    for (int bi = 0; bi < smr.bones.Length; bi++)
                     {
-                        if (b != null && !at.ContainsKey(b))
+                        Transform b = smr.bones[bi];
+                        if (b != null && (weighted == null || weighted[bi]) && !at.ContainsKey(b))
                         {
                             at[b] = Rig.ToGun(b.position);
                         }
@@ -843,6 +845,36 @@ namespace RavenfieldVR.Weapons
                 }
             }
             return at;
+        }
+
+        private static readonly Dictionary<Mesh, bool[]> WeightedBoneCache = new Dictionary<Mesh, bool[]>();
+
+        /// <summary>
+        /// Which of a skinned mesh's bones move any vertex (null: not readable, all count). A bone nothing hangs on is not drawn:
+        /// the ARS MP9's 'Body_TP' moved 16 mm at a fresh magazine and 572 mm at a half rack and read as "THE SLIDE RAN FORWARD
+        /// ON ITS OWN" (2026-11-14).
+        /// </summary>
+        private static bool[] WeightedBones(Mesh mesh, int count)
+        {
+            if (mesh == null || !mesh.isReadable)
+            {
+                return null;
+            }
+            mesh = WholeMesh(mesh);
+            if (WeightedBoneCache.TryGetValue(mesh, out bool[] known) && known.Length == count)
+            {
+                return known;
+            }
+            var used = new bool[count];
+            foreach (BoneWeight w in mesh.boneWeights)
+            {
+                if (w.weight0 > 0f && w.boneIndex0 >= 0 && w.boneIndex0 < count) used[w.boneIndex0] = true;
+                if (w.weight1 > 0f && w.boneIndex1 >= 0 && w.boneIndex1 < count) used[w.boneIndex1] = true;
+                if (w.weight2 > 0f && w.boneIndex2 >= 0 && w.boneIndex2 < count) used[w.boneIndex2] = true;
+                if (w.weight3 > 0f && w.boneIndex3 >= 0 && w.boneIndex3 < count) used[w.boneIndex3] = true;
+            }
+            WeightedBoneCache[mesh] = used;
+            return used;
         }
 
         /// <summary>
