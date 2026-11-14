@@ -406,6 +406,10 @@ namespace RavenfieldVR.Core
             // override: the saved setting stays.)
             VRConfig.TestReload = ReloadMode.Manual;
             VRConfig.TestSlowHands = SlowMotionHands.Normal; // (the slow-motion checks measure the real-time hands; the slowed ones have their own)
+            // The grip, rack and magazine checks measure the mod's gloves, whatever hands the player saved: with WeaponArms saved the
+            // gloves are not posed on the gun and every gun read "0/4 fingers" (R870, GLOCK on code from 2026-11-01 on as well; Tasks
+            // 386.5). The weapon-arms check sets its own and comes back to these.
+            VRConfig.TestHands = HandsMode.VRHands;
             _matchAt = Time.realtimeSinceStartup;
             float deadline = Time.realtimeSinceStartup + 120f;
             while (LocalPlayer.actor == null && Time.realtimeSinceStartup < deadline)
@@ -3488,10 +3492,10 @@ namespace RavenfieldVR.Core
                 {
                     Input.VRInput.SimulatedGrab[(int)Rig.VRRig.Instance.Off.Side] = false; // (a step that stopped between its set and clear)
                 }
-                if (VRConfig.TestHands.HasValue)
+                if (VRConfig.TestHands == HandsMode.WeaponArms)
                 {
                     actor.HolsterActiveWeapon();
-                    VRConfig.TestHands = null;
+                    VRConfig.TestHands = HandsMode.VRHands; // (back to the run's gloves, see Run)
                     actor.SwitchWeapon(slot);
                 }
             }

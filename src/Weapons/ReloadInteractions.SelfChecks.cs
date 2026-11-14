@@ -3336,12 +3336,30 @@ namespace RavenfieldVR.Weapons
             }
             bool chambered = Ammo.Chambered, inserted = Ammo.MagInserted, locked = Ammo.SlideLocked;
             int rounds = Ammo.MagRounds;
+            // The magazine's own parts are not the slide: the GLOCK 43X's '43X_DXDT' (a part of its magazine '43X_DX', apart in the
+            // model) moved 26 mm as the fresh magazine went in and read as "THE SLIDE RAN FORWARD ON ITS OWN" (2026-11-14).
+            bool OfMagazine(Object k)
+            {
+                Transform t = k is Component c ? c.transform : k as Transform;
+                if (t == null)
+                {
+                    return false;
+                }
+                foreach (Transform mp in Rig.MagazineParts)
+                {
+                    if (mp != null && (t.IsChildOf(mp) || mp.name.Length >= 3 && t.name.StartsWith(mp.name, System.StringComparison.Ordinal)))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
             float Moved(Dictionary<Object, Vector3> a, Dictionary<Object, Vector3> b)
             {
                 float most = 0f;
                 foreach (var kv in a)
                 {
-                    if (b.TryGetValue(kv.Key, out Vector3 at))
+                    if (!OfMagazine(kv.Key) && b.TryGetValue(kv.Key, out Vector3 at))
                     {
                         most = Mathf.Max(most, Vector3.Distance(kv.Value, at));
                     }
@@ -3355,7 +3373,7 @@ namespace RavenfieldVR.Weapons
                 var away = new List<(string name, float moved, float back)>();
                 foreach (var kv in a)
                 {
-                    if (b.TryGetValue(kv.Key, out Vector3 at) && Vector3.Distance(kv.Value, at) >= 0.003f)
+                    if (!OfMagazine(kv.Key) && b.TryGetValue(kv.Key, out Vector3 at) && Vector3.Distance(kv.Value, at) >= 0.003f)
                     {
                         away.Add(((kv.Key is Renderer ? "" : "bone ") + kv.Key.name, Vector3.Distance(kv.Value, at), Vector3.Dot(at - kv.Value, -Data.AimAxis)));
                     }

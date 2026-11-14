@@ -1387,7 +1387,7 @@ namespace RavenfieldVR.Rig
             float start = 0f;
             // On a held magazine every finger does: a curved one (an AK's) can start inside a finger, which then passed
             // straight through it.
-            if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Magazine))
+            if (lockedKnuckle < 0f && (f == 0 || _hand.Role == HandRole.Foregrip || _hand.Role == HandRole.Magazine || _hand.Role == HandRole.Slide))
             {
                 Chain(f, 0f, 0f, 0f);
                 if (SegmentTouches(0) || SegmentTouches(1))
