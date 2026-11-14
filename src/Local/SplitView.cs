@@ -152,6 +152,7 @@ namespace RavenfieldVR.Local
                     c.thirdPersonTransform.gameObject.SetActive(false);
                 }
                 c.SetupFirstPerson();
+                ShowParts(c);
                 Arms(c, _p.Actor);
                 go.transform.SetParent(_cam.transform, false);
                 go.transform.localPosition = Vector3.zero;
@@ -192,6 +193,43 @@ namespace RavenfieldVR.Local
                     UnityEngine.Object.Destroy(_copy.gameObject);
                 }
                 _copy = null;
+            }
+        }
+
+        /// <summary>
+        /// A gun whose parts its own script switches on (the Quicksilver: 1 of 5 parts drawn, only the arms, with its script off): when the copy
+        /// draws nothing but its arms, every part of its first-person model is switched on.
+        /// </summary>
+        private static void ShowParts(Weapon c)
+        {
+            int shown = 0;
+            var all = new List<Renderer>();
+            foreach (Renderer r in c.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == c.arms || r is ParticleSystemRenderer || c.thirdPersonTransform != null && r.transform.IsChildOf(c.thirdPersonTransform))
+                {
+                    continue;
+                }
+                all.Add(r);
+                if (r.enabled && r.gameObject.activeInHierarchy)
+                {
+                    shown++;
+                }
+            }
+            if (shown > 0 || all.Count == 0)
+            {
+                return;
+            }
+            foreach (Renderer r in all)
+            {
+                r.enabled = true;
+                for (Transform t = r.transform; t != null && t != c.transform; t = t.parent)
+                {
+                    if (!t.gameObject.activeSelf)
+                    {
+                        t.gameObject.SetActive(true);
+                    }
+                }
             }
         }
 
@@ -307,7 +345,8 @@ namespace RavenfieldVR.Local
                         }
                     }
                 }
-                return $"{_source.name.Replace("(Clone)", "")} in first person, {drawn}/{total} part(s) drawn ({string.Join(", ", names.ToArray())})";
+                string gun = _source != null ? _source.name.Replace("(Clone)", "") : "(its gun gone)";
+                return $"{gun} in first person, {drawn}/{total} part(s) drawn ({string.Join(", ", names.ToArray())})";
             }
         }
 

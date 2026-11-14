@@ -102,7 +102,8 @@ namespace RavenfieldVR.Local
                 {
                     if (a.dead)
                     {
-                        Vector3 beside = OnGroundBeside(me.Position(), p.Yaw, p.Index);
+                        Vector3 beside = OnGroundBeside(me.Position(), p.Yaw, p.Index, out string where);
+                        Log.Info($"Splitscreen: player {p.Index + 1} starts {where}.");
                         a.SpawnAt(beside, Quaternion.Euler(0f, p.Yaw, 0f), a.controller.GetLoadout());
                     }
                     if (a.controller is AiActorController ai && ai.squad == null)
@@ -134,11 +135,14 @@ namespace RavenfieldVR.Local
         /// unchecked, one stood on a wall's edge or a ledge, fell over and slid, and could not shoot (check, 2026-11-14: "walked 8.3 m,
         /// fired 0").
         /// </summary>
-        private static Vector3 OnGroundBeside(Vector3 me, float yaw, int index)
+        private static Vector3 OnGroundBeside(Vector3 me, float yaw, int index, out string where)
         {
             Quaternion turn = Quaternion.Euler(0f, yaw, 0f);
-            foreach (Vector3 offset in new[] { new Vector3(1.5f * index, 0f, 0f), new Vector3(-1.5f * index, 0f, 0f), new Vector3(0f, 0f, -1.5f * index) })
+            string[] names = { "to the right", "to the left", "behind" };
+            Vector3[] offsets = { new Vector3(1.5f * index, 0f, 0f), new Vector3(-1.5f * index, 0f, 0f), new Vector3(0f, 0f, -1.5f * index) };
+            for (int k = 0; k < offsets.Length; k++)
             {
+                Vector3 offset = offsets[k];
                 Vector3 at = me + turn * offset;
                 // (from head height down: nothing in the way from where the player stands, and the ground there no more than half a metre off)
                 if (Physics.Raycast(me + Vector3.up * 1.5f, (at + Vector3.up * 1.5f - (me + Vector3.up * 1.5f)).normalized, offset.magnitude + 0.4f, ~0, QueryTriggerInteraction.Ignore))
@@ -148,10 +152,13 @@ namespace RavenfieldVR.Local
                 if (Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 3f, ~0, QueryTriggerInteraction.Ignore)
                     && Mathf.Abs(hit.point.y - me.y) < 0.5f)
                 {
-                    return hit.point;
+                    where = $"{names[k]} of the player, {offset.magnitude:0.0} m";
+                    return hit.point + Vector3.up * 0.05f;
                 }
             }
-            return me + turn * new Vector3(0f, 0f, -0.8f);
+            // (each its own place: on one spot they knocked each other over)
+            where = "behind the player (no clear ground beside it)";
+            return me + turn * new Vector3(0.9f * (index - 2), 0f, -1.2f);
         }
 
         /// <summary>The controller of a player: the first free ones in order, from <see cref="Splitscreen.FirstPad"/>.</summary>
