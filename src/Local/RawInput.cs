@@ -278,6 +278,9 @@ namespace RavenfieldVR.Local
             }
         }
 
+        /// <summary>Every key and button let go (no game window in front: their release is not told), the mice where they are.</summary>
+        public static void LetGo() => ClearHeld();
+
         public static void Stop()
         {
             if (!_installed)

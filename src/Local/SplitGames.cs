@@ -50,6 +50,24 @@ namespace RavenfieldVR.Local
         /// <summary>Try mode on the host: player 2 takes the first keyboard and mouse, the host's own player idle (Esc still its).</summary>
         public static bool TryMode;
 
+        /// <summary>A number's bytes written in place (no array made for each: a mouse sends about a thousand events a second).</summary>
+        private static void Put(byte[] to, int at, float v, int size) => Put(to, at, (long)new FloatBits { F = v }.I & 0xFFFFFFFFL, size);
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct FloatBits
+        {
+            [FieldOffset(0)] public float F;
+            [FieldOffset(0)] public int I;
+        }
+
+        private static void Put(byte[] to, int at, long v, int size)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                to[at + i] = (byte)(v >> (8 * i));
+            }
+        }
+
         private static int ArgInt(string prefix, int fallback)
         {
             string a = Args.FirstOrDefault(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
@@ -92,7 +110,7 @@ namespace RavenfieldVR.Local
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
-        private static bool _hosting, _weHosted, _tryOnHost, _f12Was;
+        private static bool _hosting, _weHosted, _tryOnHost, _f12Was, _hostRanInBackground;
         private static float _tryNoteUntil;
 
         /// <summary>Changes when a player's keyboard and mouse change hands (F12 in try mode): the copy forgets its mouse's last totals.</summary>
@@ -111,12 +129,15 @@ namespace RavenfieldVR.Local
 
         private static void HostUpdate()
         {
-            bool want = Splitscreen.On && Splitscreen.FullGames && SplitPlayers.InMatch && !(Multiplayer.Active && !Multiplayer.Hosting);
-            if (want && !_hosting)
+            // Started in a match; kept through the next map's load (the copies follow the host as any joined player does: closing
+            // them at each match's end made every map a fresh start of every copy; scout, 2026-11-14), stopped when splitscreen is
+            // turned off or the host is back in the main menu.
+            bool on = Splitscreen.On && Splitscreen.FullGames && !(Multiplayer.Active && !Multiplayer.Hosting);
+            if (on && !_hosting && SplitPlayers.InMatch)
             {
                 HostStart();
             }
-            else if (!want && _hosting)
+            else if (_hosting && (!on || GameManager.IsInMainMenu()))
             {
                 HostStop();
             }
@@ -139,8 +160,18 @@ namespace RavenfieldVR.Local
             if (!Multiplayer.Active)
             {
                 Multiplayer.HostLan(GamePort, 8);
-                _weHosted = true;
+                _weHosted = Multiplayer.LanHosting;
+                if (!_weHosted)
+                {
+                    Multiplayer.Notice($"Splitscreen: port {GamePort} could not be hosted on this PC (in use?): the copies cannot join.");
+                    Splitscreen.On = false;
+                    return;
+                }
             }
+            // (Kept running behind the copies' windows: Unity stops an unfocused game, and with the host stopped every copy lost its
+            // keys and closed after 10 s when its player clicked into it; scout, 2026-11-14.)
+            _hostRanInBackground = Application.runInBackground;
+            Application.runInBackground = true;
             _hosting = true;
             int n = Splitscreen.Players;
             string exe = Process.GetCurrentProcess().MainModule.FileName;
@@ -218,7 +249,9 @@ namespace RavenfieldVR.Local
             _hostSocket?.Close();
             _hostSocket = null;
             _hosting = false;
+            Application.runInBackground = _hostRanInBackground;
             FlatPlayerInput.Active = false;
+            FlatPlayerInput.Keys = 0;
             FlatPlayerInput.OnlyPause = false;
             SplitPlayers.GamePadsMuted = false;
             RawInput.Stop();
@@ -264,7 +297,15 @@ namespace RavenfieldVR.Local
                     Log.Info($"Splitscreen try: the keyboard and mouse now play player {(_tryOnHost ? 1 : 2)}.");
                 }
                 _f12Was = f12;
-                FlatPlayerInput.OnlyPause = !_tryOnHost;
+                // (While the keyboard is player 2's, the host's player gets none of it, Esc either: it paused both games; F12 brings it back.)
+                FlatPlayerInput.OnlyPause = false;
+                FlatPlayerInput.Keys = _tryOnHost ? 0 : -1;
+            }
+            // No game window in front (another program): every key and button let go, as Windows does not tell the game their release
+            // (held W kept a soldier walking after an alt-tab; scout, 2026-11-14).
+            if (!AnyGameInFront())
+            {
+                RawInput.LetGo();
             }
             foreach (Copy c in Copies)
             {
@@ -288,6 +329,33 @@ namespace RavenfieldVR.Local
                 {
                 }
             }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        private static float _nextFrontLook;
+        private static bool _frontWasGame = true;
+
+        /// <summary>Whether the window in front is this game or one of its copies (asked a few times a second).</summary>
+        private static bool AnyGameInFront()
+        {
+            if (Time.unscaledTime < _nextFrontLook)
+            {
+                return _frontWasGame;
+            }
+            _nextFrontLook = Time.unscaledTime + 0.2f;
+            GetWindowThreadProcessId(GetForegroundWindow(), out uint pid);
+            bool game = pid == (uint)Process.GetCurrentProcess().Id;
+            foreach (Copy c in Copies)
+            {
+                game |= c.Process != null && pid == (uint)c.Process.Id;
+            }
+            _frontWasGame = game;
+            return game;
         }
 
         /// <summary>
@@ -343,11 +411,11 @@ namespace RavenfieldVR.Local
                 Packet[at++] = bits;
             }
             Packet[at++] = (byte)((d.Left ? 1 : 0) | (d.Right ? 2 : 0) | (d.Middle ? 4 : 0) | (d.X1 ? 8 : 0) | (d.X2 ? 16 : 0));
-            Buffer.BlockCopy(BitConverter.GetBytes(d.TotalX), 0, Packet, at, 4);
+            Put(Packet, at, d.TotalX, 4);
             at += 4;
-            Buffer.BlockCopy(BitConverter.GetBytes(d.TotalY), 0, Packet, at, 4);
+            Put(Packet, at, d.TotalY, 4);
             at += 4;
-            Buffer.BlockCopy(BitConverter.GetBytes(d.Wheel), 0, Packet, at, 4);
+            Put(Packet, at, d.Wheel, 4);
             at += 4;
             Packet[at++] = _generation;
             return at;
@@ -423,6 +491,11 @@ namespace RavenfieldVR.Local
                     _lastFromHost = Time.unscaledTime;
                 }
             }
+            if (!_saidMatch && Time.realtimeSinceStartup > 180f)
+            {
+                Note("Splitscreen: not in the host's match 3 minutes after starting; this copy closes.");
+                Application.Quit();
+            }
             if (Time.unscaledTime - _lastFromHost > 10f)
             {
                 Note("Splitscreen: the host's copy is gone; this copy closes.");
@@ -485,14 +558,14 @@ namespace RavenfieldVR.Local
         private static void ForwardToHost(long device, bool mouse, ushort flags, ushort buttons, short data, int x, int y, ushort vkey)
         {
             Event[0] = (byte)'E';
-            Buffer.BlockCopy(BitConverter.GetBytes(device), 0, Event, 1, 8);
+            Put(Event, 1, device, 8);
             Event[9] = (byte)(mouse ? 1 : 0);
-            Buffer.BlockCopy(BitConverter.GetBytes(flags), 0, Event, 10, 2);
-            Buffer.BlockCopy(BitConverter.GetBytes(buttons), 0, Event, 12, 2);
-            Buffer.BlockCopy(BitConverter.GetBytes(data), 0, Event, 14, 2);
-            Buffer.BlockCopy(BitConverter.GetBytes(x), 0, Event, 16, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(y), 0, Event, 20, 4);
-            Buffer.BlockCopy(BitConverter.GetBytes(vkey), 0, Event, 24, 2);
+            Put(Event, 10, flags, 2);
+            Put(Event, 12, buttons, 2);
+            Put(Event, 14, data, 2);
+            Put(Event, 16, x, 4);
+            Put(Event, 20, y, 4);
+            Put(Event, 24, vkey, 2);
             _clientSocket?.Send(Event, Event.Length, _hostInput);
         }
 
