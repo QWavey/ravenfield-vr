@@ -399,8 +399,87 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>After the game's own wheel animation: the rim sits exactly where the hands turned it.</summary>
+        private GameObject _leverHint;
+        private Material _leverHintMaterial;
+        private bool _leverNear;
+
+        /// <summary>
+        /// Where the plane's throttle lever is (it has no model: the off hand's rest by the seat): a small knob shown while a free hand
+        /// comes within 30 cm of it and nothing holds it, brighter the nearer, and a tick in the hand as it reaches it (2026-11-14: the
+        /// lever was there to be found only by knowing where).
+        /// </summary>
+        private void ShowLeverHint()
+        {
+            float nearest = float.MaxValue;
+            VRHand near = null;
+            if (_throttle != null && _seat != null && _throttleHand == null && !GameManager.IsPaused() && !GameContext.GameMenuOpen)
+            {
+                foreach (VRHand hand in _rig.Hands)
+                {
+                    if (hand != null && hand.Tracked && hand.Role == HandRole.Free && _stickHand != hand.Side)
+                    {
+                        float d = Vector3.Distance(hand.PalmCentre, _throttle.position);
+                        if (d < nearest)
+                        {
+                            nearest = d;
+                            near = hand;
+                        }
+                    }
+                }
+            }
+            bool show = nearest < 0.3f;
+            if (!show)
+            {
+                if (_leverHint != null && _leverHint.activeSelf)
+                {
+                    _leverHint.SetActive(false);
+                }
+                _leverNear = false;
+                return;
+            }
+            if (_leverHint == null)
+            {
+                _leverHint = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                _leverHint.name = "RavenfieldVR Throttle Lever";
+                Object.Destroy(_leverHint.GetComponent<Collider>());
+                Object.DontDestroyOnLoad(_leverHint);
+                _leverHintMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 3100 };
+                var r = _leverHint.GetComponent<Renderer>();
+                r.sharedMaterial = _leverHintMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _leverHint.transform.localScale = Vector3.one * 0.035f;
+            }
+            if (!_leverHint.activeSelf)
+            {
+                _leverHint.SetActive(true);
+            }
+            _leverHint.transform.position = _throttle.position;
+            float k = Mathf.Clamp01(1f - nearest / 0.3f);
+            _leverHintMaterial.color = new Color(0.55f, 0.85f, 1f, 0.15f + 0.55f * k);
+            bool reached = nearest < 0.16f; // (the lever's own reach)
+            if (reached && !_leverNear && near != null)
+            {
+                near.Haptic(0.015f, 180f, 0.3f);
+            }
+            _leverNear = reached;
+        }
+
+        /// <summary>The hint's object, with the rig.</summary>
+        public void Destroy()
+        {
+            if (_leverHint != null)
+            {
+                Object.Destroy(_leverHint);
+            }
+            if (_leverHintMaterial != null)
+            {
+                Object.Destroy(_leverHintMaterial);
+            }
+        }
+
         public void BeforeRender()
         {
+            ShowLeverHint();
             // The palms against the seat as both are now (VRRig poses the hands just before this): read by the next Update.
             if (_seat != null)
             {

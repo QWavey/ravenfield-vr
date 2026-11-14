@@ -1781,6 +1781,7 @@ namespace RavenfieldVR.Rig
             // that threw left the rest, the rig's root with its eye cameras too, alive in flat play.
             Log.Guard("Rig.Suppressor.Dispose", () => Suppressor?.Dispose());
             Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
+            Log.Guard("Rig.Cockpit.Destroy", () => _cockpit?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Underwater.Destroy", () => _underwater?.Destroy());
