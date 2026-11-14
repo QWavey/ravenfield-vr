@@ -159,6 +159,20 @@ Each time the game starts, a choice stands over the main menu: **Single player**
 - Voice chat (off by default): turn it on in Settings, Display ("Voice chat (multiplayer)") and pick your microphone there; you then hear each other from your soldiers' heads, louder when near. It sends only while you speak. Both players need it on.
 - Played over Steam it needs no open port. It has been checked with a second player simulated on one PC; a real session between two PCs is its first full test.
 
+## Local play: LAN and splitscreen
+
+Multiplayer first asks **Local** or **Online**. Online is Steam (friends, open games) or an IP address, as above. Local is:
+
+- **LAN:** host a game on this network, or join one from the list (games on the network show up within a second; no address to type).
+- **Splitscreen:** 2 to 4 players at one PC. Set the players and the screen (two side by side or one above the other; three or four in quarters), turn it on, then start a match from the game's menu. The game's own player is the first; the others get soldiers of their own on your side, each with its view, health and rounds in its part of the window. Without a headset everyone shares the monitor; with VR the headset is the first player and the others share the monitor.
+  - **Controllers** (Xbox-style, XInput): left stick moves, right stick looks, right trigger fires, left trigger aims, A jump, B crouch, X reload, Y next weapon, left stick click sprint, RB gets into the nearest vehicle seat (and out again); cars and boats drive on the left stick.
+  - **A second keyboard and mouse:** a player without a controller takes the next keyboard and mouse (WASD, mouse, left fire, right aim, R, Space, C, Shift, Q, E for seats). The game's own player then plays on the first keyboard and mouse; the game's menus and the deploy map keep the pointer.
+  - The settings are kept (Splitscreen in the settings file: Players, AboveBelow, FirstController).
+
+**Steam status:** friends see what you are doing: VR or flat, alone, hosting or in a multiplayer game, splitscreen, the map and mode, who is winning and by how much, and you (waiting to deploy, driving a vehicle, the weapon in hand). Steam shows it in your game info and in chat.
+
+**Without a headset:** the release also has `RavenfieldMultiplayer-<version>.zip`, the same mod with VR off for friends without one (F8 opens the multiplayer window).
+
 ## Graphics
 
 Pick **Low, Medium, High or Ultra** in the launcher or on the settings panel ("Graphics"). A preset sets the render resolution, MSAA, shadow distance and quality, level of detail, per-pixel lights, texture size, vegetation and view distance, layered on top of the game's own options. "Game" leaves graphics to the game's options menu. Render scale stays adjustable after picking a preset. The presets are tuned for VR, where shadows, MSAA and per-pixel lights are paid once per eye: Low has no shadows (about the game's "Fast" quality), Medium hard shadows to 30 m ("Simple"), High soft shadows to 60 m ("Good"), Ultra to 100 m with 4x MSAA ("Beautiful"). If you see ghosting or things lagging in front of you, the frame rate is below the headset's: pick a lower preset (or "Game" with a low quality in the game's options).
