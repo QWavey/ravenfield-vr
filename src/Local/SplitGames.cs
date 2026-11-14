@@ -122,6 +122,7 @@ namespace RavenfieldVR.Local
             : null;
         private static UdpClient _hostSocket;
         private static GameObject _hostDrawer;
+        private static float _nextHostPlace;
         private static readonly byte[] Packet = new byte[64];
 
         /// <summary>Whether the copies are running (the Local page shows it).</summary>
@@ -146,6 +147,13 @@ namespace RavenfieldVR.Local
                 return;
             }
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
+            if (!Runtime.OpenVRRuntime.Running && Time.unscaledTime >= _nextHostPlace)
+            {
+                // (Its part of the screen kept, as the copies keep theirs: placed once, the game sized it back, and the user saw player 1's
+                // window framed over the middle, 2026-11-14.)
+                _nextHostPlace = Time.unscaledTime + 1f;
+                PlaceWindow(0, Splitscreen.Players);
+            }
             HostInput();
         }
 
@@ -426,6 +434,7 @@ namespace RavenfieldVR.Local
         private static UdpClient _clientSocket;
         private static IPEndPoint _hostInput;
         private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy;
+        private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
         private static readonly FlatPlayerInput.DeviceState Received = new FlatPlayerInput.DeviceState();
 
@@ -444,6 +453,7 @@ namespace RavenfieldVR.Local
                 FlatPlayerInput.Keys = -1;
                 FlatPlayerInput.Pad = ClientIndex;
                 FlatPlayerInput.Receive(Received);
+                SplitCopyMenu.Hook(Note);
                 var drawer = new GameObject("RavenfieldVR Split Copy");
                 UnityEngine.Object.DontDestroyOnLoad(drawer);
                 drawer.AddComponent<SplitCopyHost>();
@@ -452,10 +462,26 @@ namespace RavenfieldVR.Local
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
             }
             AudioListener.volume = 0f; // (the host plays the match's sound)
-            // The window in its part of the screen, again for a while (the game sets its own size as it loads).
-            if (Time.unscaledTime < _placedUntil && Time.frameCount % 30 == 0)
+            // The window in its part of the screen, looked at once a second for as long as it plays (the game set its own size again
+            // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
+            if (Time.unscaledTime >= _nextPlace)
             {
+                _nextPlace = Time.unscaledTime + (Time.unscaledTime < _placedUntil ? 0.5f : 1f);
                 PlaceWindow(ClientIndex, ClientCount);
+            }
+            // No pointer here (the keys work the menus): the cursor hidden and kept in place over this window.
+            if (SplitPlayers.InMatch)
+            {
+                Cursor.visible = false;
+                if (Application.isFocused && Cursor.lockState != CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                }
+                // The game's loadout screen needs the pointer: closed while this player is alive (its weapons are picked in its Esc menu).
+                if (LocalPlayer.actor != null && !LocalPlayer.actor.dead && LoadoutUi.instance != null && LoadoutUi.IsOpen())
+                {
+                    LoadoutUi.Hide();
+                }
             }
             // Joined once the main menu is up.
             if (!_joined && GameManager.instance != null && GameManager.IsInMainMenu())
@@ -631,6 +657,7 @@ namespace RavenfieldVR.Local
         private void OnGUI()
         {
             SplitDeploy.Draw();
+            SplitCopyMenu.Draw();
             string line = SplitGames.TryLine;
             if (line != null)
             {

@@ -247,6 +247,7 @@ namespace RavenfieldVR.Local
             Array.Clear(Axis, 0, Count);
             Array.Clear(Held, 0, Count);
             DeviceState s;
+            _current = null;
             if (Keys >= 0)
             {
                 Own.CopyFrom(RawInput.Nth(false, Keys), RawInput.Nth(true, Keys));
@@ -256,6 +257,7 @@ namespace RavenfieldVR.Local
             {
                 s = _received;
             }
+            _current = s;
             if (s != null)
             {
                 // The mouse's move: the change in its running total since the last frame (a lost or repeated packet loses or doubles nothing).
@@ -297,7 +299,40 @@ namespace RavenfieldVR.Local
             {
                 ReadPad(XInput.Read(Pad));
             }
+            if (InvertY)
+            {
+                Axis[(int)SteelInput.KeyBinds.AimY] = -Axis[(int)SteelInput.KeyBinds.AimY];
+            }
+            AfterCompute?.Invoke();
         }
+
+        /// <summary>Called once the frame's binds are made (a copy's own menu reads them, then keeps them from the game while open).</summary>
+        internal static Action AfterCompute;
+
+        /// <summary>The player's own setting: up and down of the mouse and right stick turned round (a copy's menu).</summary>
+        public static bool InvertY;
+
+        /// <summary>Every bind let go for the game this frame (a copy's menu is open: its keys move the menu, not the soldier).</summary>
+        internal static void Suppress()
+        {
+            Array.Clear(Axis, 0, Count);
+            Array.Clear(Held, 0, Count);
+        }
+
+        /// <summary>One bind let go for the game this frame (a copy's Esc opens its own menu, it does not pause the game).</summary>
+        internal static void Suppress(SteelInput.KeyBinds b)
+        {
+            Axis[(int)b] = 0f;
+            Held[(int)b] = false;
+        }
+
+        /// <summary>A bind's value this frame (a copy's menu reads A/D and W/S by the game's own bindings).</summary>
+        internal static float AxisOf(SteelInput.KeyBinds b) => Axis[(int)b];
+
+        private static DeviceState _current;
+
+        /// <summary>A key of this player's keyboard held now, by Windows' virtual key (Esc for a copy's menu: the game reads Esc itself).</summary>
+        internal static bool RawKey(int vk) => _current != null && _current.Keys[vk];
 
         /// <summary>Forgets the mouse's last totals (a new keyboard and mouse, or a new host): the first frame after turns nothing.</summary>
         public static void ResetMouse() => _mouseKnown = false;

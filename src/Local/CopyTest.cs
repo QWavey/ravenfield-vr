@@ -21,6 +21,7 @@ namespace RavenfieldVR.Local
         private static Vector3 _from, _rightFrom;
         private static int _shots, _slotFrom, _teamFrom;
         private static bool _saidAim;
+        private static string _primaryFrom = "";
         private static float _turned;
 
         private static void Next(int step)
@@ -197,7 +198,38 @@ namespace RavenfieldVR.Local
                     {
                         note($"copy test: next weapon key: slot {_slotFrom + 1} -> {me.activeWeaponSlot + 1}{(me.activeWeaponSlot == _slotFrom ? " (DID NOT SWITCH)" : "")}");
                         _teamFrom = me.team;
-                        Next(8);
+                        Next(30);
+                    }
+                    break;
+                case 30: // Esc: this player's own menu, the game not paused; down three rows to Primary, D changes it, Esc closes
+                    {
+                        string before = LoadoutUi.instance != null && LoadoutUi.instance.loadout != null && LoadoutUi.instance.loadout.primary != null ? LoadoutUi.instance.loadout.primary.name : "none";
+                        if (t < 0.1f)
+                        {
+                            s.Keys[0x1B] = true;
+                            _primaryFrom = before;
+                        }
+                        else if (t > 0.3f && t < 0.4f || t > 0.5f && t < 0.6f || t > 0.7f && t < 0.8f)
+                        {
+                            Press(SteelInput.KeyBinds.Vertical, false); // (down)
+                        }
+                        else if (t > 0.9f && t < 1.0f)
+                        {
+                            Press(SteelInput.KeyBinds.Horizontal, false); // (right: the next weapon)
+                        }
+                        else if (t > 1.2f && t < 1.25f)
+                        {
+                            note($"copy test: Esc menu {(SplitCopyMenu.Open ? "open" : "NOT OPEN")}, the game {(GameManager.IsPaused() ? "PAUSED" : "not paused")}; primary {_primaryFrom} -> {before}{(before == _primaryFrom ? " (NOT CHANGED)" : "")}");
+                        }
+                        else if (t > 1.4f && t < 1.5f)
+                        {
+                            s.Keys[0x1B] = true;
+                        }
+                        if (t > 1.8f)
+                        {
+                            note($"copy test: Esc again: menu {(SplitCopyMenu.Open ? "STILL OPEN" : "closed")}");
+                            Next(8);
+                        }
                     }
                     break;
                 case 8: // switch team (T)

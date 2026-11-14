@@ -108,7 +108,7 @@ namespace RavenfieldVR.Local
         }
 
         /// <summary>The other side: the player's team and its soldier's (with its hitboxes, as the multiplayer's stand-ins), then deploy.</summary>
-        private static void SwitchTeam(Actor me, Action<string> note)
+        internal static void SwitchTeam(Actor me, Action<string> note)
         {
             int team = 1 - Mathf.Clamp(GameManager.PlayerTeam(), 0, 1);
             if (!me.dead)
