@@ -125,6 +125,10 @@ namespace RavenfieldVR.Net
             }
             string mode = gm != null && gm.gameModeParameters != null && gm.gameModeParameters.gameMode != null ? gm.gameModeParameters.gameMode.name : "";
             mode = mode.Replace("(Clone)", "").Trim();
+            if (gm != null && gm.gameModeParameters != null && gm.gameModeParameters.nightMode)
+            {
+                mode = "night " + mode;
+            }
             return map.Length > 0 ? $"{mode} on {map}".Trim() : mode.Length > 0 ? mode : "in a match";
         }
 
@@ -184,7 +188,14 @@ namespace RavenfieldVR.Net
             if (me.IsSeated() && me.seat != null && me.seat.vehicle != null)
             {
                 string vehicle = me.seat.vehicle.name.Replace("(Clone)", "").Trim();
-                return $"{side}, {(me.seat.IsDriverSeat() ? "driving" : "riding in")} a {vehicle}".Trim(' ', ',');
+                string how = me.seat.IsDriverSeat() ? "driving" : me.seat.HasAnyMountedWeapons() ? "on the gun of" : "riding in";
+                return $"{side}, {how} a {vehicle}".Trim(' ', ',');
+            }
+            Squad mine = me.controller != null ? me.controller.GetSquad() : null;
+            int squad = mine != null && mine.members != null ? mine.members.Count - 1 : 0;
+            if (squad > 0)
+            {
+                side += $", leading a squad of {squad}";
             }
             string gun = me.activeWeapon != null ? me.activeWeapon.name.Replace("(Clone)", "").Trim() : "";
             return gun.Length > 0 ? $"{side}, with a {gun}".Trim(' ', ',') : side;
