@@ -371,6 +371,10 @@ namespace RavenfieldVR.Rig
                     Vector2? last = VehicleInput.FlightStick;
                     VehicleInput.Trim = VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && last.HasValue
                                         && last.Value.sqrMagnitude > 0.08f * 0.08f ? last : null;
+                    if (VehicleInput.Trim.HasValue)
+                    {
+                        hand.Haptic(0.02f, 200f, 0.3f); // (felt as let go: the stick holds where it is)
+                    }
                     VehicleInput.FlightStick = null;
                 }
                 else
