@@ -97,7 +97,10 @@ namespace RavenfieldVR.Net
 
         private static NetPlayerInfo OwnInfo() => new NetPlayerInfo
         {
-            Name = SteamLobbies.OwnName,
+            // Splitscreen players at one PC share one Steam name: "(Player N)" after it tells them apart (the user, 2026-11-14: "we just
+            // have my steam name twice or 4 times").
+            Name = SteamLobbies.OwnName + (Local.SplitGames.IsClient ? $" (Player {Local.SplitGames.ClientIndex + 1})"
+                                           : Local.Splitscreen.On && Local.Splitscreen.FullGames ? " (Player 1)" : ""),
             GameBuild = GameBuild,
             ModVersion = PluginInfo.Version,
             Vr = VRManager.Active,

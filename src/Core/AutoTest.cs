@@ -714,6 +714,8 @@ namespace RavenfieldVR.Core
                     Local.Splitscreen.On = true;
                     string text = "";
                     float nextRead = 0f;
+                    bool hitBack = false;
+                    PlayerCanBeHurt = true; // (the damage step: player 2 hits this player)
                     for (float until = Time.realtimeSinceStartup + 170f; Time.realtimeSinceStartup < until && !text.Contains("copy test: done");)
                     {
                         yield return new WaitForSecondsRealtime(0.5f);
@@ -722,6 +724,29 @@ namespace RavenfieldVR.Core
                         {
                             Results.Add("copies: " + line);
                             Log.Info("[copies check] " + line);
+                        }
+                        // The damage step: the copy has hit this player's soldier and asks to be hit back.
+                        if (!hitBack && text.Contains("copy test: hit me now"))
+                        {
+                            hitBack = true;
+                            Actor me = LocalPlayer.actor;
+                            string mine = me == null ? "none" : me.dead ? "down" : me.health.ToString("0");
+                            if (me != null && !me.dead && me.health >= 99f)
+                            {
+                                Problem($"[copies] player 1 TOOK NO DAMAGE from player 2's hit (health {mine})");
+                            }
+                            Results.Add($"copies: player 1 after player 2's hit: health {mine}");
+                            foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
+                            {
+                                if (r.Id == 0 && r.Actor != null && !r.Actor.dead && me != null)
+                                {
+                                    r.Actor.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, me, me.activeWeapon)
+                                    {
+                                        healthDamage = 25f, point = r.Actor.CenterPosition(), direction = (r.Actor.CenterPosition() - me.CenterPosition()).normalized,
+                                    });
+                                    Results.Add($"copies: player 1 hit player 2's soldier for 25 (team {r.Actor.team}, player 1 team {me.team})");
+                                }
+                            }
                         }
                         if (Time.realtimeSinceStartup < nextRead)
                         {

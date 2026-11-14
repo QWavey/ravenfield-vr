@@ -22,6 +22,7 @@ namespace RavenfieldVR.Local
         private static int _shots, _slotFrom, _teamFrom;
         private static bool _saidAim;
         private static string _primaryFrom = "";
+        private static float _healthFrom;
         private static float _turned;
 
         private static void Next(int step)
@@ -62,8 +63,7 @@ namespace RavenfieldVR.Local
                         {
                             note($"copy test: spawned on the other side (team {me.team}, player team {GameManager.PlayerTeam()}) after {t:0.0} s");
                             note(me.team != _teamFrom ? "copy test: team switch worked" : "copy test: team switch DID NOT CHANGE THE SOLDIER'S TEAM");
-                            Next(Done);
-                            note("copy test: done");
+                            Next(40);
                             return;
                         }
                         note($"copy test: spawned (team {me.team}) after {t:0.0} s");
@@ -230,6 +230,40 @@ namespace RavenfieldVR.Local
                             note($"copy test: Esc again: menu {(SplitCopyMenu.Open ? "STILL OPEN" : "closed")}");
                             Next(8);
                         }
+                    }
+                    break;
+                case 40: // damage both ways, on opposite teams now: this player hits player 1's soldier, then player 1 hits this one
+                    if (t < 0.05f)
+                    {
+                        Actor host = null;
+                        foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
+                        {
+                            if (r.Id == 0 && r.Actor != null && !r.Actor.dead)
+                            {
+                                host = r.Actor;
+                            }
+                        }
+                        if (host == null)
+                        {
+                            note("copy test: NO SOLDIER OF PLAYER 1 to hit");
+                        }
+                        else
+                        {
+                            host.Damage(new DamageInfo(DamageInfo.DamageSourceType.Projectile, me, me.activeWeapon)
+                            {
+                                healthDamage = 25f, point = host.CenterPosition(), direction = (host.CenterPosition() - me.CenterPosition()).normalized,
+                            });
+                            note($"copy test: hit player 1's soldier for 25 (team {host.team}, this player team {me.team})");
+                        }
+                        _healthFrom = me.health;
+                        note($"copy test: hit me now (health {me.health:0})");
+                    }
+                    if (t > 6f)
+                    {
+                        float took = _healthFrom - (me.dead ? 0f : me.health);
+                        note($"copy test: player 1's hit: this player's health {_healthFrom:0} -> {(me.dead ? "down" : me.health.ToString("0"))}{(took < 1f ? " (TOOK NO DAMAGE)" : "")}");
+                        Next(Done);
+                        note("copy test: done");
                     }
                     break;
                 case 8: // switch team (T)
