@@ -2,6 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-14 (work-until-limit 75; Tasks 385; for 1.17.17, notes in `dist/notes-1.17.17.md`)
+
+- Five inventions built (trim-hold stick, engine-voiced rumble, shared spots kind 42, magazine handover kind 43, brace grip), voice chat (kind 44, off by default, microphone chosen in Display), a dropped gun taken by the friend (45), co-op sandbox requests (46, 47), C4 across PCs (48), the free hand's gun shown and heard, turret aim and the seated head told, soldiers' reloads told (flag 4096), the wrist's vehicle line. Each reviewed by a Haiku scout and fixed. Unrun in the headset; the user allowed game runs for pictures on 2026-11-14 (`vrshots`).
+- **At 60% of the session the run turns to guns and reloads** (the user): shotguns buggy, one floats in the air; an SMG (likely the AS VAL, `asval o#AS (1)`) shows a thick magazine flickering and its pull-back does not work (Tasks 385.8).
+
 ## State 2026-11-12 evening (**1.17.16 INSTALLED** on this PC, Defender clean; Tasks 384 to 384.37; run paused by the user at 68%)
 
 - 1.17.16 holds everything below; notes in `dist/notes-1.17.16.md`. **Both PCs need 1.17.16** (new message kinds 40 and 41). Nothing of the day run in the game yet: first try the plane throttle lever (where the off hand rests), the vehicle tunnel, two players at one seat, a dead soldier's gun taken on one PC, and **the frozen soldiers' guns** (the log now says why a squeeze did not take one; asked the user what happens).
