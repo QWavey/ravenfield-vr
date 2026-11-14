@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45, SandboxVehicle = 46;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -908,6 +908,46 @@ namespace RavenfieldVR.Net
             UI.UISystem.Instance?.Notice?.Show($"{name} took your {weapon}.", 3f);
         }
 
+        private static float _askedAt = -10f;
+
+        /// <summary>A joined player places a vehicle with the sandbox's tool: the host is asked to (his vehicles are the shared ones).</summary>
+        internal static void AskHostForVehicle(VehicleSpawner.VehicleSpawnType type, bool friendly, Vector3 at, Vector3 facing)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected || session.IsHost || !Finite(at) || !Finite(facing)
+                || Time.unscaledTime - _askedAt < 1f)
+            {
+                return; // (one a second at most)
+            }
+            _askedAt = Time.unscaledTime;
+            Out.Reset();
+            Out.Byte((byte)type);
+            Out.Bool(friendly);
+            Out.Vector(at);
+            Out.SmallVector(Vector3.ClampMagnitude(facing, 1f));
+            session.SendTo(0, SandboxVehicle, Out, true);
+        }
+
+        private static void TakeVehicleAsked(byte sender, ref NetReader r)
+        {
+            int type = r.Byte();
+            bool friendly = r.Bool();
+            Vector3 at = r.Vector();
+            Vector3 facing = r.SmallVector();
+            NetSession session = _session;
+            if (session == null || !session.IsHost || !Sandbox.Sandbox.InMode || !Finite(at) || !Finite(facing)
+                || !Enum.IsDefined(typeof(VehicleSpawner.VehicleSpawnType), type))
+            {
+                return; // (the host's sandbox only: in another mode the field is not for placing)
+            }
+            Remote asker = RemoteOf(sender, 0);
+            int team = asker != null && asker.Actor != null ? asker.Actor.team : -1;
+            Vehicle made = Sandbox.Sandbox.SpawnVehicle((VehicleSpawner.VehicleSpawnType)type, friendly, at, facing, out string problem, team);
+            NetPlayer who = session.Player(sender);
+            string name = who != null && who.Info != null && !string.IsNullOrEmpty(who.Info.Name) ? who.Info.Name : "A player";
+            Log.Info($"Sandbox: {name} asked for a {(VehicleSpawner.VehicleSpawnType)type}: {(made != null ? "placed" : "not placed (" + problem + ")")}.");
+        }
+
         internal static void OnShownDropGone(Weapons.DroppedWeapon drop)
         {
             foreach (KeyValuePair<int, Weapons.DroppedWeapon> kv in ShownDrops)
@@ -1426,6 +1466,9 @@ namespace RavenfieldVR.Net
                         break;
                     case ShownDropTaken:
                         TakeShownDropTaken(sender, ref r);
+                        break;
+                    case SandboxVehicle:
+                        TakeVehicleAsked(sender, ref r);
                         break;
                     case KilledBy:
                         TakeKill(sender, ref r);

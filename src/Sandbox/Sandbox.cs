@@ -423,7 +423,8 @@ namespace RavenfieldVR.Sandbox
         }
 
         /// <summary>A vehicle of the map's own kind for a side at a point (a metre up: it settles on its wheels). Null with the reason.</summary>
-        internal static Vehicle SpawnVehicle(VehicleSpawner.VehicleSpawnType type, bool friendly, Vector3 at, Vector3 facing, out string problem)
+        internal static Vehicle SpawnVehicle(VehicleSpawner.VehicleSpawnType type, bool friendly, Vector3 at, Vector3 facing, out string problem,
+                                             int forTeam = -1)
         {
             problem = null;
             Actor player = LocalPlayer.actor;
@@ -433,15 +434,18 @@ namespace RavenfieldVR.Sandbox
                 return null;
             }
             // The host's vehicles are shared since 1.17.10 (made by the game's own spawning, as a map's spawner does: the others make
-            // their copy from the same prefab). A joined player's own would be his alone, so the field stays the host's (sandbox scout).
+            // their copy from the same prefab). A joined player's own would be his alone, so he asks the host to place it, and it is
+            // shared like any of the host's (2026-11-14: co-op sandbox).
             if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
             {
-                problem = "in a shared match the host places the vehicles";
+                Net.NetGame.AskHostForVehicle(type, friendly, at, facing);
+                problem = "asked the host to place it";
                 return null;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);
             facing = facing.sqrMagnitude > 1e-4f ? facing.normalized : Vector3.forward;
-            int team = friendly ? player.team : 1 - player.team;
+            int own = forTeam >= 0 ? forTeam : player.team; // (for a joined player who asked: his side, not the host's)
+            int team = friendly ? own : 1 - own;
             try
             {
                 bool air = type == VehicleSpawner.VehicleSpawnType.AttackHelicopter || type == VehicleSpawner.VehicleSpawnType.TransportHelicopter
