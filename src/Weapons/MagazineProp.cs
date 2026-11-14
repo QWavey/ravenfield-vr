@@ -249,6 +249,93 @@ namespace RavenfieldVR.Weapons
         /// <summary>A hand holding more shells than one has just pushed one in: the next goes in only after the hand came back out
         /// towards the port's mouth (all of them went in on neighbouring frames, as one).</summary>
         public bool BackOutFirst;
+        private GameObject _extraShells;
+        private int _extraShown;
+
+        /// <summary>
+        /// As many shells drawn in the hand as it holds: a reach into the pouch takes two (ShellsPerReach) and only one was drawn,
+        /// so one shell seemed to fill the tube twice (the user, 2026-11-14: "one shell in the hand takes 2 fills ... a big bug").
+        /// The others lie beside the first, across its long side, and go one by one as they are pushed in.
+        /// </summary>
+        internal void ShowShellCount()
+        {
+            if (Kind != PropKind.Shell || Go == null)
+            {
+                return;
+            }
+            int want = Mathf.Clamp(Rounds - 1, 0, 3);
+            if (want == _extraShown)
+            {
+                return;
+            }
+            GameObject old = _extraShells;
+            if (old != null)
+            {
+                Object.Destroy(old); // (gone at the frame's end: its pieces are passed over below)
+                _extraShells = null;
+            }
+            _extraShown = want;
+            if (want == 0)
+            {
+                return;
+            }
+            Transform root = Go.transform;
+            var pieces = new List<(Mesh mesh, Material[] mats, Matrix4x4 local)>();
+            var box = new Bounds();
+            bool any = false;
+            foreach (MeshFilter mf in Go.GetComponentsInChildren<MeshFilter>(false))
+            {
+                var mr = mf.GetComponent<MeshRenderer>();
+                if (mf.sharedMesh == null || mr == null || !mr.enabled || old != null && mf.transform.IsChildOf(old.transform))
+                {
+                    continue;
+                }
+                Matrix4x4 local = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                pieces.Add((mf.sharedMesh, mr.sharedMaterials, local));
+                Bounds b = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 c = local.MultiplyPoint3x4(new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z));
+                    if (!any)
+                    {
+                        box = new Bounds(c, Vector3.zero);
+                        any = true;
+                    }
+                    else
+                    {
+                        box.Encapsulate(c);
+                    }
+                }
+            }
+            if (!any)
+            {
+                return;
+            }
+            // Beside it across its long side: along the shorter of its two short axes' directions, a shell's width apart.
+            Vector3 s = box.size;
+            int longAxis = s.x >= s.y && s.x >= s.z ? 0 : s.y >= s.z ? 1 : 2;
+            int sideAxis = longAxis == 0 ? (s.y <= s.z ? 1 : 2) : longAxis == 1 ? (s.x <= s.z ? 0 : 2) : (s.x <= s.y ? 0 : 1);
+            Vector3 side = Vector3.zero;
+            side[sideAxis] = s[sideAxis] * 1.05f;
+            _extraShells = new GameObject("RavenfieldVR Shells Beside");
+            _extraShells.layer = Go.layer;
+            _extraShells.transform.SetParent(root, false);
+            for (int n = 1; n <= want; n++)
+            {
+                foreach ((Mesh mesh, Material[] mats, Matrix4x4 local) in pieces)
+                {
+                    var g = new GameObject("shell " + n) { layer = Go.layer };
+                    g.transform.SetParent(_extraShells.transform, false);
+                    g.transform.localPosition = local.GetColumn(3) + (Vector4)(side * n);
+                    g.transform.localRotation = local.rotation;
+                    g.transform.localScale = local.lossyScale;
+                    g.AddComponent<MeshFilter>().sharedMesh = mesh;
+                    var r = g.AddComponent<MeshRenderer>();
+                    r.sharedMaterials = mats;
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+            }
+        }
         /// <summary>The next shell of a handful waits at the port's mouth on the line, counted from where the hand is now (set the frame after).</summary>
         public bool AnchorOnRail;
 

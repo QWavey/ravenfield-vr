@@ -232,7 +232,7 @@ namespace RavenfieldVR.Weapons
                 if (onMag)
                 {
                     RigidPose onIt = RigidPose.Of(mag != null && mag.Go != null ? mag.Go.transform : seated).Multiply(hold.HandInMag);
-                    if (seated == null && (onIt.position - free.position).sqrMagnitude > 0.025f * 0.025f)
+                    if ((onIt.position - free.position).sqrMagnitude > 0.025f * 0.025f) // (seated too: the hand went through the 92g on its seated magazine; user)
                     {
                         // The reload's hold puts the hand off where the glove holds this magazine (the 92g's, its copy 18 cm across, the
                         // hold 3 cm off its part): the arm stays with the glove's hand, which holds it right (the user, 2026-11-14: "the 92g

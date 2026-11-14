@@ -1793,9 +1793,10 @@ namespace RavenfieldVR.Weapons
                     insert = d.AimAxis;
                 }
                 insert = FromUnderTheReceiver(d, insert);
-                Vector3 c = path[best] + rot * d.MagBounds.center;
                 d.MagSeat = new RigidPose(path[best], rot);
                 d.MagEjectAxis = -insert;
+                AtTheReceiversPort(d);
+                Vector3 c = d.MagSeat.position + d.MagSeat.rotation * d.MagBounds.center;
                 d.Notes += $"shells go in at the loading port, where the reload pushes its shell ({Vector3.Dot(c - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
                            + $"{-Vector3.Dot(c - d.MuzzlePoint, d.Up) * 100f:0.0} cm under the bore), {Vector3.Angle(insert, d.AimAxis):0} deg off the bore ";
                 return;
@@ -1809,6 +1810,34 @@ namespace RavenfieldVR.Weapons
         /// side by the ejection port, on every pump gun (the user, 2026-11-14: "the shell goes somewhere wrong inserted when
         /// reloading, its not right where it should be"; the Bryson 800's "shell half into the port" picture).
         /// </summary>
+        /// <summary>
+        /// The loading port is in the receiver's floor, just ahead of the trigger guard: a third of the way from the trigger hand to the
+        /// pump, 8 to 15 cm ahead of the grip. Taken where the reload's shell lies deepest, it was 18 to 21 cm ahead (inside the tube,
+        /// under the pump: the R870's pump starts 31 to 35 cm ahead), on every pump gun (the user, 2026-11-14: "the shell insertion is
+        /// still everywhere wrong"). Moved along the bore only: its height and turn stay as found.
+        /// </summary>
+        private static void AtTheReceiversPort(WeaponRigData d)
+        {
+            float toPump = Vector3.Dot(d.RackPoint - d.GripPoint, d.AimAxis);
+            if (toPump < 0.12f && d.HasSupportPoint)
+            {
+                toPump = Vector3.Dot(d.SupportPoint - d.GripPoint, d.AimAxis);
+            }
+            if (toPump < 0.12f)
+            {
+                return; // (no pump or forend found ahead: the port as found)
+            }
+            float want = Mathf.Clamp(toPump / 3f, 0.08f, 0.15f);
+            Vector3 centre = d.MagSeat.position + d.MagSeat.rotation * d.MagBounds.center;
+            float now = Vector3.Dot(centre - d.GripPoint, d.AimAxis);
+            if (Mathf.Abs(now - want) < 0.01f)
+            {
+                return;
+            }
+            d.MagSeat = new RigidPose(d.MagSeat.position + d.AimAxis * (want - now), d.MagSeat.rotation);
+            d.Notes += $"loading port moved to the receiver's floor: {want * 100f:0} cm ahead of the grip (found at {now * 100f:0}; the pump {toPump * 100f:0}) ";
+        }
+
         private static Vector3 FromUnderTheReceiver(WeaponRigData d, Vector3 insert)
         {
             if (Vector3.Dot(insert, d.Up) >= 0.5f)
@@ -1834,6 +1863,7 @@ namespace RavenfieldVR.Weapons
             Quaternion along = Quaternion.FromToRotation(longGun, d.AimAxis) * lying;
             d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
             d.MagEjectAxis = -FromUnderTheReceiver(d, d.AimAxis);
+            AtTheReceiversPort(d);
             d.Warnings.Add($"loading port estimated ({why}): {Vector3.Dot(port - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
                            + $"3 cm under the bore{(d.HasSupportPoint ? "" : " (no forend found: taken 35 cm ahead of the grip)")}");
         }

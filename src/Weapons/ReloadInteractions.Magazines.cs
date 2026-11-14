@@ -415,6 +415,7 @@ namespace RavenfieldVR.Weapons
             prop.Owner = Ammo;
             prop.Attach(off);
             prop.FollowHand();
+            prop.ShowShellCount(); // (two in the hand drawn as two)
             if (kind == PropKind.Rocket && prop.Go != null)
             {
                 // What the hand holds, once per launcher (a rocket in the hand was reported invisible).
@@ -1201,6 +1202,7 @@ namespace RavenfieldVR.Weapons
                         // after drawing back a little.
                         Ammo.LoadRounds(1);
                         prop.Rounds--;
+                        prop.ShowShellCount();
                         // The next one waits at the port's mouth on its line, its way in counted from where the hand is: a little back
                         // and in again, it goes in. Taken off the line until the hand came back to a third of the way, it was drawn in
                         // the hand, inside the port, and looked loaded while it was not (the user, 2026-11-14: "the shell gets inserted
