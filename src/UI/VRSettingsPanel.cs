@@ -176,7 +176,7 @@ namespace RavenfieldVR.UI
             Choice("Voice chat (multiplayer)", VRConfig.VoiceChat, new[] { false, true }, new[] { "Off", "On" });
             Stepper("Microphone", MicrophoneName, d =>
             {
-                string[] devices = Net.NetVoice.Devices();
+                string[] devices = Net.NetVoice.Devices(fresh: true);
                 int at = System.Array.IndexOf(devices, VRConfig.VoiceDevice.Value);
                 // (-1: the default device, then each by name, round again.)
                 int next = (at + 1 + d + devices.Length + 1) % (devices.Length + 1) - 1;

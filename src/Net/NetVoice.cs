@@ -31,17 +31,26 @@ namespace RavenfieldVR.Net
         private static readonly byte[] Packed = new byte[FrameSamples / 2];
 
         /// <summary>The microphones Windows has (for the settings' choice), the default one first as "".</summary>
-        internal static string[] Devices()
+        internal static string[] Devices(bool fresh = false)
         {
-            try
+            // (Looked up again once a second at most, or when the settings step through them: a new array each read.)
+            if (fresh || _devices == null || Time.unscaledTime - _devicesAt > 1f)
             {
-                return Microphone.devices ?? new string[0];
+                _devicesAt = Time.unscaledTime;
+                try
+                {
+                    _devices = Microphone.devices ?? new string[0];
+                }
+                catch (Exception)
+                {
+                    _devices = new string[0];
+                }
             }
-            catch (Exception)
-            {
-                return new string[0];
-            }
+            return _devices;
         }
+
+        private static string[] _devices;
+        private static float _devicesAt = -10f;
 
         /// <summary>Whether this player is speaking now (the gate open): for the wrist or a sign.</summary>
         internal static bool Speaking => _mic != null && Time.unscaledTime < _openUntil;
@@ -82,9 +91,9 @@ namespace RavenfieldVR.Net
                 return;
             }
             StopMic();
-            if (devices.Length == 0)
+            if (devices.Length == 0 || Time.unscaledTime < _nextMicTry)
             {
-                return; // (no microphone: heard, not heard from)
+                return; // (no microphone: heard, not heard from; or one that failed, tried again in a while)
             }
             try
             {
@@ -93,6 +102,12 @@ namespace RavenfieldVR.Net
                 // (16 kHz where the device does it; a device of one fixed rate is recorded at that and brought to 16 kHz here.)
                 _micRate = min == 0 && max == 0 ? Rate : Mathf.Clamp(Rate, min, max);
                 _mic = Microphone.Start(name, true, 1, _micRate);
+                if (_mic == null)
+                {
+                    Log.WarnOnce("voice-mic-null", "Voice: the microphone gave no recording.");
+                    _nextMicTry = Time.unscaledTime + 5f;
+                    return;
+                }
                 _device = want;
                 _readAt = 0;
                 _resampleAt = 0f;
@@ -107,6 +122,8 @@ namespace RavenfieldVR.Net
         }
 
         private static string Name(string device) => device.Length > 0 ? device : null;
+
+        private static float _nextMicTry;
 
         private static void StopMic()
         {
@@ -144,18 +161,17 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
-            if (_whole == null || _whole.Length != length)
-            {
-                _whole = new float[length]; // (the whole looping second, once: read each frame into the same array)
-            }
             if (_micBuffer.Length < count)
             {
                 _micBuffer = new float[Mathf.NextPowerOfTwo(count)];
             }
-            _mic.GetData(_whole, 0);
-            for (int i = 0; i < count; i++)
+            // Only what is new, in at most two pieces (up to the clip's end, and on from its start), each through an array of one
+            // fixed size: the whole second was copied each frame before (64 kB).
+            int first = Mathf.Min(count, length - _readAt);
+            ReadSpan(_readAt, first, 0);
+            if (count > first)
             {
-                _micBuffer[i] = _whole[(_readAt + i) % length];
+                ReadSpan(0, count - first, first);
             }
             _readAt = at;
             float step = _micRate / (float)Rate;
@@ -171,7 +187,21 @@ namespace RavenfieldVR.Net
             }
         }
 
-        private static float[] _whole;
+        private static readonly float[] Chunk = new float[256];
+
+        /// <summary>count samples of the clip from <paramref name="from"/> into the buffer at <paramref name="to"/>, 256 at a time.</summary>
+        private static void ReadSpan(int from, int count, int to)
+        {
+            int length = _mic.samples;
+            for (int done = 0; done < count; done += Chunk.Length)
+            {
+                int n = Mathf.Min(Chunk.Length, count - done);
+                // (GetData fills the whole array: a chunk read near the clip's end wraps round to its start, which is where the next
+                // piece goes on anyway; only n of it are kept.)
+                _mic.GetData(Chunk, (from + done) % length);
+                Array.Copy(Chunk, 0, _micBuffer, to + done, n);
+            }
+        }
 
         private static void SendFrame(NetSession session)
         {
@@ -265,6 +295,8 @@ namespace RavenfieldVR.Net
             private readonly byte _player;
             private readonly GameObject _go;
             private readonly AudioSource _source;
+            private readonly AudioClip _clip;
+            private float _gain = 1f; // VoiceVolume, read on the main thread (the audio thread only multiplies by it)
             private readonly float[] _ring = new float[Rate]; // one second
             private int _write, _read, _count;
             private bool _primed;
@@ -279,15 +311,15 @@ namespace RavenfieldVR.Net
                 _go = new GameObject("RavenfieldVR Voice " + player);
                 UnityEngine.Object.DontDestroyOnLoad(_go);
                 _source = _go.AddComponent<AudioSource>();
-                AudioClip clip = AudioClip.Create("RavenfieldVR Voice", Rate, 1, Rate, true, Read);
-                _source.clip = clip;
+                _clip = AudioClip.Create("RavenfieldVR Voice", Rate, 1, Rate, true, Read);
+                _source.clip = _clip;
                 _source.loop = true;
                 _source.spatialBlend = 1f;
                 _source.minDistance = 2f;
                 _source.maxDistance = 70f;
                 _source.rolloffMode = AudioRolloffMode.Linear;
                 _source.dopplerLevel = 0f;
-                _source.volume = Mathf.Clamp(VRConfig.VoiceVolume.Value, 0f, 2f);
+                _source.volume = 1f;
                 _source.Play();
             }
 
@@ -333,7 +365,7 @@ namespace RavenfieldVR.Net
                     {
                         if (_primed && _count > 0)
                         {
-                            data[i] = _ring[_read];
+                            data[i] = Mathf.Clamp(_ring[_read] * _gain, -1f, 1f); // (an AudioSource's volume ends at 1: louder here)
                             _read = (_read + 1) % _ring.Length;
                             _count--;
                         }
@@ -353,7 +385,7 @@ namespace RavenfieldVR.Net
                 {
                     return;
                 }
-                _source.volume = Mathf.Clamp(VRConfig.VoiceVolume.Value, 0f, 2f);
+                _gain = Mathf.Clamp(VRConfig.VoiceVolume.Value, 0f, 2f);
                 NetGame.Remote remote = NetGame.RemoteOf(_player, 0);
                 Actor a = remote != null ? remote.Actor : null;
                 if (a != null && !a.dead)
@@ -370,9 +402,18 @@ namespace RavenfieldVR.Net
 
             public void Destroy()
             {
+                if (_source != null)
+                {
+                    _source.Stop();
+                    _source.clip = null;
+                }
                 if (_go != null)
                 {
                     UnityEngine.Object.Destroy(_go);
+                }
+                if (_clip != null)
+                {
+                    UnityEngine.Object.Destroy(_clip); // (a streamed clip per voice: it outlived its object before)
                 }
             }
         }

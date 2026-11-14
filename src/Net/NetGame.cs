@@ -226,7 +226,7 @@ namespace RavenfieldVR.Net
             Application.onBeforeRender += FlatBeforeRender;
             // (What every player tells of his soldiers goes on unreliably through the host too: relayed reliably, one lost packet
             // held every later hit and match start back on that line. Review of 2026-11-10.)
-            session.ReliableKind = k => k != ActorStates && k != VrPose && k != VehicleStates;
+            session.ReliableKind = k => k != ActorStates && k != VrPose && k != VehicleStates && k != Voice; // (voice: late is worse than lost)
             Patch();
             // A game hosted from inside a running match: who joins is told that match (it was only told at a level's start).
             if (session.IsHost && InMatch && GameManager.instance.lastMapEntry != null)
@@ -1620,7 +1620,7 @@ namespace RavenfieldVR.Net
         {
             NetSpots.Update(); // (also while the line is down: a mark still times out)
             NetSession session = _session;
-            NetVoice.Update(session); // (in the menu too: talked over before a match; it closes the microphone when off or alone)
+            NetVoice.Update(session); // (it closes the microphone when off, alone or not connected)
             if (session == null || session.State != NetState.Connected)
             {
                 return;

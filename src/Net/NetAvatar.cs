@@ -65,6 +65,7 @@ namespace RavenfieldVR.Net
             public GameObject SecondCopy;
             public Weapon SecondCopyOf;
             public Vector3 SecondModelPos;
+            public AudioSource SecondSound;
             public Quaternion SecondModelRot = Quaternion.identity;
             /// <summary>The weapon whose magazine the copy in his hand is (made again when he holds another), and its middle in the copy.</summary>
             public Weapon MagazineOf;
@@ -194,13 +195,30 @@ namespace RavenfieldVR.Net
         {
             Actor a = remote.Actor;
             Weapon w = a != null && a.weapons != null && p.SecondSlot < a.weapons.Length ? a.weapons[p.SecondSlot] : null;
-            AudioSource sound = w != null ? w.audio : null;
-            if (sound == null || sound.clip == null)
+            AudioSource own = w != null ? w.audio : null;
+            if (own == null || p.SecondCopy == null)
             {
                 return;
             }
-            Vector3 at = a.Position() + p.SecondAt;
-            AudioSource.PlayClipAtPoint(sound.clip, at, Mathf.Clamp01(sound.volume));
+            // The game's own fire clips of that gun (one picked as it picks them), else its source's clip, through a source on the
+            // copy in his hand set as the gun's own (its mixer group, so the game's volume applies; its distances).
+            AudioClip clip = w.fireClips != null && w.fireClips.Length > 0 ? w.fireClips[Random.Range(0, w.fireClips.Length)] : own.clip;
+            if (clip == null)
+            {
+                return;
+            }
+            if (p.SecondSound == null)
+            {
+                p.SecondSound = p.SecondCopy.AddComponent<AudioSource>();
+                p.SecondSound.playOnAwake = false;
+                p.SecondSound.outputAudioMixerGroup = own.outputAudioMixerGroup;
+                p.SecondSound.spatialBlend = 1f;
+                p.SecondSound.rolloffMode = own.rolloffMode;
+                p.SecondSound.minDistance = own.minDistance;
+                p.SecondSound.maxDistance = own.maxDistance;
+                p.SecondSound.dopplerLevel = 0f;
+            }
+            p.SecondSound.PlayOneShot(clip, Mathf.Clamp01(own.volume > 0f ? own.volume : 1f));
         }
 
         /// <summary>
@@ -217,9 +235,16 @@ namespace RavenfieldVR.Net
                 Object.Destroy(p.SecondCopy);
                 p.SecondCopy = null;
                 p.SecondCopyOf = null;
+                p.SecondSound = null;
             }
             if (w == null || w.thirdPersonTransform == null)
             {
+                if (p.SecondCopy != null)
+                {
+                    Object.Destroy(p.SecondCopy); // (his weapon gone from under it: not left hanging in the air)
+                    p.SecondCopy = null;
+                    p.SecondCopyOf = null;
+                }
                 return;
             }
             if (p.SecondCopy == null)
@@ -336,17 +361,25 @@ namespace RavenfieldVR.Net
             {
                 int slot = r.Byte();
                 byte shots = r.Byte();
-                if (slot != 255 && r.Remaining > 0)
+                if (slot != 255 && r.Remaining >= 7)
                 {
                     p.SecondSlot = slot;
                     p.SecondAt = Vector3.ClampMagnitude(r.SmallVector(), 4f);
                     p.SecondRot = r.Rotation();
                 }
-                if (p.SecondShotsKnown && shots != p.SecondShots && p.SecondSlot >= 0)
+                int delta = (byte)(shots - p.SecondShots);
+                if (p.SecondShotsKnown && p.SecondSlot >= 0 && delta >= 1 && delta <= 127)
                 {
-                    SecondShot(remote, p);
+                    // (Only a count ahead of the last: a late packet's older count played a shot again.)
+                    for (int i = 0; i < Mathf.Min(delta, 3); i++)
+                    {
+                        SecondShot(remote, p);
+                    }
                 }
-                p.SecondShots = shots;
+                if (!p.SecondShotsKnown || delta >= 1 && delta <= 127)
+                {
+                    p.SecondShots = shots;
+                }
                 p.SecondShotsKnown = true;
             }
             // (Held to what an arm can do: a broken or made-up message does not throw a hand a kilometre off.)
@@ -1099,7 +1132,7 @@ namespace RavenfieldVR.Net
             {
                 Weapon w = alive && a.weapons != null && slot < a.weapons.Length ? a.weapons[slot] : null;
                 bool show = w != null && w != a.activeWeapon && w.thirdPersonTransform != null && !a.fallenOver
-                            && !(r.Pose != null && r.Pose.Fresh && r.Pose.SecondSlot == slot); // (in his free hand, not on his hip)
+                            && !(r.Pose != null && r.Pose.SecondCopy != null && r.Pose.SecondSlot == slot); // (shown in his free hand, not on his hip)
                 Carried c = slots[slot];
                 if (c != null && (c.Copy == null || c.Source != w))
                 {
