@@ -1144,7 +1144,18 @@ namespace RavenfieldVR.Weapons
         private System.Func<Vector3, bool> _partSolid;
 
         /// <summary>The part a racking hand holds: a separate charging handle, else the slide, bolt or pump.</summary>
-        private Transform WorkedPart => Rig.Data.HandlePath != null && Rig.Handle != null ? Rig.Handle : Rig.Slide;
+        private Transform WorkedPart => Rig.Data.HandlePath != null && Rig.Handle != null && !PumpIsTheSlide ? Rig.Handle : Rig.Slide;
+
+        private static readonly System.Text.RegularExpressions.Regex PumpName = new System.Text.RegularExpressions.Regex(
+            @"pump|fore-?end|hand-?guard|护木|泵", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A shotgun's pump found as its slide (named so) with an inner piece riding along as its handle: the hand holds the pump.
+        /// The MW22 Bryson 800 (workshop 3456490800): slide '护木.001' (the handguard), handle '弹仓.001'; the fingers closed on
+        /// the inner piece and the pump's place at rest, 1 of 4 on the part (2026-11-14).
+        /// </summary>
+        private bool PumpIsTheSlide => Rig.Slide != null && Rig.Handle != null && Rig.Data.Action == ActionType.ShellFed
+                                       && PumpName.IsMatch(Rig.Slide.name) && !PumpName.IsMatch(Rig.Handle.name);
 
         /// <summary>
         /// The hand working the action (racking a slide, pulling a bolt or charging handle, pumping) closes on the part it
