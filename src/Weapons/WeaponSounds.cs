@@ -572,6 +572,7 @@ namespace RavenfieldVR.Weapons
                     }
                     if (played)
                     {
+                        Log.InfoOnce("sound:" + _rig.Data.Key + ":" + kind, $"{_rig.Data.Key}: {kind} played by its own sound.");
                         return;
                     }
                 }
@@ -588,8 +589,10 @@ namespace RavenfieldVR.Weapons
                 SoundCue donor = SoundDonors.Find(_rig.Data, kind);
                 if (donor != null && PlayCue(donor, volume))
                 {
+                    Log.InfoOnce("sound:" + _rig.Data.Key + ":" + kind, $"{_rig.Data.Key}: {kind} played by the lent sound.");
                     return;
                 }
+                Log.InfoOnce("sound:" + _rig.Data.Key + ":" + kind, $"{_rig.Data.Key}: {kind} played by the game's own ({(donor == null ? "none lent" : "the lent one did not play")}).");
             }
             _voices.Play(kind, position, volume, 0f, _rig.Data);
         }

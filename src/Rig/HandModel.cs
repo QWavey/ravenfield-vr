@@ -40,6 +40,60 @@ namespace RavenfieldVR.Rig
         /// <summary>Self-test: the glove is drawn.</summary>
         internal bool Visible => _visible;
         private Vector3 _graspOffset;
+
+        /// <summary>The level's solids (Ravenfield's ground and building layers), without soldiers' bodies (hands take those).</summary>
+        private const int WorldMask = 2232321 & ~((1 << 8) | (1 << 10) | (1 << 16) | (1 << 17));
+        private Vector3 _worldPalm;
+        private bool _worldPalmValid;
+
+        /// <summary>
+        /// An empty hand stops at walls and the ground as the gun does (its stand-in is a body the level holds back): the palm is
+        /// swept from where it was drawn toward where the tracked hand wants it, stops at the level's surface and slides along it,
+        /// and goes back to the tracked hand once that is 30 cm through (as the gun's 45 cm jump). The hands went through walls
+        /// and objects while the guns did not (the user, 2026-11-14). Not in a vehicle (its cockpit's controls are inside its
+        /// colliders) and not while the glove is on a grip.
+        /// </summary>
+        private Vector3 KeepOutOfWorld(Vector3 position, Quaternion rotation)
+        {
+            Actor me = ActorManager.instance != null ? FpsActorController.instance?.actor : null;
+            if (_hand.Role != HandRole.Free || _snapBlend > 0f || me == null || me.dead || me.IsSeated())
+            {
+                _worldPalmValid = false;
+                return position;
+            }
+            Vector3 hollow = rotation * new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
+            Vector3 want = position + hollow;
+            if (!_worldPalmValid || (want - _worldPalm).sqrMagnitude > 0.3f * 0.3f)
+            {
+                _worldPalmValid = true;
+                _worldPalm = want;
+                return position;
+            }
+            const float Radius = 0.04f;
+            Vector3 at = _worldPalm;
+            Vector3 move = want - at;
+            float len = move.magnitude;
+            if (len > 1e-4f)
+            {
+                if (Physics.SphereCast(at, Radius, move / len, out RaycastHit hit, len, WorldMask, QueryTriggerInteraction.Ignore))
+                {
+                    at += move / len * Mathf.Max(0f, hit.distance - 0.002f);
+                    // What is left slides along the surface (a hand moved along a wall keeps moving with it).
+                    Vector3 slide = Vector3.ProjectOnPlane(want - at, hit.normal);
+                    float sl = slide.magnitude;
+                    if (sl > 1e-4f && !Physics.SphereCast(at, Radius * 0.95f, slide / sl, out _, sl, WorldMask, QueryTriggerInteraction.Ignore))
+                    {
+                        at += slide;
+                    }
+                }
+                else
+                {
+                    at = want;
+                }
+            }
+            _worldPalm = at;
+            return position + (at - want);
+        }
         /// <summary>
         /// Keep the glove where it was drawn against the tracked hand (no anchor of its own): a support hand the gun was passed to
         /// went back onto the tracked hand, a few centimetres along the gun, as the trigger hand let go (the user, 2026-11-14).
@@ -866,6 +920,7 @@ namespace RavenfieldVR.Rig
                 position = Vector3.Lerp(position, _lastSnap.position, e);
                 rotation = Quaternion.Slerp(rotation, _lastSnap.rotation, e);
             }
+            position = KeepOutOfWorld(position, rotation);
             _skinRootPos = position; // where the skin below is posed (see TrackedShift)
             _root.SetPositionAndRotation(position, rotation);
 
