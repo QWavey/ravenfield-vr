@@ -72,6 +72,8 @@ namespace RavenfieldVR.Local
                         : !sent ? "local: Raw Input on (window " + RawInput.Window.ToInt64().ToString("X") + "), the check's key could not be sent"
                         : keyHeard ? "local: Raw Input on the game's window " + RawInput.Window.ToInt64().ToString("X") + ", a key sent through Windows heard"
                         : "local: Raw Input on, a key sent through Windows NOT HEARD within 30 frames");
+                    report($"local: Raw Input: {RawInput.Messages} message(s) on the window, {RawInput.Errors} not read{(RawInput.LastError != null ? " (" + RawInput.LastError + ")" : "")}, "
+                           + $"{RawInput.Count(false)} keyboard(s) and {RawInput.Count(true)} mouse/mice heard; messages on thread {RawInput.ProcThread}, Unity's {RawInput.MainThread}");
                 }
                 foreach (SplitPlayer p in all)
                 {

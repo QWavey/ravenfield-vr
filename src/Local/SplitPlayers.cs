@@ -625,21 +625,40 @@ namespace RavenfieldVR.Local
             }
             _harmony = new Harmony(PluginInfo.Guid + ".split");
             Type ai = typeof(AiActorController);
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Velocity)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitVelocity)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.FacingDirection)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitFacing)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.WantsToFire)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitFire)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Crouch)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitCrouch)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Prone)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitNo)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Jump)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitJump)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Aiming)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitAim)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.HoldingSprint)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSprint)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.IsSprinting)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSprint)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Reload)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitNo)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.CarInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
-            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.BoatInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
-            _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchWeapon)), prefix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSwitch)));
-            _harmony.Patch(AccessTools.Method(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(MuteSteamPads)));
-            _harmony.Patch(AccessTools.Method(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(MuteUnityPads)));
+            // Each on its own: one the game lacks (another version) is said and the others still applied.
+            void One(Type type, string method, string patch, bool prefix)
+            {
+                try
+                {
+                    var target = AccessTools.Method(type, method);
+                    if (target == null)
+                    {
+                        Log.Warn($"Splitscreen: {type.Name}.{method} not found in this game version; its answer for the players is not taken.");
+                        return;
+                    }
+                    var hm = new HarmonyMethod(typeof(SplitPlayers), patch);
+                    _harmony.Patch(target, prefix: prefix ? hm : null, postfix: prefix ? null : hm);
+                }
+                catch (Exception e)
+                {
+                    Log.Warn($"Splitscreen: {type.Name}.{method} could not be patched: {e.Message}");
+                }
+            }
+            One(ai, nameof(AiActorController.Velocity), nameof(SplitVelocity), false);
+            One(ai, nameof(AiActorController.FacingDirection), nameof(SplitFacing), false);
+            One(ai, nameof(AiActorController.WantsToFire), nameof(SplitFire), false);
+            One(ai, nameof(AiActorController.Crouch), nameof(SplitCrouch), false);
+            One(ai, nameof(AiActorController.Prone), nameof(SplitNo), false);
+            One(ai, nameof(AiActorController.Jump), nameof(SplitJump), false);
+            One(ai, nameof(AiActorController.Aiming), nameof(SplitAim), false);
+            One(ai, nameof(AiActorController.HoldingSprint), nameof(SplitSprint), false);
+            One(ai, nameof(AiActorController.IsSprinting), nameof(SplitSprint), false);
+            One(ai, nameof(AiActorController.Reload), nameof(SplitNo), false);
+            One(ai, nameof(AiActorController.CarInput), nameof(SplitDrive), false);
+            One(ai, nameof(AiActorController.BoatInput), nameof(SplitDrive), false);
+            One(typeof(Actor), nameof(Actor.SwitchWeapon), nameof(SplitSwitch), true);
+            One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam), nameof(MuteSteamPads), false);
+            One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity), nameof(MuteUnityPads), false);
         }
 
         private static bool _switching;

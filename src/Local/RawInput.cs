@@ -21,9 +21,12 @@ namespace RavenfieldVR.Local
 
         public Vector2 ConsumeDelta()
         {
-            Vector2 d = Delta;
-            Delta = Vector2.zero;
-            return d;
+            lock (RawInput.Gate)
+            {
+                Vector2 d = Delta;
+                Delta = Vector2.zero;
+                return d;
+            }
         }
     }
 
@@ -123,14 +126,25 @@ namespace RavenfieldVR.Local
 
         public static bool Started => _installed;
 
+        /// <summary>Check: WM_INPUT messages the window had, and how many could not be read (with the last reason).</summary>
+        internal static int Messages, Errors;
+        internal static string LastError;
+        /// <summary>The thread the window's messages come on, against Unity's (its window may have a thread of its own).</summary>
+        internal static int ProcThread, MainThread;
+
+        internal static readonly object Gate = new object();
+
         /// <summary>The n-th keyboard or mouse heard (0: the first), or null.</summary>
         public static RawDevice Nth(bool mouse, int n)
         {
-            foreach (RawDevice d in Devices.Values)
+            lock (Gate)
             {
-                if (d.IsMouse == mouse && d.Order == n)
+                foreach (RawDevice d in Devices.Values)
                 {
-                    return d;
+                    if (d.IsMouse == mouse && d.Order == n)
+                    {
+                        return d;
+                    }
                 }
             }
             return null;
@@ -141,11 +155,14 @@ namespace RavenfieldVR.Local
         /// <summary>Check: a key held on any keyboard heard.</summary>
         internal static bool AnyKeyHeld(int vk)
         {
-            foreach (RawDevice d in Devices.Values)
+            lock (Gate)
             {
-                if (!d.IsMouse && d.Keys[vk])
+                foreach (RawDevice d in Devices.Values)
                 {
-                    return true;
+                    if (!d.IsMouse && d.Keys[vk])
+                    {
+                        return true;
+                    }
                 }
             }
             return false;
@@ -185,6 +202,7 @@ namespace RavenfieldVR.Local
                 {
                     throw new InvalidOperationException("no game window");
                 }
+                MainThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
                 RememberUnitysOwn();
                 ClearHeld();
                 _hook = _hook ?? Proc; // (kept for good once made: the window may still call it after a restore that did not take)
@@ -238,11 +256,14 @@ namespace RavenfieldVR.Local
         /// <summary>Every key and button let go and movement dropped: a let-go not heard while stopped kept a soldier walking or firing.</summary>
         private static void ClearHeld()
         {
-            foreach (RawDevice d in Devices.Values)
+            lock (Gate)
             {
-                Array.Clear(d.Keys, 0, d.Keys.Length);
-                d.Left = d.Right = d.Middle = false;
-                d.Delta = Vector2.zero;
+                foreach (RawDevice d in Devices.Values)
+                {
+                    Array.Clear(d.Keys, 0, d.Keys.Length);
+                    d.Left = d.Right = d.Middle = false;
+                    d.Delta = Vector2.zero;
+                }
             }
         }
 
@@ -339,13 +360,20 @@ namespace RavenfieldVR.Local
         {
             if (msg == WM_INPUT)
             {
+                Messages++;
+                ProcThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
                 try
                 {
-                    Read(lParam);
+                    lock (Gate)
+                    {
+                        Read(lParam);
+                    }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
                     // (never thrown back into the window's message loop)
+                    Errors++;
+                    LastError = e.GetType().Name + ": " + e.Message;
                 }
                 if (_blocking)
                 {
@@ -394,7 +422,7 @@ namespace RavenfieldVR.Local
                 d = new RawDevice { Handle = device, IsMouse = mouse, Order = mouse ? _mice++ : _keyboards++ };
                 Devices[device] = d;
             }
-            d.LastActive = Time.unscaledTime;
+            d.LastActive = Environment.TickCount / 1000f; // (not Unity's clock: the window's messages may come on a thread of their own)
             if (mouse)
             {
                 // RAWMOUSE: usFlags at 0, usButtonFlags at 4, usButtonData at 6, lLastX at 12, lLastY at 16.
