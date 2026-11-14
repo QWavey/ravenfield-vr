@@ -585,6 +585,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Per weapon type: how much of its slide is seen from outside at rest (-1: not measurable).</summary>
         private static readonly Dictionary<string, float> SlideSeen = new Dictionary<string, float>();
+        /// <summary>From how many of its four sides each type's slide is seen (2% at least), with <see cref="SlideSeen"/>.</summary>
+        private static readonly Dictionary<string, int> SlideSides = new Dictionary<string, int>();
         /// <summary>Weapon types whose slide is being measured now: its pictures come back from the GPU a frame or two later.</summary>
         private static readonly HashSet<string> SlideMeasuring = new HashSet<string>();
         /// <summary>
@@ -594,6 +596,7 @@ namespace RavenfieldVR.Weapons
         internal static void ClearNameCaches()
         {
             SlideSeen.Clear();
+            SlideSides.Clear();
             SlideMeasuring.Clear();
             RenderedShapeBetter.Clear();
         }
@@ -665,6 +668,12 @@ namespace RavenfieldVR.Weapons
                             return; // given up between its views: measured again on a later hold
                         }
                         SlideSeen[key] = share;
+                        int sides = 0;
+                        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(views ?? "", @"(\d+)%"))
+                        {
+                            sides += int.Parse(m.Groups[1].Value) >= 2 ? 1 : 0;
+                        }
+                        SlideSides[key] = sides;
                         Log.Info($"{key}: its slide '{slideName}' is {(share < 0f ? "not measurable" : $"{share * 100f:0}% seen from outside ({views})")}.");
                         if (!_releasedHold && Rig != null && Rig.Data.Key == key)
                         {
@@ -692,6 +701,14 @@ namespace RavenfieldVR.Weapons
             WeaponRigData d = Rig.Data;
             if (seen < 0f || seen >= 0.2f || _boltPiece != null)
             {
+                return;
+            }
+            if (seen >= 0.02f && SlideSides.TryGetValue(d.Key, out int sides) && sides >= 3)
+            {
+                // Seen a little from three sides or more: its own handle sticks out of the receiver (the PPSh-41's, 3% seen, from
+                // the right, top and bottom), and a knob there was a second, made one on it (the user, 2026-11-14: "a weird thing added
+                // by us on the pull back thingy"). A bolt seen only through its port (the GREASER's, right and top) still gets one.
+                Log.InfoOnce("hiddenknob-no:" + d.Key, $"{d.Key}: its slide is seen from {sides} sides ({seen * 100f:0}%): its own handle shows, no knob added.");
                 return;
             }
             try

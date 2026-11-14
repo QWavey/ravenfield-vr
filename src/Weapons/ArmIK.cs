@@ -231,7 +231,19 @@ namespace RavenfieldVR.Weapons
                 // 2026-10-29: the weapon's hand sat off the magazine with the handguard's grip). Eased on and off.
                 if (onMag)
                 {
-                    _lastOnMag = RigidPose.Of(mag != null && mag.Go != null ? mag.Go.transform : seated).Multiply(hold.HandInMag);
+                    RigidPose onIt = RigidPose.Of(mag != null && mag.Go != null ? mag.Go.transform : seated).Multiply(hold.HandInMag);
+                    if (seated == null && (onIt.position - free.position).sqrMagnitude > 0.025f * 0.025f)
+                    {
+                        // The reload's hold puts the hand off where the glove holds this magazine (the 92g's, its copy 18 cm across, the
+                        // hold 3 cm off its part): the arm stays with the glove's hand, which holds it right (the user, 2026-11-14: "the 92g
+                        // mag gets held weirdly and not in the hand, floats in the air a little", with the weapon's arms only).
+                        Log.InfoOnce("maghold-off:" + _held.Rig.Data.Key, $"{_held.Rig.Data.Key}: its reload's magazine hold is {(onIt.position - free.position).magnitude * 100f:0.0} cm off the glove's hold: the weapon's hand stays with the glove.");
+                        onMag = false;
+                    }
+                    else
+                    {
+                        _lastOnMag = onIt;
+                    }
                 }
                 _onMagBlend = Mathf.MoveTowards(_onMagBlend, onMag ? 1f : 0f, easeDt * 10f);
                 float m = _onMagBlend * _onMagBlend * (3f - 2f * _onMagBlend);
