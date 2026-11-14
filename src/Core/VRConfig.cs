@@ -38,6 +38,7 @@ namespace RavenfieldVR.Core
         // General
         public static ConfigEntry<bool> EnableVR;
         public static ConfigEntry<bool> AutoStartSteamVR;
+        public static ConfigEntry<bool> NoSteamVRTheater;
         public static ConfigEntry<Handedness> DominantHand;
 
         // Rendering
@@ -181,6 +182,11 @@ namespace RavenfieldVR.Core
                 "Start the game in VR. Turn off to play flat with the mod installed.");
             AutoStartSteamVR = cfg.Bind("General", "AutoStartSteamVR", false,
                 "Start SteamVR yourself when the game launches and a headset driver reports a headset. Off: VR starts only if SteamVR is already running (or with -vr), so flat play never opens SteamVR.");
+            NoSteamVRTheater = cfg.Bind("General", "NoSteamVRTheater", true,
+                "Keep SteamVR from opening its dashboard theater when the game starts (SteamVR takes Ravenfield, started by Steam as a flat game, for one "
+                + "to show on its theater screen, and the dashboard had to be closed by hand each time). Sets SteamVR's own setting "
+                + "dashboard/autoShowGameTheater to off, from the next start of the game on; turn this off here and that setting on again in "
+                + "SteamVR to have the theater back.");
             DominantHand = cfg.Bind("General", "DominantHand", Handedness.Right,
                 "Hand that holds the weapon. The other hand handles foregrips, magazines and slides.");
             // The bindings are mirrored once, at startup (VRInput.ExtractManifests): the setting's "(restart)" applies there

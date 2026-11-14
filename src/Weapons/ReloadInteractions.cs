@@ -1136,7 +1136,8 @@ namespace RavenfieldVR.Weapons
             DrawAlmostSeated();
             // Press check: eased back part way (not far enough to throw it out), the chambered round shows in the port.
             float open = Ammo != null && Ammo.UsesChamber ? Fraction : 0f;
-            Casings.ShowChamber(_held, open > 0.12f && open < 0.8f && (Ammo.Chambered || Ammo.SpentInChamber), Ammo != null && Ammo.Chambered);
+            // (From 30% of the stroke: from 12% it showed with the slide barely moved, the port still shut over it; user, 2026-11-14.)
+            Casings.ShowChamber(_held, open > 0.3f && open < 0.8f && (Ammo.Chambered || Ammo.SpentInChamber), Ammo != null && Ammo.Chambered);
             VRHand off = _sys.Rig.Off;
             UpdateGraspAnchor(off);
             UpdateBeltStrip(off);

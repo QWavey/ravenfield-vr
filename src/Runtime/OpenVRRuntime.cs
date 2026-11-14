@@ -28,6 +28,36 @@ namespace RavenfieldVR.Runtime
 
         public static bool DashboardOpen { get; private set; }
 
+        /// <summary>
+        /// SteamVR's "show games in the theater" off (<see cref="VRConfig.NoSteamVRTheater"/>): it opened the dashboard at every start,
+        /// taking the game for a flat one, and the user had to click back into the game (2026-11-14). It counts from the next start.
+        /// </summary>
+        private static void KeepTheaterShut()
+        {
+            if (!VRConfig.NoSteamVRTheater.Value || OpenVR.Settings == null)
+            {
+                return;
+            }
+            try
+            {
+                EVRSettingsError err = EVRSettingsError.None;
+                bool on = OpenVR.Settings.GetBool("dashboard", "autoShowGameTheater", ref err);
+                if (err == EVRSettingsError.None && !on)
+                {
+                    return;
+                }
+                err = EVRSettingsError.None;
+                OpenVR.Settings.SetBool("dashboard", "autoShowGameTheater", false, ref err);
+                Log.Info(err == EVRSettingsError.None
+                    ? "SteamVR's game theater set not to open on its own (dashboard/autoShowGameTheater off; setting NoSteamVRTheater): from the next start no dashboard at the start."
+                    : "SteamVR's game theater could not be set off: " + err + ".");
+            }
+            catch (System.Exception e)
+            {
+                Log.Warn("SteamVR's game theater setting not changed: " + e.Message);
+            }
+        }
+
         /// <summary>Unity's XR tracking origin mode, for diagnostics.</summary>
         public static string TrackingOriginName => InputSubsystem != null ? InputSubsystem.GetTrackingOriginMode().ToString() : "none";
 
@@ -109,6 +139,7 @@ namespace RavenfieldVR.Runtime
                 OpenVR.Compositor?.SetTrackingSpace(ETrackingUniverseOrigin.TrackingUniverseStanding);
 
                 ApplyLiveSettings();
+                KeepTheaterShut();
                 Running = true;
                 LastError = null;
                 // SteamVR's own figures: Unity's eye size and refresh rate read 0x0 and 0 Hz this early (the user's log through

@@ -108,6 +108,7 @@ class NullHeadset:
             cfg['steamvr']['forcedDriver'] = 'null'
             cfg['steamvr']['activateMultipleDrivers'] = False
             cfg['steamvr']['enableHomeApp'] = False
+            cfg.setdefault('dashboard', {})['autoShowGameTheater'] = False  # (else the dashboard opened over the game at its start)
             cfg['driver_null'] = {'displayFrequency': 90, 'enable': True, 'renderHeight': h, 'renderWidth': w,
                                   'secondsFromVsyncToPhotons': 0.011, 'windowHeight': h, 'windowWidth': w}
             with open(STEAMVR_CFG, 'w', encoding='utf-8') as f:

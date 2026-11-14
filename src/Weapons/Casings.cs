@@ -633,7 +633,13 @@ namespace RavenfieldVR.Weapons
             Vector3 right = rig.DirToWorld(Vector3.Cross(rig.Data.Up, rig.Data.AimAxis).normalized);
             float length = own != null ? mesh.bounds.size[own.Axis] * own.Scale[own.Axis] : mesh.bounds.size.z;
             Quaternion look = Quaternion.LookRotation(aim, rig.UpWorld);
-            _chamber.transform.SetPositionAndRotation(port.position - right * 0.004f - aim * length * 0.5f, own != null ? look * own.Turn : look);
+            // In the chamber: on the bore's line where the port is along the gun, at most a centimetre toward the port. At the
+            // casing emitter itself (the game's particle point, which many mods put outside the gun) it showed beside the gun and
+            // not in it (the user, 2026-11-14: "besides sometimes and not in the chamber").
+            Vector3 muzzle = rig.ToWorld(rig.Data.MuzzlePoint);
+            Vector3 bore = muzzle + aim * Vector3.Dot(port.position - muzzle, aim);
+            Vector3 at = bore + Vector3.ClampMagnitude(port.position - bore, 0.01f);
+            _chamber.transform.SetPositionAndRotation(at - aim * length * 0.5f, own != null ? look * own.Turn : look);
             if (!_chamber.activeSelf)
             {
                 _chamber.SetActive(true);
