@@ -851,7 +851,7 @@ namespace RavenfieldVR.Weapons
                 Log.Info($"Magazine ({Rounds} rounds) dropped from the {HeldBy.Side} hand by {by}{(LostByHand ? " (lost by the hand)" : "")}.");
             }
             // Let go by the hand at another PC's player's hand, with a gun it fits in his: his now (invention 3, 2026-11-14).
-            if (HeldBy != null && !LostByHand && Net.Multiplayer.Active && Net.NetHandover.TryGive(this))
+            if (HeldBy != null && !LostByHand && !OnRail && !RailOutOnly && Net.Multiplayer.Active && Net.NetHandover.TryGive(this))
             {
                 Destroy("handed over");
                 return;

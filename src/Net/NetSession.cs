@@ -305,7 +305,14 @@ namespace RavenfieldVR.Net
                     : Admit?.Invoke(info, from);
                 if (refuse != null)
                 {
-                    Refused?.Invoke(info, refuse); // (said on the host's side too: he only saw nobody come)
+                    try
+                    {
+                        Refused?.Invoke(info, refuse); // (said on the host's side too: he only saw nobody come)
+                    }
+                    catch (Exception)
+                    {
+                        // (the refusal still goes out)
+                    }
                     _out.Reset();
                     _out.Byte(Reject);
                     _out.String(refuse, 256);

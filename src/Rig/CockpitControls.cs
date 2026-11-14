@@ -620,6 +620,11 @@ namespace RavenfieldVR.Rig
                 }
             }
             _throttleHand = null; // (the lever's setting stays: a menu or a pause does not move it)
+            if (_stickHand.HasValue && VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && VehicleInput.FlightStick.HasValue
+                && VehicleInput.FlightStick.Value.sqrMagnitude > 0.08f * 0.08f)
+            {
+                VehicleInput.Trim = VehicleInput.FlightStick; // (a menu opened with the stick held: it stays where it was, as let go)
+            }
             _stickHand = null;
             _steer = 0f;
             VehicleInput.WheelSteer = null;

@@ -49,6 +49,7 @@ namespace RavenfieldVR.Net
                 Out.Reset();
                 Out.String(entry, 120);
                 Out.VarInt(mag.Rounds);
+                Out.Bool(false); // (a handover, not rounds given back)
                 session.SendTo(r.Owner, NetGame.GiveRounds, Out, true);
                 Log.Info($"Multiplayer: a magazine of {entry} ({mag.Rounds} rounds) handed to {r.Name}.");
                 UI.UISystem.Instance?.Notice?.Show($"Magazine handed to {r.Name}.", 2f);
@@ -62,10 +63,35 @@ namespace RavenfieldVR.Net
         {
             string entry = r.String(120);
             int rounds = r.VarInt();
-            Actor me = LocalPlayer.actor;
-            if (me == null || me.dead || me.weapons == null || rounds <= 0 || rounds > 1000)
+            bool back = r.Remaining > 0 && r.Bool();
+            if (rounds <= 0 || rounds > 1000)
             {
                 return;
+            }
+            int taken = Put(entry, rounds, sender, back);
+            if (!back && taken < rounds)
+            {
+                // What did not fit (no such gun now, a full or endless reserve, dead): back to the giver, once (the magazine was gone
+                // from his hand and its rounds with it; inventions review, 2026-11-14).
+                NetSession session = NetGame.SessionNow;
+                if (session != null && session.State == NetState.Connected)
+                {
+                    Out.Reset();
+                    Out.String(entry, 120);
+                    Out.VarInt(rounds - taken);
+                    Out.Bool(true);
+                    session.SendTo(sender, NetGame.GiveRounds, Out, true);
+                }
+            }
+        }
+
+        /// <summary>Rounds into the reserve of this player's gun of that entry (the one in his hands first): how many it took.</summary>
+        private static int Put(string entry, int rounds, byte sender, bool back)
+        {
+            Actor me = LocalPlayer.actor;
+            if (me == null || me.dead || me.weapons == null)
+            {
+                return 0;
             }
             Weapon fits = null;
             foreach (Weapon w in me.weapons)
@@ -75,16 +101,22 @@ namespace RavenfieldVR.Net
                     fits = w;
                 }
             }
-            if (fits == null || fits.HasInfiniteSpareAmmo())
+            // (Not an endless reserve, nor one the game never fills (-1, or no reserve at all in its configuration).)
+            if (fits == null || fits.HasInfiniteSpareAmmo() || fits.spareAmmo < 0 || fits.configuration == null || fits.configuration.spareAmmo <= 0)
             {
-                return;
+                return 0;
             }
-            int cap = fits.configuration != null && fits.configuration.spareAmmo > 0 ? fits.configuration.spareAmmo : int.MaxValue;
-            int before = Mathf.Max(0, fits.spareAmmo);
-            fits.spareAmmo = (int)Mathf.Min((long)before + rounds, cap);
+            int cap = fits.configuration.spareAmmo;
+            int before = fits.spareAmmo;
+            fits.spareAmmo = Mathf.Min(before + rounds, Mathf.Max(cap, before));
+            int took = fits.spareAmmo - before;
+            if (took <= 0)
+            {
+                return 0;
+            }
             NetPlayer from = NetGame.SessionNow?.Player(sender);
             string name = from != null && from.Info != null && !string.IsNullOrEmpty(from.Info.Name) ? from.Info.Name : "Your friend";
-            UI.UISystem.Instance?.Notice?.Show($"{name} handed you a magazine (+{fits.spareAmmo - before} rounds).", 3f);
+            UI.UISystem.Instance?.Notice?.Show(back ? $"{name} had no room for it: {took} rounds back in your reserve." : $"{name} handed you a magazine (+{took} rounds).", 3f);
             if (VRManager.Active && Rig.VRRig.Instance != null)
             {
                 foreach (Rig.VRHand hand in Rig.VRRig.Instance.Hands)
@@ -95,6 +127,7 @@ namespace RavenfieldVR.Net
                     }
                 }
             }
+            return took;
         }
 
         /// <summary>The weapon entry's name in a key ("name#prefab" here, "name&lt;sep&gt;workshop id" over the line).</summary>

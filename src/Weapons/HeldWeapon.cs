@@ -1681,11 +1681,13 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
-            int n = Physics.OverlapSphereNonAlloc(off.PalmCentre, 0.06f, BraceHits, ~0, QueryTriggerInteraction.Ignore);
+            // (Not the bodies' layers, the player's own or the gun's stand-in: seated, his own hitboxes may hang under the vehicle.)
+            int n = Physics.OverlapSphereNonAlloc(off.PalmCentre, 0.06f, BraceHits, ~PropPhysics.BodyMask, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
             {
                 Collider c = BraceHits[i];
-                if (c != null && (c.attachedRigidbody != null && c.attachedRigidbody == v.rigidbody || c.transform.IsChildOf(v.transform)))
+                if (c != null && !PropPhysics.IsPlayerCollider(c) && !GunCollider.IsStandIn(c)
+                    && (c.attachedRigidbody != null && c.attachedRigidbody == v.rigidbody || c.transform.IsChildOf(v.transform)))
                 {
                     return true;
                 }

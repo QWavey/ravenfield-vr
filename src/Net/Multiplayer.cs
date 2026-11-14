@@ -20,7 +20,8 @@ namespace RavenfieldVR.Net
         private static SteamLobbies _lobbies;
         private static float _nextDescribe;
         private static bool _busy, _listening;
-        private static float _busySince, _listSince;
+        private static float _busySince, _listSince, _refusedAt = -100f;
+        private static string _refusedName;
         private const float SteamAnswerWait = 25f;
         private static int _request;
         private static float _nextListenTry;
@@ -116,6 +117,12 @@ namespace RavenfieldVR.Net
             session.Refused += (info, why) =>
             {
                 string who = info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : "A player";
+                if (who == _refusedName && Time.unscaledTime - _refusedAt < 30f)
+                {
+                    return; // (his hello comes every 2 s: said once, not every time)
+                }
+                _refusedName = who;
+                _refusedAt = Time.unscaledTime;
                 Say($"{who} could not join: {why}.");
                 UI.UISystem.Instance?.Notice?.Show($"{who} could not join: {why}.", 8f);
             };

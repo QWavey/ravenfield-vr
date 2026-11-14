@@ -290,7 +290,7 @@ namespace RavenfieldVR.UI
             // nobody to tell, or the sky on the line, it read GO TO, and the order's sound and grunt went out for nothing.
             SquadOrderPoint vehicle = VehiclePoint();
             string order = !Pointing ? "POINT WITH A HAND" : Enemy != null ? EnemyOrder(Enemy)
-                : !SquadHandSigns.HasSquadmates() ? (SpotsShared ? "SPOT" : "NO SQUAD")
+                : !SquadHandSigns.HasSquadmates() ? (SpotsShared && Line.direction.y >= -0.7f && SpotPoint() != null ? "SPOT" : "NO SQUAD")
                 : Objective != null ? ObjectiveOrder(Objective)
                 : vehicle != null ? VehicleOrder(vehicle)
                 : Line.direction.y < -0.7f ? "REGROUP"
@@ -381,7 +381,8 @@ namespace RavenfieldVR.UI
         }
 
         /// <summary>In a shared match with someone to show it to: a point made with no squad marks the spot for the others (NetSpots).</summary>
-        internal static bool SpotsShared => Net.Multiplayer.Active && Net.Multiplayer.Session != null && Net.Multiplayer.Session.PlayerCount > 1;
+        internal static bool SpotsShared => Net.Multiplayer.Active && Net.Multiplayer.Session != null && Net.Multiplayer.Session.PlayerCount > 1
+                                             && Net.Multiplayer.Session.State == Net.NetState.Connected && Net.NetGame.InMatchNow;
 
         /// <summary>Where the pointing lands, for the others' mark (null: nowhere: the sky, or no line).</summary>
         internal static Vector3? SpotPoint()

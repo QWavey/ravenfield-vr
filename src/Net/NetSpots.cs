@@ -52,7 +52,7 @@ namespace RavenfieldVR.Net
             Vector3 at = r.Vector();
             bool enemy = r.Bool();
             NetSession session = NetGame.SessionNow;
-            if (session == null || !Finite(at) || at.sqrMagnitude > 1e10f)
+            if (session == null || !NetGame.InMatchNow || !Finite(at) || at.sqrMagnitude > 1e10f)
             {
                 return;
             }

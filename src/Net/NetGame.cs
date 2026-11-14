@@ -1613,12 +1613,12 @@ namespace RavenfieldVR.Net
         /// <summary>Once a frame (after the session's own update): my soldiers told, the others' stand-ins kept.</summary>
         internal static void Update()
         {
+            NetSpots.Update(); // (also while the line is down: a mark still times out)
             NetSession session = _session;
             if (session == null || session.State != NetState.Connected)
             {
                 return;
             }
-            NetSpots.Update();
             // The match runs at one speed for everyone: no slow motion, no pause (a pause on one PC left its soldiers standing
             // still on all the others). (The user, 2026-11-10: "Slowmotion shouldnt work in multiplayer.")
             if (Time.timeScale != 1f && session.PlayerCount > 0)
