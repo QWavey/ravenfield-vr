@@ -17,7 +17,7 @@ Invoke-Csc @(
     "-r:$fx/mscorlib.dll", "-r:$fx/System.dll", "-r:$fx/System.Core.dll", "-r:$Managed/UnityEngine.CoreModule.dll",
     (Join-Path $PSScriptRoot 'NetTests.cs'),
     (Join-Path $Root 'src/Net/NetWire.cs'), (Join-Path $Root 'src/Net/NetTransport.cs'), (Join-Path $Root 'src/Net/NetReliable.cs'),
-    (Join-Path $Root 'src/Net/NetSession.cs'), (Join-Path $Root 'src/Net/NetUdp.cs')
+    (Join-Path $Root 'src/Net/NetSession.cs'), (Join-Path $Root 'src/Net/NetUdp.cs'), (Join-Path $Root 'src/Net/NetAdpcm.cs')
 )
 & $exe $Managed
 exit $LASTEXITCODE

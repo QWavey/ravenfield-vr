@@ -60,6 +60,9 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<float> Vignette;
         public static ConfigEntry<bool> VehicleVignette;
         public static ConfigEntry<bool> StickHoldsTrim;
+        public static ConfigEntry<bool> VoiceChat;
+        public static ConfigEntry<string> VoiceDevice;
+        public static ConfigEntry<float> VoiceVolume, VoiceMicGain, VoiceGate;
         public static ConfigEntry<bool> PhysicalCrouch;
         public static ConfigEntry<float> PhysicalCrouchRatio;
         public static ConfigEntry<bool> RoomscaleMovement;
@@ -216,6 +219,17 @@ namespace RavenfieldVR.Core
                 "Whether the movement stick follows where you look or where your off hand points.");
             Vignette = cfg.Bind("Comfort", "Vignette", 0.35f,
                 new ConfigDescription("Tunnel vignette strength while moving or smooth turning (0 = off).", new AcceptableValueRange<float>(0f, 1f)));
+            VoiceChat = cfg.Bind("Multiplayer", "VoiceChat", false,
+                "Voice between the players of a shared match: you hear the others from their soldiers' heads (louder near, quieter far), " +
+                "they hear you while you speak. Off by default (for players on Discord or another voice app); off means neither sent nor heard.");
+            VoiceDevice = cfg.Bind("Multiplayer", "VoiceDevice", "",
+                "The microphone for the voice chat, by its Windows name (empty: the default device). Chosen in the settings' Display tab.");
+            VoiceVolume = cfg.Bind("Multiplayer", "VoiceVolume", 1f,
+                new ConfigDescription("How loud the other players' voices are played.", new AcceptableValueRange<float>(0f, 2f)));
+            VoiceMicGain = cfg.Bind("Multiplayer", "VoiceMicGain", 1f,
+                new ConfigDescription("Your microphone's level, as sent.", new AcceptableValueRange<float>(0.25f, 4f)));
+            VoiceGate = cfg.Bind("Multiplayer", "VoiceGate", 0.015f,
+                new ConfigDescription("How loud you must speak before you are sent (lower: quieter speech goes, more background too).", new AcceptableValueRange<float>(0.002f, 0.2f)));
             StickHoldsTrim = cfg.Bind("Vehicles", "StickHoldsTrim", true,
                 "A plane's grabbed flight stick let go stays where it was (it holds the attitude, as a trimmed stick does) instead of " +
                 "springing back to the middle. Grab it again to go on from there; push the right thumbstick to take over.");

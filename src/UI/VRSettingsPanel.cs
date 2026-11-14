@@ -172,6 +172,26 @@ namespace RavenfieldVR.UI
             Choice("Hold the frame rate (not with Game)", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
             // (A safety setting: on this page whatever else is hidden.)
             Choice("Reduce flashing", VRConfig.ReduceFlashing, new[] { false, true }, new[] { "Off", "On" });
+            // Voice between the players of a shared match (off by default: the user and his friend talk on Discord), and the microphone.
+            Choice("Voice chat (multiplayer)", VRConfig.VoiceChat, new[] { false, true }, new[] { "Off", "On" });
+            Stepper("Microphone", MicrophoneName, d =>
+            {
+                string[] devices = Net.NetVoice.Devices();
+                int at = System.Array.IndexOf(devices, VRConfig.VoiceDevice.Value);
+                // (-1: the default device, then each by name, round again.)
+                int next = (at + 1 + d + devices.Length + 1) % (devices.Length + 1) - 1;
+                VRConfig.VoiceDevice.Value = next < 0 ? "" : devices[next];
+            });
+        }
+
+        private static string MicrophoneName()
+        {
+            string name = VRConfig.VoiceDevice.Value;
+            if (string.IsNullOrEmpty(name))
+            {
+                return "default";
+            }
+            return name.Length > 22 ? name.Substring(0, 21) + "..." : name;
         }
 
         // ---- the tabs shown with ShowAdvanced on ---------------------------------------------------

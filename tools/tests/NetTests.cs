@@ -44,6 +44,7 @@ namespace RavenfieldVR.Tests
             Run(ReliableTests, "reliable");
             Run(SessionTests, "session");
             Run(UdpTests, "udp");
+            Run(VoiceCodecTests, "voice codec");
             Console.WriteLine($"net: {_passed} passed, {_failed} failed");
             return _failed == 0 ? 0 : 1;
         }
@@ -520,6 +521,47 @@ namespace RavenfieldVR.Tests
             Check(alone.Session.State == NetState.Connecting, "a join waits 15 s for its host");
             Step(2.0);
             Check(alone.Session.State == NetState.Closed && alone.Session.CloseReason.Contains("no answer"), "then gives up with a reason: " + alone.Session.CloseReason);
+        }
+
+        private static void VoiceCodecTests()
+        {
+            // A spoken-level sine (300 Hz, a quarter of full scale) and a louder chirp, frame by frame as the voice sends them:
+            // each frame decoded on its own from its header, the signal kept over 20 dB above the coding noise (a telephone voice; 4-bit ADPCM gives about 25 here).
+            const int frame = 320;
+            var input = new short[frame];
+            var packed = new byte[frame / 2];
+            var output = new short[frame];
+            double signal = 0, noise = 0;
+            for (int f = 0; f < 50; f++)
+            {
+                for (int i = 0; i < frame; i++)
+                {
+                    double t = (f * frame + i) / 16000.0;
+                    double amp = f < 25 ? 0.25 : 0.6;
+                    double hz = f < 25 ? 300 : 200 + 40 * f;
+                    input[i] = (short)(amp * 32767 * Math.Sin(2 * Math.PI * hz * t));
+                }
+                Adpcm.Encode(input, packed, out short predictor, out byte index);
+                Adpcm.Decode(packed, predictor, index, output);
+                for (int i = 0; i < frame; i++)
+                {
+                    signal += (double)input[i] * input[i];
+                    double e = input[i] - output[i];
+                    noise += e * e;
+                }
+            }
+            double snr = 10 * Math.Log10(signal / Math.Max(1, noise));
+            Check(snr > 20, $"the voice codec keeps a voice clear ({snr:0.0} dB over its noise)");
+            // A frame lost: the next decodes from its own header all the same.
+            Adpcm.Encode(input, packed, out short p2, out byte i2);
+            Adpcm.Decode(packed, p2, i2, output);
+            double err = 0;
+            for (int i = 0; i < frame; i++)
+            {
+                err += Math.Abs(input[i] - output[i]);
+            }
+            Check(err / frame < 2000, $"a frame decodes alone, after one lost ({err / frame:0} mean error)");
+            Check(packed.Length * 2 == frame, "four bits a sample");
         }
 
         private static void UdpTests()
