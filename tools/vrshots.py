@@ -605,7 +605,29 @@ def main():
     ap.add_argument('--res', default='1440x1584')
     ap.add_argument('--timeout', type=float, default=0)
     ap.add_argument('--game', default=os.path.join(STEAM, 'steamapps', 'common', 'Ravenfield'))
+    ap.add_argument('--subscribe', metavar='IDS', help='workshop ids (comma separated): the game subscribes through its own Steam login, waits '
+                                                       'until they are installed and quits (flat, no SteamVR); then run a check with --mods')
     a = ap.parse_args()
+
+    if a.subscribe:
+        if running('ravenfield.exe'):
+            log('the game is running: close it first')
+            return
+        if not a.no_build and not build_and_install(a.game):
+            return
+        logfile = os.path.join(a.game, 'BepInEx', 'LogOutput.log')
+        keep_player_log(logfile)
+        log(f'subscribing to {a.subscribe} through the game (it quits when Steam has them, 3 minutes at most)')
+        try:
+            subprocess.run([os.path.join(a.game, 'ravenfield.exe'), '-novr', '-nointro', '-rfvr-subscribe=' + a.subscribe,
+                            '-screen-fullscreen', '0', '-screen-width', '960', '-screen-height', '540'], cwd=a.game, timeout=300)
+        except subprocess.TimeoutExpired:
+            kill('ravenfield.exe')
+            log('the game did not quit in 5 minutes: stopped')
+        for line in open(logfile, encoding='utf-8', errors='ignore'):
+            if 'Workshop fetch' in line:
+                log(line.strip())
+        return
 
     if a.restore:
         for line in restore_left_over():
