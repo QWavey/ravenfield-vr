@@ -1792,6 +1792,7 @@ namespace RavenfieldVR.Weapons
                 {
                     insert = d.AimAxis;
                 }
+                insert = FromUnderTheReceiver(d, insert);
                 Vector3 c = path[best] + rot * d.MagBounds.center;
                 d.MagSeat = new RigidPose(path[best], rot);
                 d.MagEjectAxis = -insert;
@@ -1800,6 +1801,21 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             SeatAtEstimatedPort(d, "the reload's shell never comes under the bore by the grip");
+        }
+
+        /// <summary>
+        /// A tube's shell goes in from under the receiver, nose up into the loading port and on forward into the tube: at least 30
+        /// degrees up off the bore. Straight along the tube, a shell half way in lay inside the receiver and showed through its
+        /// side by the ejection port, on every pump gun (the user, 2026-11-14: "the shell goes somewhere wrong inserted when
+        /// reloading, its not right where it should be"; the Bryson 800's "shell half into the port" picture).
+        /// </summary>
+        private static Vector3 FromUnderTheReceiver(WeaponRigData d, Vector3 insert)
+        {
+            if (Vector3.Dot(insert, d.Up) >= 0.5f)
+            {
+                return insert; // (already up into the port, from its own reload)
+            }
+            return (d.AimAxis * 0.866f + d.Up * 0.5f).normalized;
         }
 
         /// <summary>The shell seated at the estimated loading port (<see cref="EstimatedPort"/>), lying along the bore, said in the warnings.</summary>
@@ -1817,7 +1833,7 @@ namespace RavenfieldVR.Weapons
             }
             Quaternion along = Quaternion.FromToRotation(longGun, d.AimAxis) * lying;
             d.MagSeat = new RigidPose(port - along * d.MagBounds.center, along);
-            d.MagEjectAxis = -d.AimAxis;
+            d.MagEjectAxis = -FromUnderTheReceiver(d, d.AimAxis);
             d.Warnings.Add($"loading port estimated ({why}): {Vector3.Dot(port - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
                            + $"3 cm under the bore{(d.HasSupportPoint ? "" : " (no forend found: taken 35 cm ahead of the grip)")}");
         }

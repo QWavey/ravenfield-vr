@@ -1402,6 +1402,11 @@ namespace RavenfieldVR.Weapons
             VRInput.SetGunHand(to.Side);
             _passHold = kept;
             _passWeapon = passed;
+            if (to.Model != null)
+            {
+                to.Model.KeepGraspOffset = true; // (the glove stays where it held the gun, not back onto the tracked hand) 
+                to.Model.GraspAnchor = null; // (its support anchor is no longer its: the offset it has is kept from here)
+            }
             to.Haptic(0.04f, 140f, 0.5f);
             Log.InfoOnce("passhand", $"Weapon passed to the {to.Side} hand, held where that hand holds it.");
             return true;
@@ -1455,6 +1460,17 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void RegripPassedWeapon()
         {
+            if (!(_passHold.HasValue && _passEaseAt < 0f))
+            {
+                if (Rig.Dominant.Model != null)
+                {
+                    Rig.Dominant.Model.KeepGraspOffset = false;
+                }
+                if (Rig.Off.Model != null)
+                {
+                    Rig.Off.Model.KeepGraspOffset = false;
+                }
+            }
             if (!_passHold.HasValue || _passEaseAt >= 0f || Held == null || Held.Weapon != _passWeapon || Held.Rig.Data.Action == ActionType.Throwable)
             {
                 return;

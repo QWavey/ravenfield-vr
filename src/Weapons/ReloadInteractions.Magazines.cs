@@ -721,6 +721,11 @@ namespace RavenfieldVR.Weapons
                 }
                 return;
             }
+            if (prop.AnchorOnRail)
+            {
+                prop.AnchorOnRail = false;
+                prop.RailHandOffset = along; // (the shell before it just went in: this one starts at the mouth from the hand's place)
+            }
             // On the rail: the hand pushes the prop along the axis only (from where it took it, when pulled out).
             along -= prop.RailHandOffset;
             // A rocket in the tube is held by the tube: it comes out only the way it went in, back out of the mouth. The hand
@@ -1196,9 +1201,18 @@ namespace RavenfieldVR.Weapons
                         // after drawing back a little.
                         Ammo.LoadRounds(1);
                         prop.Rounds--;
-                        prop.BackOutFirst = true;
-                        prop.OnRail = false;
+                        // The next one waits at the port's mouth on its line, its way in counted from where the hand is: a little back
+                        // and in again, it goes in. Taken off the line until the hand came back to a third of the way, it was drawn in
+                        // the hand, inside the port, and looked loaded while it was not (the user, 2026-11-14: "the shell gets inserted
+                        // into the shotgun but im still holding it (and it doesnt get insert)").
+                        prop.BackOutFirst = false;
+                        prop.OnRail = true;
+                        prop.AnchorOnRail = true;
                         prop.RailDepth = 0f;
+                        prop.PrevDepth = 0f;
+                        prop.TurnDepth = 0f;
+                        prop.MovingIn = false;
+                        prop.FromSeat = false;
                         _held.Sounds.Play(MechSound.ShellIn, at);
                         off.Haptic(0.05f, 110f, 0.8f);
                         _sys.Rig.Dominant.Haptic(0.05f, 110f, 0.6f);

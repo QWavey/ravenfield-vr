@@ -40,6 +40,13 @@ namespace RavenfieldVR.Rig
         /// <summary>Self-test: the glove is drawn.</summary>
         internal bool Visible => _visible;
         private Vector3 _graspOffset;
+        /// <summary>
+        /// Keep the glove where it was drawn against the tracked hand (no anchor of its own): a support hand the gun was passed to
+        /// went back onto the tracked hand, a few centimetres along the gun, as the trigger hand let go (the user, 2026-11-14).
+        /// </summary>
+        public bool KeepGraspOffset;
+        private bool _keptOffsetTaken;
+        private Vector3 _keptOffsetLocal;
         private readonly float[,] _joint = new float[5, 3];
         private readonly float[] _solved = new float[3];
         private readonly Vector3[] _chain = new Vector3[4];
@@ -765,6 +772,19 @@ namespace RavenfieldVR.Rig
         private Vector3 NextGraspOffset(RigidPose target, float dt)
         {
             Vector3 want = Vector3.zero;
+            if (!KeepGraspOffset)
+            {
+                _keptOffsetTaken = false;
+            }
+            else if (!GraspAnchor.HasValue)
+            {
+                if (!_keptOffsetTaken)
+                {
+                    _keptOffsetTaken = true;
+                    _keptOffsetLocal = Quaternion.Inverse(target.rotation) * _graspOffset;
+                }
+                return Vector3.Lerp(_graspOffset, target.rotation * _keptOffsetLocal, 1f - Mathf.Exp(-30f * dt));
+            }
             if (GraspAnchor.HasValue)
             {
                 Vector3 graspLocal = GraspPinch ? _pinchPoint * _scale : new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);

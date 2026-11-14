@@ -361,6 +361,16 @@ namespace RavenfieldVR.Weapons
                     _turningDown = true;
                     _liftFromGun = Vector3.ProjectOnPlane(handGun - Data.MuzzlePoint, Data.AimAxis);
                 }
+                if (IsPump && _rackByTrigger && Ammo.Chambered && !Ammo.SpentInChamber)
+                {
+                    // A round put in by a stroke worked with the trigger held: the pump stays home under the hand, which holds the
+                    // gun by it, until the next shot (PumpByTrigger takes it again then, the trigger still down).
+                    _held.SlideOffset = 0f;
+                    EndRack(off, chamber: true);
+                    off.Role = HandRole.Foregrip;
+                    _held.SetTwoHanded(VRConfig.TwoHandedAiming.Value);
+                    return;
+                }
             }
             else if (!HandDriven && _rackedBack && _strokeOut && !_rackFromBoltLock && fraction <= 0.1f)
             {

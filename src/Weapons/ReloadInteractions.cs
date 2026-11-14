@@ -268,7 +268,14 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private bool PumpByTrigger(VRHand off)
         {
-            return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && VRInput.GetPressed(DigitalAction.Use, off.Side)
+            // A fresh squeeze takes it always; a trigger held on takes it again whenever the chamber wants a stroke (a fired case
+            // in it, or none): shot after shot with the trigger kept down, the pump works without letting go and squeezing again.
+            // A round it has just put in holds it at home until the next shot (the user, 2026-11-14: "aslong as im holding down
+            // the trigger button ... the rack thingy of shotguns can move forward and backward ... not be able to move if once
+            // cycled, it works after shooting again").
+            bool squeeze = VRInput.GetPressed(DigitalAction.Use, off.Side)
+                           || VRInput.GetHeld(DigitalAction.Use, off.Side) && (Ammo.SpentInChamber || !Ammo.Chambered);
+            return IsPump && Manual && Ammo.UsesChamber && off.GrabHeld && squeeze
                    && !VRGameInput.GunInputBlocked && Vector3.Distance(off.Palm.position, RackPointWorld) < (Data.Action == ActionType.ShellFed ? 0.25f : 0.2f);
         }
         /// <summary>This stroke took the handle home while only its bolt was locked back (an M4 on an empty magazine).</summary>
@@ -1240,6 +1247,16 @@ namespace RavenfieldVR.Weapons
                             // weapon's own support pose puts the hand, and does not slide onto the barrel line when the snap is lost
                             // (the PPSh's drum; 2026-10-19 finding, task 277).
                             anchor = SupportAtOwnPoint ? GripRig.ToWorld(GripData.SupportPoint) : HandguardPoint(off.Palm.position);
+                            if (!SupportAtOwnPoint && IsPump && Manual)
+                            {
+                                // On a pump the glove holds the pump where it is, not any point along the handguard: it slid along with
+                                // the hand while the pump stayed, and the hand was not on the rack (the user, 2026-11-14).
+                                Vector3 onPump = HandguardPoint(RackPointWorld);
+                                if ((anchor.Value - onPump).magnitude < 0.12f)
+                                {
+                                    anchor = onPump;
+                                }
+                            }
                         }
                         else if (!GripData.HasSupportPoint)
                         {
