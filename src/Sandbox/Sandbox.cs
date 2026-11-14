@@ -312,8 +312,7 @@ namespace RavenfieldVR.Sandbox
             if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
             {
                 // (Asked of the host, whose soldiers are the shared ones: made there for this player's side, 2026-11-14 co-op sandbox.)
-                Net.NetGame.AskHostForSoldiers(spec, at, facing);
-                problem = "asked the host to make them";
+                problem = Net.NetGame.AskHostForSoldiers(spec, at, facing) ? "asked the host to make them" : "wait a second before the next ones";
                 return made;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);
@@ -441,8 +440,7 @@ namespace RavenfieldVR.Sandbox
             // shared like any of the host's (2026-11-14: co-op sandbox).
             if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
             {
-                Net.NetGame.AskHostForVehicle(type, friendly, at, facing);
-                problem = "asked the host to place it";
+                problem = Net.NetGame.AskHostForVehicle(type, friendly, at, facing) ? "asked the host to place it" : "wait a second before the next one";
                 return null;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);

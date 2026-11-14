@@ -775,32 +775,45 @@ namespace RavenfieldVR.Net
         private static void KeepStandInAmmo(Remote r, Actor a)
         {
             Weapon held = a.activeWeapon;
-            if (held == null || held.configuration == null || held.configuration.ammo <= 0 || a.IsSeated())
-            {
-                return;
-            }
             bool told = r.Is(Reloading);
             bool started = told && !r.ToldReloading; // (on its start only: his reload done sooner here than there, not begun again)
             r.ToldReloading = told;
+            // (Not a grenade or a kit: refilled, a thrower had grenades without end. Seated only with a gun of his own in hand.)
+            if (held == null || held.configuration == null || held.configuration.ammo <= 0 || held is ThrowableWeapon || held is MountedWeapon
+                || a.IsSeated() && (a.seat == null || !a.seat.CanUsePersonalWeapons()))
+            {
+                return;
+            }
             if (told)
             {
-                if (started && !held.reloading)
+                // From empty (a full gun's reload is refused), and only where it can start: unholstered, with rounds to take. A reload
+                // the game refused had left the gun dry for the whole of his owner's (review, 2026-11-14).
+                if (started && !held.reloading && held.unholstered)
                 {
+                    if (held.spareAmmo == 0)
+                    {
+                        held.spareAmmo = held.configuration.ammo; // (a stand-in's reserve is the told reloads', never its own count)
+                    }
                     try
                     {
-                        held.ammo = 0; // (a full gun's reload is refused: from empty, as his owner's)
+                        held.ammo = 0;
                         held.Reload();
                     }
                     catch (Exception)
                     {
-                        // (the game refused it: the next state tries again)
                     }
+                    if (!held.reloading)
+                    {
+                        held.ammo = held.configuration.ammo; // (refused all the same: kept firing, not dry)
+                    }
+                    held.OnAmmoChanged();
                 }
                 return;
             }
             if (!held.reloading && held.ammo < held.configuration.ammo)
             {
                 held.ammo = held.configuration.ammo;
+                held.OnAmmoChanged(); // (the game's own "has ammo": left stale, its AI and its animation took the gun for empty)
             }
         }
 
@@ -942,36 +955,37 @@ namespace RavenfieldVR.Net
             }
         }
 
-        private static float _askedAt = -10f;
+        private static float _vehicleAskedAt = -10f, _soldiersAskedAt = -10f; // (each its own: a vehicle and soldiers within a second both go)
 
         /// <summary>A joined player places a vehicle with the sandbox's tool: the host is asked to (his vehicles are the shared ones).</summary>
-        internal static void AskHostForVehicle(VehicleSpawner.VehicleSpawnType type, bool friendly, Vector3 at, Vector3 facing)
+        internal static bool AskHostForVehicle(VehicleSpawner.VehicleSpawnType type, bool friendly, Vector3 at, Vector3 facing)
         {
             NetSession session = _session;
             if (session == null || session.State != NetState.Connected || session.IsHost || !Finite(at) || !Finite(facing)
-                || Time.unscaledTime - _askedAt < 1f)
+                || Time.unscaledTime - _vehicleAskedAt < 1f)
             {
-                return; // (one a second at most)
+                return false; // (one a second at most: said so, not "the host places it")
             }
-            _askedAt = Time.unscaledTime;
+            _vehicleAskedAt = Time.unscaledTime;
             Out.Reset();
             Out.Byte((byte)type);
             Out.Bool(friendly);
             Out.Vector(at);
             Out.SmallVector(Vector3.ClampMagnitude(facing, 1f));
             session.SendTo(0, SandboxVehicle, Out, true);
+            return true;
         }
 
         /// <summary>A joined player makes soldiers with the sandbox's tool: the host is asked to (his soldiers are the shared ones).</summary>
-        internal static void AskHostForSoldiers(Sandbox.SoldierSpec spec, Vector3 at, Vector3 facing)
+        internal static bool AskHostForSoldiers(Sandbox.SoldierSpec spec, Vector3 at, Vector3 facing)
         {
             NetSession session = _session;
             if (session == null || session.State != NetState.Connected || session.IsHost || spec == null || !Finite(at) || !Finite(facing)
-                || Time.unscaledTime - _askedAt < 1f)
+                || Time.unscaledTime - _soldiersAskedAt < 1f)
             {
-                return;
+                return false;
             }
-            _askedAt = Time.unscaledTime;
+            _soldiersAskedAt = Time.unscaledTime;
             Out.Reset();
             Out.Byte((byte)spec.Side);
             Out.Byte((byte)spec.Behaviour);
@@ -982,6 +996,7 @@ namespace RavenfieldVR.Net
             Out.Vector(at);
             Out.SmallVector(Vector3.ClampMagnitude(facing, 1f));
             session.SendTo(0, SandboxSoldiers, Out, true);
+            return true;
         }
 
         private static void TakeSoldiersAsked(byte sender, ref NetReader r)
@@ -1004,7 +1019,11 @@ namespace RavenfieldVR.Net
                 return;
             }
             Remote asker = RemoteOf(sender, 0);
-            int team = asker != null && asker.Actor != null ? asker.Actor.team : -1;
+            if (asker == null || asker.Actor == null)
+            {
+                return;
+            }
+            int team = asker.Actor.team;
             List<Actor> made = Sandbox.Sandbox.SpawnSoldiers(spec, at, facing, out string problem, team);
             Log.Info($"Sandbox: player {sender} asked for {spec.Count} soldier(s): {made.Count} made{(problem != null ? " (" + problem + ")" : "")}.");
         }
@@ -1022,7 +1041,11 @@ namespace RavenfieldVR.Net
                 return; // (the host's sandbox only: in another mode the field is not for placing)
             }
             Remote asker = RemoteOf(sender, 0);
-            int team = asker != null && asker.Actor != null ? asker.Actor.team : -1;
+            if (asker == null || asker.Actor == null)
+            {
+                return; // (his soldier not here yet: whose side it would be is not known)
+            }
+            int team = asker.Actor.team;
             Vehicle made = Sandbox.Sandbox.SpawnVehicle((VehicleSpawner.VehicleSpawnType)type, friendly, at, facing, out string problem, team);
             NetPlayer who = session.Player(sender);
             string name = who != null && who.Info != null && !string.IsNullOrEmpty(who.Info.Name) ? who.Info.Name : "A player";
@@ -2621,7 +2644,9 @@ namespace RavenfieldVR.Net
                         facing = c.FacingDirection();
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
                         // the gun hand points it (he looked where the head looked, and shot "sideways" out of a level gun).
-                        if (a == player && VRManager.Active && a.IsSeated() && a.activeWeapon is MountedWeapon && Input.TurretAim.Direction() is Vector3 aim)
+                        if (a == player && VRManager.Active && a.IsSeated()
+                            && (a.activeWeapon is MountedTurret || a.activeWeapon is TankTurret || a.activeWeapon is MountedStabilizedTurret)
+                            && Input.TurretAim.Direction() is Vector3 aim)
                         {
                             // At a mounted gun or a tank's turret: where the turret is steered (the head by default, the hand if set). The
                             // stand-in's turret on the other PCs follows his told facing (the game's own AI aim), and it was told the gun

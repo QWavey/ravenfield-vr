@@ -263,14 +263,14 @@ namespace RavenfieldVR.Sandbox
             if (kind == Sandbox.ToolKind.Vehicle)
             {
                 Vehicle v = Sandbox.SpawnVehicle(Sandbox.Vehicle, Sandbox.VehicleFriendly, at, facing, out problem);
-                if (v == null && Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
+                if (v == null && Net.Multiplayer.Active && !Net.Multiplayer.Hosting && problem == "asked the host to place it")
                 {
                     return $"{Sandbox.Vehicle}: the host places it for both of you."; // (asked of the host: its copy comes here as his do)
                 }
                 return v != null ? $"{Sandbox.Vehicle} made." : "No vehicle: " + problem + ".";
             }
             List<Actor> made = Sandbox.SpawnSoldiers(Sandbox.Soldier, at, facing, out problem);
-            if (made.Count == 0 && Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
+            if (made.Count == 0 && Net.Multiplayer.Active && !Net.Multiplayer.Hosting && problem == "asked the host to make them")
             {
                 return "The host makes them for both of you.";
             }
