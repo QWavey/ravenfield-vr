@@ -815,7 +815,7 @@ namespace RavenfieldVR.Weapons
             int seen = eye != null ? eye.cullingMask : ~0;
             foreach (Renderer r in Weapon.GetComponentsInChildren<Renderer>(false))
             {
-                if (!r.enabled || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f || (seen & (1 << r.gameObject.layer)) == 0)
+                if (!r.enabled || r.forceRenderingOff || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f || (seen & (1 << r.gameObject.layer)) == 0)
                 {
                     continue;
                 }
