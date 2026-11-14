@@ -2602,7 +2602,9 @@ namespace RavenfieldVR.Weapons
             Vector3 offBore = Vector3.ProjectOnPlane(RackPointWorld - boreAt, aimW);
             Vector3 outward = offBore.magnitude > 0.015f ? offBore.normalized : upW;
             Vector3 intoPart = -outward;
-            Vector3 fingers = Vector3.Dot(outward, upW) > 0.7f ? (off.IsLeft ? rightW : -rightW) : upW;
+            // A part under the gun (a pump's forend) is held as one on top, mirrored: the palm under it, the fingers across and up its side.
+            // Fingers pointed up into a pump under the bore never met its surface (R870s and mw-m870 0/4 fingers, Tasks 386.5).
+            Vector3 fingers = Mathf.Abs(Vector3.Dot(outward, upW)) > 0.7f ? (off.IsLeft ? rightW : -rightW) : upW;
             Vector3 palmX = -intoPart * off.Mirror;
             fingers = Vector3.ProjectOnPlane(fingers, palmX);
             fingers = fingers.sqrMagnitude > 1e-6f ? fingers.normalized : aimW;

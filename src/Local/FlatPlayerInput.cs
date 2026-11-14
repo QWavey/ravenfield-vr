@@ -12,6 +12,9 @@ namespace RavenfieldVR.Local
     {
         public static bool Active;
 
+        /// <summary>The controller the game's own player plays with while the merged ones are muted (-1: none), splitscreen.</summary>
+        public static int Pad = -1;
+
         private static readonly int Count = Enum.GetValues(typeof(SteelInput.KeyBinds)).Length + 1;
         private static readonly float[] Axis = new float[Count];
         private static readonly bool[] Held = new bool[Count];
@@ -74,7 +77,62 @@ namespace RavenfieldVR.Local
             Set(SteelInput.KeyBinds.Weapon5, Key(0x35));
             Set(SteelInput.KeyBinds.OpenLoadout, Key(0x4C)); // L
             Set(SteelInput.KeyBinds.FireMode, Key(0x42)); // B
+            if (Pad >= 0)
+            {
+                ReadPad(XInput.Read(Pad));
+            }
         }
+
+        /// <summary>The game's own player's controller, as the game's own controller layout has it.</summary>
+        private static void ReadPad(PadState s)
+        {
+            if (!s.Connected)
+            {
+                return;
+            }
+            void Set(SteelInput.KeyBinds b, bool on) => Held[(int)b] |= on;
+            void Stick(SteelInput.KeyBinds b, float v)
+            {
+                if (Mathf.Abs(v) > Mathf.Abs(Axis[(int)b]))
+                {
+                    Axis[(int)b] = v;
+                }
+            }
+            Vector2 l = s.LeftStick, r = s.RightStick;
+            Stick(SteelInput.KeyBinds.Horizontal, l.x);
+            Stick(SteelInput.KeyBinds.Vertical, l.y);
+            Stick(SteelInput.KeyBinds.CarSteer, l.x);
+            Stick(SteelInput.KeyBinds.CarThrottle, s.RightTrigger - s.LeftTrigger);
+            Stick(SteelInput.KeyBinds.HeliRoll, l.x);
+            Stick(SteelInput.KeyBinds.HeliPitch, l.y);
+            Stick(SteelInput.KeyBinds.HeliYaw, r.x);
+            Stick(SteelInput.KeyBinds.HeliThrottle, r.y);
+            Stick(SteelInput.KeyBinds.PlaneRoll, l.x);
+            Stick(SteelInput.KeyBinds.PlanePitch, l.y);
+            Stick(SteelInput.KeyBinds.PlaneYaw, r.x);
+            Stick(SteelInput.KeyBinds.PlaneThrottle, s.RightTrigger - s.LeftTrigger);
+            // The view turns as the mouse turns it: about 180 degrees a second at full tilt.
+            float turn = PadTurn * Time.unscaledDeltaTime;
+            Stick(SteelInput.KeyBinds.AimX, r.x * turn);
+            Stick(SteelInput.KeyBinds.AimY, r.y * turn);
+            Set(SteelInput.KeyBinds.Fire, s.RightTrigger > 0.4f);
+            Set(SteelInput.KeyBinds.Aim, s.LeftTrigger > 0.4f);
+            Set(SteelInput.KeyBinds.Jump, s.Has(PadState.A));
+            Set(SteelInput.KeyBinds.Crouch, s.Has(PadState.B));
+            Set(SteelInput.KeyBinds.Reload, s.Has(PadState.X));
+            Set(SteelInput.KeyBinds.NextWeapon, s.Has(PadState.Y));
+            Set(SteelInput.KeyBinds.Sprint, s.Has(PadState.LeftThumb));
+            Set(SteelInput.KeyBinds.Kick, s.Has(PadState.RightThumb));
+            Set(SteelInput.KeyBinds.Use, s.Has(PadState.RightShoulder));
+            Set(SteelInput.KeyBinds.FireMode, s.Has(PadState.LeftShoulder));
+            Set(SteelInput.KeyBinds.TogglePauseMenu, s.Has(PadState.Start));
+            Set(SteelInput.KeyBinds.Scoreboard, s.Has(PadState.Back));
+            Set(SteelInput.KeyBinds.Map, s.Has(PadState.Up));
+            Set(SteelInput.KeyBinds.OpenLoadout, s.Has(PadState.Down));
+        }
+
+        /// <summary>The view's turn for a full right stick, in the game's aim units a second.</summary>
+        public static float PadTurn = 45f; // (the game turns about 4 degrees per unit at its middle sensitivity: 180 degrees a second)
 
         public static float MergeAxis(SteelInput.KeyBinds b, float game) =>
             Mathf.Abs(Axis[(int)b]) > Mathf.Abs(game) ? Axis[(int)b] : game;

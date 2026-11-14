@@ -51,6 +51,28 @@ namespace RavenfieldVR.Local
                     report($"local: splitscreen with {players}: {all.Count} extra player(s) made, NOT {players - 1}");
                     continue;
                 }
+                if (name == "quarters")
+                {
+                    // Keyboards told apart: before the simulated controllers the players took keyboards, so Raw Input is on. A key sent
+                    // through Windows (F13, which nothing uses; no mouse moved) is heard on the game's window.
+                    const ushort f13 = 0x7C;
+                    bool started = RawInput.Started;
+                    bool sent = started && RawInput.SendKey(f13, true);
+                    bool keyHeard = false;
+                    for (int f = 0; f < 30 && sent && !keyHeard; f++)
+                    {
+                        yield return null;
+                        keyHeard = RawInput.AnyKeyHeld(f13);
+                    }
+                    if (sent)
+                    {
+                        RawInput.SendKey(f13, false);
+                    }
+                    report(!started ? "local: keyboards and mice NOT TOLD APART (Raw Input did not start: see the log)"
+                        : !sent ? "local: Raw Input on (window " + RawInput.Window.ToInt64().ToString("X") + "), the check's key could not be sent"
+                        : keyHeard ? "local: Raw Input on the game's window " + RawInput.Window.ToInt64().ToString("X") + ", a key sent through Windows heard"
+                        : "local: Raw Input on, a key sent through Windows NOT HEARD within 30 frames");
+                }
                 foreach (SplitPlayer p in all)
                 {
                     if (p.Actor == null || p.Actor.dead)

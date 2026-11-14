@@ -227,7 +227,38 @@ namespace RavenfieldVR.Local
             {
                 RawInput.BlockLegacy(false);
             }
-            FlatPlayerInput.Active = keys && playing;
+            // A real controller in a splitscreen player's hands: the game's own pad input (Steam Input and Unity's joystick axes, every
+            // controller merged) muted, else that controller moved the game's own player too (scout, 2026-11-14). The game's own player
+            // on a controller then reads its own one (the one before FirstPad) through FlatPlayerInput.
+            bool pads = false;
+            foreach (SplitPlayer p in Players)
+            {
+                pads |= p.KeysPair < 0 && !p.Simulated.HasValue;
+            }
+            GamePadsMuted = pads;
+            FlatPlayerInput.Pad = pads && Splitscreen.FirstPad > 0 ? Splitscreen.FirstPad - 1 : -1;
+            FlatPlayerInput.Active = (keys || FlatPlayerInput.Pad >= 0) && playing;
+        }
+
+        /// <summary>The game's own controller input muted: each controller belongs to one player (see AssignDevices).</summary>
+        internal static bool GamePadsMuted;
+
+        private static void MuteSteamPads(ref float __result)
+        {
+            if (GamePadsMuted)
+            {
+                __result = 0f;
+            }
+        }
+
+        private static void MuteUnityPads(ref SteelInput.Axis __instance, ref float __result)
+        {
+            if (GamePadsMuted && __result != 0f
+                && (__instance.useUnityAxis ? __instance.unityAxis != null && __instance.unityAxis.Contains("Joy")
+                    : __instance.posKeyCode >= KeyCode.JoystickButton0 || __instance.negKeyCode >= KeyCode.JoystickButton0))
+            {
+                __result = 0f;
+            }
         }
 
         private static void ReadInput(SplitPlayer p)
@@ -571,6 +602,11 @@ namespace RavenfieldVR.Local
                     continue;
                 }
                 GUI.Label(new Rect(r.center.x - 8f, r.center.y - 12f, 20f, 24f), "+");
+                if (p.KeysPair > 0 && Runtime.OpenVRRuntime.Running)
+                {
+                    // (keyboards and mice are told apart without a headset only: this player waits for a controller)
+                    GUI.Label(new Rect(r.x + 20f, r.y + r.height * 0.5f + 24f, r.width - 40f, 40f), $"Player {p.Index + 1}: connect a controller (number {PadOf(p) + 1}).");
+                }
                 Weapon w = a.activeWeapon;
                 string ammo = w != null ? w.reloading ? "reloading" : $"{w.ammo}/{w.spareAmmo}" : "";
                 string weapon = w != null ? w.name.Replace("(Clone)", "").Trim() : "";
@@ -602,6 +638,8 @@ namespace RavenfieldVR.Local
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.CarInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.BoatInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
             _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchWeapon)), prefix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSwitch)));
+            _harmony.Patch(AccessTools.Method(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(MuteSteamPads)));
+            _harmony.Patch(AccessTools.Method(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(MuteUnityPads)));
         }
 
         private static bool _switching;

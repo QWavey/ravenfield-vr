@@ -89,6 +89,20 @@ namespace RavenfieldVR.Local
         [DllImport("user32.dll")]
         private static extern IntPtr GetActiveWindow();
 
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int size);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetRegisteredRawInputDevices([Out] RAWINPUTDEVICE[] devices, ref uint count, uint size);
 
@@ -124,6 +138,40 @@ namespace RavenfieldVR.Local
 
         public static int Count(bool mouse) => mouse ? _mice : _keyboards;
 
+        /// <summary>Check: a key held on any keyboard heard.</summary>
+        internal static bool AnyKeyHeld(int vk)
+        {
+            foreach (RawDevice d in Devices.Values)
+            {
+                if (!d.IsMouse && d.Keys[vk])
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        [StructLayout(LayoutKind.Explicit, Size = 40)]
+        private struct KeyInput
+        {
+            [FieldOffset(0)] public int Type;
+            [FieldOffset(8)] public ushort VKey;
+            [FieldOffset(12)] public uint Flags;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(uint count, KeyInput[] inputs, int size);
+
+        /// <summary>Check: a key pressed or let go through Windows (F13, which nothing uses), as a keyboard would send it.</summary>
+        internal static bool SendKey(ushort vk, bool down)
+        {
+            var i = new[] { new KeyInput { Type = 1, VKey = vk, Flags = down ? 0u : 2u } };
+            return SendInput(1, i, Marshal.SizeOf(typeof(KeyInput))) == 1;
+        }
+
+        /// <summary>Check: the window Raw Input listens on (zero: none found).</summary>
+        internal static IntPtr Window => _installed ? _window : IntPtr.Zero;
+
         public static void Start()
         {
             if (_installed || _failed)
@@ -132,11 +180,7 @@ namespace RavenfieldVR.Local
             }
             try
             {
-                _window = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
-                if (_window == IntPtr.Zero)
-                {
-                    _window = GetActiveWindow();
-                }
+                _window = GameWindow();
                 if (_window == IntPtr.Zero)
                 {
                     throw new InvalidOperationException("no game window");
@@ -227,6 +271,43 @@ namespace RavenfieldVR.Local
             ClearHeld();
         }
 
+        /// <summary>
+        /// The game's own window: the Unity player's window of this process (Process.MainWindowHandle came back empty for it in the
+        /// check, 2026-11-14: "no game window"), else the main window, else the active one.
+        /// </summary>
+        private static IntPtr GameWindow()
+        {
+            uint me = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+            IntPtr found = IntPtr.Zero, anyVisible = IntPtr.Zero;
+            var name = new System.Text.StringBuilder(64);
+            EnumWindows((h, _) =>
+            {
+                GetWindowThreadProcessId(h, out uint pid);
+                if (pid != me)
+                {
+                    return true;
+                }
+                name.Length = 0;
+                GetClassName(h, name, name.Capacity);
+                if (name.ToString() == "UnityWndClass")
+                {
+                    found = h;
+                    return false;
+                }
+                if (anyVisible == IntPtr.Zero && IsWindowVisible(h))
+                {
+                    anyVisible = h;
+                }
+                return true;
+            }, IntPtr.Zero);
+            if (found != IntPtr.Zero)
+            {
+                return found;
+            }
+            IntPtr main = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            return main != IntPtr.Zero ? main : anyVisible != IntPtr.Zero ? anyVisible : GetActiveWindow();
+        }
+
         private static void RememberUnitysOwn()
         {
             _hadMouse = _hadKeyboard = null;
@@ -298,22 +379,33 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
-            var h = (RAWINPUTHEADER)Marshal.PtrToStructure(_buffer, typeof(RAWINPUTHEADER));
-            IntPtr body = new IntPtr(_buffer.ToInt64() + header);
-            bool mouse = h.Type == RIM_TYPEMOUSE;
-            if (!mouse && h.Type != RIM_TYPEKEYBOARD)
+            // (Read field by field, no structure boxed: a gaming mouse sends a thousand of these a second. RAWINPUTHEADER: Type, Size,
+            // then the device handle at 8; the body after the header.)
+            int type = Marshal.ReadInt32(_buffer, 0);
+            IntPtr device = Marshal.ReadIntPtr(_buffer, 8);
+            int body = (int)header;
+            bool mouse = type == RIM_TYPEMOUSE;
+            if (!mouse && type != RIM_TYPEKEYBOARD)
             {
                 return;
             }
-            if (!Devices.TryGetValue(h.Device, out RawDevice d))
+            if (!Devices.TryGetValue(device, out RawDevice d))
             {
-                d = new RawDevice { Handle = h.Device, IsMouse = mouse, Order = mouse ? _mice++ : _keyboards++ };
-                Devices[h.Device] = d;
+                d = new RawDevice { Handle = device, IsMouse = mouse, Order = mouse ? _mice++ : _keyboards++ };
+                Devices[device] = d;
             }
             d.LastActive = Time.unscaledTime;
             if (mouse)
             {
-                var m = (RAWMOUSE)Marshal.PtrToStructure(body, typeof(RAWMOUSE));
+                // RAWMOUSE: usFlags at 0, usButtonFlags at 4, usButtonData at 6, lLastX at 12, lLastY at 16.
+                var m = new RAWMOUSE
+                {
+                    Flags = (ushort)Marshal.ReadInt16(_buffer, body),
+                    ButtonFlags = (ushort)Marshal.ReadInt16(_buffer, body + 4),
+                    ButtonData = Marshal.ReadInt16(_buffer, body + 6),
+                    LastX = Marshal.ReadInt32(_buffer, body + 12),
+                    LastY = Marshal.ReadInt32(_buffer, body + 16),
+                };
                 if ((m.Flags & 1) == 0 && _blocking) // (relative movement, not an absolute position; only while playing, else a menu's movement landed as one turn)
                 {
                     d.Delta += new Vector2(m.LastX, m.LastY);
@@ -329,7 +421,8 @@ namespace RavenfieldVR.Local
             }
             else
             {
-                var k = (RAWKEYBOARD)Marshal.PtrToStructure(body, typeof(RAWKEYBOARD));
+                // RAWKEYBOARD: MakeCode at 0, Flags at 2, Reserved at 4, VKey at 6.
+                var k = new RAWKEYBOARD { Flags = (ushort)Marshal.ReadInt16(_buffer, body + 2), VKey = (ushort)Marshal.ReadInt16(_buffer, body + 6) };
                 if (k.VKey < 256)
                 {
                     d.Keys[k.VKey] = (k.Flags & 1) == 0; // (RI_KEY_BREAK: let go)
