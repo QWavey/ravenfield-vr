@@ -1,4 +1,5 @@
 using RavenfieldVR.Core;
+using UnityEngine;
 
 namespace RavenfieldVR.Local
 {
@@ -21,19 +22,43 @@ namespace RavenfieldVR.Local
         /// <summary>Splitscreen wanted for the next match (and the one running).</summary>
         public static bool On;
 
-        private static int _players = 2;
-
-        /// <summary>Players at this PC, 2 to 4 (the game's own player is the first).</summary>
+        /// <summary>Players at this PC, 2 to 4 (the game's own player is the first). Kept in the settings.</summary>
         public static int Players
         {
-            get => _players;
-            set => _players = value < 2 ? 2 : value > 4 ? 4 : value;
+            get => VRConfig.SplitPlayers != null ? Mathf.Clamp(VRConfig.SplitPlayers.Value, 2, 4) : 2;
+            set
+            {
+                if (VRConfig.SplitPlayers != null)
+                {
+                    VRConfig.SplitPlayers.Value = Mathf.Clamp(value, 2, 4);
+                }
+            }
         }
 
-        public static SplitLayout Layout = SplitLayout.SideBySide;
+        public static SplitLayout Layout
+        {
+            get => VRConfig.SplitAboveBelow != null && VRConfig.SplitAboveBelow.Value ? SplitLayout.AboveBelow : SplitLayout.SideBySide;
+            set
+            {
+                if (VRConfig.SplitAboveBelow != null)
+                {
+                    VRConfig.SplitAboveBelow.Value = value == SplitLayout.AboveBelow;
+                }
+            }
+        }
 
         /// <summary>The controller the second player takes (0: the first; 1 when the game's own player uses the first controller).</summary>
-        public static int FirstPad;
+        public static int FirstPad
+        {
+            get => VRConfig.SplitFirstController != null ? Mathf.Clamp(VRConfig.SplitFirstController.Value, 0, 3) : 0;
+            set
+            {
+                if (VRConfig.SplitFirstController != null)
+                {
+                    VRConfig.SplitFirstController.Value = Mathf.Clamp(value, 0, 3);
+                }
+            }
+        }
 
         public static string LayoutName => Players > 2 ? "quarters (four parts)" : Layout == SplitLayout.SideBySide ? "side by side (left and right)" : "one above the other";
 

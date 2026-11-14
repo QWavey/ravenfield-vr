@@ -174,6 +174,7 @@ namespace RavenfieldVR.Local
                 }
             }
             MainRects.Clear();
+            HudBack();
             FlatPlayerInput.Active = false;
             RawInput.Stop();
             if (_host != null)
@@ -360,6 +361,7 @@ namespace RavenfieldVR.Local
             int first = vr ? 0 : 1;
             if (!vr)
             {
+                HudIntoOwnPart();
                 Rect mine = Part(0, shown);
                 foreach (Camera c in OwnCameras())
                 {
@@ -381,6 +383,51 @@ namespace RavenfieldVR.Local
                     p.Cam.rect = p.Viewport;
                 }
             }
+        }
+
+        private static Canvas _hud;
+        private static RenderMode _hudMode;
+        private static Camera _hudCamera;
+        private static float _hudPlane;
+
+        /// <summary>
+        /// The game's own display (health, rounds, the score) drawn in the game's own player's part of the window, through its camera:
+        /// as an overlay it spread over the whole window and over the other players' parts (the first check's pictures, 2026-11-14).
+        /// </summary>
+        private static void HudIntoOwnPart()
+        {
+            FpsActorController f = FpsActorController.instance;
+            Canvas c = IngameUI.instance != null ? IngameUI.instance.canvas : null;
+            Camera cam = f != null ? f.fpViewModelCamera != null && f.fpViewModelCamera.enabled ? f.fpViewModelCamera : f.fpCamera : null;
+            if (c == null || cam == null)
+            {
+                return;
+            }
+            if (_hud != c)
+            {
+                HudBack();
+                _hud = c;
+                _hudMode = c.renderMode;
+                _hudCamera = c.worldCamera;
+                _hudPlane = c.planeDistance;
+            }
+            if (c.renderMode != RenderMode.ScreenSpaceCamera || c.worldCamera != cam)
+            {
+                c.renderMode = RenderMode.ScreenSpaceCamera;
+                c.worldCamera = cam;
+                c.planeDistance = cam.nearClipPlane + 0.02f;
+            }
+        }
+
+        private static void HudBack()
+        {
+            if (_hud != null)
+            {
+                _hud.renderMode = _hudMode;
+                _hud.worldCamera = _hudCamera;
+                _hud.planeDistance = _hudPlane;
+            }
+            _hud = null;
         }
 
         private static IEnumerable<Camera> OwnCameras()
