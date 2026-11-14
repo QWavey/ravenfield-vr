@@ -102,6 +102,8 @@ namespace RavenfieldVR.Net
             public bool Told;
             /// <summary>Tellings of his place since he died (the first second in full, then one in thirty).</summary>
             public int DeadTicks;
+            /// <summary>When he last came back alive (unscaled): a hit sent at his last life is not his new one's.</summary>
+            public float AliveSince = -10f;
             /// <summary>His scoreboard numbers as last told (see TellScores).</summary>
             public int ScoreTold = int.MinValue;
         }
@@ -1798,6 +1800,12 @@ namespace RavenfieldVR.Net
             {
                 return;
             }
+            // (Not in the first half second of a new life: a shot at his last one, come late, hurt the soldier respawned into the same
+            // body; damage scout, 2026-11-12.)
+            if (victimId != 0 && Owned.TryGetValue(victim, out Own life) && Time.unscaledTime - life.AliveSince < 0.5f)
+            {
+                return;
+            }
             // (Numbers that are none: a hit's push or place that is not a number went into the ragdoll's physics as it came.)
             if (float.IsNaN(balance) || float.IsInfinity(balance))
             {
@@ -2615,6 +2623,10 @@ namespace RavenfieldVR.Net
                 }
                 else
                 {
+                    if (own.DeadTicks > 0)
+                    {
+                        own.AliveSince = Time.unscaledTime; // (back alive: a pooled soldier respawned)
+                    }
                     own.DeadTicks = 0;
                     if (a != player && (_tellTick + own.Id) % 3 != 0)
                     {
