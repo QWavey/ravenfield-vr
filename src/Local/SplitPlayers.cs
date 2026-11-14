@@ -51,7 +51,9 @@ namespace RavenfieldVR.Local
         /// <summary>Once a frame (Multiplayer.Update): the players made or taken away, their controllers read.</summary>
         public static void Update()
         {
-            bool want = Splitscreen.On && InMatch;
+            // (Not on a PC that joined an online game: the host owns every soldier there and this PC none, so its own would clash. A
+            // host's splitscreen players are soldiers of his, seen as any on the others' PCs.)
+            bool want = Splitscreen.On && InMatch && !(Net.Multiplayer.Active && !Net.Multiplayer.Hosting);
             if (!want)
             {
                 if (Players.Count > 0)
