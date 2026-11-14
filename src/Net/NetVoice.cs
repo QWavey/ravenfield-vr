@@ -15,6 +15,7 @@ namespace RavenfieldVR.Net
     internal static class NetVoice
     {
         internal const int Rate = 16000, FrameSamples = 320; // 20 ms
+        private const float HearFor = 120f; // metres: a voice past this goes to nobody there
         private const float HoldOpen = 0.35f; // seconds the gate stays open after the voice drops under it
 
         private static string _device;
@@ -227,7 +228,22 @@ namespace RavenfieldVR.Net
             Out.UShort((ushort)predictor);
             Out.Byte(index);
             Out.Bytes(Packed, 0, Packed.Length);
-            session.Send(NetGame.Voice, Out, false);
+            // To each player near enough to hear it (past 120 m it is silent there anyway, and each voice goes through the host to
+            // every player otherwise); in the menu, or with his soldier not here, to him all the same.
+            Actor me = LocalPlayer.actor;
+            foreach (NetPlayer other in session.Players)
+            {
+                if (other.Id == session.LocalId)
+                {
+                    continue;
+                }
+                NetGame.Remote remote = me != null ? NetGame.RemoteOf(other.Id, 0) : null;
+                if (remote != null && remote.Actor != null && (remote.Actor.Position() - me.Position()).sqrMagnitude > HearFor * HearFor)
+                {
+                    continue;
+                }
+                session.SendTo(other.Id, NetGame.Voice, Out, false);
+            }
         }
 
         // ---- the voices heard ----------------------------------------------------------------------------------------------
