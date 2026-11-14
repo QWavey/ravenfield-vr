@@ -285,7 +285,7 @@ namespace RavenfieldVR.Net
             _nextSend = Time.unscaledTime + SendEvery;
             Actor player = LocalPlayer.actor;
             VRRig rig = VRRig.Instance;
-            if (player == null || player.dead || rig == null || player.fallenOver || !HandsFree(player))
+            if (player == null || player.dead || rig == null || player.fallenOver)
             {
                 return;
             }
@@ -300,11 +300,14 @@ namespace RavenfieldVR.Net
                 _nextSend = Time.unscaledTime + (nearest > 120f ? 0.2f : 1f / 15f);
             }
             VRHand left = rig.Hand(Input.Hand.Left), right = rig.Hand(Input.Hand.Right);
-            int flags = (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0)
-                        | (rig.Off.Role == HandRole.Magazine ? Magazine : 0);
+            // In a seat whose hands are the game's (on a wheel, a turret's grips): the head only, his hands told as none (it was not sent
+            // at all, and his head stayed still while he drove and looked about; joined-player scout, 2026-11-14).
+            bool handsOwn = HandsFree(player);
+            int flags = handsOwn ? (left.Tracked ? LeftHand : 0) | (right.Tracked ? RightHand : 0) | (Input.VRInput.GunHand == Input.Hand.Left ? GunInLeft : 0)
+                        | (rig.Off.Role == HandRole.Magazine ? Magazine : 0) : 0;
             Vector3 muzzle = Vector3.zero;
             Quaternion muzzleRot = Quaternion.identity;
-            Weapon gun = player.activeWeapon;
+            Weapon gun = handsOwn ? player.activeWeapon : null;
             if (gun != null)
             {
                 Transform m = null;
