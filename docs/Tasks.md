@@ -2825,6 +2825,7 @@ The inventions (each with its idea engine): (1) **trim-hold flight stick**: a pl
 
 - [x] 385.1 A version mismatch said on both sides: the Steam list marks a lobby of another mod version (it compared the protocol only and showed it joinable), and the host is told who could not join and why (`NetSession.Refused`; he only saw nobody come).
 - [x] 385.2 Invention 1, **the trim-hold flight stick**: a plane's grabbed stick let go keeps its last throw as `VehicleInput.Trim` (under 8% of a throw: none, the hand's drift as it opens); grabbed again it goes on from there (the trim plus the hand's new throw); the right thumbstick pushed over 0.3, a new seat or no seat clears it (setting `StickHoldsTrim`, on). Unrun.
+- [x] 385.3 Invention 5, **the engine-voiced rumble**: the hum in a hand on the wheel or stick takes its note from the engine sound's own pitch (30-85 Hz over pitch 0.6-1.8; by the power as before where no engine sound plays). Unrun.
 
 ### 384. Improvements and bug hunts, the mod in general and multiplayer (user, 2026-11-12 morning: "lets continue to make improvements bug hunts etc, focus on the mdo in general but also on multiplayer"; work-until-limit 85)
 

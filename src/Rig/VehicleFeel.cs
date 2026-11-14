@@ -111,11 +111,17 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
+            // The hum's note from the engine's own sound (invention 5, 2026-11-14): its pitch is what the game plays for the revs, so a
+            // revving tank and an idling truck feel apart, as they sound apart; by the power alone where it has no sound playing.
+            AudioSource sound = v.engine.audio;
+            float frequency = sound != null && sound.isPlaying && sound.pitch > 0.01f
+                ? 30f + 55f * Mathf.InverseLerp(0.6f, 1.8f, sound.pitch)
+                : 35f + 40f * power;
             foreach (VRHand hand in rig.Hands)
             {
                 if (hand != null && hand.Tracked && hand.Role == HandRole.Cockpit)
                 {
-                    hand.Haptic(0.1f, 35f + 40f * power, 0.04f + 0.08f * power);
+                    hand.Haptic(0.1f, frequency, 0.04f + 0.08f * power);
                 }
             }
         }
