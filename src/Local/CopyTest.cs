@@ -20,6 +20,8 @@ namespace RavenfieldVR.Local
         private static float _stepAt, _ammoLast, _yawFrom, _lookFrom;
         private static Vector3 _from, _rightFrom;
         private static int _shots, _slotFrom, _teamFrom;
+        private static bool _saidAim;
+        private static float _turned;
 
         private static void Next(int step)
         {
@@ -113,11 +115,26 @@ namespace RavenfieldVR.Local
                 case 3: // the mouse moved right for half a second: the view must turn right
                     if (t < 0.5f)
                     {
-                        s.TotalX += 8f;
+                        // (Gently, the turn added up frame by frame: 8 counts a frame turned past half a circle and the angle wrapped, so a
+                        // right turn read as "left"; 2026-11-14 23:05.)
+                        s.TotalX += 1.5f;
+                        if (Cam != null)
+                        {
+                            float y = Cam.transform.eulerAngles.y;
+                            _turned += Mathf.DeltaAngle(_yawFrom, y);
+                            _yawFrom = y;
+                        }
+                        if (t > 0.2f && !_saidAim)
+                        {
+                            _saidAim = true;
+                            SteelInput.Axis ax = SteelInput.GetInput(SteelInput.KeyBinds.AimX);
+                            note($"copy test: mouse right: the game reads AimX {SteelInput.GetAxis(SteelInput.KeyBinds.AimX):0.00} (binding {ax.unityAxis}, inverted {ax.invertUnityAxis}); body yaw {me.transform.eulerAngles.y:0}, camera yaw {(Cam != null ? Cam.transform.eulerAngles.y : 0f):0}");
+                        }
                     }
                     else
                     {
-                        float turned = Cam != null ? Mathf.DeltaAngle(_yawFrom, Cam.transform.eulerAngles.y) : 0f;
+                        float turned = _turned + (Cam != null ? Mathf.DeltaAngle(_yawFrom, Cam.transform.eulerAngles.y) : 0f);
+                        note($"copy test: after the mouse right: body yaw {me.transform.eulerAngles.y:0}, camera yaw {(Cam != null ? Cam.transform.eulerAngles.y : 0f):0} (from {_yawFrom:0})");
                         note($"copy test: mouse moved right: the view turned {turned:0} deg{(turned < 5f ? (turned < -5f ? " (TURNED LEFT: INVERTED)" : " (DID NOT TURN)") : " to the right")}");
                         _lookFrom = Cam != null ? Cam.transform.forward.y : 0f;
                         Next(4);

@@ -170,9 +170,10 @@ namespace RavenfieldVR.Local
             if (a.useUnityAxis)
             {
                 string name = a.unityAxis;
-                // (Ravenfield's input manager gives "Mouse X" the other way round from Windows' counts: a move to the right turned the
-                // copy's view left, check of 22:50, 2026-11-14; "Mouse Y" as Unity's default, up positive.)
-                float v = name == "Mouse X" ? -dx * MouseAxisPerCount
+                // As Unity's input manager gives them: "Mouse X" positive to the right (Windows' counts too), "Mouse Y" positive up (Windows'
+                // counts down); the binding's own invert then as the game applies it (its aim binding is "Mouse X, inverted"). The user,
+                // 2026-11-14, with a real mouse: "left and right turning is opposite" with the sign turned round here.
+                float v = name == "Mouse X" ? dx * MouseAxisPerCount
                     : name == "Mouse Y" ? -dy * MouseAxisPerCount // (Windows counts down as positive, Unity up)
                     : name == "Mouse ScrollWheel" ? (SteelInput.instance != null && !SteelInput.instance.scrollEnabled ? 0f : wheel / 120f * 0.1f) // (the game's own scroll gate: not while scoped or in a menu)
                     : 0f; // (the joystick axes: each copy reads its own controller, ReadPad)
