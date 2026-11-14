@@ -829,7 +829,12 @@ namespace RavenfieldVR.Weapons
             if (Rig.Data.Sights != null && Rig.Data.Sights.Length >= 2)
             {
                 SightLine sight = CurrentSight;
-                bool cameraOnLine = cam == null || sight == null || OffSightLine(sight, cam.transform.position) < 0.015f;
+                // (Or a few centimetres off it looking the same way: the CZ Bren 2 BR Assault's scope camera sits off its line, and its
+                // lens never showed: "the scope there doesnt work", the user, 2026-11-14. A camera flipped out with a magnifier looks
+                // aside and stays off.)
+                bool cameraOnLine = cam == null || sight == null || OffSightLine(sight, cam.transform.position) < 0.015f
+                                    || OffSightLine(sight, cam.transform.position) < 0.06f
+                                    && Vector3.Dot(cam.transform.forward, Rig.DirToWorld(sight.EyeDirection).normalized) > 0.95f;
                 foreach (Renderer r in _scopeLenses)
                 {
                     if (r == null)
@@ -837,6 +842,12 @@ namespace RavenfieldVR.Weapons
                         continue;
                     }
                     bool inUse = cameraOnLine && (sight == null || LensOnLine(sight, r));
+                    if (!inUse && sight != null && cam != null)
+                    {
+                        Log.InfoOnce($"lensoff:{Rig.Data.Key}:{Weapon.GetSightModeIndex()}:{r.name}", $"{Rig.Data.Key}: sight mode {Weapon.GetSightModeIndex()}: lens '{r.name}' hidden "
+                            + $"(scope camera {OffSightLine(sight, cam.transform.position) * 100f:0.0} cm off the line, looking "
+                            + $"{Vector3.Angle(cam.transform.forward, Rig.DirToWorld(sight.EyeDirection)):0} deg off it; the lens {OffSightLine(sight, r.bounds.center) * 100f:0.0} cm off).");
+                    }
                     if (r.enabled != inUse)
                     {
                         r.enabled = inUse;
@@ -2232,7 +2243,16 @@ namespace RavenfieldVR.Weapons
                 // (Not a scope model alone: added in Tasks 365 for a 1x-4x scope, it put the mod's lens, with its duplex reticle, over the real scope of
                 // every gun with a scope tube and a narrower mode, which is only the flat game's zoom on a gun that never had a 2D scope; user,
                 // 2026-11-08: "some guns still get a vanilla scope over tehir real one".)
-                _modeOptic = Rig.Data.SightPartPaths.Count > 0 || _magnifierFlip.Part != null ? 1 : 0;
+                // (A part moving with the mode counts only when it is a magnifier: the M417A2's real scope has parts that move with its
+                // modes, and the mod's lens with its duplex was drawn in front of that scope, a second, "vanilla" one; the user,
+                // 2026-11-14: "the scope is doubled ... remove the vanilla scope".)
+                bool movingMagnifier = false;
+                foreach (int[] path in Rig.Data.SightPartPaths)
+                {
+                    Transform part = WeaponRig.Resolve(Weapon.transform, path);
+                    movingMagnifier |= part != null && MagnifierFlip.NamedAsMagnifier(part.name);
+                }
+                _modeOptic = movingMagnifier || _magnifierFlip.Part != null ? 1 : 0;
                 // (Nor over a sight that draws its own reticle, as the main lens: a mode's lens put the duplex over it, the vanilla-looking
                 // picture over the real one the main lens stopped drawing in Tasks 367; lens scout, 2026-11-08.)
                 if (_modeOptic == 1 && VRScope.HasOwnReticle(Weapon, Rig))

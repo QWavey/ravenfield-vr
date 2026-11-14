@@ -39,6 +39,10 @@ namespace RavenfieldVR.Weapons
         private static readonly Regex SightName = new Regex(@"iron|flip.?up|\bbus\b|(rear|front).?sight", RegexOptions.IgnoreCase);
         private static readonly Regex SaysMagnifier = new Regex(@"magnif|mag-?nifier|g33|ftc", RegexOptions.IgnoreCase);
 
+        /// <summary>A part named as a magnifier (not a main optic or an iron sight unless the name also says magnifier).</summary>
+        internal static bool NamedAsMagnifier(string name) =>
+            !string.IsNullOrEmpty(name) && PartName.IsMatch(name) && (!OpticName.IsMatch(name) && !SightName.IsMatch(name) || SaysMagnifier.IsMatch(name));
+
         private readonly WeaponSystem _system;
         private readonly HeldWeapon _held;
         private Transform _part;
