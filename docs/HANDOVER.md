@@ -2,6 +2,13 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-14 evening (**1.17.17 INSTALLED** on this PC, Defender clean; Tasks 385 to 385.24; work-until-limit 85)
+
+- **Both PCs need 1.17.17** (message kinds 42-48, the Reloading flag). Setup and zip in `dist/`, notes `dist/notes-1.17.17.md`.
+- The stand-in reload is proven in game (netcheck 0 problems: the check's wait had not sent the flag, 385.20).
+- Guns (the user named them: the SMG is the **ARS Telum MP9**, the shotgun its **Mossberg 500**, workshop 3066156660): the MP9's skinned magazine is cut out of the gun mesh while out (385.23); the "(Bot Friendly)" ARS guns are held from their twin's hands or by their length (385.24); the GREASER's bolt has a latch (385.21). Checked with `vrshots --fast --mods 3066156660 --weapon MP9 --weapon M500`.
+- Still open: the MP9's empty reload slide running forward when a magazine goes in (Body_TP 16 mm), the "asval o" sheet's straight magazine (385.22, not the user's gun), the M500 pump's rack grip "not measured" (a bone). The user has not tried any of it in the headset yet.
+
 ## State 2026-11-14 (work-until-limit 75; Tasks 385; for 1.17.17, notes in `dist/notes-1.17.17.md`)
 
 - Five inventions built (trim-hold stick, engine-voiced rumble, shared spots kind 42, magazine handover kind 43, brace grip), voice chat (kind 44, off by default, microphone chosen in Display), a dropped gun taken by the friend (45), co-op sandbox requests (46, 47), C4 across PCs (48), the free hand's gun shown and heard, turret aim and the seated head told, soldiers' reloads told (flag 4096), the wrist's vehicle line. Each reviewed by a Haiku scout and fixed. Unrun in the headset; the user allowed game runs for pictures on 2026-11-14 (`vrshots`).
