@@ -256,6 +256,8 @@ namespace RavenfieldVR.Runtime
             Log.Guard("Destroying OpenVR display", () => Display?.Destroy());
             InputSubsystem = null;
             Display = null;
+            _startDashboardCheckAt = -1f; // (a VR start later in the session gets its own 20 s: SteamVR opens the dashboard again then)
+            _dashboardHides = 0;
             DashboardOpen = false; // left open when SteamVR went, the next start's first opening was taken as no change (lifecycle hunt)
             if (_gameMaxCatchUp > 0f)
             {
