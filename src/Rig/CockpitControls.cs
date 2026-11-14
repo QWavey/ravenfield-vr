@@ -265,7 +265,9 @@ namespace RavenfieldVR.Rig
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
                 }
-                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, InSeat(_stick.position)) < 0.16f)
+                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, InSeat(_stick.position)) < 0.16f
+                         && !(_throttle != null && _throttleHand == null
+                              && Vector3.Distance(palm, InSeat(_throttle.position)) < Vector3.Distance(palm, InSeat(_stick.position))))
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = palm;
@@ -304,9 +306,11 @@ namespace RavenfieldVR.Rig
                 else
                 {
                     float value = Mathf.Clamp(_throttleAtGrab + (palm.z - _throttleZ0) / ThrottleThrow, -1f, 1f);
-                    if (Mathf.Abs(value) < 0.06f)
+                    // A notch at cruise, found by feel and held without effort: in under 6%, out only past 10% (a hand resting on its
+                    // edge clicked in and out with its tremor; scout).
+                    if (Mathf.Abs(value) < (_throttleShown == 0f ? 0.10f : 0.06f))
                     {
-                        value = 0f; // (a notch at cruise: found by feel, held without effort)
+                        value = 0f;
                     }
                     // A click in the hand at the notch and at the airbrake's line, crossed either way.
                     if ((value == 0f != (_throttleShown == 0f) || value < -0.3f != _throttleShown < -0.3f) && Time.unscaledTime - _throttleClickAt > 0.15f)

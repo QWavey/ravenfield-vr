@@ -1636,7 +1636,8 @@ namespace RavenfieldVR.Weapons
             _recoilRotVel += new Vector2(-(180f * kick * climbShare + Random.Range(0f, 40f * random)), Random.Range(-25f, 25f) * random) * strength;
             PeakShotImpulse = Mathf.Max(PeakShotImpulse, 180f * kick * climbShare * strength);
 
-            float amp = Mathf.Clamp01(0.35f + kick * 0.15f);
+            // (Softer with the kick taken: braced or rested, the hand's thump was as full as ever while the gun moved less; scout.)
+            float amp = Mathf.Clamp01((0.35f + kick * 0.15f) * Mathf.Clamp(strength / Mathf.Max(0.01f, VRConfig.RecoilStrength.Value), 0.5f, 1f));
             _system.Rig.Dominant.Haptic(kind == WeaponClass.Launcher ? 0.18f : 0.03f + kick * 0.01f, kind == WeaponClass.Launcher ? 90f : 180f, amp);
             if (kind == WeaponClass.Launcher && !TwoHanded)
             {

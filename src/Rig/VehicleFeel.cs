@@ -90,6 +90,12 @@ namespace RavenfieldVR.Rig
                 return;
             }
             float strength = Mathf.Clamp01(damage / Mathf.Max(100f, v.maxHealth * 0.3f));
+            if (Time.unscaledTime - _hitAt < 0.05f && strength < _hitStrength)
+            {
+                return; // (a burst: one pulse each 50 ms, a stronger one through at once; each a call into SteamVR before)
+            }
+            _hitAt = Time.unscaledTime;
+            _hitStrength = strength;
             Rumble(rig, 0.04f + 0.12f * strength, 90f + 60f * strength, 0.2f + 0.7f * strength);
         }
 
@@ -99,6 +105,10 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private static void Hum(VRRig rig, Vehicle v)
         {
+            if (Time.unscaledTime < _rumbleUntil)
+            {
+                return; // (a hit or a bump plays: not covered by the hum, which the controller would let win as the stronger)
+            }
             if (Time.unscaledTime < _nextHum || v.engine == null)
             {
                 return;
@@ -119,15 +129,20 @@ namespace RavenfieldVR.Rig
                 : 35f + 40f * power;
             foreach (VRHand hand in rig.Hands)
             {
-                if (hand != null && hand.Tracked && hand.Role == HandRole.Cockpit)
+                // (Not on a Touch controller: its haptics have a floor of 0.35 and one pitch, and the faint hum was a strong constant
+                // buzz there; bumps and hits still come. Vehicle feel scout, 2026-11-14.)
+                if (hand != null && hand.Tracked && hand.Role == HandRole.Cockpit && !Input.VRInput.HandIsTouch(hand.Side))
                 {
                     hand.Haptic(0.1f, frequency, 0.04f + 0.08f * power);
                 }
             }
         }
 
+        private static float _hitAt = -10f, _hitStrength, _rumbleUntil = -10f;
+
         private static void Rumble(VRRig rig, float seconds, float frequency, float amplitude)
         {
+            _rumbleUntil = Mathf.Max(_rumbleUntil, Time.unscaledTime + seconds); // (the hum waits: its pulse dropped a weaker hit that came after)
             foreach (VRHand hand in rig.Hands)
             {
                 if (hand != null && hand.Tracked)
