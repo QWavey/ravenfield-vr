@@ -193,6 +193,27 @@ namespace RavenfieldVR.Weapons
         /// while aiming); in VR the trigger only throws, so a charge thrown by hand never went off (scout on throwables, 2026-11-08). Its own
         /// way, the detonate animation and every charge after its delay; each charge at once on a detonator with no animator.
         /// </summary>
+        /// <summary>Every charge a detonator has out set off at once (another PC's player set his off: his copies here). How many.</summary>
+        internal static int DetonateAll(RemoteDetonatorWeapon detonator)
+        {
+            List<RemoteDetonatedProjectile> charges = detonator != null ? ChargesOf(detonator) : null;
+            if (charges == null || charges.Count == 0)
+            {
+                return 0;
+            }
+            int count = 0;
+            foreach (RemoteDetonatedProjectile c in charges.ToArray())
+            {
+                if (c != null)
+                {
+                    c.Detonate();
+                    count++;
+                }
+            }
+            charges.Clear();
+            return count;
+        }
+
         private void Detonate(RemoteDetonatorWeapon detonator, VRHand hand)
         {
             List<RemoteDetonatedProjectile> charges = ChargesOf(detonator);
@@ -234,6 +255,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             hand.Haptic(0.05f, 60f, 0.7f);
+            Net.NetGame.OnDetonated(); // (the others' copies of these charges go off too: they lay there for good; joined-player scout)
             Log.InfoOnce("detonate:" + detonator.name, $"{detonator.name}: A set off {count} charge(s){(detonator.animator == null ? " (no animator: each at once)" : "")}.");
         }
 

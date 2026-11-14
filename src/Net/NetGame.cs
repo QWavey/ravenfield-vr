@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45, SandboxVehicle = 46, SandboxSoldiers = 47;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45, SandboxVehicle = 46, SandboxSoldiers = 47, Detonated = 48;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -908,6 +908,40 @@ namespace RavenfieldVR.Net
             UI.UISystem.Instance?.Notice?.Show($"{name} took your {weapon}.", 3f);
         }
 
+        /// <summary>This PC's VR player set off his charges with the detonator's button: the others set off their copies of them.</summary>
+        internal static void OnDetonated()
+        {
+            NetSession session = _session;
+            if (session != null && session.State == NetState.Connected && session.PlayerCount > 1)
+            {
+                Out.Reset();
+                session.Send(Detonated, Out, true);
+            }
+        }
+
+        private static void TakeDetonated(byte sender)
+        {
+            Actor a = RemoteOf(sender, 0)?.Actor;
+            if (a == null || a.weapons == null)
+            {
+                return;
+            }
+            foreach (Weapon w in a.weapons)
+            {
+                if (w is RemoteDetonatorWeapon detonator)
+                {
+                    try
+                    {
+                        Weapons.ThrowableHandler.DetonateAll(detonator);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.WarnOnce("net-detonate", "Multiplayer: another player's charges could not be set off here: " + e.Message);
+                    }
+                }
+            }
+        }
+
         private static float _askedAt = -10f;
 
         /// <summary>A joined player places a vehicle with the sandbox's tool: the host is asked to (his vehicles are the shared ones).</summary>
@@ -1519,6 +1553,9 @@ namespace RavenfieldVR.Net
                         break;
                     case SandboxSoldiers:
                         TakeSoldiersAsked(sender, ref r);
+                        break;
+                    case Detonated:
+                        TakeDetonated(sender);
                         break;
                     case KilledBy:
                         TakeKill(sender, ref r);
