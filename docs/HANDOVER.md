@@ -2,6 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-14 late night (1.18.0 in code; Tasks 395-396; work-until-limit 85)
+
+- **Local play** (plan `docs/Plan-Local-Multiplayer.md`): Multiplayer asks Local (LAN with discovery, Splitscreen) or Online (Steam, IP), in the headset panel and the F8 window. Splitscreen in `src/Local/` (`SplitPlayers`, `XInput`, `RawInput`, `FlatPlayerInput`): extra players are AI soldiers driven through the AI's answers, cameras in parts of the window, the game's HUD in player 1's part, vehicles (RB/E), off on a joined PC. Steam status: `Net/SteamStatus.cs`. LAN: `Net/LanDiscovery.cs` (UDP 7134). Flat edition zip from `build.ps1 -Package`.
+- Checks: `vrshots --splitcheck` (Steam status sent, LAN heard, 4 and 2 players walk, turn, fire, reload, pictures; 0 problems at 20:35), `--dashcheck`, `--netcheck --fast`, `--lobbycheck`.
+- Unrun with real devices: two keyboards and mice (Raw Input), real XInput controllers, splitscreen beside VR on the monitor.
+
 ## State 2026-11-14 night (the user playing 1.17.17 and reporting; bug-hunt run, work-until-limit 50; Tasks 387-393)
 
 - Fixed in code, installed by a watcher when the game closes (`build.ps1 -Package`, install, Defender), all unrun in the game: shotguns (trigger held works the pump shot after shot, glove and weapon hand on the pump, every held shell drawn, port at the receiver floor and in from below, next shell waits at the mouth), hand passes keep the glove, empty hands stop at walls, PPSh no made knob, 92g weapon hand on the glove's hold, MW MP9 own mag-in sound and semi loop cut, pouch round only when it can go in, CZ Bren 2 scope picture, no mod lens over the M417A2's scope.
