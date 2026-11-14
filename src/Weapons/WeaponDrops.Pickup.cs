@@ -368,9 +368,9 @@ namespace RavenfieldVR.Weapons
             bestDist = PickupReach;
             foreach (DroppedWeapon d in _drops)
             {
-                if (d.Go == null || d.Colliders == null || d.Shown)
+                if (d.Go == null || d.Colliders == null)
                 {
-                    continue;
+                    continue; // (another player's dropped gun too: in co-op it is there to be taken; its owner is told)
                 }
                 if (!d.ReachChecked && Time.time - d.DropTime > 0.1f)
                 {
@@ -502,6 +502,10 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             RestoreAmmo(equipped, drop);
+            if (drop.Shown)
+            {
+                Net.NetGame.OnShownDropTaken(drop); // (his PC takes his own copy away)
+            }
             if (drop.DiedWith != null && drop.Entry != null)
             {
                 Net.NetGame.OnDeathDropTaken(drop.DiedWith, drop.Entry.name); // (the other PCs' copies of it go)

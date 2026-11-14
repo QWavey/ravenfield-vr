@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -832,6 +832,42 @@ namespace RavenfieldVR.Net
         private static readonly Dictionary<int, Weapons.DroppedWeapon> ShownDrops = new Dictionary<int, Weapons.DroppedWeapon>();
 
         /// <summary>A shown copy of another PC's gun gone here (taken away, its time over): its entry goes from <see cref="ShownDrops"/>.</summary>
+        /// <summary>
+        /// This PC's player took another player's dropped gun (the user, 2026-11-14, co-op: a gun put down for the friend is his to take):
+        /// its owner is told, and his PC takes his own copy away (its going is then told to everyone as his drop's).
+        /// </summary>
+        internal static void OnShownDropTaken(Weapons.DroppedWeapon drop)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected)
+            {
+                return;
+            }
+            foreach (KeyValuePair<int, Weapons.DroppedWeapon> kv in ShownDrops)
+            {
+                if (ReferenceEquals(kv.Value, drop))
+                {
+                    Out.Reset();
+                    Out.UShort((ushort)(kv.Key & 0xFFFF));
+                    session.SendTo((byte)(kv.Key >> 16), ShownDropTaken, Out, true);
+                    return;
+                }
+            }
+        }
+
+        private static void TakeShownDropTaken(byte sender, ref NetReader r)
+        {
+            int id = r.UShort();
+            Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
+            if (system == null || system.Drops == null || !system.Drops.RemoveOwnByNetId(id, out string weapon))
+            {
+                return;
+            }
+            NetPlayer taker = _session?.Player(sender);
+            string name = taker != null && taker.Info != null && !string.IsNullOrEmpty(taker.Info.Name) ? taker.Info.Name : "Your friend";
+            UI.UISystem.Instance?.Notice?.Show($"{name} took your {weapon}.", 3f);
+        }
+
         internal static void OnShownDropGone(Weapons.DroppedWeapon drop)
         {
             foreach (KeyValuePair<int, Weapons.DroppedWeapon> kv in ShownDrops)
@@ -860,6 +896,9 @@ namespace RavenfieldVR.Net
             Out.Vector(t.position);
             Out.Rotation(t.rotation);
             Out.SmallVector(Vector3.ClampMagnitude(velocity, 30f));
+            // (Its rounds too, loaded and in reserve: the other player may take it now, as it is.)
+            Out.VarInt(Mathf.Max(-1, drop.Ammo));
+            Out.VarInt(Mathf.Max(-1, drop.Spare));
             session.Send(Dropped, Out, true);
         }
 
@@ -937,6 +976,7 @@ namespace RavenfieldVR.Net
             public string Weapon;
             public Vector3 At, Velocity;
             public Quaternion Turn;
+            public int Ammo = -1, Spare = -1;
         }
 
         private static readonly Dictionary<int, PendingDrop> PendingDrops = new Dictionary<int, PendingDrop>();
@@ -948,12 +988,18 @@ namespace RavenfieldVR.Net
             Vector3 at = r.Vector();
             Quaternion turn = r.Rotation();
             Vector3 velocity = r.SmallVector();
+            int ammo = -1, spare = -1;
+            if (r.Remaining > 0)
+            {
+                ammo = Mathf.Clamp(r.VarInt(), -1, 10000);
+                spare = Mathf.Clamp(r.VarInt(), -1, 100000);
+            }
             if (_loading && Finite(at) && Finite(velocity) && PendingDrops.Count < 64)
             {
-                PendingDrops[key] = new PendingDrop { Weapon = weapon, At = at, Turn = turn, Velocity = velocity };
+                PendingDrops[key] = new PendingDrop { Weapon = weapon, At = at, Turn = turn, Velocity = velocity, Ammo = ammo, Spare = spare };
                 return;
             }
-            ShowDropNow(key, weapon, at, turn, velocity);
+            ShowDropNow(key, weapon, at, turn, velocity, ammo, spare);
         }
 
         /// <summary>The drops told while this PC loaded, now that the match is in.</summary>
@@ -965,12 +1011,12 @@ namespace RavenfieldVR.Net
             }
             foreach (KeyValuePair<int, PendingDrop> kv in PendingDrops.ToArray())
             {
-                ShowDropNow(kv.Key, kv.Value.Weapon, kv.Value.At, kv.Value.Turn, kv.Value.Velocity);
+                ShowDropNow(kv.Key, kv.Value.Weapon, kv.Value.At, kv.Value.Turn, kv.Value.Velocity, kv.Value.Ammo, kv.Value.Spare);
             }
             PendingDrops.Clear();
         }
 
-        private static void ShowDropNow(int key, string weapon, Vector3 at, Quaternion turn, Vector3 velocity)
+        private static void ShowDropNow(int key, string weapon, Vector3 at, Quaternion turn, Vector3 velocity, int ammo = -1, int spare = -1)
         {
             Weapons.WeaponSystem system = Weapons.WeaponSystem.Instance;
             if (!InMatch || _loading || system == null || system.Drops == null || !Finite(at) || !Finite(velocity) || ShownDrops.Count > 64)
@@ -986,7 +1032,7 @@ namespace RavenfieldVR.Net
             {
                 system.Drops.RemoveShown(old);
             }
-            Weapons.DroppedWeapon shown = system.Drops.Show(entry, new Runtime.RigidPose(at, turn), velocity);
+            Weapons.DroppedWeapon shown = system.Drops.Show(entry, new Runtime.RigidPose(at, turn), velocity, ammo, spare);
             if (shown != null)
             {
                 ShownDrops[key] = shown;
@@ -1337,6 +1383,9 @@ namespace RavenfieldVR.Net
                         break;
                     case Dropped:
                         ShowDrop(sender, ref r);
+                        break;
+                    case ShownDropTaken:
+                        TakeShownDropTaken(sender, ref r);
                         break;
                     case KilledBy:
                         TakeKill(sender, ref r);

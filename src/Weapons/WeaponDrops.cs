@@ -203,13 +203,14 @@ namespace RavenfieldVR.Weapons
         /// Another PC's player's own gun shown where he let go of it (a shared match): a copy of its model, not to be picked up here, taken
         /// away again when he picks it up (<see cref="RemoveShown"/>). Null when this PC lacks the weapon.
         /// </summary>
-        internal DroppedWeapon Show(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 velocity)
+        internal DroppedWeapon Show(WeaponManager.WeaponEntry entry, RigidPose pose, Vector3 velocity, int ammo = -1, int spare = -1)
         {
             if (entry == null || entry.prefab == null)
             {
                 return null;
             }
-            DroppedWeapon d = Spawn(entry, pose, DropScale(Vector3.one), velocity, 0, 0, keep: true);
+            // (With its rounds as its owner left it, -1 where not told: taken here, it comes with them.)
+            DroppedWeapon d = Spawn(entry, pose, DropScale(Vector3.one), velocity, ammo, spare, keep: true);
             if (d != null)
             {
                 d.Shown = true;
@@ -242,6 +243,23 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
             }
+        }
+
+        /// <summary>This player's own drop told by that number taken by another player: gone here too. False: none such.</summary>
+        internal bool RemoveOwnByNetId(int id, out string weapon)
+        {
+            weapon = null;
+            foreach (DroppedWeapon d in _drops)
+            {
+                if (d.NetId == id && !d.Shown)
+                {
+                    weapon = d.Entry != null ? d.Entry.name : "gun";
+                    d.OwnerSlot = -1; // (given away: not put back in his holster)
+                    Remove(d);
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void Remove(DroppedWeapon d)
