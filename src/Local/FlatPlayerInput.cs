@@ -38,6 +38,9 @@ namespace RavenfieldVR.Local
         public static int Keys = 0;
 
         internal static readonly int Count = Enum.GetValues(typeof(SteelInput.KeyBinds)).Length + 1;
+
+        /// <summary>The mod's own bind past the game's: switch team (T, the controller's D-pad right), for the splitscreen copies.</summary>
+        internal static readonly int SwitchTeam = Count - 1;
         private static readonly float[] Axis = new float[Count];
         private static readonly bool[] Held = new bool[Count];
         private static readonly bool[] WasHeld = new bool[Count];
@@ -114,6 +117,7 @@ namespace RavenfieldVR.Local
             Set(SteelInput.KeyBinds.Weapon5, Key(0x35));
             Set(SteelInput.KeyBinds.OpenLoadout, Key(0x4C)); // L
             Set(SteelInput.KeyBinds.FireMode, Key(0x42)); // B
+            b.Held[SwitchTeam] |= Key(0x54); // T
         }
 
         // ---- this game's player ---------------------------------------------------------------------------------------------------
@@ -215,12 +219,15 @@ namespace RavenfieldVR.Local
             Set(SteelInput.KeyBinds.Scoreboard, s.Has(PadState.Back));
             Set(SteelInput.KeyBinds.Map, s.Has(PadState.Up));
             Set(SteelInput.KeyBinds.OpenLoadout, s.Has(PadState.Down));
+            Held[SwitchTeam] |= s.Has(PadState.Right);
         }
 
         /// <summary>A bind held this frame by this player (for the copies' deploy by key).</summary>
         internal static bool IsHeld(SteelInput.KeyBinds b) => Held[(int)b];
 
         internal static bool WentDown(SteelInput.KeyBinds b) => Held[(int)b] && !WasHeld[(int)b];
+
+        internal static bool WentDown(int bind) => Held[bind] && !WasHeld[bind];
 
         public static float MergeAxis(SteelInput.KeyBinds b, float game) =>
             Mathf.Abs(Axis[(int)b]) > Mathf.Abs(game) ? Axis[(int)b] : game;

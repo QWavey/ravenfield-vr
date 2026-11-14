@@ -39,6 +39,14 @@ namespace RavenfieldVR.Local
 
         public static bool IsClient => ClientIndex > 0;
 
+        /// <summary>The check: the host starts its copies with their test script (CopyTest), each copy runs it.</summary>
+        public static bool TestCopies;
+
+        private static readonly bool Testing = Args.Any(a => a.Equals("-rfvr-splittest", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>The copies' own log (the check reads it).</summary>
+        internal static string CopyLog(int index) => System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"RavenfieldVR-split-{index + 1}.log");
+
         /// <summary>Try mode on the host: player 2 takes the first keyboard and mouse, the host's own player idle (Esc still its).</summary>
         public static bool TryMode;
 
@@ -131,6 +139,7 @@ namespace RavenfieldVR.Local
             {
                 var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
                 string args = $"-novr -nointro -screen-fullscreen 0 -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
+                              + (TestCopies ? " -rfvr-splittest" : "")
                               + (mods != null ? " " + mods : "");
                 try
                 {
@@ -267,7 +276,7 @@ namespace RavenfieldVR.Local
             }
             try
             {
-                string file = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"RavenfieldVR-split-{ClientIndex + 1}.log");
+                string file = CopyLog(ClientIndex);
                 System.IO.File.AppendAllText(file, $"{DateTime.Now:HH:mm:ss} {line}{Environment.NewLine}");
             }
             catch (Exception)
@@ -317,6 +326,9 @@ namespace RavenfieldVR.Local
                 FlatPlayerInput.Keys = -1;
                 FlatPlayerInput.Pad = ClientIndex;
                 FlatPlayerInput.Receive(Received);
+                var drawer = new GameObject("RavenfieldVR Split Copy");
+                UnityEngine.Object.DontDestroyOnLoad(drawer);
+                drawer.AddComponent<SplitCopyHost>();
                 _lastFromHost = Time.unscaledTime + 60f; // (time to load and join before the host is missed)
                 _placedUntil = Time.unscaledTime + 30f;
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
@@ -354,7 +366,10 @@ namespace RavenfieldVR.Local
                         _heardHost = true;
                         Note("Splitscreen: the host's input for this player is coming in.");
                     }
-                    Read(p);
+                    if (!CopyTest.Running)
+                    {
+                        Read(p); // (a copy under test plays from its script instead, through the same binds)
+                    }
                     _lastFromHost = Time.unscaledTime;
                 }
             }
@@ -371,16 +386,13 @@ namespace RavenfieldVR.Local
             }
             RawInput.BlockLegacy(playing);
             FlatPlayerInput.Active = playing;
-            // The deploy screen by a key: this copy's window has no pointer (the host's has it), so fire or jump deploys.
-            if (playing && LocalPlayer.actor != null && LocalPlayer.actor.dead && LoadoutUi.instance != null && LoadoutUi.IsOpen()
-                && (FlatPlayerInput.WentDown(SteelInput.KeyBinds.Fire) || FlatPlayerInput.WentDown(SteelInput.KeyBinds.Jump)))
+            if (playing)
             {
-                LoadoutUi.instance.OnDeployClick();
-                if (!_saidDeploy)
-                {
-                    _saidDeploy = true;
-                    Note("Splitscreen: deployed by this player's key.");
-                }
+                SplitDeploy.Update(Note);
+            }
+            if (Testing && SplitPlayers.InMatch)
+            {
+                CopyTest.Update(Received, Note);
             }
         }
 
@@ -470,5 +482,11 @@ namespace RavenfieldVR.Local
         {
             Screen.SetResolution(GetSystemMetrics(0), GetSystemMetrics(1), FullScreenMode.FullScreenWindow);
         }
+    }
+
+    /// <summary>A copy's own drawing: what to press while down (SplitDeploy).</summary>
+    internal sealed class SplitCopyHost : MonoBehaviour
+    {
+        private void OnGUI() => SplitDeploy.Draw();
     }
 }

@@ -134,6 +134,9 @@ namespace RavenfieldVR.Core
 
         /// <summary>-rfvr-splittry (with -rfvr-autotest -novr): a match with splitscreen for 2 in try mode, left to the user to play (no checks, no quitting).</summary>
         private static readonly bool SplitTry = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>-rfvr-splitgamescheck (with -rfvr-autotest -novr): splitscreen with a copy of the game for player 2, the copy played by its script (Local.CopyTest).</summary>
+        private static readonly bool SplitGamesCheck = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitgamescheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
         private static readonly bool WalkCheckOnly = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-walkcheck", StringComparison.OrdinalIgnoreCase));
 
@@ -475,6 +478,60 @@ namespace RavenfieldVR.Core
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (SplitGamesCheck)
+                {
+                    _context = "splitscreen copies check";
+                    string copyLog = Local.SplitGames.CopyLog(1);
+                    try
+                    {
+                        System.IO.File.Delete(copyLog);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                    bool savedFull = Local.Splitscreen.FullGames;
+                    int savedPlayers = Local.Splitscreen.Players;
+                    Local.Splitscreen.FullGames = true;
+                    Local.Splitscreen.Players = 2;
+                    Local.SplitGames.TestCopies = true;
+                    Local.Splitscreen.On = true;
+                    string text = "";
+                    for (float until = Time.realtimeSinceStartup + 170f; Time.realtimeSinceStartup < until && !text.Contains("copy test: done");)
+                    {
+                        yield return new WaitForSecondsRealtime(2f);
+                        try
+                        {
+                            text = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : "";
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                    if (!text.Contains("copy test: done"))
+                    {
+                        Problem("[copies] the copy's test DID NOT FINISH in 170 s");
+                    }
+                    foreach (string line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
+                    {
+                        if (Failure.IsMatch(line))
+                        {
+                            Problem("[copies] " + line);
+                        }
+                        Results.Add("copies: " + line);
+                        Log.Info("[copies check] " + line);
+                    }
+                    string shot = Shots.FileFor("split-copies");
+                    System.IO.Directory.CreateDirectory(Shots.Dir);
+                    ScreenCapture.CaptureScreenshot(shot);
+                    yield return new WaitForSecondsRealtime(1f);
+                    Local.Splitscreen.On = false;
+                    yield return new WaitForSecondsRealtime(2f);
+                    Local.Splitscreen.FullGames = savedFull;
+                    Local.Splitscreen.Players = savedPlayers;
                     Write();
                     Application.Quit();
                     yield break;
