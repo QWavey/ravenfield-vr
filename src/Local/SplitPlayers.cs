@@ -13,7 +13,7 @@ namespace RavenfieldVR.Local
         public Actor Actor;
         public float Yaw, Pitch;
         public Camera Cam;
-        public bool Fire, Aim, Crouch, Sprint, Jump, Reload, NextWeapon;
+        public bool Fire, Aim, Crouch, Sprint, Jump, Reload, NextWeapon, Seat;
         public Vector2 Move;
         public ushort LastButtons;
         /// <summary>Input fed by a check instead of a controller (null: the controller).</summary>
@@ -240,6 +240,7 @@ namespace RavenfieldVR.Local
             }
             p.Reload = Pressed(PadState.X);
             p.NextWeapon = Pressed(PadState.Y);
+            p.Seat = Pressed(PadState.RightShoulder);
             p.LastButtons = pad.Buttons;
         }
 
@@ -258,7 +259,7 @@ namespace RavenfieldVR.Local
             p.Fire = m != null && m.Left;
             p.Aim = m != null && m.Right;
             ushort buttons = (ushort)((Key(0x20) ? PadState.A : 0) | (Key(0x43) ? PadState.B : 0) | (Key(0x10) ? PadState.LeftThumb : 0)
-                                      | (Key(0x52) ? PadState.X : 0) | (Key(0x51) ? PadState.Y : 0));
+                                      | (Key(0x52) ? PadState.X : 0) | (Key(0x51) ? PadState.Y : 0) | (Key(0x45) ? PadState.RightShoulder : 0));
             bool Pressed(ushort b) => (buttons & b) != 0 && (p.LastButtons & b) == 0;
             p.Jump = Pressed(PadState.A);
             if (Pressed(PadState.B))
@@ -268,6 +269,7 @@ namespace RavenfieldVR.Local
             p.Sprint = Key(0x10) && p.Move.y > 0f;
             p.Reload = Pressed(PadState.X);
             p.NextWeapon = Pressed(PadState.Y);
+            p.Seat = Pressed(PadState.RightShoulder);
             p.LastButtons = buttons;
         }
 
@@ -290,6 +292,10 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            if (p.Seat)
+            {
+                EnterOrLeave(p, a);
+            }
             if (p.Reload && a.activeWeapon != null && !a.activeWeapon.reloading)
             {
                 a.activeWeapon.Reload();
@@ -306,6 +312,43 @@ namespace RavenfieldVR.Local
                         break;
                     }
                 }
+            }
+        }
+
+        /// <summary>Into the nearest free seat within 4 m (a driver's first), or out of the one it sits in.</summary>
+        private static void EnterOrLeave(SplitPlayer p, Actor a)
+        {
+            if (a.IsSeated())
+            {
+                a.LeaveSeat(false);
+                return;
+            }
+            Seat best = null;
+            float bestScore = float.MaxValue;
+            foreach (Vehicle v in UnityEngine.Object.FindObjectsOfType<Vehicle>())
+            {
+                if (v == null || v.dead || v.seats == null)
+                {
+                    continue;
+                }
+                foreach (Seat s in v.seats)
+                {
+                    if (s == null || s.IsOccupied())
+                    {
+                        continue;
+                    }
+                    float d = Vector3.Distance(s.transform.position, a.Position());
+                    float score = d - (s.IsDriverSeat() ? 1f : 0f);
+                    if (d < 4f && score < bestScore)
+                    {
+                        best = s;
+                        bestScore = score;
+                    }
+                }
+            }
+            if (best != null)
+            {
+                a.EnterSeat(best, true, true);
             }
         }
 
@@ -448,6 +491,8 @@ namespace RavenfieldVR.Local
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.HoldingSprint)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSprint)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.IsSprinting)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSprint)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Reload)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitNo)));
+            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.CarInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
+            _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.BoatInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
         }
 
         private static bool Mine(AiActorController c, out SplitPlayer p)
@@ -516,6 +561,15 @@ namespace RavenfieldVR.Local
             if (Mine(__instance, out SplitPlayer p))
             {
                 __result = p.Sprint;
+            }
+        }
+
+        /// <summary>A car or a boat: the left stick steers and drives.</summary>
+        private static void SplitDrive(AiActorController __instance, ref Vector2 __result)
+        {
+            if (Mine(__instance, out SplitPlayer p))
+            {
+                __result = p.Move;
             }
         }
 
