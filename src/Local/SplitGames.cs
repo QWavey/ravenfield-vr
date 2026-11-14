@@ -39,6 +39,9 @@ namespace RavenfieldVR.Local
 
         public static bool IsClient => ClientIndex > 0;
 
+        /// <summary>This copy's host plays in a headset: the monitor is the copies' only.</summary>
+        private static readonly bool VrHost = Args.Any(x => x.Equals("-rfvr-splitvrhost", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>The check: the host starts its copies with their test script (CopyTest), each copy runs it.</summary>
         public static bool TestCopies;
 
@@ -122,7 +125,6 @@ namespace RavenfieldVR.Local
             : null;
         private static UdpClient _hostSocket;
         private static GameObject _hostDrawer;
-        private static float _nextHostPlace;
         private static readonly byte[] Packet = new byte[64];
 
         /// <summary>Whether the copies are running (the Local page shows it).</summary>
@@ -147,12 +149,9 @@ namespace RavenfieldVR.Local
                 return;
             }
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
-            if (!Runtime.OpenVRRuntime.Running && Time.unscaledTime >= _nextHostPlace)
+            if (!Runtime.OpenVRRuntime.Running)
             {
-                // (Its part of the screen kept, as the copies keep theirs: placed once, the game sized it back, and the user saw player 1's
-                // window framed over the middle, 2026-11-14.)
-                _nextHostPlace = Time.unscaledTime + 1f;
-                PlaceWindow(0, Splitscreen.Players);
+                Window(0, Splitscreen.Players);
             }
             HostInput();
         }
@@ -187,7 +186,11 @@ namespace RavenfieldVR.Local
             for (int i = 1; i < n; i++)
             {
                 var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
-                string args = $"-novr -nointro -screen-fullscreen 0 -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
+                Rect part = SplitPlayers.Part(Runtime.OpenVRRuntime.Running ? i - 1 : i, Runtime.OpenVRRuntime.Running ? n - 1 : n);
+                int pw = Mathf.RoundToInt(part.width * GetSystemMetrics(0)), ph = Mathf.RoundToInt(part.height * GetSystemMetrics(1));
+                // (Borderless from the start at its part's size, Unity's own -popupwindow: only moved into place then, never restyled.)
+                string args = $"-novr -nointro -screen-fullscreen 0 -popupwindow -screen-width {pw} -screen-height {ph} -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
+                              + (Runtime.OpenVRRuntime.Running ? " -rfvr-splitvrhost" : "")
                               + (TestCopies ? " -rfvr-splittest" : "")
                               + (mods != null ? " " + mods : "");
                 try
@@ -231,10 +234,7 @@ namespace RavenfieldVR.Local
             FlatPlayerInput.Keys = 0;
             FlatPlayerInput.Pad = 0;
             FlatPlayerInput.OnlyPause = TryMode;
-            if (!Runtime.OpenVRRuntime.Running)
-            {
-                PlaceWindow(0, n);
-            }
+            _placedScene = null; // (placed from now: Window)
             Log.Info($"Splitscreen: {n} players, each with a whole copy of the game (this one hosts on port {GamePort}).");
         }
 
@@ -462,12 +462,32 @@ namespace RavenfieldVR.Local
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
             }
             AudioListener.volume = 0f; // (the host plays the match's sound)
+            // A picture of this copy's own view on request (a file BepInEx/RavenfieldVR-split-N.shot): its window's own frame, for checks.
+            if (Time.frameCount % 60 == 0)
+            {
+                string flag = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"RavenfieldVR-split-{ClientIndex + 1}.shot");
+                if (System.IO.File.Exists(flag))
+                {
+                    try
+                    {
+                        System.IO.File.Delete(flag);
+                        ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"RavenfieldVR-split-{ClientIndex + 1}.png"));
+                        Note($"Splitscreen: picture taken; in match {SplitPlayers.InMatch}, player {(LocalPlayer.actor == null ? "none" : LocalPlayer.actor.dead ? "down" : "up")}, loadout screen {(LoadoutUi.instance != null && LoadoutUi.IsOpen() ? "open" : "closed")}, menu {(SplitCopyMenu.Open ? "open" : "closed")}, paused {GameManager.IsPaused()}");
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+            }
             // The window in its part of the screen, looked at once a second for as long as it plays (the game set its own size again
             // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
-            if (Time.unscaledTime >= _nextPlace)
+            if (VrHost)
             {
-                _nextPlace = Time.unscaledTime + (Time.unscaledTime < _placedUntil ? 0.5f : 1f);
-                PlaceWindow(ClientIndex, ClientCount);
+                Window(ClientIndex - 1, ClientCount - 1); // (the host plays in the headset: the copies share the monitor)
+            }
+            else
+            {
+                Window(ClientIndex, ClientCount);
             }
             // No pointer here (the keys work the menus): the cursor hidden and kept in place over this window.
             if (SplitPlayers.InMatch)
@@ -620,12 +640,18 @@ namespace RavenfieldVR.Local
         private const long WS_POPUP = 0x80000000L, WS_VISIBLE = 0x10000000L;
 
         /// <summary>This game's window borderless over part i of n of the screen (as the soldiers' parts: halves, or quarters for 3-4).</summary>
-        private static void PlaceWindow(int i, int n)
+        /// <summary>
+        /// Keeps this game's window over part i of n of the screen (halves, or quarters for 3-4): looked at a few times after it starts
+        /// and after each map's load (Window), then left alone. Forced once a second it jumped between the middle and its half: Unity
+        /// applies a new resolution a frame later, centred and framed, so every look found it moved and moved it again (the user,
+        /// 2026-11-14: "jumping left to the middle of my screen the whole time").
+        /// </summary>
+        private static bool PlaceWindow(int i, int n)
         {
             IntPtr hwnd = RawInput.GameWindow();
             if (hwnd == IntPtr.Zero)
             {
-                return;
+                return false;
             }
             int sw = GetSystemMetrics(0), sh = GetSystemMetrics(1);
             Rect part = SplitPlayers.Part(i, n); // (from the bottom, as Unity's viewports)
@@ -633,14 +659,48 @@ namespace RavenfieldVR.Local
             int y = Mathf.RoundToInt((1f - part.y - part.height) * sh);
             if (GetWindowRect(hwnd, out RECT r) && r.Left == x && r.Top == y && r.Right - r.Left == w && r.Bottom - r.Top == h)
             {
-                return;
+                return true;
             }
             if (Screen.fullScreenMode != FullScreenMode.Windowed || Screen.width != w || Screen.height != h)
             {
-                Screen.SetResolution(w, h, FullScreenMode.Windowed);
+                if (Time.frameCount - _sizedAt > 90)
+                {
+                    Screen.SetResolution(w, h, FullScreenMode.Windowed);
+                    _sizedAt = Time.frameCount;
+                }
+                return false; // (moved once Unity has applied the size: a few frames on)
+            }
+            if (Time.frameCount - _sizedAt < 5)
+            {
+                return false;
             }
             SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(WS_POPUP | WS_VISIBLE));
             SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+            return false;
+        }
+
+        private static int _sizedAt = -1000;
+        private static float _placeUntil, _nextLook;
+        private static string _placedScene;
+
+        /// <summary>Once a frame: the window placed for 12 s after it starts and after each new map, a look every half second, then left alone.</summary>
+        private static void Window(int i, int n)
+        {
+            string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (scene != _placedScene)
+            {
+                _placedScene = scene;
+                _placeUntil = Time.unscaledTime + 12f;
+            }
+            if (Time.unscaledTime > _placeUntil || Time.unscaledTime < _nextLook)
+            {
+                return;
+            }
+            _nextLook = Time.unscaledTime + 0.25f;
+            if (PlaceWindow(i, n) && Time.unscaledTime < _placeUntil - 2f)
+            {
+                _placeUntil = Time.unscaledTime + 2f; // (in place: looked at a little longer, then left)
+            }
         }
 
         private static void RestoreWindow()
