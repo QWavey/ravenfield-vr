@@ -96,16 +96,27 @@ namespace RavenfieldVR.Local
                 p.Yaw = me.controller != null ? Quaternion.LookRotation(me.controller.FacingDirection()).eulerAngles.y : 0f;
                 ByActor[a] = p;
                 Players.Add(p);
-                if (a.dead)
+                try
                 {
-                    Vector3 beside = me.Position() + Quaternion.Euler(0f, p.Yaw, 0f) * new Vector3(1.5f * p.Index, 0f, 0f);
-                    a.SpawnAt(beside, Quaternion.Euler(0f, p.Yaw, 0f), a.controller.GetLoadout());
+                    if (a.dead)
+                    {
+                        Vector3 beside = me.Position() + Quaternion.Euler(0f, p.Yaw, 0f) * new Vector3(1.5f * p.Index, 0f, 0f);
+                        a.SpawnAt(beside, Quaternion.Euler(0f, p.Yaw, 0f), a.controller.GetLoadout());
+                    }
+                    if (a.controller is AiActorController ai && ai.squad == null)
+                    {
+                        new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
+                    }
+                    p.Cam = MakeCamera(p);
                 }
-                if (a.controller is AiActorController ai && ai.squad == null)
+                catch (Exception e)
                 {
-                    new Squad(new[] { a }, ActorManager.RandomSpawnPointForTeam(a.team), null, null, 0f);
+                    // Not left half made with no camera, and not made again every frame: splitscreen off, said why.
+                    Remove(p);
+                    Splitscreen.On = false;
+                    Log.Warn($"Splitscreen: player {p.Index + 1} could not be made ({e.GetType().Name}: {e.Message}); splitscreen turned off.");
+                    return;
                 }
-                p.Cam = MakeCamera(p);
                 Log.Info($"Splitscreen: player {p.Index + 1} joined the match as a soldier of team {a.team} (controller {PadOf(p) + 1}).");
             }
             if (_host == null)
@@ -148,6 +159,10 @@ namespace RavenfieldVR.Local
                 {
                     if (!p.Actor.dead)
                     {
+                        if (p.Actor.IsSeated())
+                        {
+                            p.Actor.LeaveSeat(false); // (its seat free again for the others)
+                        }
                         p.Actor.KillSilently();
                     }
                     p.Actor.isScheduledToSpawn = true; // (no longer a player: kept off the field, not brought back by the waves)
@@ -291,6 +306,7 @@ namespace RavenfieldVR.Local
                 if (a.dead)
                 {
                     p.Deaths++;
+                    p.Crouch = p.Sprint = false; // (comes back standing, as the game's own player does)
                 }
                 p.WasDead = a.dead;
             }
@@ -314,7 +330,15 @@ namespace RavenfieldVR.Local
                     int slot = (a.activeWeaponSlot + k) % n;
                     if (a.weapons[slot] != null)
                     {
-                        a.SwitchWeapon(slot);
+                        _switching = true;
+                        try
+                        {
+                            a.SwitchWeapon(slot);
+                        }
+                        finally
+                        {
+                            _switching = false;
+                        }
                         break;
                     }
                 }
@@ -366,8 +390,8 @@ namespace RavenfieldVR.Local
             int first = vr ? 0 : 1;
             if (!vr)
             {
-                HudIntoOwnPart();
                 Rect mine = Part(0, shown);
+                HudIntoOwnPart(mine);
                 foreach (Camera c in OwnCameras())
                 {
                     if (!MainRects.ContainsKey(c))
@@ -390,49 +414,81 @@ namespace RavenfieldVR.Local
             }
         }
 
-        private static Canvas _hud;
-        private static RenderMode _hudMode;
-        private static Camera _hudCamera;
-        private static float _hudPlane;
+        /// <summary>The game's own screen-wide canvases drawn through the first player's camera, each with how it was.</summary>
+        private static readonly Dictionary<Canvas, (RenderMode mode, Camera camera, float plane)> Moved = new Dictionary<Canvas, (RenderMode, Camera, float)>();
+        private static float _nextCanvasLook;
+        /// <summary>The camera the game's displays are drawn through, in the first player's part: only their layers (the game's view-model camera draws no UI layer, so they were not seen).</summary>
+        private static Camera _hudCam;
 
         /// <summary>
-        /// The game's own display (health, rounds, the score) drawn in the game's own player's part of the window, through its camera:
-        /// as an overlay it spread over the whole window and over the other players' parts (the first check's pictures, 2026-11-14).
+        /// The game's own displays (health and rounds, the score bar, the deploy map and loadout after a death, its menus) drawn in the game's
+        /// own player's part of the window, through its camera: as overlays they spread over the whole window and over the other players'
+        /// parts (the check's pictures, 2026-11-14). Looked for once a second (a canvas the game makes later comes along).
         /// </summary>
-        private static void HudIntoOwnPart()
+        private static void HudIntoOwnPart(Rect part)
         {
-            FpsActorController f = FpsActorController.instance;
-            Canvas c = IngameUI.instance != null ? IngameUI.instance.canvas : null;
-            Camera cam = f != null ? f.fpViewModelCamera != null && f.fpViewModelCamera.enabled ? f.fpViewModelCamera : f.fpCamera : null;
-            if (c == null || cam == null)
+            if (_hudCam == null)
             {
-                return;
+                var go = new GameObject("RavenfieldVR Split Camera HUD");
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                go.transform.position = new Vector3(0f, -20000f, 0f); // (away from the world: it draws only the displays' layers)
+                _hudCam = go.AddComponent<Camera>();
+                _hudCam.clearFlags = CameraClearFlags.Depth;
+                _hudCam.cullingMask = 0;
+                _hudCam.stereoTargetEye = StereoTargetEyeMask.None;
+                _hudCam.nearClipPlane = 0.1f;
+                _hudCam.farClipPlane = 10f;
+                _hudCam.depth = 90f; // (over the game's own cameras in that part)
+                _hudCam.allowHDR = false;
+                _hudCam.allowMSAA = false;
             }
-            if (_hud != c)
+            Camera cam = _hudCam;
+            if (cam.rect != part)
             {
-                HudBack();
-                _hud = c;
-                _hudMode = c.renderMode;
-                _hudCamera = c.worldCamera;
-                _hudPlane = c.planeDistance;
+                cam.rect = part;
             }
-            if (c.renderMode != RenderMode.ScreenSpaceCamera || c.worldCamera != cam)
+            if (Time.unscaledTime >= _nextCanvasLook)
             {
-                c.renderMode = RenderMode.ScreenSpaceCamera;
-                c.worldCamera = cam;
-                c.planeDistance = cam.nearClipPlane + 0.02f;
+                _nextCanvasLook = Time.unscaledTime + 1f;
+                foreach (Canvas c in UnityEngine.Object.FindObjectsOfType<Canvas>())
+                {
+                    if (c == null || !c.isRootCanvas || Moved.ContainsKey(c) || c.renderMode != RenderMode.ScreenSpaceOverlay
+                        || c.name.StartsWith("RavenfieldVR", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    Moved[c] = (c.renderMode, c.worldCamera, c.planeDistance);
+                    cam.cullingMask |= 1 << c.gameObject.layer;
+                }
+            }
+            foreach (Canvas c in Moved.Keys)
+            {
+                if (c != null && (c.renderMode != RenderMode.ScreenSpaceCamera || c.worldCamera != cam))
+                {
+                    c.renderMode = RenderMode.ScreenSpaceCamera;
+                    c.worldCamera = cam;
+                    c.planeDistance = 1f;
+                }
             }
         }
 
         private static void HudBack()
         {
-            if (_hud != null)
+            foreach (KeyValuePair<Canvas, (RenderMode mode, Camera camera, float plane)> kv in Moved)
             {
-                _hud.renderMode = _hudMode;
-                _hud.worldCamera = _hudCamera;
-                _hud.planeDistance = _hudPlane;
+                if (kv.Key != null)
+                {
+                    kv.Key.renderMode = kv.Value.mode;
+                    kv.Key.worldCamera = kv.Value.camera;
+                    kv.Key.planeDistance = kv.Value.plane;
+                }
             }
-            _hud = null;
+            Moved.Clear();
+            if (_hudCam != null)
+            {
+                UnityEngine.Object.Destroy(_hudCam.gameObject);
+                _hudCam = null;
+            }
         }
 
         private static IEnumerable<Camera> OwnCameras()
@@ -545,7 +601,16 @@ namespace RavenfieldVR.Local
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.Reload)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitNo)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.CarInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
             _harmony.Patch(AccessTools.Method(ai, nameof(AiActorController.BoatInput)), postfix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitDrive)));
+            _harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchWeapon)), prefix: new HarmonyMethod(typeof(SplitPlayers), nameof(SplitSwitch)));
         }
+
+        private static bool _switching;
+
+        /// <summary>
+        /// A splitscreen soldier holds the gun its player picked: its AI's own choice is not taken (the net stand-ins' AI switched their
+        /// guns back and forth twice a second, NetGame.OnSwitchWeapon; scout, 2026-11-14).
+        /// </summary>
+        private static bool SplitSwitch(Actor __instance) => _switching || Players.Count == 0 || __instance == null || !ByActor.ContainsKey(__instance);
 
         private static bool Mine(AiActorController c, out SplitPlayer p)
         {

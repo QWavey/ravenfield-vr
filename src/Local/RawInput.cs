@@ -89,15 +89,25 @@ namespace RavenfieldVR.Local
         [DllImport("user32.dll")]
         private static extern IntPtr GetActiveWindow();
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetRegisteredRawInputDevices([Out] RAWINPUTDEVICE[] devices, ref uint count, uint size);
+
+        [DllImport("user32.dll", EntryPoint = "DefWindowProcW")]
+        private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>The mouse and keyboard as the game (Unity) had them registered before (Unity reads its mouse through Raw Input too), put back on Stop.</summary>
+        private static RAWINPUTDEVICE? _hadMouse, _hadKeyboard;
+
         private static IntPtr _window, _previous;
         private static WndProc _hook; // (kept alive: the window calls it)
-        private static bool _blocking;
+        private static bool _blocking, _failed;
+        private static bool _installed;
         private static readonly Dictionary<IntPtr, RawDevice> Devices = new Dictionary<IntPtr, RawDevice>();
         private static int _keyboards, _mice;
         private static IntPtr _buffer = IntPtr.Zero;
         private static uint _bufferSize;
 
-        public static bool Started => _hook != null;
+        public static bool Started => _installed;
 
         /// <summary>The n-th keyboard or mouse heard (0: the first), or null.</summary>
         public static RawDevice Nth(bool mouse, int n)
@@ -116,9 +126,9 @@ namespace RavenfieldVR.Local
 
         public static void Start()
         {
-            if (_hook != null)
+            if (_installed || _failed)
             {
-                return;
+                return; // (tried once: not every frame)
             }
             try
             {
@@ -127,14 +137,31 @@ namespace RavenfieldVR.Local
                 {
                     _window = GetActiveWindow();
                 }
-                _hook = Proc;
+                if (_window == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException("no game window");
+                }
+                RememberUnitysOwn();
+                ClearHeld();
+                _hook = _hook ?? Proc; // (kept for good once made: the window may still call it after a restore that did not take)
                 _previous = SetWindowLongPtr(_window, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(_hook));
-                Register(0);
-                Log.Info("Splitscreen: keyboards and mice told apart (Raw Input on the game's window).");
+                if (_previous == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException("the window's procedure could not be replaced");
+                }
+                _installed = true;
+                if (!Register(0))
+                {
+                    Log.Warn("Splitscreen: Raw Input registration failed (error " + Marshal.GetLastWin32Error() + "): keyboards and mice not told apart.");
+                }
+                else
+                {
+                    Log.Info("Splitscreen: keyboards and mice told apart (Raw Input on the game's window).");
+                }
             }
             catch (Exception e)
             {
-                _hook = null;
+                _failed = true;
                 Log.Warn("Splitscreen: keyboards and mice could not be told apart: " + e.Message);
             }
         }
@@ -145,7 +172,7 @@ namespace RavenfieldVR.Local
         /// </summary>
         public static void BlockLegacy(bool block)
         {
-            if (_hook == null || block == _blocking)
+            if (!_installed || block == _blocking)
             {
                 return;
             }
@@ -154,29 +181,41 @@ namespace RavenfieldVR.Local
             Log.Info(block ? "Splitscreen: the merged keyboard and mouse kept from the game (each player has their own)." : "Splitscreen: the keyboard and mouse back to the game.");
         }
 
-        private static void Register(uint extra)
+        private static bool Register(uint extra)
         {
             var devices = new[]
             {
                 new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_INPUTSINK | extra, Target = _window },
                 new RAWINPUTDEVICE { UsagePage = 1, Usage = 6, Flags = RIDEV_INPUTSINK | extra, Target = _window },
             };
-            RegisterRawInputDevices(devices, 2, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+            return RegisterRawInputDevices(devices, 2, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+        }
+
+        /// <summary>Every key and button let go and movement dropped: a let-go not heard while stopped kept a soldier walking or firing.</summary>
+        private static void ClearHeld()
+        {
+            foreach (RawDevice d in Devices.Values)
+            {
+                Array.Clear(d.Keys, 0, d.Keys.Length);
+                d.Left = d.Right = d.Middle = false;
+                d.Delta = Vector2.zero;
+            }
         }
 
         public static void Stop()
         {
-            if (_hook == null)
+            if (!_installed)
             {
                 return;
             }
             try
             {
                 BlockLegacy(false);
+                // Unity's own registration back as it was (taking it away left the game's mouse look dead), else ours removed.
                 var devices = new[]
                 {
-                    new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_REMOVE, Target = IntPtr.Zero },
-                    new RAWINPUTDEVICE { UsagePage = 1, Usage = 6, Flags = RIDEV_REMOVE, Target = IntPtr.Zero },
+                    _hadMouse ?? new RAWINPUTDEVICE { UsagePage = 1, Usage = 2, Flags = RIDEV_REMOVE, Target = IntPtr.Zero },
+                    _hadKeyboard ?? new RAWINPUTDEVICE { UsagePage = 1, Usage = 6, Flags = RIDEV_REMOVE, Target = IntPtr.Zero },
                 };
                 RegisterRawInputDevices(devices, 2, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
                 SetWindowLongPtr(_window, GWLP_WNDPROC, _previous);
@@ -184,7 +223,35 @@ namespace RavenfieldVR.Local
             catch (Exception)
             {
             }
-            _hook = null;
+            _installed = false;
+            ClearHeld();
+        }
+
+        private static void RememberUnitysOwn()
+        {
+            _hadMouse = _hadKeyboard = null;
+            uint size = (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)), count = 0;
+            GetRegisteredRawInputDevices(null, ref count, size);
+            if (count == 0)
+            {
+                return;
+            }
+            var had = new RAWINPUTDEVICE[count];
+            if (GetRegisteredRawInputDevices(had, ref count, size) == uint.MaxValue)
+            {
+                return;
+            }
+            foreach (RAWINPUTDEVICE d in had)
+            {
+                if (d.UsagePage == 1 && d.Usage == 2)
+                {
+                    _hadMouse = d;
+                }
+                else if (d.UsagePage == 1 && d.Usage == 6)
+                {
+                    _hadKeyboard = d;
+                }
+            }
         }
 
         private static IntPtr Proc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -198,6 +265,12 @@ namespace RavenfieldVR.Local
                 catch (Exception)
                 {
                     // (never thrown back into the window's message loop)
+                }
+                if (_blocking)
+                {
+                    // Kept from Unity too: it reads its mouse look from Raw Input, all mice merged, so the second player's mouse turned the
+                    // game's own player (that one is answered from FlatPlayerInput instead).
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
                 }
             }
             return CallWindowProc(_previous, hWnd, msg, wParam, lParam);
@@ -241,7 +314,7 @@ namespace RavenfieldVR.Local
             if (mouse)
             {
                 var m = (RAWMOUSE)Marshal.PtrToStructure(body, typeof(RAWMOUSE));
-                if ((m.Flags & 1) == 0) // (relative movement, not an absolute position)
+                if ((m.Flags & 1) == 0 && _blocking) // (relative movement, not an absolute position; only while playing, else a menu's movement landed as one turn)
                 {
                     d.Delta += new Vector2(m.LastX, m.LastY);
                 }

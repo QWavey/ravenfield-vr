@@ -496,6 +496,7 @@ namespace RavenfieldVR.Net
                     Log.WarnOnce("mp-lobbies-dispose", "Multiplayer: letting Steam's lobbies go threw: " + e.Message);
                 }
                 _lobbies = null;
+                LanDiscovery.Shutdown(); // (its beacon's socket closed)
                 // (Asked for again once Steam is there: after a VR setup that failed mid-game, a friend's invitation was ignored
                 // until the panel was opened; Steam scout.)
                 _listening = false;
