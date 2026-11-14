@@ -809,9 +809,13 @@ namespace RavenfieldVR.Weapons
                 return at;
             }
             var arms = new HashSet<Renderer>(Rig.ArmRenderers);
+            // (Only what the headset's camera draws: the ARS guns carry their third-person body inside the first-person gun on a
+            // layer the view leaves out, and its bones moving read as "THE SLIDE RAN FORWARD ON ITS OWN" on the MP9; 2026-11-14.)
+            Camera eye = _system != null && _system.Rig != null ? _system.Rig.Camera : null;
+            int seen = eye != null ? eye.cullingMask : ~0;
             foreach (Renderer r in Weapon.GetComponentsInChildren<Renderer>(false))
             {
-                if (!r.enabled || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f)
+                if (!r.enabled || arms.Contains(r) || r.transform.lossyScale.sqrMagnitude < 1e-6f || (seen & (1 << r.gameObject.layer)) == 0)
                 {
                     continue;
                 }
