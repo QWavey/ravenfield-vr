@@ -45,6 +45,7 @@ namespace RavenfieldVR.Rig
         private const int WorldMask = 2232321 & ~((1 << 8) | (1 << 10) | (1 << 16) | (1 << 17));
         private Vector3 _worldPalm;
         private bool _worldPalmValid;
+        private int _worldPalmFrame = -10;
 
         /// <summary>
         /// An empty hand stops at walls and the ground as the gun does (its stand-in is a body the level holds back): the palm is
@@ -56,11 +57,19 @@ namespace RavenfieldVR.Rig
         private Vector3 KeepOutOfWorld(Vector3 position, Quaternion rotation)
         {
             Actor me = ActorManager.instance != null ? FpsActorController.instance?.actor : null;
-            if (_hand.Role != HandRole.Free || _snapBlend > 0f || me == null || me.dead || me.IsSeated())
+            // (Not a hand that keeps the gun passed to it where it held it (Free, its glove kept on the gun): pushed by the level it
+            // came off the gun; scout. Nor after a frame not drawn: the sweep started from where it was before it was hidden.)
+            if (_hand.Role != HandRole.Free || _snapBlend > 0f || KeepGraspOffset || me == null || me.dead || me.IsSeated()
+                || Time.frameCount - _worldPalmFrame > 1)
             {
                 _worldPalmValid = false;
-                return position;
+                _worldPalmFrame = Time.frameCount;
+                if (_hand.Role != HandRole.Free || _snapBlend > 0f || KeepGraspOffset || me == null || me.dead || me.IsSeated())
+                {
+                    return position;
+                }
             }
+            _worldPalmFrame = Time.frameCount;
             Vector3 hollow = rotation * new Vector3(VRHand.FistHollow.x * _hand.Mirror, VRHand.FistHollow.y, VRHand.FistHollow.z);
             Vector3 want = position + hollow;
             if (!_worldPalmValid || (want - _worldPalm).sqrMagnitude > 0.3f * 0.3f)
@@ -826,9 +835,9 @@ namespace RavenfieldVR.Rig
         private Vector3 NextGraspOffset(RigidPose target, float dt)
         {
             Vector3 want = Vector3.zero;
-            if (!KeepGraspOffset)
+            if (!KeepGraspOffset || GraspAnchor.HasValue)
             {
-                _keptOffsetTaken = false;
+                _keptOffsetTaken = false; // (taken afresh once an anchor of its own lets go: not the pass's offset back; scout)
             }
             else if (!GraspAnchor.HasValue)
             {

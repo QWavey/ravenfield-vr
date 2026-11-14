@@ -1787,15 +1787,28 @@ namespace RavenfieldVR.Weapons
                         break;
                     }
                 }
+                // A gate in the receiver's side (a lever action's): the shell goes in sideways, as its reload pushes it, at the port
+                // its reload has. The port and the way in from under the receiver below are a pump's and an automatic's.
+                bool sideGate = Mathf.Abs(Vector3.Dot(insert, Vector3.Cross(d.Up, d.AimAxis).normalized)) > 0.5f;
                 // Into the gun: forward along the tube, or up into the port; any other last motion keeps the tube's line.
-                if (Vector3.Dot(insert, d.AimAxis) < 0.3f && Vector3.Dot(insert, d.Up) < 0.5f)
+                if (!sideGate && Vector3.Dot(insert, d.AimAxis) < 0.3f && Vector3.Dot(insert, d.Up) < 0.5f)
                 {
                     insert = d.AimAxis;
                 }
-                insert = FromUnderTheReceiver(d, insert);
+                if (!sideGate)
+                {
+                    insert = FromUnderTheReceiver(d, insert);
+                }
                 d.MagSeat = new RigidPose(path[best], rot);
                 d.MagEjectAxis = -insert;
-                AtTheReceiversPort(d);
+                if (!sideGate)
+                {
+                    AtTheReceiversPort(d);
+                }
+                else
+                {
+                    d.Notes += "shells go in through a side gate, as its reload pushes them ";
+                }
                 Vector3 c = d.MagSeat.position + d.MagSeat.rotation * d.MagBounds.center;
                 d.Notes += $"shells go in at the loading port, where the reload pushes its shell ({Vector3.Dot(c - d.GripPoint, d.AimAxis) * 100f:0} cm ahead of the grip, "
                            + $"{-Vector3.Dot(c - d.MuzzlePoint, d.Up) * 100f:0.0} cm under the bore), {Vector3.Angle(insert, d.AimAxis):0} deg off the bore ";
@@ -1804,12 +1817,6 @@ namespace RavenfieldVR.Weapons
             SeatAtEstimatedPort(d, "the reload's shell never comes under the bore by the grip");
         }
 
-        /// <summary>
-        /// A tube's shell goes in from under the receiver, nose up into the loading port and on forward into the tube: at least 30
-        /// degrees up off the bore. Straight along the tube, a shell half way in lay inside the receiver and showed through its
-        /// side by the ejection port, on every pump gun (the user, 2026-11-14: "the shell goes somewhere wrong inserted when
-        /// reloading, its not right where it should be"; the Bryson 800's "shell half into the port" picture).
-        /// </summary>
         /// <summary>
         /// The loading port is in the receiver's floor, just ahead of the trigger guard: a third of the way from the trigger hand to the
         /// pump, 8 to 15 cm ahead of the grip. Taken where the reload's shell lies deepest, it was 18 to 21 cm ahead (inside the tube,
@@ -1838,6 +1845,12 @@ namespace RavenfieldVR.Weapons
             d.Notes += $"loading port moved to the receiver's floor: {want * 100f:0} cm ahead of the grip (found at {now * 100f:0}; the pump {toPump * 100f:0}) ";
         }
 
+        /// <summary>
+        /// A tube's shell goes in from under the receiver, nose up into the loading port and on forward into the tube: at least 30
+        /// degrees up off the bore. Straight along the tube, a shell half way in lay inside the receiver and showed through its
+        /// side by the ejection port, on every pump gun (the user, 2026-11-14: "the shell goes somewhere wrong inserted when
+        /// reloading, its not right where it should be"; the Bryson 800's "shell half into the port" picture).
+        /// </summary>
         private static Vector3 FromUnderTheReceiver(WeaponRigData d, Vector3 insert)
         {
             if (Vector3.Dot(insert, d.Up) >= 0.5f)
