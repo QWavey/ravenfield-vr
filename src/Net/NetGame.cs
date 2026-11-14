@@ -2450,7 +2450,15 @@ namespace RavenfieldVR.Net
                         facing = c.FacingDirection();
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
                         // the gun hand points it (he looked where the head looked, and shot "sideways" out of a level gun).
-                        if (a == player && VRManager.Active && a.activeWeapon != null && Rig.VRRig.Instance != null && Rig.VRRig.Instance.Dominant.Tracked)
+                        if (a == player && VRManager.Active && a.IsSeated() && a.activeWeapon is MountedWeapon && Input.TurretAim.Direction() is Vector3 aim)
+                        {
+                            // At a mounted gun or a tank's turret: where the turret is steered (the head by default, the hand if set). The
+                            // stand-in's turret on the other PCs follows his told facing (the game's own AI aim), and it was told the gun
+                            // hand's pointer while the turret followed the head: the others saw it aimed elsewhere, or not turning
+                            // (joined-player scout, 2026-11-14).
+                            facing = aim;
+                        }
+                        else if (a == player && VRManager.Active && a.activeWeapon != null && Rig.VRRig.Instance != null && Rig.VRRig.Instance.Dominant.Tracked)
                         {
                             facing = Rig.VRRig.Instance.Dominant.TrackedPointer.Forward;
                         }
