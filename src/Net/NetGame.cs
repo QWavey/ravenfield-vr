@@ -27,7 +27,7 @@ namespace RavenfieldVR.Net
     internal static class NetGame
     {
         internal const byte MatchStart = 16, ActorInfo = 17, ActorStates = 18, Hit = 19, NeedInfo = 20, LobbyState = 21, Knock = 22, VrPose = 23, MatchState = 24, BackToMenu = 25, Thrown = 26, Dropped = 28, DropGone = 29, KilledBy = 30,
-            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45, SandboxVehicle = 46;
+            VehicleInfo = 31, VehicleStates = 32, VehicleGone = 33, VehicleSeat = 34, VehicleOwner = 35, VehicleHit = 36, VehicleKilled = 37, Pings = 38, Scores = 39, VehicleSeatRefused = 40, DeathDropTaken = 41, Spot = 42, GiveRounds = 43, Voice = 44, ShownDropTaken = 45, SandboxVehicle = 46, SandboxSoldiers = 47;
         private const float SendEvery = 1f / 15f;
         internal const int Alive = 1, TeamOne = 2, Crouched = 4, Proned = 8, Sprinting = 16, Firing = 32, Aimed = 64, Seated = 128;
         /// <summary>A second byte of a soldier's state (the first was full): on a ladder, off the ground (a jump, a fall), swimming.</summary>
@@ -928,6 +928,53 @@ namespace RavenfieldVR.Net
             session.SendTo(0, SandboxVehicle, Out, true);
         }
 
+        /// <summary>A joined player makes soldiers with the sandbox's tool: the host is asked to (his soldiers are the shared ones).</summary>
+        internal static void AskHostForSoldiers(Sandbox.SoldierSpec spec, Vector3 at, Vector3 facing)
+        {
+            NetSession session = _session;
+            if (session == null || session.State != NetState.Connected || session.IsHost || spec == null || !Finite(at) || !Finite(facing)
+                || Time.unscaledTime - _askedAt < 1f)
+            {
+                return;
+            }
+            _askedAt = Time.unscaledTime;
+            Out.Reset();
+            Out.Byte((byte)spec.Side);
+            Out.Byte((byte)spec.Behaviour);
+            // (His own loadout is his PC's: asked with "mine", the host gives them the game's own pick.)
+            Out.Byte((byte)(spec.Weapons == Sandbox.SoldierWeapons.Mine ? Sandbox.SoldierWeapons.Default : spec.Weapons));
+            Out.Byte((byte)spec.Health);
+            Out.Byte((byte)Mathf.Clamp(spec.Count, 1, 20));
+            Out.Vector(at);
+            Out.SmallVector(Vector3.ClampMagnitude(facing, 1f));
+            session.SendTo(0, SandboxSoldiers, Out, true);
+        }
+
+        private static void TakeSoldiersAsked(byte sender, ref NetReader r)
+        {
+            var spec = new Sandbox.SoldierSpec
+            {
+                Side = (Sandbox.SoldierSide)r.Byte(),
+                Behaviour = (Sandbox.SoldierBehaviour)r.Byte(),
+                Weapons = (Sandbox.SoldierWeapons)r.Byte(),
+                Health = (Sandbox.SoldierHealth)r.Byte(),
+                Count = Mathf.Clamp(r.Byte(), 1, 20)
+            };
+            Vector3 at = r.Vector();
+            Vector3 facing = r.SmallVector();
+            NetSession session = _session;
+            if (session == null || !session.IsHost || !Sandbox.Sandbox.InMode || !Finite(at) || !Finite(facing)
+                || !Enum.IsDefined(typeof(Sandbox.SoldierSide), spec.Side) || !Enum.IsDefined(typeof(Sandbox.SoldierBehaviour), spec.Behaviour)
+                || !Enum.IsDefined(typeof(Sandbox.SoldierWeapons), spec.Weapons) || !Enum.IsDefined(typeof(Sandbox.SoldierHealth), spec.Health))
+            {
+                return;
+            }
+            Remote asker = RemoteOf(sender, 0);
+            int team = asker != null && asker.Actor != null ? asker.Actor.team : -1;
+            List<Actor> made = Sandbox.Sandbox.SpawnSoldiers(spec, at, facing, out string problem, team);
+            Log.Info($"Sandbox: player {sender} asked for {spec.Count} soldier(s): {made.Count} made{(problem != null ? " (" + problem + ")" : "")}.");
+        }
+
         private static void TakeVehicleAsked(byte sender, ref NetReader r)
         {
             int type = r.Byte();
@@ -1469,6 +1516,9 @@ namespace RavenfieldVR.Net
                         break;
                     case SandboxVehicle:
                         TakeVehicleAsked(sender, ref r);
+                        break;
+                    case SandboxSoldiers:
+                        TakeSoldiersAsked(sender, ref r);
                         break;
                     case KilledBy:
                         TakeKill(sender, ref r);

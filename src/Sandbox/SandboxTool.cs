@@ -270,6 +270,10 @@ namespace RavenfieldVR.Sandbox
                 return v != null ? $"{Sandbox.Vehicle} made." : "No vehicle: " + problem + ".";
             }
             List<Actor> made = Sandbox.SpawnSoldiers(Sandbox.Soldier, at, facing, out problem);
+            if (made.Count == 0 && Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
+            {
+                return "The host makes them for both of you.";
+            }
             return made.Count > 0 ? $"{made.Count} soldier(s) made." + (problem != null ? " But: " + problem + "." : "") : "No soldier: " + problem + ".";
         }
 

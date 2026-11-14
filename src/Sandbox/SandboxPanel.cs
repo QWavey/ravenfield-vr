@@ -122,7 +122,7 @@ namespace RavenfieldVR.Sandbox
             {
                 Label("A shared match: the field is the host's to change. What only he can do is greyed out.", 19, FontStyle.Italic, UiKit.TextColor, 34f);
             }
-            Greyed = joined && (_tab == Tab.Soldiers || _tab == Tab.Field); // (vehicles: a joined player asks the host to place them, 2026-11-14)
+            Greyed = joined && _tab == Tab.Field; // (vehicles and soldiers: a joined player asks the host to make them, 2026-11-14)
             switch (_tab)
             {
                 case Tab.Soldiers:

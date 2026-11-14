@@ -297,7 +297,7 @@ namespace RavenfieldVR.Sandbox
         /// Soldiers by <paramref name="spec"/> at a point (several side by side), facing <paramref name="facing"/>. What was made; a
         /// reason in <paramref name="problem"/> when none could be.
         /// </summary>
-        internal static List<Actor> SpawnSoldiers(SoldierSpec spec, Vector3 at, Vector3 facing, out string problem)
+        internal static List<Actor> SpawnSoldiers(SoldierSpec spec, Vector3 at, Vector3 facing, out string problem, int forTeam = -1)
         {
             var made = new List<Actor>();
             problem = null;
@@ -311,13 +311,16 @@ namespace RavenfieldVR.Sandbox
             // by nobody and seen by nobody else. On the host's PC a sandbox soldier is told to everyone like any other.
             if (Net.Multiplayer.Active && !Net.Multiplayer.Hosting)
             {
-                problem = "in a shared match only the host makes soldiers";
+                // (Asked of the host, whose soldiers are the shared ones: made there for this player's side, 2026-11-14 co-op sandbox.)
+                Net.NetGame.AskHostForSoldiers(spec, at, facing);
+                problem = "asked the host to make them";
                 return made;
             }
             facing = Vector3.ProjectOnPlane(facing, Vector3.up);
             facing = facing.sqrMagnitude > 1e-4f ? facing.normalized : Vector3.forward;
             Vector3 side = Vector3.Cross(Vector3.up, facing);
-            int team = spec.Side == SoldierSide.Friendly ? player.team : 1 - player.team;
+            int own = forTeam >= 0 ? forTeam : player.team; // (for a joined player who asked: his side)
+            int team = spec.Side == SoldierSide.Friendly ? own : 1 - own;
             if (spec.Behaviour != SoldierBehaviour.Normal && spec.Behaviour != SoldierBehaviour.Follow)
             {
                 PatchBehaviours();
