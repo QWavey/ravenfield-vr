@@ -34,6 +34,8 @@ namespace RavenfieldVR.Net
         internal const int OnLadder = 256, Airborne = 512, Swimming = 1024;
         /// <summary>Knocked over on his owner's PC (a blast, a blow, a kick there): the stand-in falls too (multiplayer scout, 2026-11-12).</summary>
         internal const int Fallen = 2048;
+        /// <summary>Reloading on his owner's PC: the stand-in reloads then, and only then (it kept its own count and ran dry apart).</summary>
+        internal const int Reloading = 4096;
 
         /// <summary>A soldier owned by another PC, and its stand-in here.</summary>
         internal sealed class Remote
@@ -77,6 +79,7 @@ namespace RavenfieldVR.Net
 
             /// <summary>Since when his stand-in here lies knocked over while he is told on his feet (-1: it stands).</summary>
             public float FallenSince = -1f;
+            public bool ToldReloading;
             public bool HasState, HasInfo, WeaponChanged;
 
             /// <summary>A VR player's head, hands and gun as his game tells them (null: none told; NetAvatar).</summary>
@@ -762,6 +765,43 @@ namespace RavenfieldVR.Net
             __result = v.sqrMagnitude < 0.01f ? Vector3.zero : Vector3.ClampMagnitude(v, 9f);
             VelocityAsked++;
             LastVelocity = __result;
+        }
+
+        /// <summary>
+        /// A stand-in's gun as his owner's: reloading when told so (its animation then), and otherwise never empty. It fired by the
+        /// word, but on its own count, and went dry and reloaded at its own moments: it stood silent while his owner fired on, and
+        /// the owner's reloads were never seen (joined-player scout, 2026-11-14).
+        /// </summary>
+        private static void KeepStandInAmmo(Remote r, Actor a)
+        {
+            Weapon held = a.activeWeapon;
+            if (held == null || held.configuration == null || held.configuration.ammo <= 0 || a.IsSeated())
+            {
+                return;
+            }
+            bool told = r.Is(Reloading);
+            bool started = told && !r.ToldReloading; // (on its start only: his reload done sooner here than there, not begun again)
+            r.ToldReloading = told;
+            if (told)
+            {
+                if (started && !held.reloading)
+                {
+                    try
+                    {
+                        held.ammo = 0; // (a full gun's reload is refused: from empty, as his owner's)
+                        held.Reload();
+                    }
+                    catch (Exception)
+                    {
+                        // (the game refused it: the next state tries again)
+                    }
+                }
+                return;
+            }
+            if (!held.reloading && held.ammo < held.configuration.ammo)
+            {
+                held.ammo = held.configuration.ammo;
+            }
         }
 
         private static void RemoteFacing(AiActorController __instance, ref Vector3 __result)
@@ -2445,7 +2485,8 @@ namespace RavenfieldVR.Net
                         flags |= (c.Crouch() || a.stance == Actor.Stance.Crouch ? Crouched : 0) | (a.stance == Actor.Stance.Prone ? Proned : 0) | (c.IsSprinting() ? Sprinting : 0)
                                  | (c.WantsToFire() || FiredJustNow(a) ? Firing : 0) | (c.Aiming() ? Aimed : 0) | (a.IsSeated() ? Seated : 0)
                                  | (a.IsOnLadder() ? OnLadder : 0) | (!a.IsSeated() && !a.IsOnLadder() && !c.OnGround() ? Airborne : 0) | (a.IsSwimming() ? Swimming : 0)
-                                 | (a.fallenOver ? Fallen : 0);
+                                 | (a.fallenOver ? Fallen : 0)
+                                 | (a.activeWeapon != null && a.activeWeapon.reloading ? Reloading : 0);
                         velocity = a.Velocity();
                         facing = c.FacingDirection();
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
@@ -2831,6 +2872,7 @@ namespace RavenfieldVR.Net
                         continue;
                     }
                     r.FallenSince = -1f;
+                    KeepStandInAmmo(r, a);
                     // A player's soldier stands turned the way the player does (his head's way when he is in VR, else his aim's): the
                     // game turns a soldier's body only into his walk, so one who had walked sideways stood sideways to his own gun,
                     // and the gun hand could not reach its grip across the chest (10 cm short in the check, 2026-11-10).
