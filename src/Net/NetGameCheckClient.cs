@@ -68,6 +68,7 @@ namespace RavenfieldVR.Net
             var w = new NetWriter(512);
             var soldiers = new List<(ushort id, int team, Vector3 at, bool alive)>();
             bool telling = false;
+            int extraFlags = 0; // (flags told for soldier 1 besides his own: the reload step)
             float nextSend = 0f;
             string weapon = "";
             void Pump()
@@ -94,7 +95,7 @@ namespace RavenfieldVR.Net
                 w.Byte((byte)soldiers.Count);
                 foreach ((ushort id, int side, Vector3 at, bool alive) in soldiers)
                 {
-                    NetGame.PutState(w, id, (alive ? NetGame.Alive : 0) | (side == 1 ? NetGame.TeamOne : 0), at, Vector3.zero, Vector3.forward);
+                    NetGame.PutState(w, id, (alive ? NetGame.Alive : 0) | (side == 1 ? NetGame.TeamOne : 0) | (id == 1 ? extraFlags : 0), at, Vector3.zero, Vector3.forward);
                 }
                 host.Send(NetGame.ActorStates, w, false);
             }
@@ -192,6 +193,34 @@ namespace RavenfieldVR.Net
             bool sides = standins.All(r => r.Actor.team == soldiers.First(s => s.id == r.Id).team);
             report($"multiplayer host's soldiers here: {standins.Count} of 3 on the field{(standins.Count != 3 ? " NOT ALL THERE" : "")}{(sides ? "" : " NOT ON THEIR SIDES")}"
                    + $" (told before this game knew them: it asked {asked} time(s){(asked == 0 ? " NOT ASKED" : "")})");
+
+            // 3a. A soldier told reloading (2026-11-14): his stand-in reloads with him, and its gun is full again otherwise.
+            {
+                NetGame.Remote reloader = NetGame.AllRemotes.FirstOrDefault(r => r.Id == 1);
+                Weapon gun = reloader != null && reloader.Actor != null ? reloader.Actor.activeWeapon : null;
+                if (gun == null || gun.configuration == null || gun.configuration.ammo <= 0)
+                {
+                    report("multiplayer soldier's reload: skipped (no gun with a magazine in his stand-in's hands)");
+                }
+                else
+                {
+                    gun.ammo = 1; // (his copy nearly dry here: it is kept full while his owner is not reloading)
+                    gun.OnAmmoChanged();
+                    yield return For(0.4f);
+                    bool refilled = gun.ammo == gun.configuration.ammo;
+                    extraFlags = NetGame.Reloading;
+                    bool reloaded = false;
+                    for (float until = Time.unscaledTime + 1.5f; Time.unscaledTime < until && !reloaded;)
+                    {
+                        reloaded = gun.reloading;
+                        yield return null;
+                    }
+                    extraFlags = 0;
+                    yield return For(0.3f);
+                    report($"multiplayer soldier's reload: his copy kept full {(refilled ? "yes" : "NOT REFILLED")}; told reloading: "
+                           + (reloaded ? "his stand-in reloaded with him" : gun.unholstered ? "NOT RELOADED" : "not reloaded (his gun not out here)"));
+                }
+            }
 
             // 4. One told dead: dead, and still dead after the game's own spawn wave; the match has not ended for want of soldiers.
             soldiers[1] = (2, 1 - team, soldiers[1].at, false);
