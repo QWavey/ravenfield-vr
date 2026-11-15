@@ -384,6 +384,9 @@ namespace RavenfieldVR.Rig
 
         internal bool MadeHandles => _madeHandles;
 
+        /// <summary>For the vehicle check: where the hands want the gun (world), null when not held.</summary>
+        internal Vector3? WantedWorld => _aim != null && _frame != null ? _frame.rotation * _aim.Value : (Vector3?)null;
+
         private float HandleDistance(Vector3 palm)
         {
             float best = float.MaxValue;

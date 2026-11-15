@@ -401,10 +401,12 @@ namespace RavenfieldVR.Core
                 Vector3 palmToRaw = hand.Raw.position - hand.PalmCentre;
                 Quaternion rot = hand.Raw.rotation;
                 float y1 = Yaw();
+                Vector3 hubAt = wheel.parent.InverseTransformPoint(wheel.position);
+                Quaternion hubTurn = Quaternion.Inverse(wheel.parent.rotation) * wheel.rotation; // (fixed now: the wheel itself turns as cranked)
                 for (float t = 0f; t <= 1.2f; t += Time.unscaledDeltaTime)
                 {
                     float a = (t < 0.2f ? 0f : Mathf.Clamp01((t - 0.2f) / 1f) * 180f);
-                    Vector3 rim = wheel.TransformPoint(Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f));
+                    Vector3 rim = wheel.parent.TransformPoint(hubAt + hubTurn * (Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f)));
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + palmToRaw, rot);
                     if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
                     {
@@ -418,13 +420,12 @@ namespace RavenfieldVR.Core
                 float cranked = Mathf.DeltaAngle(y1, Yaw());
                 line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}";
             }
-            bool was = v.burning;
-            v.burning = true;
+            Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
             Shots.Capture(name + "-inside-alarm");
             yield return new WaitForSecondsRealtime(0.15f);
             Shots.Capture(name + "-inside-alarm2");
-            v.burning = was;
+            Rig.VehicleInterior.TestAlarm = false;
             report(line + "; the alarm pictured");
         }
 
@@ -482,6 +483,9 @@ namespace RavenfieldVR.Core
             }
             yield return new WaitForSecondsRealtime(0.8f);
             float yawHeld = Yaw();
+            Vector3? want = grip.WantedWorld;
+            float wantYaw = want != null ? Mathf.Atan2(frame.InverseTransformDirection(want.Value).x, frame.InverseTransformDirection(want.Value).z) * Mathf.Rad2Deg : float.NaN;
+            report($"{what}: grab numbers: palm {Vector3.Dot(arm, aimFlat):+0.00;-0.00} m along the barrel from the pivot, {arm.magnitude:0.00} m off it; the hands want {Mathf.DeltaAngle(yaw0, wantYaw):+0;-0} deg, the gun went {Mathf.DeltaAngle(yaw0, yawHeld):+0;-0} deg");
             Shots.Capture(name + "-held");
             Input.VRInput.SimulatedGrab[side] = false;
             yield return new WaitForSecondsRealtime(0.3f);
@@ -527,6 +531,7 @@ namespace RavenfieldVR.Core
             }
             yield return new WaitForSecondsRealtime(0.3f);
             bool reloading = gun.reloading || gun.ammo > 0;
+            float cockGap = Vector3.Distance(other.PalmCentre, grip.CockPointWorld);
             Input.VRInput.SimulatedGrab[os] = false;
             Rig.VRHand.Scripted[os] = null;
             float until2 = Time.realtimeSinceStartup + 8f;
@@ -534,7 +539,7 @@ namespace RavenfieldVR.Core
             {
                 yield return null;
             }
-            report($"{what}: reload by hand: emptied, {(waited ? "waited for the hand" : "RELOADED BY ITSELF")}; the cocking handle pulled: {(reloading ? $"reloaded ({gun.ammo} of {gun.configuration.ammo})" : "NO RELOAD")}");
+            report($"{what}: reload by hand: emptied, {(waited ? "waited for the hand" : "RELOADED BY ITSELF")}; the cocking handle pulled: {(reloading ? $"reloaded ({gun.ammo} of {gun.configuration.ammo})" : $"NO RELOAD (spare {gun.spareAmmo}{(gun.HasInfiniteSpareAmmo() ? ", infinite" : "")}, the palm {cockGap:0.00} m from the handle)")}");
         }
     }
 }

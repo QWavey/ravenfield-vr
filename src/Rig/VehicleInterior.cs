@@ -38,6 +38,9 @@ namespace RavenfieldVR.Rig
 
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
         internal Transform TraverseWheel => _traverse;
+
+        /// <summary>For the vehicle check: the alarm shown without setting the vehicle on fire (that burned it, the player with it).</summary>
+        internal static bool TestAlarm;
         private readonly List<(Transform t, Vector2 drive)> _driveButtons = new List<(Transform, Vector2)>();
         private readonly int[] _onWheel = { -1, -1 }; // per hand: 0 traverse, 1 elevation, -1 none
         private readonly float[] _wheelAngle = new float[2];
@@ -385,7 +388,7 @@ namespace RavenfieldVR.Rig
         private void Alarm()
         {
             Vehicle v = _seat != null ? _seat.vehicle : null;
-            bool on = v != null && (v.burning || v.dead);
+            bool on = v != null && (v.burning || v.dead) || TestAlarm;
             if (_alarm == null)
             {
                 return;
