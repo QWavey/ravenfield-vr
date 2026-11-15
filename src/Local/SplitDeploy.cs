@@ -40,6 +40,7 @@ namespace RavenfieldVR.Local
             }
             if (!me.dead)
             {
+                DeployNow = false; // (spent once on the field: armed while alive, a later death deployed again with no key; scout)
                 _deployedAt = -1f;
                 _line = "";
                 return;

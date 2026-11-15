@@ -303,6 +303,7 @@ namespace RavenfieldVR.Local
             {
             }
             _installed = false;
+            _failed = false; // (a new session tries again)
             ClearHeld();
         }
 

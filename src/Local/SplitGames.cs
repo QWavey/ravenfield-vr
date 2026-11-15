@@ -305,10 +305,18 @@ namespace RavenfieldVR.Local
             {
                 // Above every window while the players load (a copy's window, shown for a moment as it starts, does not cover it), and the
                 // focus taken back when a copy took it.
-                if (!_topmost && !_go)
+                // (Only while a game's window is in front: switched to another program, the player sees that program, not a loading
+                // screen held over it; scout, 2026-11-15.)
+                bool gameInFront = front == mine || pids.Contains(FrontPid(front)) || Copies.Any(c => c.Process != null && !c.Process.HasExited && FrontPid(front) == (uint)c.Process.Id);
+                if (!_topmost && !_go && gameInFront)
                 {
                     _topmost = true;
                     SetWindowPos(mine, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                }
+                else if (_topmost && !gameInFront)
+                {
+                    _topmost = false;
+                    SetWindowPos(mine, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
                 }
                 if (stole || !_go && front != mine && Time.unscaledTime - _startedAt < 240f && pids.Contains(FrontPid(front)))
                 {
@@ -362,12 +370,17 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
-            _topmost = false;
             IntPtr mine = RawInput.GameWindow();
-            if (mine != IntPtr.Zero)
+            if (mine == IntPtr.Zero)
             {
-                SetWindowPos(mine, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-                TakeFocus(mine);
+                return; // (the flag kept: looked at again next time, the window not left topmost)
+            }
+            _topmost = false;
+            SetWindowPos(mine, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            uint front = FrontPid(GetForegroundWindow());
+            if (front == (uint)Process.GetCurrentProcess().Id || Copies.Any(c => c.Process != null && !c.Process.HasExited && front == (uint)c.Process.Id))
+            {
+                TakeFocus(mine); // (in front only if a game's window was: another program the player switched to keeps the focus)
             }
         }
 
@@ -404,7 +417,8 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
-            bool all = Pending.Count == 0 && ready >= Splitscreen.Players - 1;
+            int left = Splitscreen.Players - 1 - Copies.Count - Pending.Count; // (players who left by their menu: neither running nor coming)
+            bool all = Pending.Count == 0 && ready >= Splitscreen.Players - 1 - Math.Max(0, left);
             if (all || Time.unscaledTime - _startedAt > 240f)
             {
                 _go = true;
@@ -417,6 +431,19 @@ namespace RavenfieldVR.Local
         private static bool _embed;
 
         /// <summary>The next copy started when the one before has its mod up (its log written) or 25 s have passed.</summary>
+        private static readonly Dictionary<int, int> StartFailures = new Dictionary<int, int>();
+
+        /// <summary>A copy that could not start queued again, three times at most (it was dropped for the session; scout, 2026-11-15).</summary>
+        private static void Retry(int i)
+        {
+            StartFailures.TryGetValue(i, out int n);
+            StartFailures[i] = ++n;
+            if (n < 3 && !Pending.Contains(i))
+            {
+                Pending.Add(i);
+            }
+        }
+
         private static void StartNextCopy()
         {
             if (Pending.Count == 0 || Time.unscaledTime < _nextStart)
@@ -435,7 +462,17 @@ namespace RavenfieldVR.Local
             catch (Exception)
             {
             }
-            string exe = Process.GetCurrentProcess().MainModule.FileName;
+            string exe;
+            try
+            {
+                exe = Process.GetCurrentProcess().MainModule.FileName;
+            }
+            catch (Exception e)
+            {
+                Log.Warn("Splitscreen: this game's own file could not be found: " + e.Message);
+                Retry(i);
+                return;
+            }
             string mods = Args.FirstOrDefault(a => a.StartsWith("-rfvr-mods=", StringComparison.OrdinalIgnoreCase));
             var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
             Rect part = SplitPlayers.Part(Runtime.OpenVRRuntime.Running ? i - 1 : i, Runtime.OpenVRRuntime.Running ? n - 1 : n);
@@ -469,12 +506,17 @@ namespace RavenfieldVR.Local
                     UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden, WorkingDirectory = System.IO.Path.GetDirectoryName(exe),
                 };
                 c.Process = Process.Start(start);
+                if (c.Process == null)
+                {
+                    throw new InvalidOperationException("Windows started nothing");
+                }
                 Copies.Add(c);
                 Log.Info($"Splitscreen: player {i + 1}'s own copy of the game started ({args}).");
             }
             catch (Exception e)
             {
                 Log.Warn($"Splitscreen: player {i + 1}'s copy of the game could not start: {e.Message}");
+                Retry(i);
             }
             _nextStart = Time.unscaledTime + 5f;
         }
@@ -521,6 +563,15 @@ namespace RavenfieldVR.Local
             foreach (Copy gone in Copies.Where(c => c.Process == null || c.Process.HasExited).ToList())
             {
                 Copies.Remove(gone);
+                try
+                {
+                    // (Read now: its last words may be newer than the last look, and the next start deletes the log.)
+                    string log = CopyLog(gone.Index);
+                    gone.Left |= System.IO.File.Exists(log) && System.IO.File.ReadAllText(log).Contains("this player left");
+                }
+                catch (Exception)
+                {
+                }
                 if (!gone.Left && !Pending.Contains(gone.Index))
                 {
                     // Closed or crashed mid-match: started again, rejoins (its part says "rejoining").
@@ -604,6 +655,8 @@ namespace RavenfieldVR.Local
             SplitPlayers.GamePadsMuted = true;
             FlatPlayerInput.Keys = 0;
             FlatPlayerInput.Pad = 0;
+            _tryPlayer = 1;
+            _f12Was = false;
             FlatPlayerInput.OnlyPause = TryMode;
             _placedScene = null; // (placed from now: Window)
             Log.Info($"Splitscreen: {n} players, each with a whole copy of the game (this one hosts on port {GamePort}).");
@@ -618,6 +671,7 @@ namespace RavenfieldVR.Local
                     if (c.Process != null && !c.Process.HasExited)
                     {
                         c.Process.Kill();
+                        c.Process.WaitForExit(3000); // (its input port free before a new session's copy binds it)
                     }
                 }
                 catch (Exception)
@@ -626,6 +680,8 @@ namespace RavenfieldVR.Local
             }
             Copies.Clear();
             Pending.Clear();
+            StartFailures.Clear();
+            TestCopies = false; // (a later session's copies are players, not the check's script)
             EndTopmost();
             CardBack();
             if (_embed)
@@ -664,7 +720,7 @@ namespace RavenfieldVR.Local
             {
                 IPEndPoint from = null;
                 byte[] e = _hostSocket.Receive(ref from);
-                if (e.Length >= 26 && e[0] == (byte)'E')
+                if (e.Length >= 26 && e[0] == (byte)'E' && from != null && from.Port > HostInputPort && from.Port < HostInputPort + 4)
                 {
                     RawInput.Inject(BitConverter.ToInt64(e, 1), e[9] != 0, BitConverter.ToUInt16(e, 10), BitConverter.ToUInt16(e, 12),
                                     BitConverter.ToInt16(e, 14), BitConverter.ToInt32(e, 16), BitConverter.ToInt32(e, 20), BitConverter.ToUInt16(e, 24));
@@ -815,6 +871,8 @@ namespace RavenfieldVR.Local
 
         private static UdpClient _clientSocket;
         private static IPEndPoint _hostInput;
+        private static IntPtr _ownWindow;
+        private static float _ownWindowAt;
         private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy, _goFromHost, _shown;
         private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
@@ -824,6 +882,16 @@ namespace RavenfieldVR.Local
         {
             if (!_clientSetUp)
             {
+                try
+                {
+                    _clientSocket = Quiet(new UdpClient(new IPEndPoint(IPAddress.Loopback, HostInputPort + ClientIndex)));
+                }
+                catch (Exception e)
+                {
+                    // (The port still held by the copy this one replaces: tried again next frame, the setup not marked done without it.)
+                    Log.WarnOnce("split-copy-port", "Splitscreen: this copy's input port is taken, trying again: " + e.Message);
+                    return;
+                }
                 _clientSetUp = true;
                 Application.runInBackground = true;
                 // Light on the PC: four whole games share it, and a copy's view is a part of the screen (the user: "the copys are also
@@ -833,7 +901,6 @@ namespace RavenfieldVR.Local
                 QualitySettings.shadows = ShadowQuality.Disable;
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = 60;
-                _clientSocket = Quiet(new UdpClient(new IPEndPoint(IPAddress.Loopback, HostInputPort + ClientIndex)));
                 _hostInput = new IPEndPoint(IPAddress.Loopback, HostInputPort);
                 RawInput.Start();
                 RawInput.Forward = ForwardToHost;
@@ -894,8 +961,15 @@ namespace RavenfieldVR.Local
             // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
             // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go. Kept hidden: the
             // game shows its window again as it loads.
-            IntPtr own = RawInput.GameWindow();
-            bool show = _goFromHost && SplitPlayers.InMatch; // (a copy rejoining after go shows once it is in, not while it loads)
+            if (_ownWindow == IntPtr.Zero || Time.unscaledTime >= _ownWindowAt)
+            {
+                _ownWindow = RawInput.GameWindow(); // (once a second: it walks every window on the PC)
+                _ownWindowAt = Time.unscaledTime + 1f;
+            }
+            IntPtr own = _ownWindow;
+            // (A copy rejoining after go shows once it is in, not while it loads; once shown it stays so through a map change's moment
+            // with no player, which hid it and deployed it again.)
+            bool show = _goFromHost && (_shown || SplitPlayers.InMatch);
             if (own != IntPtr.Zero && !show && IsWindowVisible(own))
             {
                 ShowWindow(own, SW_HIDE);

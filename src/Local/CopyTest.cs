@@ -49,6 +49,10 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            if (_step >= Done)
+            {
+                return; // (the script over: the copy plays from the host's input again, not held still; scout)
+            }
             float t = Time.unscaledTime - _stepAt;
             Clear(s);
             void Press(SteelInput.KeyBinds b, bool positive = true) => FlatPlayerInput.PressBind(s, b, positive);
