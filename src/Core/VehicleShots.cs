@@ -168,6 +168,10 @@ namespace RavenfieldVR.Core
                     // taken away only once he is in the next).
                     GameObject made = UnityEngine.Object.Instantiate(prefab, start + fwd * 40f + Vector3.up * 30f, Quaternion.LookRotation(fwd, Vector3.up));
                     v = made.GetComponent<Vehicle>();
+                    if (v != null)
+                    {
+                        v.maxHealth = v.health = 1e7f; // (the match goes on round it: enemy fire burned a parked VPK with the player in it)
+                    }
                     Rigidbody body = made.GetComponent<Rigidbody>();
                     if (body != null)
                     {
