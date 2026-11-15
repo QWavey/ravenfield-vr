@@ -839,6 +839,18 @@ namespace RavenfieldVR.Rig
                 return;
             }
             _scope.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+            if (gun != null)
+            {
+                // At the muzzle, 30 cm out, not the eyes: from there nothing of the vehicle stands in the picture (the user, 2026-11-15:
+                // "some sights are still blocked with tank materials"; the barrel, its mantlet and the turret's parts were in front of
+                // the eyes' camera along the gun).
+                Transform muzzle = gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : TurretGrip.AimReference(gun);
+                _scope.transform.position = muzzle.position + dir.normalized * 0.3f;
+                if (_scope.nearClipPlane != 0.1f)
+                {
+                    _scope.nearClipPlane = 0.1f;
+                }
+            }
         }
 
         // ---- building ------------------------------------------------------------------------------------------------------
@@ -1538,8 +1550,9 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void Periscope(Vector3 at, Vector2 size)
         {
-            // (384 wide: a small screen, and its camera draws every frame.)
-            _scopeTexture = new RenderTexture(384, Mathf.RoundToInt(384 * size.y / size.x), 16) { name = "RavenfieldVR periscope" };
+            // (1024 wide, 2x anti-aliased: at 384 the user found the tank's view "kinda low res", worse zoomed. A third of a megapixel
+            // against the headset's five: cheap.)
+            _scopeTexture = new RenderTexture(1024, Mathf.RoundToInt(1024 * size.y / size.x), 24) { name = "RavenfieldVR periscope", antiAliasing = 2, filterMode = FilterMode.Bilinear };
             var go = new GameObject("periscope camera");
             go.transform.SetParent(_root.transform, false);
             _scope = go.AddComponent<Camera>();
