@@ -692,6 +692,8 @@ namespace RavenfieldVR.Local
             at += 4;
             Packet[at++] = _generation;
             Packet[at++] = (byte)(_go ? 1 : 0);
+            Put(Packet, at, Environment.TickCount, 4); // (when it was sent: the copy measures how late its input is)
+            at += 4;
             return at;
         }
 
@@ -712,6 +714,7 @@ namespace RavenfieldVR.Local
                 Application.runInBackground = true;
                 // Light on the PC: four whole games share it, and a copy's view is a part of the screen (the user: "the copys are also
                 // very slow").
+                NotSlowedDown();
                 QualitySettings.SetQualityLevel(0, true);
                 QualitySettings.shadows = ShadowQuality.Disable;
                 QualitySettings.vSyncCount = 0;
@@ -734,6 +737,17 @@ namespace RavenfieldVR.Local
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
             }
             AudioListener.volume = 0f; // (the host plays the match's sound)
+            _fpsFrames++;
+            if (Time.unscaledTime - _lagAt > 10f)
+            {
+                if (_lagAt > 0f && _lagCount > 0)
+                {
+                    Note($"Splitscreen: input {_lagSum / _lagCount:0} ms late on average ({_lagMax:0} at most), {_lagCount / (Time.unscaledTime - _lagAt):0} packets a second; {_fpsFrames / (Time.unscaledTime - _lagAt):0} frames a second here");
+                }
+                _lagAt = Time.unscaledTime;
+                _lagSum = _lagMax = _fpsFrames = 0f;
+                _lagCount = 0;
+            }
             // A picture of this copy's own view on request (a file BepInEx/RavenfieldVR-split-N.shot): its window's own frame, for checks.
             if (Time.frameCount % 60 == 0)
             {
@@ -860,7 +874,9 @@ namespace RavenfieldVR.Local
             }
         }
 
-        private const int PacketLength = 1 + 32 + 1 + 12 + 1 + 1;
+        private const int PacketLength = 1 + 32 + 1 + 12 + 1 + 1 + 4;
+        private static float _lagSum, _lagMax, _fpsFrames, _lagAt;
+        private static int _lagCount;
         private static int _lastGeneration = -1;
 
         private static void Read(byte[] p)
@@ -893,9 +909,47 @@ namespace RavenfieldVR.Local
             }
             at++;
             _goFromHost = p[at] != 0;
+            at++;
+            int lag = Environment.TickCount - BitConverter.ToInt32(p, at);
+            if (lag >= 0 && lag < 10000)
+            {
+                _lagSum += lag;
+                _lagMax = Mathf.Max(_lagMax, lag);
+                _lagCount++;
+            }
         }
 
         private static readonly byte[] Event = new byte[26];
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PowerThrottling
+        {
+            public uint Version, ControlMask, StateMask;
+        }
+
+        [DllImport("kernel32.dll")]
+        private static extern bool SetProcessInformation(IntPtr process, int infoClass, ref PowerThrottling info, int size);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetCurrentProcess();
+
+        /// <summary>
+        /// A copy runs at full speed though it is never the window in front: Windows 11 slows programs behind (power throttling, its
+        /// "efficiency mode"), and a copy's player walked and turned late (the user, 2026-11-15: "controls are very delayed").
+        /// </summary>
+        private static void NotSlowedDown()
+        {
+            try
+            {
+                var info = new PowerThrottling { Version = 1, ControlMask = 0x1 | 0x4, StateMask = 0 }; // (execution speed, timer resolution: never throttled)
+                SetProcessInformation(GetCurrentProcess(), 4, ref info, Marshal.SizeOf(typeof(PowerThrottling))); // (ProcessPowerThrottling)
+                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+            }
+            catch (Exception e)
+            {
+                Note("Splitscreen: this copy could not be kept at full speed: " + e.Message);
+            }
+        }
 
         /// <summary>This copy is in front: its events go to the host, which tells the keyboards and mice apart for every player.</summary>
         private static void ForwardToHost(long device, bool mouse, ushort flags, ushort buttons, short data, int x, int y, ushort vkey)
