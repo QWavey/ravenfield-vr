@@ -758,6 +758,7 @@ namespace RavenfieldVR.Rig
                 // the steering wheel between the handwheels, outside the elevation wheel instead.
                 FireControl(SteersByWheel(_seat) ? new Vector3(apart + 0.21f, -0.3f, 0.31f) : new Vector3(apart - 0.21f, -0.3f, 0.31f));
                 AmmoReadout();
+                RangeControl(new Vector3(0.15f, -0.205f, 0.405f));
                 if (breech)
                 {
                     BuildBreech();
@@ -836,6 +837,57 @@ namespace RavenfieldVR.Rig
             _fire = Part(PrimitiveType.Cylinder, "fire", at + tilt * new Vector3(0f, 0.006f, 0f), new Vector3(0.058f, 0.014f, 0.058f), tilt, _red);
             _fireReady = Part(PrimitiveType.Sphere, "fire-ready", at + tilt * new Vector3(0.036f, 0f, 0.05f), new Vector3(0.016f, 0.016f, 0.016f), Quaternion.identity, _ready);
             Label("FIRE", at + tilt * new Vector3(-0.008f, -0.006f, 0.054f), Quaternion.LookRotation(tilt * Vector3.down, tilt * Vector3.forward), 0.0016f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        private Transform _rangeButton;
+        private string _rangeText;
+        private float _rangeUntil = -10f;
+        private static readonly RaycastHit[] RangeHits = new RaycastHit[24];
+
+        /// <summary>For the vehicle check: the rangefinder's button (null: none).</summary>
+        internal Transform RangeButton => _rangeButton;
+
+        /// <summary>The rangefinder's button right of the readout: pressed, the range along the gun's line shows on it for 4 s.</summary>
+        private void RangeControl(Vector3 at)
+        {
+            Quaternion face = Quaternion.Euler(20f, 0f, 0f);
+            Part(PrimitiveType.Cube, "range-mount", at + face * new Vector3(0f, 0f, 0.008f), new Vector3(0.045f, 0.045f, 0.012f), face, _metal);
+            _rangeButton = Part(PrimitiveType.Cylinder, "range", at, new Vector3(0.03f, 0.008f, 0.03f), face * Quaternion.Euler(-90f, 0f, 0f), _button);
+            Label("RANGE", at + new Vector3(0f, 0.033f, 0f), face, 0.0012f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        /// <summary>
+        /// The range along the gun's line: the nearest thing hit within 3 km that is not this vehicle nor a soldier seated in it
+        /// ("RANGE ---" with nothing), shown on the readout for 4 s.
+        /// </summary>
+        private void MeasureRange()
+        {
+            Weapon gun = Gun(_seat);
+            if (gun == null)
+            {
+                return;
+            }
+            Transform aim = TurretGrip.AimReference(gun);
+            int n = Physics.RaycastNonAlloc(aim.position, aim.forward, RangeHits, 3000f, ~(1 << 12), QueryTriggerInteraction.Ignore);
+            float nearest = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = RangeHits[i].collider;
+                if (c == null || RangeHits[i].distance >= nearest)
+                {
+                    continue;
+                }
+                Vehicle hitVehicle = c.GetComponentInParent<Vehicle>();
+                Actor hitActor = c.GetComponentInParent<Actor>();
+                if (ReferenceEquals(hitVehicle, _seat.vehicle) || hitActor != null && hitActor.IsSeated() && ReferenceEquals(hitActor.seat.vehicle, _seat.vehicle))
+                {
+                    continue;
+                }
+                nearest = RangeHits[i].distance;
+            }
+            _rangeText = nearest < float.MaxValue ? $"RANGE {Mathf.RoundToInt(nearest / 5f) * 5} m" : "RANGE ---";
+            _rangeUntil = Time.unscaledTime + 4f;
+            _nextReadout = 0f; // (shown now, not at the readout's next tick)
         }
 
         /// <summary>The ammunition readout under the viewer: rounds in the gun | spare (a lit display, "RELOADING" while it reloads).</summary>
@@ -952,6 +1004,10 @@ namespace RavenfieldVR.Rig
             _nextReadout = Time.unscaledTime + 0.2f;
             string spare = gun.HasInfiniteSpareAmmo() ? "\u221E" : gun.spareAmmo.ToString();
             string text = state == "reloading" ? "RELOADING" : state == "load" ? "LOAD SHELL" : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
+            if (Time.unscaledTime < _rangeUntil && _rangeText != null && state == "ready")
+            {
+                text = _rangeText;
+            }
             if (_ammoText.text != text)
             {
                 _ammoText.text = text;
@@ -1518,6 +1574,21 @@ namespace RavenfieldVR.Rig
                 }
                 Press(5, _zoomKnob, zoomDown);
             }
+            if (_rangeButton != null)
+            {
+                bool ranging = false;
+                for (int h = 0; h < 2; h++)
+                {
+                    VRHand hand = _rig.Hands[h];
+                    ranging |= hand != null && hand.Tracked && _onWheel[h] < 0 && _onLever[h] < 0 && _carryHand != h
+                               && Vector3.Distance(hand.PalmCentre, _rangeButton.position) < ButtonReach * 0.7f;
+                }
+                if (ranging && !_pressed[7])
+                {
+                    MeasureRange();
+                }
+                Press(7, _rangeButton, ranging);
+            }
             if (_lightSwitch != null)
             {
                 bool flick = false;
@@ -1775,6 +1846,9 @@ namespace RavenfieldVR.Rig
             _cannon = null;
             _shotAt = _rammedAt = _hitAt = -10f; // (a seat changed straight after a shot: the new breech twitched)
             _zoomKnob = null;
+            _rangeButton = null;
+            _rangeText = null;
+            _rangeUntil = -10f;
             _lightSwitch = _hint = null;
             foreach (Material m in _extra)
             {

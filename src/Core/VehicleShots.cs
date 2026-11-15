@@ -555,6 +555,23 @@ namespace RavenfieldVR.Core
                 }
                 zoom = $"; sight zoom knob: {(states[0] ? "x3" : "DID NOT ZOOM")}, again: {(!states[1] ? "x1" : "STAYED ZOOMED")}";
             }
+            // The rangefinder's button pressed: the readout shows the range along the gun's line.
+            Transform rangeKnob = Rig.VehicleInterior.Instance.RangeButton;
+            if (rangeKnob != null)
+            {
+                Rig.VRHand rh = rig.Dominant;
+                int rs = (int)rh.Side;
+                Vector3 rRaw = rh.Raw.position - rh.PalmCentre;
+                for (float t = 0f; t < 0.3f && rangeKnob != null; t += Time.unscaledDeltaTime)
+                {
+                    Rig.VRHand.Scripted[rs] = new Runtime.RigidPose(rangeKnob.position + rRaw, rh.Raw.rotation);
+                    yield return null;
+                }
+                Rig.VRHand.Scripted[rs] = null;
+                yield return new WaitForSecondsRealtime(0.3f);
+                string shown = Rig.VehicleInterior.Instance.Readout;
+                zoom += $"; rangefinder: \"{shown}\"{(shown.StartsWith("RANGE") ? "" : " (NO RANGE SHOWN)")}";
+            }
             string line = $"{what}: {scopeState}; periscope picture {Rig.VehicleInterior.Instance.PeriscopeBrightness():0.00} bright{(Rig.VehicleInterior.Instance.PeriscopeBrightness() < 0.05f ? " (BLACK)" : "")}, near plane {Rig.VehicleInterior.Instance.PeriscopeNear:0.0} m; inside shown, hull solid from inside ({(rig.Hull != null ? rig.Hull.Twins : 0)} inward twins, {(rig.Hull != null ? rig.Hull.DrawnBack : 0)} drawn back side out){zoom}";
             if (gun != null)
             {
