@@ -36,6 +36,16 @@ namespace RavenfieldVR.Rig
         private Material _wall, _metal, _red, _lamp, _button, _paint;
         private Transform _traverse, _elevate, _fire, _steer;
         private float _steerTurned;
+        // The gunner's station (the user, 2026-11-15: "the cockpit we made is kinda beta ... improve the cockpit for every tank"):
+        // a ready lamp by the fire button, an ammunition readout, a cannon's breech; a tank driver's two steering levers.
+        private Transform _fireReady, _breech, _breechBlock;
+        private Material _guard, _ready;
+        private TextMesh _ammoText;
+        private float _nextReadout, _shotAt = -10f;
+        private Vector3 _breechAt, _blockAt;
+        private readonly Transform[] _levers = new Transform[2]; // left track, right track
+        private readonly float[] _leverValue = new float[2];     // -1 pulled back .. 1 pushed forward
+        private readonly int[] _onLever = { -1, -1 };            // per hand: the lever held, -1 none
 
         /// <summary>
         /// A wheeled closed vehicle's driver (an APC, the mods' armoured cars) steers by a wheel in the middle too (the user: "make also
@@ -53,6 +63,14 @@ namespace RavenfieldVR.Rig
         internal Transform ElevationWheel => _elevate;
 
         internal Transform CabinSteeringWheel => _steer;
+
+        /// <summary>For the vehicle check: a tank driver's right steering lever (null: none), and the ammunition readout's text.</summary>
+        internal Transform RightLever => _levers[1];
+
+        internal string Readout => _ammoText != null ? _ammoText.text : "none";
+
+        /// <summary>For the vehicle check: the ready lamp's state ("ready", "reloading", "empty"; "none" with no gun).</summary>
+        internal string ReadyState { get; private set; } = "none";
 
         /// <summary>For the vehicle check: the rack's rounds shown and in all.</summary>
         internal string RackState => _rounds.Count == 0 ? "none" : $"{_roundsShown} of {_rounds.Count} shown";
@@ -94,6 +112,10 @@ namespace RavenfieldVR.Rig
                 return;
             }
             bool heavy = w.configuration != null && w.configuration.ammo <= 1; // (a cannon: one round a load)
+            if (heavy)
+            {
+                me._shotAt = Time.unscaledTime; // (the breech runs back and forward again: Breech)
+            }
             for (int h = 0; h < 2; h++)
             {
                 VRHand hand = me._rig.Hands[h];
@@ -101,7 +123,7 @@ namespace RavenfieldVR.Rig
                 {
                     continue;
                 }
-                bool onControls = me._onWheel[h] >= 0 || me._fire != null && Vector3.Distance(hand.PalmCentre, me._fire.position) < ButtonReach + 0.03f;
+                bool onControls = me._onWheel[h] >= 0 || me._onLever[h] >= 0 || me._fire != null && Vector3.Distance(hand.PalmCentre, me._fire.position) < ButtonReach + 0.03f;
                 if (onControls)
                 {
                     hand.Haptic(heavy ? 0.12f : 0.03f, heavy ? 40f : 80f, heavy ? 1f : 0.6f);
@@ -125,9 +147,13 @@ namespace RavenfieldVR.Rig
         private static bool AimSeat(Seat seat) => seat != null && seat.enclosed && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _);
 
         private Light _alarm;
-        private readonly Transform[] _needles = new Transform[3];
+        private readonly Transform[] _needles = new Transform[5];
 
-        /// <summary>The gauges read the vehicle: speed (0-25 m/s), engine (its throttle, else its speed), hull (its health).</summary>
+        /// <summary>
+        /// The gauges read the vehicle: speed (0-25 m/s), engine (its throttle, else its speed), hull (its health); a gun seat's two
+        /// more read the gun: the turret's way against the hull's (the needle up: straight ahead, the whole round), its elevation (-30 to
+        /// 60 degrees).
+        /// </summary>
         private void Gauges()
         {
             Vehicle v = _seat != null ? _seat.vehicle : null;
@@ -138,13 +164,16 @@ namespace RavenfieldVR.Rig
             float speed = Mathf.Clamp01(v.Velocity().magnitude / 25f);
             float engine = v.engine != null ? Mathf.Clamp01(Mathf.Max(Mathf.Abs(v.engine.targetThrottle), speed)) : speed;
             float hull = Mathf.Clamp01(v.GetHealthRatio());
-            for (int g = 0; g < 3; g++)
+            Weapon gun = Gun(_seat);
+            Vector3 aim = gun != null ? v.transform.InverseTransformDirection(TurretGrip.AimReference(gun).forward) : Vector3.forward;
+            for (int g = 0; g < _needles.Length; g++)
             {
-                float reading = g == 0 ? speed : g == 1 ? engine : hull;
+                float reading = g == 0 ? speed : g == 1 ? engine : g == 2 ? hull : g == 4 ? Mathf.Clamp01((Elevation(aim) + 30f) / 90f) : 0f;
                 if (_needles[g] != null)
                 {
-                    // From 120 degrees left (nothing) to 120 right (full), eased so it swings, not jumps.
-                    Quaternion want = Quaternion.Euler(0f, 0f, 120f - 240f * reading);
+                    // From 120 degrees left (nothing) to 120 right (full), eased so it swings, not jumps; the turret's dial the whole
+                    // round, clockwise for a turret turned right.
+                    Quaternion want = g == 3 ? Quaternion.Euler(0f, 0f, -Azimuth(aim)) : Quaternion.Euler(0f, 0f, 120f - 240f * reading);
                     Transform n = _needles[g].childCount > 0 ? _needles[g].GetChild(0) : null;
                     if (n != null)
                     {
@@ -155,6 +184,23 @@ namespace RavenfieldVR.Rig
             }
         }
         private Color _wallEmit, _lampColor;
+
+        /// <summary>A direction in the vehicle's frame: its way round from the nose (degrees, right positive). Pure (offline tests).</summary>
+        internal static float Azimuth(Vector3 local) => Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
+
+        /// <summary>A direction in the vehicle's frame: its angle over level (degrees, up positive). Pure (offline tests).</summary>
+        internal static float Elevation(Vector3 local) => local.sqrMagnitude < 1e-8f ? 0f : Mathf.Asin(Mathf.Clamp(local.normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
+
+        /// <summary>
+        /// A tank driver's two steering levers, one a track (pushed forward: that track forward): both forward drives ahead, one alone
+        /// turns toward the other side, opposite ways turns on the spot. Into the drive input: x steer right, y forward. Pure (offline tests).
+        /// </summary>
+        internal static Vector2 TillerDrive(float left, float right)
+        {
+            left = Mathf.Clamp(left, -1f, 1f);
+            right = Mathf.Clamp(right, -1f, 1f);
+            return new Vector2((left - right) * 0.5f, (left + right) * 0.5f);
+        }
 
         internal static bool Wanted(Seat seat)
         {
@@ -232,6 +278,8 @@ namespace RavenfieldVR.Rig
                 Hands();
                 Gauges();
                 Rounds();
+                GunState();
+                Breech();
             }
             Aim();
             PointScope();
@@ -289,15 +337,26 @@ namespace RavenfieldVR.Rig
             {
                 cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f), first: false);
             }
-            // Military fittings: a radio set on the left (two knobs, a dial window, a handset), three gauges over the viewer.
-            Box("radio", new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
-            Cylinder("radio-knob-1", new Vector3(-0.395f, -0.06f, 0.18f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
-            Cylinder("radio-knob-2", new Vector3(-0.395f, -0.06f, 0.06f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
-            Box("radio-dial", new Vector3(-0.398f, -0.16f, 0.12f), new Vector3(0.005f, 0.05f, 0.16f), _lamp);
-            Box("radio-handset", new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
-            for (int g = 0; g < 3; g++)
+            // Military fittings: a radio set on the left (two knobs, a dial window, a handset), the gauges over the viewer. (In a
+            // cannon's seat the breech stands on the left, the radio behind the shoulder.)
+            Weapon gunHere = Gun(_seat);
+            bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo <= 1;
+            Vector3 rz = new Vector3(0f, 0f, cannon ? -0.3f : 0f);
+            Box("radio", rz + new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
+            Cylinder("radio-knob-1", rz + new Vector3(-0.395f, -0.06f, 0.18f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+            Cylinder("radio-knob-2", rz + new Vector3(-0.395f, -0.06f, 0.06f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+            Box("radio-dial", rz + new Vector3(-0.398f, -0.16f, 0.12f), new Vector3(0.005f, 0.05f, 0.16f), _lamp);
+            Box("radio-handset", rz + new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
+            // A grab handle overhead (the hatch's) and a cable run along the right wall: the inside reads as fitted out, not bare.
+            Box("hatch-handle", new Vector3(0f, roof + 0.02f, 0.05f), new Vector3(0.22f, 0.02f, 0.02f), _metal);
+            Box("hatch-handle-l", new Vector3(-0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
+            Box("hatch-handle-r", new Vector3(0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
+            Cylinder("cable-run", new Vector3(0.44f, 0.2f, 0.05f), new Vector3(0.025f, 0.3f, 0.025f), Quaternion.Euler(90f, 0f, 0f), _metal);
+            int dials = gunHere != null ? 5 : 3;
+            for (int g = 0; g < dials; g++)
             {
-                float x = -0.12f + g * 0.12f;
+                // (Speed, engine, hull in the middle; a gun seat's turret dial left of them, elevation right.)
+                float x = g < 3 ? -0.12f + g * 0.12f : g == 3 ? -0.24f : 0.24f;
                 Cylinder("gauge-" + g, new Vector3(x, 0.2f, 0.4f), new Vector3(0.075f, 0.012f, 0.075f), Quaternion.Euler(-80f, 0f, 0f), _metal);
                 Cylinder("gauge-face-" + g, new Vector3(x, 0.2f, 0.393f), new Vector3(0.062f, 0.002f, 0.062f), Quaternion.Euler(-80f, 0f, 0f), _button);
                 // (The needle on a pivot at the dial's middle: turned by its gauge's reading in Gauges.)
@@ -310,6 +369,14 @@ namespace RavenfieldVR.Rig
                 needle.localPosition = new Vector3(0f, 0.012f, -0.002f);
                 needle.localRotation = Quaternion.identity;
                 _needles[g] = pivot;
+                if (g == 3)
+                {
+                    // The turret dial's hull: a little block in the middle pointing at the nose.
+                    Transform hullMark = Box("gauge-hull", Vector3.zero, new Vector3(0.012f, 0.022f, 0.002f), _metal);
+                    hullMark.SetParent(pivot, false);
+                    hullMark.localPosition = new Vector3(0f, 0f, -0.001f);
+                    hullMark.localRotation = Quaternion.identity;
+                }
             }
             AmmoRack();
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
@@ -340,13 +407,26 @@ namespace RavenfieldVR.Rig
                 float apart = SteersByWheel(_seat) ? 0.36f : 0.26f;
                 _traverse = Wheel("traverse", new Vector3(-apart, -0.36f, 0.3f));
                 _elevate = Wheel("elevation", new Vector3(apart, -0.36f, 0.3f));
-                Box("fire-mount", new Vector3(0.26f, -0.2f, 0.4f), new Vector3(0.1f, 0.06f, 0.08f), _paint);
-                _fire = Cylinder("fire", new Vector3(0.26f, -0.16f, 0.39f), new Vector3(0.06f, 0.015f, 0.06f), Quaternion.Euler(-60f, 0f, 0f), _red);
+                // The fire button right by the hands (the user, 2026-11-15: "bring the red button a little bit nearer to the hands"; it sat
+                // 20 cm over the right wheel): at the wheels' height beside the elevation wheel's inner rim, a palm's width from it; with
+                // the steering wheel between the handwheels, outside the elevation wheel instead.
+                FireControl(SteersByWheel(_seat) ? new Vector3(apart + 0.21f, -0.3f, 0.31f) : new Vector3(apart - 0.21f, -0.3f, 0.31f));
+                AmmoReadout();
+                if (cannon)
+                {
+                    BuildBreech();
+                }
             }
             if (SteersByWheel(_seat))
             {
                 // (High enough that the drive panel's forward button is out of its rim's grip: a fist on it took the wheel.)
                 _steer = Wheel("steering", new Vector3(0f, -0.3f, 0.33f));
+            }
+            if (_seat.IsDriverSeat() && _seat.vehicle is Tank)
+            {
+                // A tank steers by its tracks: a lever for each, either side below the handwheels (the buttons stay too).
+                _levers[0] = Lever("lever-left", new Vector3(-0.42f, -0.85f, 0.28f));
+                _levers[1] = Lever("lever-right", new Vector3(0.42f, -0.85f, 0.28f));
             }
             if (_seat.IsDriverSeat())
             {
@@ -358,8 +438,147 @@ namespace RavenfieldVR.Rig
                 _driveButtons.Add((Button("left", c + new Vector3(-0.1f, 0f, 0f)), new Vector2(-1f, 0f)));
                 _driveButtons.Add((Button("right", c + new Vector3(0.1f, 0f, 0f)), new Vector2(1f, 0f)));
             }
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels and fire button" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}; {cleared} small part(s) cleared from before the eyes).");
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" + (cannon ? ", breech" : "") : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : "")}; {cleared} small part(s) cleared from before the eyes).");
         }
+
+        /// <summary>
+        /// The fire control: a box facing the eyes as the wheels do, a yellow guard ring, the red button on it, a ready lamp beside it
+        /// (green loaded, amber blinking while reloading, red empty) and "FIRE" on its far edge.
+        /// </summary>
+        private void FireControl(Vector3 at)
+        {
+            Quaternion tilt = Quaternion.Euler(-30f, 0f, 0f);
+            Part(PrimitiveType.Cube, "fire-box", at + tilt * new Vector3(0f, -0.032f, 0.012f), new Vector3(0.1f, 0.05f, 0.115f), tilt, _paint);
+            Part(PrimitiveType.Cylinder, "fire-guard", at + tilt * new Vector3(0f, -0.004f, 0f), new Vector3(0.086f, 0.006f, 0.086f), tilt, _guard);
+            _fire = Part(PrimitiveType.Cylinder, "fire", at + tilt * new Vector3(0f, 0.006f, 0f), new Vector3(0.058f, 0.014f, 0.058f), tilt, _red);
+            _fireReady = Part(PrimitiveType.Sphere, "fire-ready", at + tilt * new Vector3(0.036f, 0f, 0.05f), new Vector3(0.016f, 0.016f, 0.016f), Quaternion.identity, _ready);
+            Label("FIRE", at + tilt * new Vector3(-0.008f, -0.006f, 0.054f), Quaternion.LookRotation(tilt * Vector3.down, tilt * Vector3.forward), 0.0016f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        /// <summary>The ammunition readout under the viewer: rounds in the gun | spare (a lit display, "RELOADING" while it reloads).</summary>
+        private void AmmoReadout()
+        {
+            Quaternion face = Quaternion.Euler(20f, 0f, 0f);
+            Vector3 at = new Vector3(0f, -0.2f, 0.41f);
+            Part(PrimitiveType.Cube, "readout-back", at, new Vector3(0.2f, 0.045f, 0.012f), face, _metal);
+            _ammoText = Label("", at + face * new Vector3(0f, 0f, -0.008f), face, 0.0022f, new Color(1f, 0.55f, 0.15f));
+            _nextReadout = 0f;
+        }
+
+        private TextMesh Label(string text, Vector3 at, Quaternion turn, float size, Color colour)
+        {
+            var go = new GameObject("label " + text);
+            go.transform.SetParent(_root.transform, false);
+            go.transform.localPosition = at;
+            go.transform.localRotation = turn;
+            TextMesh t = go.AddComponent<TextMesh>();
+            Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            t.font = font;
+            go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+            t.anchor = TextAnchor.MiddleCenter;
+            t.alignment = TextAlignment.Center;
+            t.fontSize = 48;
+            t.characterSize = size;
+            t.fontStyle = FontStyle.Bold;
+            t.color = colour;
+            t.text = text;
+            return t;
+        }
+
+        /// <summary>
+        /// A cannon's breech on the gunner's left, as in a turret: the block with its ring, the sliding breech block at its back (down
+        /// while the gun reloads), a recoil guard along its side. It runs back at each shot (Breech).
+        /// </summary>
+        private void BuildBreech()
+        {
+            _breechAt = new Vector3(-0.6f, -0.1f, 0.3f);
+            _breech = new GameObject("breech").transform;
+            _breech.SetParent(_root.transform, false);
+            _breech.localPosition = _breechAt;
+            void On(Transform t) => t.SetParent(_breech, true);
+            On(Box("breech-body", _breechAt, new Vector3(0.2f, 0.2f, 0.4f), _metal));
+            On(Cylinder("breech-ring", _breechAt + new Vector3(0f, 0f, -0.17f), new Vector3(0.24f, 0.03f, 0.24f), Quaternion.Euler(90f, 0f, 0f), _paint));
+            On(Cylinder("breech-tube", _breechAt + new Vector3(0f, 0f, 0.32f), new Vector3(0.11f, 0.14f, 0.11f), Quaternion.Euler(90f, 0f, 0f), _metal));
+            _blockAt = _breechAt + new Vector3(0f, 0f, -0.205f);
+            _breechBlock = Box("breech-block", _blockAt, new Vector3(0.14f, 0.12f, 0.03f), _paint);
+            On(_breechBlock);
+            On(Box("breech-handle", _breechAt + new Vector3(0.11f, 0.03f, -0.15f), new Vector3(0.02f, 0.02f, 0.12f), _button));
+            // (The guard does not run back with the gun: it stands between the gunner and the recoil.)
+            Box("recoil-guard-top", _breechAt + new Vector3(0.14f, 0.08f, -0.1f), new Vector3(0.02f, 0.02f, 0.5f), _guard);
+            Box("recoil-guard-low", _breechAt + new Vector3(0.14f, -0.08f, -0.1f), new Vector3(0.02f, 0.02f, 0.5f), _guard);
+            Box("recoil-guard-post", _breechAt + new Vector3(0.14f, 0f, -0.34f), new Vector3(0.02f, 0.18f, 0.02f), _guard);
+        }
+
+        /// <summary>
+        /// The breech after a shot: back 14 cm in a twentieth of a second, forward again in half a second; its block down 6 cm while the
+        /// gun reloads (the loader's open breech), up when it is loaded.
+        /// </summary>
+        private void Breech()
+        {
+            if (_breech == null)
+            {
+                return;
+            }
+            float since = Time.unscaledTime - _shotAt;
+            float back = since < 0f ? 0f : since < 0.05f ? since / 0.05f : Mathf.Clamp01(1f - (since - 0.05f) / 0.5f);
+            _breech.localPosition = _breechAt + new Vector3(0f, 0f, -0.14f * back * back * (3f - 2f * back));
+            Weapon gun = Gun(_seat);
+            bool open = gun != null && gun.reloading;
+            Vector3 want = _blockAt + new Vector3(0f, open ? -0.06f : 0f, 0f) - _breechAt; // (in the breech's own frame)
+            _breechBlock.localPosition = Vector3.MoveTowards(_breechBlock.localPosition, want, Time.unscaledDeltaTime * 0.3f);
+        }
+
+        /// <summary>The ready lamp and the ammunition readout follow the gun (the readout five times a second).</summary>
+        private void GunState()
+        {
+            Weapon gun = _seat != null ? Gun(_seat) : null;
+            if (gun == null)
+            {
+                return;
+            }
+            bool empty = gun.ammo <= 0 && !gun.HasInfiniteSpareAmmo() && gun.spareAmmo <= 0;
+            string state = gun.reloading ? "reloading" : empty ? "empty" : gun.ammo <= 0 ? "reloading" : "ready";
+            if (_ready != null)
+            {
+                Color c = state == "ready" ? new Color(0.2f, 1.6f, 0.3f)
+                        : state == "empty" ? new Color(1.6f, 0.08f, 0.05f)
+                        : Color.Lerp(new Color(0.25f, 0.12f, 0f), new Color(1.8f, 0.9f, 0.1f), Mathf.PingPong(Time.unscaledTime * 3f, 1f));
+                Emit(_ready, c);
+                _ready.color = c * 0.4f;
+            }
+            ReadyState = state;
+            if (_ammoText == null || Time.unscaledTime < _nextReadout)
+            {
+                return;
+            }
+            _nextReadout = Time.unscaledTime + 0.2f;
+            string spare = gun.HasInfiniteSpareAmmo() ? "\u221E" : gun.spareAmmo.ToString();
+            string text = state == "reloading" ? "RELOADING" : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
+            if (_ammoText.text != text)
+            {
+                _ammoText.text = text;
+            }
+        }
+
+        /// <summary>A steering lever: a base plate on the floor, a shaft from its pivot, a knob 30 cm up; pushed forward or pulled back.</summary>
+        private Transform Lever(string name, Vector3 pivot)
+        {
+            Box(name + "-base", pivot + new Vector3(0f, 0.01f, 0f), new Vector3(0.08f, 0.02f, 0.14f), _paint);
+            var p = new GameObject(name).transform;
+            p.SetParent(_root.transform, false);
+            p.localPosition = pivot;
+            Transform shaft = Cylinder("shaft", Vector3.zero, new Vector3(0.022f, LeverLength / 2f, 0.022f), Quaternion.identity, _metal);
+            shaft.SetParent(p, false);
+            shaft.localPosition = new Vector3(0f, LeverLength / 2f, 0f);
+            Transform knob = Part(PrimitiveType.Sphere, "knob", Vector3.zero, new Vector3(0.05f, 0.05f, 0.05f), Quaternion.identity, _button);
+            knob.SetParent(p, false);
+            knob.localPosition = new Vector3(0f, LeverLength, 0f);
+            return p;
+        }
+
+        private const float LeverLength = 0.3f, LeverThrow = 30f, LeverReach = 0.08f;
+
+        private Vector3 LeverKnob(int l) => _levers[l].TransformPoint(new Vector3(0f, LeverLength, 0f));
 
         private Camera _scope;
         private RenderTexture _scopeTexture;
@@ -462,6 +681,11 @@ namespace RavenfieldVR.Rig
             _lamp = new Material(standard) { color = new Color(1f, 0.85f, 0.6f) };
             _lampColor = new Color(1.2f, 0.95f, 0.6f);
             Emit(_lamp, _lampColor);
+            _guard = new Material(standard) { color = new Color(0.85f, 0.62f, 0.1f) }; // (safety yellow: the guard round the button, the breech's)
+            _guard.SetFloat("_Glossiness", 0.4f);
+            Emit(_guard, new Color(0.12f, 0.08f, 0.01f));
+            _ready = new Material(standard) { color = new Color(0.1f, 0.4f, 0.1f) };
+            Emit(_ready, new Color(0.2f, 1.6f, 0.3f));
         }
 
         private static void Emit(Material m, Color c)
@@ -577,6 +801,8 @@ namespace RavenfieldVR.Rig
                 _olive = new Material(standard) { color = new Color(0.27f, 0.3f, 0.18f) };
                 _olive.SetFloat("_Glossiness", 0.2f);
             }
+            // (With the fire control outside the elevation wheel, a steering wheel between the handwheels, the rack stands further out.)
+            Vector3 o = new Vector3(SteersByWheel(_seat) ? 0.2f : 0f, 0f, 0f);
             if (gun.configuration.ammo <= 1)
             {
                 for (int i = 0; i < 5; i++)
@@ -584,13 +810,13 @@ namespace RavenfieldVR.Rig
                     float z = 0.2f - i * 0.11f;
                     var shell = new GameObject("shell").transform;
                     shell.SetParent(_root.transform, false);
-                    Cylinder("shell-case", new Vector3(0.52f, -0.32f, z), new Vector3(0.09f, 0.2f, 0.09f), Quaternion.identity, _brass).SetParent(shell, true);
-                    Cylinder("shell-tip", new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal).SetParent(shell, true);
-                    Cylinder("shell-nose", new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal).SetParent(shell, true);
+                    Cylinder("shell-case", o + new Vector3(0.52f, -0.32f, z), new Vector3(0.09f, 0.2f, 0.09f), Quaternion.identity, _brass).SetParent(shell, true);
+                    Cylinder("shell-tip", o + new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal).SetParent(shell, true);
+                    Cylinder("shell-nose", o + new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal).SetParent(shell, true);
                     _rounds.Add(shell.gameObject);
                 }
-                Box("rack-strap-low", new Vector3(0.52f, -0.42f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
-                Box("rack-strap-high", new Vector3(0.52f, -0.2f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
+                Box("rack-strap-low", o + new Vector3(0.52f, -0.42f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
+                Box("rack-strap-high", o + new Vector3(0.52f, -0.2f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
             }
             else
             {
@@ -599,9 +825,9 @@ namespace RavenfieldVR.Rig
                     float z = 0.12f - i * 0.2f;
                     var box = new GameObject("ammo box").transform;
                     box.SetParent(_root.transform, false);
-                    Box("ammo-box", new Vector3(0.5f, -0.42f, z), new Vector3(0.12f, 0.16f, 0.17f), _olive).SetParent(box, true);
-                    Box("ammo-box-lid", new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive).SetParent(box, true);
-                    Box("ammo-box-handle", new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal).SetParent(box, true);
+                    Box("ammo-box", o + new Vector3(0.5f, -0.42f, z), new Vector3(0.12f, 0.16f, 0.17f), _olive).SetParent(box, true);
+                    Box("ammo-box-lid", o + new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive).SetParent(box, true);
+                    Box("ammo-box-handle", o + new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal).SetParent(box, true);
                     _rounds.Add(box.gameObject);
                 }
             }
@@ -669,18 +895,53 @@ namespace RavenfieldVR.Rig
             Weapon gun = Gun(_seat);
             Vector2 drive = Vector2.zero;
             bool fire = false;
-            bool anyWheel = false;
             for (int h = 0; h < 2; h++)
             {
                 VRHand hand = _rig.Hands[h];
                 if (hand == null || !hand.Tracked)
                 {
                     ReleaseWheel(h);
+                    ReleaseLever(h);
                     continue;
                 }
                 Vector3 palm = hand.PalmCentre;
-                // A handwheel: taken by a grip at its rim, cranked round its axis.
-                if (_onWheel[h] < 0 && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
+                // A steering lever: taken by a grip on its knob, pushed or pulled round its pivot.
+                if (_onWheel[h] < 0 && _onLever[h] < 0 && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
+                {
+                    for (int l = 0; l < 2; l++)
+                    {
+                        if (_levers[l] != null && _onLever[1 - h] != l && Vector3.Distance(palm, LeverKnob(l)) < LeverReach)
+                        {
+                            _onLever[h] = l;
+                            hand.Role = HandRole.Cockpit;
+                            hand.Model.CockpitStick = true;
+                            VRInput.Consume(DigitalAction.Grab, hand.Side);
+                            hand.Haptic(0.03f, 120f, 0.4f);
+                            break;
+                        }
+                    }
+                }
+                if (_onLever[h] >= 0)
+                {
+                    if (!hand.GrabHeld)
+                    {
+                        ReleaseLever(h);
+                    }
+                    else
+                    {
+                        int l = _onLever[h];
+                        Vector3 local = _root.transform.InverseTransformPoint(palm) - _levers[l].localPosition;
+                        float value = Mathf.Clamp(Mathf.Atan2(local.z, Mathf.Max(local.y, 0.05f)) * Mathf.Rad2Deg / LeverThrow, -1f, 1f);
+                        if (Mathf.FloorToInt(value * 4f) != Mathf.FloorToInt(_leverValue[l] * 4f))
+                        {
+                            hand.Haptic(0.008f, 200f, 0.25f); // (the lever's notches)
+                        }
+                        _leverValue[l] = value;
+                    }
+                }
+                // A handwheel: taken by a grip at its rim, cranked round its axis (not by a hand on the fire button beside it).
+                bool atFire = _fire != null && Vector3.Distance(palm, _fire.position) < ButtonReach;
+                if (_onWheel[h] < 0 && _onLever[h] < 0 && !atFire && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
                 {
                     for (int w = 0; w < 3; w++)
                     {
@@ -730,14 +991,18 @@ namespace RavenfieldVR.Rig
                         else
                         {
                             Crank(_onWheel[h], turned);
-                            anyWheel = true;
+                            // The trigger of a hand on a handwheel fires, as a gunner's handles do (either hand's).
+                            if (VRInput.GetHeld(DigitalAction.Fire, hand.Side))
+                            {
+                                fire = true;
+                            }
                         }
                     }
                 }
                 // Buttons: pressed while the hand is on them (not one holding a wheel).
-                if (_onWheel[h] < 0)
+                if (_onWheel[h] < 0 && _onLever[h] < 0)
                 {
-                    if (_fire != null && Vector3.Distance(palm, _fire.position) < ButtonReach)
+                    if (atFire)
                     {
                         fire = true;
                     }
@@ -750,12 +1015,29 @@ namespace RavenfieldVR.Rig
                     }
                 }
             }
-            // A click as each is pressed, the button sunk in while held.
-            Press(0, _fire, fire);
+            // A click as each is pressed, the button sunk in while held (the button pushed only; a trigger fires without it).
+            Press(0, _fire, fire && PalmOnFire());
             for (int i = 0; i < _driveButtons.Count; i++)
             {
                 (Transform t, Vector2 d) = _driveButtons[i];
                 Press(1 + i, t, Vector2.Dot(drive, d) > 0.5f);
+            }
+            // The levers: a let-go one springs back to the middle; both into the drive input with the buttons.
+            for (int l = 0; l < 2; l++)
+            {
+                if (_levers[l] == null)
+                {
+                    continue;
+                }
+                if (_onLever[0] != l && _onLever[1] != l)
+                {
+                    _leverValue[l] = Mathf.MoveTowards(_leverValue[l], 0f, Time.unscaledDeltaTime * 5f);
+                }
+                _levers[l].localRotation = Quaternion.Euler(_leverValue[l] * LeverThrow, 0f, 0f);
+            }
+            if (_levers[0] != null)
+            {
+                drive += TillerDrive(_leverValue[0], _leverValue[1]);
             }
             Fire = fire;
             VehicleInput.DriveButtons = Vector2.ClampMagnitude(drive, 1f);
@@ -826,7 +1108,8 @@ namespace RavenfieldVR.Rig
             if (down != _pressed[i])
             {
                 _pressed[i] = down;
-                t.localPosition += t.up * (down ? -0.008f : 0.008f);
+                // (In its own frame: the world's up added to a position in the cabin's frame sank a button sideways in a tipped hull.)
+                t.localPosition += t.localRotation * Vector3.up * (down ? -0.008f : 0.008f);
                 foreach (VRHand hand in _rig.Hands)
                 {
                     if (hand != null && hand.Tracked && Vector3.Distance(hand.PalmCentre, t.position) < ButtonReach + 0.02f)
@@ -888,6 +1171,36 @@ namespace RavenfieldVR.Rig
 
         private Transform WheelOf(int w) => w == 0 ? _traverse : w == 1 ? _elevate : _steer;
 
+        private bool PalmOnFire()
+        {
+            foreach (VRHand hand in _rig.Hands)
+            {
+                if (hand != null && hand.Tracked && _fire != null && Vector3.Distance(hand.PalmCentre, _fire.position) < ButtonReach)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void ReleaseLever(int h)
+        {
+            if (_onLever[h] < 0)
+            {
+                return;
+            }
+            _onLever[h] = -1;
+            VRHand hand = _rig.Hands[h];
+            if (hand != null)
+            {
+                if (hand.Role == HandRole.Cockpit)
+                {
+                    hand.Role = HandRole.Free;
+                }
+                hand.Model.CockpitStick = false;
+            }
+        }
+
         private void ReleaseWheel(int h)
         {
             if (_onWheel[h] < 0)
@@ -920,6 +1233,9 @@ namespace RavenfieldVR.Rig
         {
             ReleaseWheel(0);
             ReleaseWheel(1);
+            ReleaseLever(0);
+            ReleaseLever(1);
+            _leverValue[0] = _leverValue[1] = 0f;
             Fire = false;
             VehicleInput.DriveButtons = Vector2.zero; // (the wanted aim stays: a pause or a rebuilt cabin left the gun with none)
         }
@@ -929,6 +1245,14 @@ namespace RavenfieldVR.Rig
             ReleaseHands();
             _driveButtons.Clear();
             _traverse = _elevate = _fire = _steer = null;
+            _fireReady = _breech = _breechBlock = null;
+            _ammoText = null;
+            _levers[0] = _levers[1] = null;
+            for (int g = 0; g < _needles.Length; g++)
+            {
+                _needles[g] = null;
+            }
+            ReadyState = "none";
             _rounds.Clear();
             _roundsShown = -1;
             _steerTurned = 0f;
@@ -953,14 +1277,14 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = null;
+            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = null;
         }
 
         public void Destroy()

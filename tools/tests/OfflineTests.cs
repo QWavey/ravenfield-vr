@@ -141,6 +141,7 @@ namespace RavenfieldVR.Tests
             ExpoTests(mod);
             TurretSwingTests(mod);
             CrankTests(mod);
+            CockpitTests(mod);
             VectorSettingTests(mod);
         }
 
@@ -662,6 +663,47 @@ namespace RavenfieldVR.Tests
             }
             float far = (float)(Math.Asin(Math.Abs(a.y)) * 180.0 / Math.PI);
             Check(far < 60.5f, $"Handwheels: cranked on and on, the gun stops short of 60 degrees ({far:0.0})");
+        }
+
+        /// <summary>
+        /// A tank cockpit's pure parts (Rig.VehicleInterior): the two steering levers into the drive input, the turret dial's way round
+        /// and the elevation dial's angle.
+        /// </summary>
+        private static void CockpitTests(System.Reflection.Assembly mod)
+        {
+            System.Type vi = mod.GetType("RavenfieldVR.Rig.VehicleInterior");
+            System.Reflection.BindingFlags any = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            System.Reflection.MethodInfo tiller = vi?.GetMethod("TillerDrive", any);
+            System.Reflection.MethodInfo azimuth = vi?.GetMethod("Azimuth", any);
+            System.Reflection.MethodInfo elevation = vi?.GetMethod("Elevation", any);
+            Check(tiller != null && azimuth != null && elevation != null, "Tank cockpit: TillerDrive, Azimuth and Elevation found");
+            if (tiller == null || azimuth == null || elevation == null)
+            {
+                return;
+            }
+            UnityEngine.Vector2 T(float l, float r) => (UnityEngine.Vector2)tiller.Invoke(null, new object[] { l, r });
+            UnityEngine.Vector2 both = T(1f, 1f);
+            Check(Math.Abs(both.x) < 1e-5 && Math.Abs(both.y - 1f) < 1e-5, $"Tank levers: both pushed drive straight ahead ({both.x:0.00}, {both.y:0.00})");
+            UnityEngine.Vector2 back = T(-1f, -1f);
+            Check(Math.Abs(back.x) < 1e-5 && Math.Abs(back.y + 1f) < 1e-5, "Tank levers: both pulled back reverse straight");
+            UnityEngine.Vector2 leftOnly = T(1f, 0f);
+            Check(leftOnly.x > 0.4f && leftOnly.y > 0.4f, $"Tank levers: the left track alone turns right going forward ({leftOnly.x:0.00}, {leftOnly.y:0.00})");
+            UnityEngine.Vector2 spin = T(-1f, 1f);
+            Check(spin.x < -0.9f && Math.Abs(spin.y) < 1e-5, $"Tank levers: opposite ways turn on the spot, left ({spin.x:0.00})");
+            UnityEngine.Vector2 over = T(5f, 5f);
+            Check(Math.Abs(over.y - 1f) < 1e-5, "Tank levers: a value past the end counts as the end");
+            UnityEngine.Vector2 rest = T(0f, 0f);
+            Check(rest.sqrMagnitude < 1e-10, "Tank levers: both in the middle, no drive");
+            float Az(float x, float y, float z) => (float)azimuth.Invoke(null, new object[] { new UnityEngine.Vector3(x, y, z) });
+            float El(float x, float y, float z) => (float)elevation.Invoke(null, new object[] { new UnityEngine.Vector3(x, y, z) });
+            Check(Math.Abs(Az(0f, 0f, 1f)) < 1e-4, "Turret dial: straight ahead reads 0");
+            Check(Math.Abs(Az(1f, 0f, 0f) - 90f) < 1e-3, $"Turret dial: turned right reads +90 ({Az(1f, 0f, 0f):0.0})");
+            Check(Math.Abs(Az(-1f, 0f, 0f) + 90f) < 1e-3, "Turret dial: turned left reads -90");
+            Check(Math.Abs(Math.Abs(Az(0f, 0f, -1f)) - 180f) < 1e-3, "Turret dial: turned back reads 180");
+            Check(Math.Abs(Az(1f, 0.5f, 1f) - 45f) < 1e-3, "Turret dial: the gun raised does not change its way round");
+            Check(Math.Abs(El(0f, 1f, 1f) - 45f) < 1e-3, $"Elevation dial: raised 45 reads 45 ({El(0f, 1f, 1f):0.0})");
+            Check(Math.Abs(El(0f, -2f, 2f) + 45f) < 1e-3, "Elevation dial: lowered reads negative, whatever the length");
+            Check(Math.Abs(El(0f, 0f, 0f)) < 1e-6, "Elevation dial: no direction reads level");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)

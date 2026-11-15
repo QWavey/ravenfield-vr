@@ -675,6 +675,43 @@ namespace RavenfieldVR.Core
                 // (The hand went from the rim's top to its right: clockwise from the seat, a right turn: positive.)
                 line += $"; cabin steering wheel 60 deg clockwise: steering {steer:+0.00;-0.00}{(steer < 0.2f ? (steer < -0.2f ? " (STEERED LEFT)" : " (DID NOT STEER)") : "")}, let go: {(back ? "straight" : "STILL TURNED")}";
             }
+            // A tank driver's right steering lever pushed 25 degrees forward by the gun hand: the drive goes forward (and left: the
+            // right track alone), let go it springs back.
+            Transform lever = Rig.VehicleInterior.Instance.RightLever;
+            if (lever != null && lever.parent != null)
+            {
+                Rig.VRHand hand = rig.Dominant;
+                int side = (int)hand.Side;
+                Vector3 toRaw = hand.Raw.position - hand.PalmCentre;
+                Quaternion rot = hand.Raw.rotation;
+                Vector3 pivot = lever.parent.InverseTransformPoint(lever.position);
+                Vector2 most = Vector2.zero;
+                for (float t = 0f; t <= 0.8f; t += Time.unscaledDeltaTime)
+                {
+                    if (lever == null || lever.parent == null)
+                    {
+                        break;
+                    }
+                    float a = t < 0.15f ? 0f : Mathf.Clamp01((t - 0.15f) / 0.5f) * 25f;
+                    Vector3 knob = lever.parent.TransformPoint(pivot + Quaternion.Euler(a, 0f, 0f) * new Vector3(0f, 0.3f, 0f));
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(knob + toRaw, rot);
+                    if (t > 0.08f && !Input.VRInput.SimulatedGrab[side])
+                    {
+                        Input.VRInput.SimulateGrabPress(hand.Side);
+                    }
+                    if (Input.VehicleInput.DriveButtons.y > most.y)
+                    {
+                        most = Input.VehicleInput.DriveButtons;
+                    }
+                    yield return null;
+                }
+                Input.VRInput.SimulatedGrab[side] = false;
+                Rig.VRHand.Scripted[side] = null;
+                yield return new WaitForSecondsRealtime(0.5f);
+                float after = Input.VehicleInput.DriveButtons.magnitude;
+                line += $"; right steering lever 25 deg forward: drive ({most.x:+0.00;-0.00}, {most.y:+0.00;-0.00}){(most.y < 0.3f ? " (DID NOT DRIVE)" : most.x > -0.1f ? " (DID NOT TURN LEFT)" : "")}, let go: {(after < 0.05f ? "back in the middle" : "STILL PUSHED")}";
+            }
+            line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}";
             line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
