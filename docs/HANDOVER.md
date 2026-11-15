@@ -2,8 +2,10 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-15 (splitscreen as whole game copies; Tasks 398; in code, not packaged: 1.18.0 installed is older)
+## State 2026-11-15 13:01 (**1.19.0 INSTALLED** on this PC, Defender clean; Tasks 398-399; run to 65% going on)
 
+- 1.19.0: the copies draw at the screen's rate (144, stepping down to 120/90/60 by themselves), 1 ms timer, above-normal GPU scheduling; 4 players measured: copies 120-144 fps, mouse to turning 7-13 ms, W to walking 75-94 ms, input 4-5 ms late; the scout's review fixed (Tasks 399). The friend's PC needs 1.19.0 too (another version is refused at joining). To confirm with the user: the delay at the new rates.
+- `--vrflatcheck` and `--vrjoinflatcheck` were run 2026-11-15 on code before 1.19.0: 0 problems (the join check after `Rig/ActiveCameraGuard.cs`).
 - Splitscreen now runs each extra player in a whole copy of the game (`Local/SplitGames.cs`), one screen, "Loading players", go together; soldiers splitscreen kept as `FullGames = false`. Try it: `python -I tools/vrshots.py --splittry --players 4` (F12 hands the one keyboard to the next player).
 - Checks: `--splitgamescheck` (copy played by script, stand-in sampler: 0.00-0.04 m behind, no moonwalk), `--splitlagcheck --players 4` (mouse to turning 17 ms, W to walking 100 ms = the game's run-up). Not run yet: `--vrflatcheck`, `--vrjoinflatcheck`.
 - Open: the user felt "very very delayed" (before: player 1 uncapped at 142-207 fps on the shared card, stand-ins told 15/s and caught up slowly; now capped, one frame queued, 30/s, twice the catch-up on LAN): to be confirmed by the user. Version not raised yet (raise before packaging: new-version-per-update).
