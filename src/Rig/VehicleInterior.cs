@@ -672,6 +672,7 @@ namespace RavenfieldVR.Rig
                 // 2 m over his seat, was judged from inside the hull and kept so.)
                 _lastSeat = raw;
                 _wanted = false;
+                _hatchFrames = 0; // (the seat left at the first of the hatch's three frames: the rest threw him out of the next seat)
                 _nextLook = Time.unscaledTime + 0.3f;
                 _lookUntil = Time.unscaledTime + 3f;
             }
@@ -2097,6 +2098,7 @@ namespace RavenfieldVR.Rig
             _zoomKnob = null;
             _rangeButton = null;
             _hatch = null;
+            _hatchFrames = 0;
             _rangeText = null;
             _rangeUntil = -10f;
             _lightSwitch = _hint = null;
