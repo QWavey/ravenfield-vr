@@ -15,6 +15,9 @@ namespace RavenfieldVR.Input
         /// <summary>Set by <see cref="RavenfieldVR.Rig.CockpitControls"/> while a hand holds the steering wheel; -1..1.</summary>
         public static float? WheelSteer;
 
+        /// <summary>A closed vehicle's drive buttons pressed (Rig.VehicleInterior): x steer right, y forward; added to the stick.</summary>
+        public static Vector2 DriveButtons;
+
         /// <summary>Set while a hand holds the flight stick: x = roll right, y = nose down; -1..1.</summary>
         public static Vector2? FlightStick;
 
@@ -38,8 +41,8 @@ namespace RavenfieldVR.Input
         public static Vector2 Car()
         {
             Vector2 left = VRGameInput.MoveStick;
-            float steer = WheelSteer ?? left.x;
-            return new Vector2(steer, left.y);
+            float steer = WheelSteer ?? Mathf.Clamp(left.x + DriveButtons.x, -1f, 1f);
+            return new Vector2(steer, Mathf.Clamp(left.y + DriveButtons.y, -1f, 1f));
         }
 
         public static Vector4 Helicopter()

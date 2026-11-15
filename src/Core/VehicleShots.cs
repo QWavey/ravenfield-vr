@@ -266,9 +266,9 @@ namespace RavenfieldVR.Core
                 {
                     Vector3 f = rig.Head.forward;
                     float yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
-                    if (!float.IsNaN(last))
+                    if (!float.IsNaN(last) && Mathf.Abs(Mathf.DeltaAngle(last, yaw)) < 45f)
                     {
-                        total += Mathf.DeltaAngle(last, yaw); // (unwrapped: a full turn adds up to 360)
+                        total += Mathf.DeltaAngle(last, yaw); // (unwrapped: a full turn adds up to 360; a seat's one-frame cut left out)
                     }
                     last = yaw;
                     yaws.Enqueue((Time.unscaledTime, total));
@@ -351,14 +351,81 @@ namespace RavenfieldVR.Core
             yield return null;
             Shots.Capture(name + "-down", head.position, Quaternion.LookRotation(vfwd * 0.5f + Vector3.down, vfwd), 100f);
             yield return null;
+            if (Rig.VehicleInterior.Instance != null && Rig.VehicleInterior.Instance.Shown)
+            {
+                yield return InteriorCheck(v, seat, name, what, report);
+            }
             if (Rig.TurretGrip.Grabbable(seat, out Weapon gun))
             {
                 yield return GrabCheck(seat, gun, name, what, report);
             }
             else if (seat.HasAnyMountedWeapons() && !seat.enclosed && seat.activeWeapon != null)
             {
-                report($"{what}: its gun ({seat.activeWeapon.GetType().Name}) is aimed by the head (no handles to take: {(seat.handTargetL == null && seat.handTargetR == null ? "no hand targets" : "not a mounted turret")})");
+                Transform pv = Rig.TurretGrip.Pivot(seat.activeWeapon);
+                float reach = pv != null && rig.Head != null ? Vector3.Distance(pv.position, rig.Head.position) : -1f;
+                report($"{what}: its gun ({seat.activeWeapon.GetType().Name}) is not taken by hand ({(pv == null ? "no turning parts" : seat.activeWeapon.overrideCamera != null ? "aimed through its own sight" : $"its pivot {reach:0.0} m from the eyes")})");
             }
+        }
+
+        /// <summary>
+        /// A closed vehicle's inside: pictured to the left and behind; the head turned 40 degrees moves no gun; the traverse handwheel
+        /// cranked half a turn turns the turret; the alarm pictured with the vehicle burning for a moment.
+        /// </summary>
+        private static IEnumerator InteriorCheck(Vehicle v, Seat seat, string name, string what, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Transform head = rig.Head;
+            Vector3 hf = v.transform.forward;
+            Shots.Capture(name + "-inside-left", head.position, Quaternion.LookRotation(-v.transform.right + hf * 0.3f, Vector3.up), 100f);
+            yield return null;
+            Shots.Capture(name + "-inside-back", head.position, Quaternion.LookRotation(-hf, Vector3.up), 100f);
+            yield return null;
+            Weapon gun = seat.activeWeapon is MountedTurret || seat.activeWeapon is MountedStabilizedTurret || seat.activeWeapon is TankTurret ? seat.activeWeapon : null;
+            string line = $"{what}: inside shown";
+            if (gun != null)
+            {
+                Transform aim = Rig.TurretGrip.AimReference(gun);
+                float Yaw()
+                {
+                    Vector3 d = v.transform.InverseTransformDirection(aim.forward);
+                    return Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+                }
+                // Nothing touched for 1.2 s: the gun stays (the head is never read for it).
+                float y0 = Yaw();
+                yield return new WaitForSecondsRealtime(1.2f);
+                float headMoved = Mathf.DeltaAngle(y0, Yaw());
+                // The traverse wheel cranked half a turn by the gun hand.
+                Transform wheel = Rig.VehicleInterior.Instance.TraverseWheel;
+                Rig.VRHand hand = rig.Dominant;
+                int side = (int)hand.Side;
+                Vector3 palmToRaw = hand.Raw.position - hand.PalmCentre;
+                Quaternion rot = hand.Raw.rotation;
+                float y1 = Yaw();
+                for (float t = 0f; t <= 1.2f; t += Time.unscaledDeltaTime)
+                {
+                    float a = (t < 0.2f ? 0f : Mathf.Clamp01((t - 0.2f) / 1f) * 180f);
+                    Vector3 rim = wheel.TransformPoint(Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f));
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + palmToRaw, rot);
+                    if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
+                    {
+                        Input.VRInput.SimulateGrabPress(hand.Side);
+                    }
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(1.5f);
+                Input.VRInput.SimulatedGrab[side] = false;
+                Rig.VRHand.Scripted[side] = null;
+                float cranked = Mathf.DeltaAngle(y1, Yaw());
+                line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}";
+            }
+            bool was = v.burning;
+            v.burning = true;
+            yield return new WaitForSecondsRealtime(0.2f);
+            Shots.Capture(name + "-inside-alarm");
+            yield return new WaitForSecondsRealtime(0.15f);
+            Shots.Capture(name + "-inside-alarm2");
+            v.burning = was;
+            report(line + "; the alarm pictured");
         }
 
         /// <summary>
@@ -390,16 +457,17 @@ namespace RavenfieldVR.Core
             }
             Vector3 handle = handles[handles.Count - 1];
             Transform pivot = Rig.TurretGrip.Pivot(gun);
-            Vector3 arm = Vector3.ProjectOnPlane(frame.InverseTransformPoint(handle) - frame.InverseTransformPoint(pivot.position), Vector3.up);
-            Vector3 aimFlat = Vector3.ProjectOnPlane(frame.InverseTransformDirection(muzzle.forward), Vector3.up).normalized;
-            bool under = arm.magnitude < 0.12f;
-            float expect = under ? 1f : -Mathf.Sign(Vector3.Dot(arm, aimFlat)); // (behind the pivot: the hand right turns it left)
             Vector3 right = frame.right;
             Vector3 palmToRaw = hand.Raw.position - hand.Palm.position;
             Quaternion rot = hand.Raw.rotation;
             Rig.VRHand.Scripted[side] = new Runtime.RigidPose(handle + palmToRaw, rot);
             yield return null;
             yield return null;
+            // Which way it should turn, from where the palm really is (the grip swings the gun by the palm, not the handle's point).
+            Vector3 arm = Vector3.ProjectOnPlane(frame.InverseTransformPoint(hand.Palm.position) - frame.InverseTransformPoint(pivot.position), Vector3.up);
+            Vector3 aimFlat = Vector3.ProjectOnPlane(frame.InverseTransformDirection(muzzle.forward), Vector3.up).normalized;
+            bool under = arm.magnitude < 0.2f;
+            float expect = under ? 1f : -Mathf.Sign(Vector3.Dot(arm, aimFlat)); // (behind the pivot: the hand right turns it left)
             Input.VRInput.SimulateGrabPress(hand.Side);
             yield return new WaitForSecondsRealtime(0.4f);
             bool taken = grip.Held;

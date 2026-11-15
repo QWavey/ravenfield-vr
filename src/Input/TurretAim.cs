@@ -49,6 +49,16 @@ namespace RavenfieldVR.Input
                     return false;
                 }
             }
+            else if (Rig.VehicleInterior.AimsGun)
+            {
+                // A closed vehicle's gun: where its stick and handwheels set it, never the head (looking round inside moves nothing).
+                dir = Rig.VehicleInterior.WheelAim;
+                if (dir == null)
+                {
+                    result = Vector2.zero;
+                    return false;
+                }
+            }
             else
             {
                 dir = Direction();

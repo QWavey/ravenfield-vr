@@ -50,6 +50,7 @@ namespace RavenfieldVR.Rig
         private readonly LensEffects _lens;
         private readonly CockpitControls _cockpit;
         private readonly TurretGrip _turretGrip;
+        private readonly VehicleInterior _interior;
         private readonly VehicleTouchEnter _touchEnter;
 
         /// <summary>The steering wheel and flight stick the hands grab in a seat.</summary>
@@ -76,6 +77,8 @@ namespace RavenfieldVR.Rig
         private float _seatYawOffset;
         private object _anchorKey;
         private RigidPose _neutralHead = RigidPose.Identity;
+        /// <summary>The head's neutral pose in the rig's root (where the anchor puts the eyes; its forward is the seat's or the sight's).</summary>
+        internal RigidPose NeutralHead => _neutralHead;
         private Vector3 _lastHeadLocal;
         private bool _hasLastHeadLocal;
         private bool _snapLatch;
@@ -142,6 +145,7 @@ namespace RavenfieldVR.Rig
                 }
                 _cockpit = new CockpitControls(this);
                 _turretGrip = new TurretGrip(this);
+                _interior = new VehicleInterior(this);
                 _touchEnter = new VehicleTouchEnter(this);
             }
             catch
@@ -368,6 +372,7 @@ namespace RavenfieldVR.Rig
             HandleTurning(player);
             _cockpit.Update();
             _turretGrip?.Update(); // (an open mounted gun by its handles)
+            Log.Guard("Rig.Interior", () => _interior?.Update()); // (a closed vehicle's inside, its handwheels and buttons)
             VehicleFeel.Update(this);
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
             if (Mode == RigMode.OnFoot && player != null && player.actor != null && player.actor.IsSeated())
@@ -713,6 +718,7 @@ namespace RavenfieldVR.Rig
             // Not while a hand holds a car's wheel or a flight stick: the turn swings the hand round the head (a 30 degree
             // snap about 30 cm), which read as tens of degrees of steering and held the car at full lock (85-agent review).
             allowed &= !(Hands[0] != null && Hands[0].Role == HandRole.Cockpit || Hands[1] != null && Hands[1].Role == HandRole.Cockpit);
+            allowed &= !VehicleInterior.AimsGun; // (the right stick turns the turret there, not the view)
             if (!allowed)
             {
                 return;
@@ -1675,13 +1681,22 @@ namespace RavenfieldVR.Rig
             {
                 return; // not set, or the player was destroyed with its map (its renderers go with it)
             }
-            if (owner.IsUsingOverrideCamera() ? owner.cameraRenderOptions.renderPlayerActor : !owner.firstPerson)
+            try
             {
-                owner.EnableThirdPersonRenderingMode();
+                if (owner.IsUsingOverrideCamera() ? owner.cameraRenderOptions.renderPlayerActor : !owner.firstPerson)
+                {
+                    owner.EnableThirdPersonRenderingMode();
+                }
+                else
+                {
+                    owner.EnableFirstPersonRenderingMode();
+                }
             }
-            else
+            catch (System.NullReferenceException)
             {
-                owner.EnableFirstPersonRenderingMode();
+                // The game's own call walks the body's renderers, and one destroyed under it (a vehicle's part the body held, gone with
+                // the vehicle) threw each time: the rest is the game's own to set on its next change.
+                Log.InfoOnce("Rig.RestoreBody.gone", "Body drawn again: one of its renderers was already destroyed (the game's call skipped).");
             }
         }
 
@@ -1787,6 +1802,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Suppressor.Dispose", () => Suppressor?.Dispose());
             Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
             Log.Guard("Rig.Cockpit.Destroy", () => _cockpit?.Destroy());
+            Log.Guard("Rig.Interior.Destroy", () => _interior?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Underwater.Destroy", () => _underwater?.Destroy());

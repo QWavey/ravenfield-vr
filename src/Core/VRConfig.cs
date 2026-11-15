@@ -90,6 +90,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<string> LaserRotationOffset;
         public static ConfigEntry<TurretAimMode> TurretAim;
         public static ConfigEntry<bool> GrabMountedGuns;
+        public static ConfigEntry<bool> Interiors;
 
         // Weapons
         public static ConfigEntry<ReloadMode> Reload;
@@ -290,6 +291,8 @@ namespace RavenfieldVR.Core
                 "Euler degrees for the menu laser when the controller has no tip pose.");
             TurretAim = cfg.Bind("Controls", "TurretAim", TurretAimMode.Head,
                 "Mounted guns and vehicle turrets follow your head or your weapon hand's pointing direction.");
+            Interiors = cfg.Bind("Vehicles", "Interiors", true,
+                "Closed ground vehicles (tanks, APCs) get an inside round your seat, coloured like the vehicle: a slot to look out, handwheels to turn the turret and its gun, a fire button, drive buttons for the driver.");
             GrabMountedGuns = cfg.Bind("Controls", "GrabMountedGuns", true,
                 "Open mounted guns (gun nests, a jeep's MG): take their handles with your grip and swing them; let go and they stay where they are. Off: they follow TurretAim.");
 

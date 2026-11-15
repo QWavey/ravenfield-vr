@@ -27,9 +27,9 @@ namespace RavenfieldVR.Rig
         /// <summary>How near the palm must be to a handle to take it (m).</summary>
         private const float Reach = 0.17f;
         /// <summary>The pivot of a gun taken by hand, from the head: further is a turret aimed from a sight (a tank's, a gunship's).</summary>
-        private const float ArmsLength = 1.25f;
+        private const float ArmsLength = 1.7f; // (a ZU-23's seated gunner: its pivot 1.3 to 1.6 m from the eyes)
         /// <summary>Under this from the pivot (across a turning axis), the hands do not swing that way: the hand's own turn does.</summary>
-        private const float ShortArm = 0.12f;
+        private const float ShortArm = 0.2f; // (closer, 20 cm of hand swung a gun 96 degrees: twitchy)
         private const float TrackingGrace = 0.2f;
 
         internal static TurretGrip Instance;
