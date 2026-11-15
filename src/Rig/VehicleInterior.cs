@@ -153,7 +153,11 @@ namespace RavenfieldVR.Rig
         private Weapon _cannon; // the gun the breech belongs to (null: no breech)
 
         /// <summary>This seat's cannon is loaded by hand: Manual reload, a breech and a rack of shells in the inside.</summary>
-        private bool LoadsByHand => _breech != null && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual;
+        private bool LoadsByHand => _breech != null && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual
+                                    && (VRConfig.LoadCannonByHand == null || VRConfig.LoadCannonByHand.Value || TestLoadByHand);
+
+        /// <summary>For the vehicle check: loading by hand checked whatever the setting.</summary>
+        internal static bool TestLoadByHand;
 
         /// <summary>The game's own reload of the inside's cannon waits for a shell pushed into the breech (not its automatic one).</summary>
         internal static bool HoldsReload(Weapon gun)

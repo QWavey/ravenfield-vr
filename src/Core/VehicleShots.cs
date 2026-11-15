@@ -675,6 +675,7 @@ namespace RavenfieldVR.Core
                     {
                         Core.ReloadMode? kept = Core.VRConfig.TestReload;
                         Core.VRConfig.TestReload = Core.ReloadMode.Manual;
+                        Rig.VehicleInterior.TestLoadByHand = true;
                         yield return new WaitForSecondsRealtime(1f);
                         bool waited = gun.ammo <= 0 && !gun.reloading;
                         string readout = Rig.VehicleInterior.Instance.Readout;
@@ -699,6 +700,7 @@ namespace RavenfieldVR.Core
                         Rig.VRHand.Scripted[side] = null;
                         yield return new WaitForSecondsRealtime(0.3f);
                         Core.VRConfig.TestReload = kept;
+                        Rig.VehicleInterior.TestLoadByHand = false;
                         line += $"; loaded by hand: {(waited ? "waited empty" : $"DID NOT WAIT (ammo {gun.ammo}, reloading {gun.reloading})")} (readout \"{readout}\"), shell {(took ? "taken" : "NOT TAKEN")}, gun {(gun.ammo > 0 ? "loaded" : "NOT LOADED")}";
                     }
                 }

@@ -91,6 +91,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<TurretAimMode> TurretAim;
         public static ConfigEntry<bool> GrabMountedGuns;
         public static ConfigEntry<bool> Interiors;
+        public static ConfigEntry<bool> LoadCannonByHand;
 
         // Weapons
         public static ConfigEntry<ReloadMode> Reload;
@@ -293,6 +294,8 @@ namespace RavenfieldVR.Core
                 "Mounted guns and vehicle turrets follow your head or your weapon hand's pointing direction.");
             Interiors = cfg.Bind("Vehicles", "Interiors", true,
                 "Closed ground vehicles (tanks, APCs) get an inside round your seat, coloured like the vehicle: a slot to look out, handwheels to turn the turret and its gun, a fire button, drive buttons for the driver.");
+            LoadCannonByHand = cfg.Bind("Vehicles", "LoadCannonByHand", true,
+                "With manual reloading, a tank's cannon waits for you to load it: a shell from the rack pushed into the breech. Off: the cannon reloads itself (your own guns stay manual).");
             GrabMountedGuns = cfg.Bind("Controls", "GrabMountedGuns", true,
                 "Open mounted guns (gun nests, a jeep's MG): take their handles with your grip and swing them; let go and they stay where they are. Off: they follow TurretAim.");
 
