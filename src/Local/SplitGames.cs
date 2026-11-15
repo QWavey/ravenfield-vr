@@ -219,6 +219,14 @@ namespace RavenfieldVR.Local
 
         /// <summary>The copies check: a copy's process ended as a crash would end it (the host must start it again).</summary>
         /// <summary>For the check: whether player (index + 1)'s copy has a window on the screen (a rejoined copy stayed hidden once).</summary>
+        /// <summary>For the check: this game's window (visible, minimised).</summary>
+        internal static string HostWindowState()
+        {
+            IntPtr h = RawInput.GameWindow();
+            return h == IntPtr.Zero ? "not found" : $"{(IsWindowVisible(h) ? "visible" : "HIDDEN")}{(IsIconic(h) ? ", minimised" : "")}";
+        }
+
+        /// <summary>For the check: whether player (index + 1)'s copy has a window on the screen (a rejoined copy stayed hidden once).</summary>
         internal static bool CopyWindowShown(int index)
         {
             uint pid = 0;
@@ -381,16 +389,9 @@ namespace RavenfieldVR.Local
             }
             if (_go)
             {
-                // (Every frame of the match: nothing made here, no garbage for the collector to stop the game for.)
-                bool allIn = true;
-                for (int i = 0; i < Copies.Count; i++)
-                {
-                    allIn &= Copies[i].Ready;
-                }
-                if (allIn)
-                {
-                    return;
-                }
+                // After go each copy keeps its own window hidden until it is in (it looks for it every frame until then). Hidden from
+                // here too, a rejoining copy that had just shown itself was hidden again and stayed so for the match (scout, 2026-11-15).
+                return;
             }
             Pids.Clear();
             HashSet<uint> pids = Pids;
@@ -1011,6 +1012,7 @@ namespace RavenfieldVR.Local
         private static IPEndPoint _hostInput;
         private static IntPtr _ownWindow;
         private static float _ownWindowAt;
+        private static int _reshown;
         private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _goFromHost, _shown;
         private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
@@ -1102,16 +1104,20 @@ namespace RavenfieldVR.Local
             // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
             // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go. Kept hidden: the
             // game shows its window again as it loads.
-            if (_ownWindow == IntPtr.Zero || Time.unscaledTime >= _ownWindowAt)
+            if (_ownWindow == IntPtr.Zero || Time.unscaledTime >= _ownWindowAt || !_shown)
             {
                 _ownWindow = RawInput.GameWindow(); // (once a second: it walks every window on the PC)
-                _ownWindowAt = Time.unscaledTime + 1f;
+                _ownWindowAt = Time.unscaledTime + 1f; // (every frame until shown: the loading game shows its window again and again)
                 // Shown but hidden: the host hides a rejoining copy until it sees it in, which can come a moment after this copy showed
                 // itself; it stayed hidden for the match (scout, 2026-11-15). Not while player 1's window is minimised (its own windows
                 // go with it).
                 if (_shown && _ownWindow != IntPtr.Zero && !IsWindowVisible(_ownWindow) && !(OwnerWindow != 0 && IsIconic(new IntPtr(OwnerWindow))))
                 {
                     ShowWindow(_ownWindow, SW_SHOWNOACTIVATE);
+                    if (_reshown++ < 3)
+                    {
+                        Note($"Splitscreen: shown again (it was hidden){(IsWindowVisible(_ownWindow) ? "" : "; still NOT visible")}.");
+                    }
                 }
             }
             IntPtr own = _ownWindow;

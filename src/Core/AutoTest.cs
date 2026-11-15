@@ -896,6 +896,7 @@ namespace RavenfieldVR.Core
                         Log.Info("[copies check] " + line);
                     }
                     // A copy that closes mid-match is started again and rejoins (its process killed here, as a crash would end it).
+                    Results.Add($"copies: before the kill: player 2's window {(Local.SplitGames.CopyWindowShown(1) ? "on the screen" : "NOT SHOWN")}, this game's window {Local.SplitGames.HostWindowState()}");
                     if (Local.SplitGames.KillCopyForCheck(1))
                     {
                         float killedAt = Time.realtimeSinceStartup;

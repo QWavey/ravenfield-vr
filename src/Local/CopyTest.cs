@@ -205,7 +205,10 @@ namespace RavenfieldVR.Local
                         _nextPressed = true;
                         _nextTries++;
                         _nextAt = t;
-                        Press(SteelInput.KeyBinds.NextWeapon);
+                    }
+                    if (_nextPressed && t - _nextAt < 0.1f)
+                    {
+                        Press(SteelInput.KeyBinds.NextWeapon); // (held 0.1 s, as a key or a wheel notch is: one frame at 144 a second was missed now and then)
                     }
                     if (_nextPressed && (me.activeWeaponSlot != _slotFrom || _nextTries >= 3) && t - _nextAt > 1f || t > 16f)
                     {
