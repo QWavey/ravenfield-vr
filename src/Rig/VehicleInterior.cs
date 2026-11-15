@@ -731,23 +731,29 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The crank's turn into the wanted aim: a full turn is 90 degrees sideways (traverse) or 30 up and down (elevation).</summary>
-        private void Crank(int wheel, float degrees)
+        private void Crank(int wheel, float degrees) => _aimLocal = Cranked(_aimLocal, wheel, degrees);
+
+        /// <summary>
+        /// The wanted aim (the vehicle's frame, up is up) turned by a crank: the traverse wheel (0) a quarter of its turn sideways (a
+        /// full turn 90 degrees), the elevation wheel (1) a twelfth up or down (30), never past 60 degrees from level. Pure (offline tests).
+        /// </summary>
+        internal static Vector3 Cranked(Vector3 aim, int wheel, float degrees)
         {
             Vector3 up = Vector3.up;
             if (wheel == 0)
             {
-                _aimLocal = Quaternion.AngleAxis(degrees * 0.25f, up) * _aimLocal;
+                aim = TurretGrip.Rotate(aim, up, degrees * 0.25f);
             }
             else
             {
-                Vector3 across = Vector3.Cross(up, _aimLocal).normalized;
-                Vector3 next = Quaternion.AngleAxis(-degrees * (30f / 360f), across) * _aimLocal;
+                Vector3 across = Vector3.Cross(up, aim).normalized;
+                Vector3 next = TurretGrip.Rotate(aim, across, -degrees * (30f / 360f));
                 if (Vector3.Angle(Vector3.ProjectOnPlane(next, up), next) < 60f)
                 {
-                    _aimLocal = next;
+                    aim = next;
                 }
             }
-            _aimLocal.Normalize();
+            return aim.normalized;
         }
 
         /// <summary>

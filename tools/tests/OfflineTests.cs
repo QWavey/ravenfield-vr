@@ -140,6 +140,7 @@ namespace RavenfieldVR.Tests
             HeadLookTests(mod);
             ExpoTests(mod);
             TurretSwingTests(mod);
+            CrankTests(mod);
             VectorSettingTests(mod);
         }
 
@@ -634,6 +635,33 @@ namespace RavenfieldVR.Tests
             UnityEngine.Vector3 aim = V(0f, -1f, 0f);
             UnityEngine.Vector3 t = (UnityEngine.Vector3)swing.Invoke(null, new object[] { aim, V(0f, 0.5f, 0f), V(0.2f, 0.5f, 0f), still, tippedUp });
             Check(t.x < -0.3f, $"Gun grip: in a tipped frame the swing goes round the vehicle's up (x {t.x:0.00})");
+        }
+
+        /// <summary>A closed vehicle's handwheels (Rig.VehicleInterior.Cranked): a turn is 90 degrees sideways or 30 up and down, never past 60.</summary>
+        private static void CrankTests(System.Reflection.Assembly mod)
+        {
+            System.Reflection.MethodInfo cranked = mod.GetType("RavenfieldVR.Rig.VehicleInterior")?.GetMethod("Cranked",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            Check(cranked != null, "Handwheels: VehicleInterior.Cranked found");
+            if (cranked == null)
+            {
+                return;
+            }
+            UnityEngine.Vector3 C(UnityEngine.Vector3 a, int w, float d) => (UnityEngine.Vector3)cranked.Invoke(null, new object[] { a, w, d });
+            UnityEngine.Vector3 fwd = new UnityEngine.Vector3(0f, 0f, 1f);
+            UnityEngine.Vector3 half = C(fwd, 0, 180f);
+            float yaw = (float)(Math.Atan2(half.x, half.z) * 180.0 / Math.PI);
+            Check(Math.Abs(yaw - 45f) < 0.5f, $"Handwheels: half a turn of the traverse wheel is 45 degrees ({yaw:0.0})");
+            UnityEngine.Vector3 up = C(fwd, 1, 180f);
+            float pitch = (float)(Math.Asin(up.y) * 180.0 / Math.PI);
+            Check(Math.Abs(Math.Abs(pitch) - 15f) < 0.5f, $"Handwheels: half a turn of the elevation wheel is 15 degrees ({pitch:0.0})");
+            UnityEngine.Vector3 a = fwd;
+            for (int i = 0; i < 20; i++)
+            {
+                a = C(a, 1, 360f);
+            }
+            float far = (float)(Math.Asin(Math.Abs(a.y)) * 180.0 / Math.PI);
+            Check(far < 60.5f, $"Handwheels: cranked on and on, the gun stops short of 60 degrees ({far:0.0})");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)
