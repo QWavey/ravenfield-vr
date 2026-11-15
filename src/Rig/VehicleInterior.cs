@@ -210,6 +210,21 @@ namespace RavenfieldVR.Rig
                 Piece("shell-case", -0.095f, new Vector3(0.09f, 0.2f, 0.09f), _brass);
                 Piece("shell-tip", 0.175f, new Vector3(0.075f, 0.07f, 0.075f), _metal);
                 Piece("shell-nose", 0.265f, new Vector3(0.04f, 0.03f, 0.04f), _metal);
+                // (The rack hides its last shown shell while one is carried and after it is rammed: the taken one is swapped into
+                // that place, or shell 2 taken left shell 2 standing and shell 4 went; scout.)
+                int last = i;
+                for (int k = i + 1; k < _rounds.Count && k < _rackCentres.Count; k++)
+                {
+                    if (_rounds[k] != null && _rounds[k].activeSelf)
+                    {
+                        last = k;
+                    }
+                }
+                if (last != i)
+                {
+                    (_rounds[i], _rounds[last]) = (_rounds[last], _rounds[i]);
+                    (_rackCentres[i], _rackCentres[last]) = (_rackCentres[last], _rackCentres[i]);
+                }
                 _carryHand = h;
                 hand.Role = HandRole.Cockpit;
                 hand.Model.CockpitStick = true;
@@ -1348,7 +1363,6 @@ namespace RavenfieldVR.Rig
 
         private void Hands()
         {
-            Weapon gun = Gun(_seat);
             Vector2 drive = Vector2.zero;
             bool fire = false;
             for (int h = 0; h < 2; h++)
@@ -1444,6 +1458,10 @@ namespace RavenfieldVR.Rig
                             float before = _steerTurned;
                             turned = Mathf.Clamp(before + turned, -120f, 120f) - before;
                         }
+                        if (_onWheel[1 - h] == _onWheel[h])
+                        {
+                            turned *= 0.5f; // (both hands on one wheel: each its half, or the wheel turned twice as far as either hand)
+                        }
                         wheel.localRotation *= Quaternion.Euler(0f, 0f, turned); // (the wheel turns with the hand)
                         if (Mathf.Abs(turned) > 3f)
                         {
@@ -1468,7 +1486,7 @@ namespace RavenfieldVR.Rig
                     }
                 }
                 // Buttons: pressed while the hand is on them (not one holding a wheel).
-                if (_onWheel[h] < 0 && _onLever[h] < 0)
+                if (_onWheel[h] < 0 && _onLever[h] < 0 && _carryHand != h) // (a shell carried past the fire button fired the gun; scout)
                 {
                     if (atFire)
                     {
@@ -1755,6 +1773,7 @@ namespace RavenfieldVR.Rig
             _traverse = _elevate = _fire = _steer = null;
             _fireReady = _breech = _breechBlock = null;
             _cannon = null;
+            _shotAt = _rammedAt = _hitAt = -10f; // (a seat changed straight after a shot: the new breech twitched)
             _zoomKnob = null;
             _lightSwitch = _hint = null;
             foreach (Material m in _extra)
