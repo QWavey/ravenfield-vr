@@ -2707,9 +2707,11 @@ namespace RavenfieldVR.Net
                         // A VR player aims with his hand, not with his head: his soldier on the other PCs points the gun where
                         // the gun hand points it (he looked where the head looked, and shot "sideways" out of a level gun).
                         if (a == player && VRManager.Active && a.IsSeated()
-                            && (a.activeWeapon is MountedTurret || a.activeWeapon is TankTurret || a.activeWeapon is MountedStabilizedTurret)
-                            && Input.TurretAim.Direction() is Vector3 aim)
+                            && (a.activeWeapon is MountedTurret || a.activeWeapon is TankTurret || a.activeWeapon is MountedStabilizedTurret))
                         {
+                            // (Where the barrel really points, since 2026-11-15: guns are aimed by their handles, the stick and the handwheels
+                            // now, not the head, and the head's direction sent made the others' copy of the gun follow his look.)
+                            Vector3 aim = Rig.TurretGrip.AimReference(a.activeWeapon).forward;
                             // At a mounted gun or a tank's turret: where the turret is steered (the head by default, the hand if set). The
                             // stand-in's turret on the other PCs follows his told facing (the game's own AI aim), and it was told the gun
                             // hand's pointer while the turret followed the head: the others saw it aimed elsewhere, or not turning
