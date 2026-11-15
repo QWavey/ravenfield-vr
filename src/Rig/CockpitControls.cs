@@ -421,6 +421,97 @@ namespace RavenfieldVR.Rig
         /// comes within 30 cm of it and nothing holds it, brighter the nearer, and a tick in the hand as it reaches it (2026-11-14: the
         /// lever was there to be found only by knowing where).
         /// </summary>
+        private GameObject _stickHint, _rimHint;
+        private Material _hintMaterial;
+        private bool _stickNear, _rimNear;
+
+        /// <summary>
+        /// The flight stick and the steering wheel's rim show where to take hold, as the throttle lever does: a glow while a free hand is
+        /// within 30 cm (at the rim's point nearest the hand), a light tick as it comes in reach (vehicles scout, 2026-11-15: both were
+        /// found by feel).
+        /// </summary>
+        private void ShowControlHints()
+        {
+            bool active = _seat != null && !GameManager.IsPaused() && !GameContext.GameMenuOpen;
+            Vector3 stickAt = Vector3.zero, rimAt = Vector3.zero;
+            float stickD = float.MaxValue, rimD = float.MaxValue;
+            VRHand stickHand = null, rimHand = null;
+            if (active)
+            {
+                foreach (VRHand hand in _rig.Hands)
+                {
+                    if (hand == null || !hand.Tracked || hand.Role != HandRole.Free)
+                    {
+                        continue;
+                    }
+                    if (_stick != null && _stickHand == null)
+                    {
+                        float d = Vector3.Distance(hand.PalmCentre, _stick.position);
+                        if (d < stickD)
+                        {
+                            stickD = d;
+                            stickAt = _stick.position;
+                            stickHand = hand;
+                        }
+                    }
+                    if (_wheel != null && !_onWheel[0] && !_onWheel[1] && RimWorld(out Vector3 centre, out Vector3 axis, out float radius))
+                    {
+                        Vector3 flat = Vector3.ProjectOnPlane(hand.PalmCentre - centre, axis);
+                        Vector3 p = centre + (flat.sqrMagnitude > 1e-6f ? flat.normalized : Vector3.ProjectOnPlane(Vector3.up, axis).normalized) * radius;
+                        float d = Vector3.Distance(hand.PalmCentre, p);
+                        if (d < rimD)
+                        {
+                            rimD = d;
+                            rimAt = p;
+                            rimHand = hand;
+                        }
+                    }
+                }
+            }
+            _stickNear = Hint(ref _stickHint, stickAt, stickD, 0.16f, _stickNear, stickHand);
+            _rimNear = Hint(ref _rimHint, rimAt, rimD, 0.12f, _rimNear, rimHand);
+        }
+
+        private bool Hint(ref GameObject hint, Vector3 at, float distance, float reach, bool wasNear, VRHand hand)
+        {
+            if (distance >= 0.3f)
+            {
+                if (hint != null && hint.activeSelf)
+                {
+                    hint.SetActive(false);
+                }
+                return false;
+            }
+            if (hint == null)
+            {
+                hint = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                hint.name = "RavenfieldVR Control Hint";
+                Object.Destroy(hint.GetComponent<Collider>());
+                Object.DontDestroyOnLoad(hint);
+                if (_hintMaterial == null)
+                {
+                    _hintMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 3100 };
+                }
+                Renderer r = hint.GetComponent<Renderer>();
+                r.sharedMaterial = _hintMaterial;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                hint.transform.localScale = Vector3.one * 0.03f;
+            }
+            if (!hint.activeSelf)
+            {
+                hint.SetActive(true);
+            }
+            hint.transform.position = at;
+            float k = Mathf.Clamp01(1f - distance / 0.3f);
+            _hintMaterial.color = new Color(0.55f, 0.85f, 1f, 0.15f + 0.5f * k);
+            bool reached = distance < reach;
+            if (reached && !wasNear && hand != null)
+            {
+                hand.Haptic(0.015f, 180f, 0.3f);
+            }
+            return reached;
+        }
+
         private void ShowLeverHint()
         {
             float nearest = float.MaxValue;
@@ -488,11 +579,23 @@ namespace RavenfieldVR.Rig
             {
                 Object.Destroy(_leverHintMaterial);
             }
+            foreach (GameObject g in new[] { _stickHint, _rimHint })
+            {
+                if (g != null)
+                {
+                    Object.Destroy(g);
+                }
+            }
+            if (_hintMaterial != null)
+            {
+                Object.Destroy(_hintMaterial);
+            }
         }
 
         public void BeforeRender()
         {
             ShowLeverHint();
+            ShowControlHints();
             // The palms against the seat as both are now (VRRig poses the hands just before this): read by the next Update.
             if (_seat != null)
             {
