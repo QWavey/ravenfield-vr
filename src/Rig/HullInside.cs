@@ -34,7 +34,7 @@ namespace RavenfieldVR.Rig
             Actor actor = GameContext.PlayerActor;
             Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
             // (Looked at on a seat change and twice a second after: the eyes settle into the seat a moment after it is taken.)
-            if (seat != _lastSeat || Time.unscaledTime >= _nextLook)
+            if (seat != _lastSeat || !_wanted && Time.unscaledTime >= _nextLook)
             {
                 _lastSeat = seat;
                 _nextLook = Time.unscaledTime + 0.5f;

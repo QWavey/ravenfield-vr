@@ -125,7 +125,9 @@ namespace RavenfieldVR.Rig
         {
             Actor actor = GameContext.PlayerActor;
             Seat raw = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
-            if (raw != _lastSeat || Time.unscaledTime >= _nextLook)
+            // (Once a seat has its inside it keeps it until the seat changes: looked at again, the eyes crossing a part's box edge as the
+            // turret turned tore it down and built it again, twice a second.)
+            if (raw != _lastSeat || !_wanted && Time.unscaledTime >= _nextLook)
             {
                 _lastSeat = raw;
                 _nextLook = Time.unscaledTime + 0.5f;

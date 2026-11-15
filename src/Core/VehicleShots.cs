@@ -484,11 +484,20 @@ namespace RavenfieldVR.Core
                 Vector3 palmToRaw = hand.Raw.position - hand.PalmCentre;
                 Quaternion rot = hand.Raw.rotation;
                 float y1 = Yaw();
+                if (wheel == null || wheel.parent == null)
+                {
+                    report($"{what}: the inside's traverse wheel is GONE (the inside taken down)");
+                    yield break;
+                }
                 Vector3 hubAt = wheel.parent.InverseTransformPoint(wheel.position);
                 Quaternion hubTurn = Quaternion.Inverse(wheel.parent.rotation) * wheel.rotation; // (fixed now: the wheel itself turns as cranked)
                 for (float t = 0f; t <= 1.2f; t += Time.unscaledDeltaTime)
                 {
                     float a = (t < 0.2f ? 0f : Mathf.Clamp01((t - 0.2f) / 1f) * 180f);
+                    if (wheel == null || wheel.parent == null)
+                    {
+                        break; // (the inside was taken down meanwhile)
+                    }
                     Vector3 rim = wheel.parent.TransformPoint(hubAt + hubTurn * (Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f)));
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + palmToRaw, rot);
                     if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
