@@ -134,6 +134,7 @@ namespace RavenfieldVR.Rig
             Box("front-right", new Vector3((halfW + slotW) / 2f, (roof + floor) / 2f, front), new Vector3(halfW - slotW, roof - floor, t), _wall);
             Box("front-top", new Vector3(0f, (roof + slotTop) / 2f, front), new Vector3(slotW * 2f, roof - slotTop, t), _wall);
             Box("front-bottom", new Vector3(0f, (slotBottom + floor) / 2f, front), new Vector3(slotW * 2f, slotBottom - floor, t), _wall);
+            Periscope(new Vector3(0f, (slotTop + slotBottom) / 2f, front + 0.005f), new Vector2(slotW * 2f, slotTop - slotBottom));
             // The slot's frame and visor, a lamp above it, a handrail and pipes for the eye to hold on to.
             Box("slot-frame-top", new Vector3(0f, slotTop + 0.02f, front - 0.04f), new Vector3(slotW * 2f + 0.08f, 0.04f, 0.08f), _metal);
             Box("slot-frame-bottom", new Vector3(0f, slotBottom - 0.02f, front - 0.04f), new Vector3(slotW * 2f + 0.08f, 0.04f, 0.08f), _metal);
@@ -171,6 +172,55 @@ namespace RavenfieldVR.Rig
                 _driveButtons.Add((Button("right", c + new Vector3(0.1f, 0f, 0f)), new Vector2(1f, 0f)));
             }
             Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels and fire button" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}).");
+        }
+
+        private Camera _scope;
+        private RenderTexture _scopeTexture;
+        private Material _scopeScreen;
+
+        /// <summary>
+        /// The slot is a periscope's screen: a camera at the eyes looking the cabin's way renders the world past the hull (its near
+        /// plane beyond the hull's front), shown on the slot. The hull is solid from inside now (HullInside), so the slot no longer looks
+        /// at the world itself.
+        /// </summary>
+        private void Periscope(Vector3 at, Vector2 size)
+        {
+            _scopeTexture = new RenderTexture(512, Mathf.RoundToInt(512 * size.y / size.x), 16) { name = "RavenfieldVR periscope" };
+            var go = new GameObject("periscope camera");
+            go.transform.SetParent(_root.transform, false);
+            _scope = go.AddComponent<Camera>();
+            Camera eye = _rig.Camera;
+            _scope.CopyFrom(eye);
+            _scope.stereoTargetEye = StereoTargetEyeMask.None;
+            _scope.targetTexture = _scopeTexture;
+            _scope.fieldOfView = 40f;
+            _scope.depth = eye.depth - 1;
+            _rig.Suppressor?.Ignore(_scope);
+            // Past the hull in front: the vehicle's bounds along the cabin's forward from the eyes, plus a little.
+            Bounds b = new Bounds(_seat.vehicle.transform.position, Vector3.zero);
+            foreach (Renderer r in _seat.vehicle.GetComponentsInChildren<Renderer>())
+            {
+                if (r != null && r.GetComponentInParent<Actor>() == null)
+                {
+                    b.Encapsulate(r.bounds);
+                }
+            }
+            Vector3 eyeAt = _root.transform.position, fwd = _root.transform.forward;
+            float near = 0.3f;
+            for (float d = 0.3f; d < 12f; d += 0.1f)
+            {
+                if (!b.Contains(eyeAt + fwd * d))
+                {
+                    near = d + 0.15f;
+                    break;
+                }
+            }
+            _scope.nearClipPlane = near;
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            Transform screen = Part(PrimitiveType.Quad, "periscope screen", at, new Vector3(size.x, size.y, 1f), Quaternion.identity, null);
+            _scopeScreen = new Material(Shader.Find("Unlit/Texture")) { mainTexture = _scopeTexture };
+            screen.GetComponent<Renderer>().sharedMaterial = _scopeScreen;
         }
 
         /// <summary>Colours from the vehicle's own largest material (its hull): the walls a darker shade of it, the metal darker still.</summary>
@@ -525,6 +575,18 @@ namespace RavenfieldVR.Rig
                 Object.Destroy(_root);
                 _root = null;
             }
+            if (_scopeTexture != null)
+            {
+                _scopeTexture.Release();
+                Object.Destroy(_scopeTexture);
+                _scopeTexture = null;
+            }
+            if (_scopeScreen != null)
+            {
+                Object.Destroy(_scopeScreen);
+                _scopeScreen = null;
+            }
+            _scope = null;
             foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint })
             {
                 if (m != null)

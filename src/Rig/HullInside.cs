@@ -46,8 +46,28 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        private Material _steel;
+        private Color _tint = new Color(0.35f, 0.37f, 0.33f);
+
         private void Build(Vehicle v)
         {
+            Renderer biggest = null;
+            float size = 0f;
+            foreach (Renderer r in v.GetComponentsInChildren<Renderer>())
+            {
+                if (r != null && r.sharedMaterial != null && r.bounds.size.sqrMagnitude > size && r.sharedMaterial.HasProperty("_Color"))
+                {
+                    size = r.bounds.size.sqrMagnitude;
+                    biggest = r;
+                }
+            }
+            if (biggest != null)
+            {
+                Color c = biggest.sharedMaterial.color;
+                float g = c.grayscale;
+                _tint = Color.Lerp(c, new Color(g, g, g), 0.5f);
+                _tint.a = 1f;
+            }
             var lowerDetail = new HashSet<Renderer>();
             foreach (LODGroup g in v.GetComponentsInChildren<LODGroup>(true))
             {
@@ -66,7 +86,8 @@ namespace RavenfieldVR.Rig
             int made = 0, skipped = 0;
             foreach (MeshRenderer r in v.GetComponentsInChildren<MeshRenderer>(true))
             {
-                if (r == null || lowerDetail.Contains(r) || r.sharedMaterials == null)
+                // (Not the seated soldiers' bodies and guns: they hang under the vehicle while seated.)
+                if (r == null || lowerDetail.Contains(r) || r.sharedMaterials == null || r.GetComponentInParent<Actor>() != null)
                 {
                     continue;
                 }
@@ -91,14 +112,14 @@ namespace RavenfieldVR.Rig
                 MeshRenderer tr = twin.AddComponent<MeshRenderer>();
                 tr.sharedMaterials = r.sharedMaterials;
                 tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                tr.receiveShadows = r.receiveShadows;
+                tr.receiveShadows = false; // (the hull's own shadow lay on every inner face: black)
                 tr.enabled = r.enabled;
                 _twins.Add(twin);
                 made++;
             }
             foreach (SkinnedMeshRenderer r in v.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                if (r != null && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials))
+                if (r != null && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials) && r.GetComponentInParent<Actor>() == null)
                 {
                     DrawBack(r);
                 }
@@ -122,15 +143,18 @@ namespace RavenfieldVR.Rig
                 _backs = new UnityEngine.Rendering.CommandBuffer { name = "RavenfieldVR hull inside" };
                 _backs.SetInvertCulling(true);
             }
-            Material[] mats = r.sharedMaterials;
-            for (int i = 0; i < mats.Length; i++)
+            // (Drawn here the game's own pass got no light and came out black: one steel material of the vehicle's tint, glowing a little.)
+            if (_steel == null)
             {
-                if (mats[i] == null)
-                {
-                    continue;
-                }
-                int pass = mats[i].FindPass("FORWARD");
-                _backs.DrawRenderer(r, mats[i], i, pass >= 0 ? pass : 0);
+                _steel = new Material(Shader.Find("Standard")) { color = _tint * 0.5f };
+                _steel.EnableKeyword("_EMISSION");
+                _steel.SetColor("_EmissionColor", _tint * 0.22f);
+                _steel.SetFloat("_Glossiness", 0.1f);
+            }
+            int subs = r.sharedMaterials.Length;
+            for (int i = 0; i < subs; i++)
+            {
+                _backs.DrawRenderer(r, _steel, i, 0);
             }
             _drawnBack++;
         }
@@ -208,6 +232,11 @@ namespace RavenfieldVR.Rig
                 _backs = null;
             }
             _drawnBack = 0;
+            if (_steel != null)
+            {
+                Object.Destroy(_steel);
+                _steel = null;
+            }
         }
 
         public void Destroy() => Clear();

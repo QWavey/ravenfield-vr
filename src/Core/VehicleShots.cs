@@ -406,11 +406,14 @@ namespace RavenfieldVR.Core
             }
             yield return new WaitForSecondsRealtime(0.3f);
             float steer = Input.VehicleInput.WheelSteer ?? 0f;
+            bool onWheel = rig.Cockpit.OnWheel;
+            float inner = rig.Cockpit.SteerNow;
+            float palmOff = Vector3.Distance(hand.Palm.position, centre);
             Shots.Capture(name + "-wheel-turned");
             Input.VRInput.SimulatedGrab[side] = false;
             Rig.VRHand.Scripted[side] = null;
             yield return new WaitForSecondsRealtime(0.3f);
-            report($"{what}: wheel (radius {radius:0.00} m): {(taken ? "taken" : "NOT TAKEN")}; turned 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.1f ? " (DID NOT STEER)" : "")}");
+            report($"{what}: wheel (radius {radius:0.00} m): {(taken ? "taken" : "NOT TAKEN")}; turned 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.1f ? $" (DID NOT STEER: on the wheel {onWheel}, its steer {inner:+0.00;-0.00}, the palm {palmOff:0.00} m from the centre)" : "")}");
         }
 
         /// <summary>
