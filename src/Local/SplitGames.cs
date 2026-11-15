@@ -1090,8 +1090,38 @@ namespace RavenfieldVR.Local
         /// Once a frame on a copy: how long its own part of the way takes (the user, 2026-11-15: "very very delayed" though the input
         /// packets come within 5 ms): W pressed to the soldier walking, the mouse moved to the camera turning, in ms and frames.
         /// </summary>
+        private static readonly float[] FrameTimes = new float[600];
+        private static int _frameCount, _pacingReports;
+
+        /// <summary>
+        /// How evenly this copy's frames come, every 10 s (six times): a frame held long is felt as delay though the input is on time.
+        /// </summary>
+        private static void Pacing()
+        {
+            if (_pacingReports >= 6 || !SplitPlayers.InMatch)
+            {
+                return;
+            }
+            FrameTimes[_frameCount++] = Time.unscaledDeltaTime * 1000f;
+            if (_frameCount < FrameTimes.Length)
+            {
+                return;
+            }
+            _frameCount = 0;
+            _pacingReports++;
+            float[] sorted = (float[])FrameTimes.Clone();
+            Array.Sort(sorted);
+            int over25 = 0;
+            foreach (float f in sorted)
+            {
+                over25 += f > 25f ? 1 : 0;
+            }
+            Note($"probe: frame pacing over {FrameTimes.Length} frames: median {sorted[sorted.Length / 2]:0.0} ms, 99% {sorted[sorted.Length * 99 / 100]:0.0} ms, longest {sorted[sorted.Length - 1]:0.0} ms, {over25} frames over 25 ms");
+        }
+
         private static void Probe()
         {
+            Pacing();
             Actor me = LocalPlayer.actor;
             Camera cam = FpsActorController.instance != null ? FpsActorController.instance.fpCamera : null;
             if (me == null || me.dead || cam == null || _probes > 24)
