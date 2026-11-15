@@ -96,6 +96,11 @@ namespace RavenfieldVR.Rig
                 return;
             }
             float strength = Mathf.Clamp01(damage / Mathf.Max(100f, v.maxHealth * 0.3f));
+            // (Burning, its own small damage ticks are not hits: the burn pulse says it; a real hit, stronger, still comes through. Scout.)
+            if (v.burning && strength < 0.08f)
+            {
+                return;
+            }
             if (Time.unscaledTime - _hitAt < 0.05f && strength < _hitStrength)
             {
                 return; // (a burst: one pulse each 50 ms, a stronger one through at once; each a call into SteamVR before)
