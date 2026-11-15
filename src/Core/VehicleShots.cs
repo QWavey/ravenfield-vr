@@ -425,6 +425,39 @@ namespace RavenfieldVR.Core
             Rig.VRRig rig = Rig.VRRig.Instance;
             Transform head = rig.Head;
             Vector3 hf = v.transform.forward;
+            // What is drawn within half a metre before the eyes (a pillar stood there in the tank).
+            var near = new List<string>();
+            foreach (Renderer r in UnityEngine.Object.FindObjectsOfType<Renderer>())
+            {
+                if (r == null || !r.enabled || !r.isVisible || r.GetComponentInParent<Rig.VRRig>() != null || r.transform.root.name == "VR Rig")
+                {
+                    continue;
+                }
+                Vector3 to = r.bounds.ClosestPoint(head.position) - head.position;
+                if (to.magnitude < 0.5f && (to.sqrMagnitude < 1e-4f || Vector3.Dot(to.normalized, head.forward) > 0.3f))
+                {
+                    Transform t = r.transform;
+                    string path = t.name;
+                    for (int k = 0; k < 2 && t.parent != null; k++)
+                    {
+                        t = t.parent;
+                        path = t.name + "/" + path;
+                    }
+                    near.Add($"{path} ({r.GetType().Name}, {r.bounds.size.magnitude:0.0} m, layer {r.gameObject.layer})");
+                }
+            }
+            if (rig.Hull != null)
+            {
+                rig.Hull.ShowParts(false, true);
+                yield return null;
+                Shots.Capture(name + "-x-no-backs");
+                rig.Hull.ShowParts(true, false);
+                yield return null;
+                Shots.Capture(name + "-x-no-twins");
+                rig.Hull.ShowParts(true, true);
+                yield return null;
+            }
+            report($"{what}: drawn before the eyes: {(near.Count == 0 ? "nothing" : string.Join("; ", near.Take(12)))}");
             Shots.Capture(name + "-inside-left", head.position, Quaternion.LookRotation(-v.transform.right + hf * 0.3f, Vector3.up), 100f);
             yield return null;
             Shots.Capture(name + "-inside-back", head.position, Quaternion.LookRotation(-hf, Vector3.up), 100f);

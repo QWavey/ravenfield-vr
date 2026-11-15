@@ -61,6 +61,10 @@ namespace RavenfieldVR.Rig
 
         internal bool Shown => _root != null;
 
+        private Seat _lastSeat;
+        private float _nextLook;
+        private bool _wanted;
+
         /// <summary>The seat's gun is aimed from the inside (stick and handwheels), not by the head; snap turning is off there.</summary>
         internal static bool AimsGun => Instance != null && Instance._root != null && Instance._seat != null && Gun(Instance._seat) != null;
 
@@ -75,7 +79,7 @@ namespace RavenfieldVR.Rig
             }
             Vehicle v = seat.vehicle;
             // (Not a seat whose gun is taken by hand: that gunner stands out of a hatch, a tank's roof MG.)
-            return !(v is Helicopter || v is Airplane || v is Plane) && !TurretGrip.Grabbable(seat, out _);
+            return !(v is Helicopter || v is Airplane || v is Plane) && !TurretGrip.Grabbable(seat, out _) && HullInside.EyesInside(v);
         }
 
         private static Weapon Gun(Seat seat)
@@ -87,7 +91,14 @@ namespace RavenfieldVR.Rig
         public void Update()
         {
             Actor actor = GameContext.PlayerActor;
-            Seat seat = actor != null && !actor.dead && actor.IsSeated() && Wanted(actor.seat) ? actor.seat : null;
+            Seat raw = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
+            if (raw != _lastSeat || Time.unscaledTime >= _nextLook)
+            {
+                _lastSeat = raw;
+                _nextLook = Time.unscaledTime + 0.5f;
+                _wanted = raw != null && Wanted(raw); // (not each frame: it walks the vehicle's parts)
+            }
+            Seat seat = _wanted ? raw : null;
             if (seat != _seat)
             {
                 Clear();
@@ -131,6 +142,8 @@ namespace RavenfieldVR.Rig
             Box("viewer-back", new Vector3(0f, 0f, 0.475f), new Vector3(0.64f, 0.28f, 0.01f), _metal);
             Box("viewer-brow", new Vector3(0f, 0.15f, 0.36f), new Vector3(0.5f, 0.03f, 0.08f), _paint);
             Periscope(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
+            // The line from the eyes to the viewer kept clear of the vehicle's small parts (a breech, a sight box).
+            int cleared = _rig.Hull != null ? _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, -0.1f, 0.2f), new Vector3(0.34f, 0.7f, 0.32f)) : 0;
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
@@ -170,7 +183,7 @@ namespace RavenfieldVR.Rig
                 _driveButtons.Add((Button("left", c + new Vector3(-0.1f, 0f, 0f)), new Vector2(-1f, 0f)));
                 _driveButtons.Add((Button("right", c + new Vector3(0.1f, 0f, 0f)), new Vector2(1f, 0f)));
             }
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels and fire button" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}).");
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels and fire button" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}; {cleared} small part(s) cleared from before the eyes).");
         }
 
         private Camera _scope;
@@ -214,7 +227,7 @@ namespace RavenfieldVR.Rig
                     break;
                 }
             }
-            _scope.nearClipPlane = near;
+            _scope.nearClipPlane = Mathf.Max(near, 1.2f); // (eyes outside the hull's box, a driver's on top: it looked at the hull at 0.3 m)
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
             Transform screen = Part(PrimitiveType.Cube, "periscope screen", at, new Vector3(size.x, size.y, 0.002f), Quaternion.identity, null); // (a thin box: a quad faced away and the slot stayed dark)

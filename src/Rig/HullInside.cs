@@ -33,7 +33,14 @@ namespace RavenfieldVR.Rig
         {
             Actor actor = GameContext.PlayerActor;
             Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
-            Vehicle v = seat != null && seat.enclosed && VRConfig.Interiors.Value ? seat.vehicle : null;
+            // (Looked at on a seat change and twice a second after: the eyes settle into the seat a moment after it is taken.)
+            if (seat != _lastSeat || Time.unscaledTime >= _nextLook)
+            {
+                _lastSeat = seat;
+                _nextLook = Time.unscaledTime + 0.5f;
+                _wanted = seat != null && seat.enclosed && VRConfig.Interiors.Value && EyesInside(seat.vehicle);
+            }
+            Vehicle v = _wanted && seat != null ? seat.vehicle : null;
             if (v == _vehicle)
             {
                 return;
@@ -46,6 +53,39 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        /// <summary>
+        /// The eyes are inside the vehicle's body (its biggest part's box): an enclosed seat whose view the game puts on top of the vehicle
+        /// (the APC's driver, 2 m over his seat) looks from outside, and an inside drawn there showed the hull from above in a black void.
+        /// </summary>
+        internal static bool EyesInside(Vehicle v)
+        {
+            VRRig rig = VRRig.Instance;
+            if (v == null || rig == null || rig.Head == null)
+            {
+                return false;
+            }
+            Renderer biggest = null;
+            float size = 0f;
+            foreach (Renderer r in v.GetComponentsInChildren<Renderer>())
+            {
+                if (r != null && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null && r.bounds.size.sqrMagnitude > size)
+                {
+                    size = r.bounds.size.sqrMagnitude;
+                    biggest = r;
+                }
+            }
+            if (biggest == null)
+            {
+                return false;
+            }
+            Bounds b = biggest.bounds;
+            b.Expand(0.2f);
+            return b.Contains(rig.Head.position);
+        }
+
+        private Seat _lastSeat;
+        private float _nextLook;
+        private bool _wanted;
         private Material _steel;
         private Color _tint = new Color(0.35f, 0.37f, 0.33f);
 
@@ -156,10 +196,156 @@ namespace RavenfieldVR.Rig
             {
                 _backs.DrawRenderer(r, _steel, i, 0);
             }
+            _backDrawn.Add(r);
             _drawnBack++;
         }
 
         internal int DrawnBack => _drawnBack;
+
+        /// <summary>For the vehicle check: the back-drawn parts and the twins taken off for a picture and put back.</summary>
+        internal void ShowParts(bool backs, bool twins)
+        {
+            if (_backs != null && _camera != null)
+            {
+                _camera.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+                if (backs)
+                {
+                    _camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+                }
+            }
+            foreach (GameObject t in _twins)
+            {
+                if (t != null)
+                {
+                    t.SetActive(twins);
+                }
+            }
+        }
+
+        private readonly List<Renderer> _hidden = new List<Renderer>();
+
+        /// <summary>
+        /// Small parts in the way between the eyes and the periscope viewer (a tank's gun breech stood as a pillar before the eyes),
+        /// hidden on this PC while seated, with their twins; parts over 1.5 m across (the hull's walls) are never hidden.
+        /// </summary>
+        internal int ClearCorridor(Transform frame, Vector3 centre, Vector3 halfSize)
+        {
+            if (_vehicle == null)
+            {
+                return 0;
+            }
+            int n = 0;
+            foreach (Renderer r in _vehicle.GetComponentsInChildren<Renderer>())
+            {
+                if (r == null || !r.enabled || r.GetComponentInParent<Actor>() != null || r.bounds.size.magnitude > 1.5f)
+                {
+                    continue;
+                }
+                Vector3 local = frame.InverseTransformPoint(r.bounds.center);
+                Vector3 ext = r.bounds.extents;
+                if (Mathf.Abs(local.x - centre.x) < halfSize.x + ext.magnitude * 0.5f && Mathf.Abs(local.y - centre.y) < halfSize.y + ext.magnitude * 0.5f
+                    && Mathf.Abs(local.z - centre.z) < halfSize.z + ext.magnitude * 0.5f)
+                {
+                    r.enabled = false;
+                    _hidden.Add(r);
+                    n++;
+                }
+            }
+            // The back-drawn parts (unreadable meshes, not cut): one crossing the corridor is left out (a tank's gun stood as a pillar
+            // before the eyes, its sight's arrows beside it).
+            if (_backs != null && _backDrawn.Count > 0)
+            {
+                Bounds corridor = new Bounds(frame.TransformPoint(centre), Vector3.zero);
+                for (int k = 0; k < 8; k++)
+                {
+                    corridor.Encapsulate(frame.TransformPoint(centre + Vector3.Scale(halfSize, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1))));
+                }
+                var keep = new List<Renderer>();
+                foreach (Renderer r in _backDrawn)
+                {
+                    if (r != null && !r.bounds.Intersects(corridor))
+                    {
+                        keep.Add(r);
+                    }
+                    else
+                    {
+                        n++;
+                    }
+                }
+                if (_camera != null)
+                {
+                    _camera.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+                }
+                _backs.Release();
+                _backs = null;
+                _backDrawn.Clear();
+                _drawnBack = 0;
+                foreach (Renderer r in keep)
+                {
+                    DrawBack(r);
+                }
+                if (_backs != null && _camera != null)
+                {
+                    _camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+                }
+            }
+            // The big parts' inward twins: the triangles in the corridor cut out (a gunner's eyes sit at his gun's sight, inside the gun's
+            // and the turret's own shapes, and their inside stood as a pillar before the eyes in the tank). The vehicle's own mesh is
+            // left whole: from inside, only the twin is drawn.
+            foreach (GameObject twin in _twins)
+            {
+                MeshFilter f = twin != null ? twin.GetComponent<MeshFilter>() : null;
+                Mesh m = f != null ? f.sharedMesh : null;
+                if (m == null || !m.isReadable)
+                {
+                    continue;
+                }
+                Vector3[] v = m.vertices;
+                bool touched = false;
+                var kept = new List<int>[m.subMeshCount];
+                for (int sub = 0; sub < m.subMeshCount; sub++)
+                {
+                    int[] t = m.GetTriangles(sub);
+                    kept[sub] = new List<int>(t.Length);
+                    for (int i = 0; i + 2 < t.Length; i += 3)
+                    {
+                        // (Any corner or the middle inside: long thin faces with their middle outside the column stood on as a pillar.)
+                        bool inside = false;
+                        for (int k = 0; k < 4 && !inside; k++)
+                        {
+                            Vector3 p = k < 3 ? v[t[i + k]] : (v[t[i]] + v[t[i + 1]] + v[t[i + 2]]) / 3f;
+                            Vector3 local = frame.InverseTransformPoint(twin.transform.TransformPoint(p));
+                            inside = Mathf.Abs(local.x - centre.x) < halfSize.x && Mathf.Abs(local.y - centre.y) < halfSize.y && Mathf.Abs(local.z - centre.z) < halfSize.z;
+                        }
+                        if (inside)
+                        {
+                            touched = true;
+                            continue;
+                        }
+                        kept[sub].Add(t[i]);
+                        kept[sub].Add(t[i + 1]);
+                        kept[sub].Add(t[i + 2]);
+                    }
+                }
+                if (!touched)
+                {
+                    continue;
+                }
+                Mesh cut = Object.Instantiate(m);
+                cut.name = m.name + " (cut)";
+                for (int sub = 0; sub < m.subMeshCount; sub++)
+                {
+                    cut.SetTriangles(kept[sub], sub);
+                }
+                f.sharedMesh = cut;
+                _cut.Add(cut);
+                n++;
+            }
+            return n;
+        }
+
+        private readonly List<Mesh> _cut = new List<Mesh>();
+        private readonly List<Renderer> _backDrawn = new List<Renderer>();
 
         /// <summary>No see-through material on it (glass, a sight's lens, a decal): those stay windows.</summary>
         private static bool Opaque(Material[] materials)
@@ -221,6 +407,22 @@ namespace RavenfieldVR.Rig
                 }
             }
             _twins.Clear();
+            foreach (Renderer r in _hidden)
+            {
+                if (r != null)
+                {
+                    r.enabled = true;
+                }
+            }
+            _hidden.Clear();
+            foreach (Mesh m in _cut)
+            {
+                if (m != null)
+                {
+                    Object.Destroy(m);
+                }
+            }
+            _cut.Clear();
             _vehicle = null;
             if (_backs != null)
             {
@@ -232,6 +434,7 @@ namespace RavenfieldVR.Rig
                 _backs = null;
             }
             _drawnBack = 0;
+            _backDrawn.Clear();
             if (_steel != null)
             {
                 Object.Destroy(_steel);
