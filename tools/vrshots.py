@@ -309,7 +309,9 @@ def run_game(game, args, timeout_min, vr):
     exe = os.path.join(game, 'ravenfield.exe')
     logfile = os.path.join(game, 'BepInEx', 'LogOutput.log')
     keep_player_log(logfile)
-    full = args + ([] if '-rfvr-splittry' in args else ['-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720'])
+    # (The splitscreen try full screen, borderless, from its first frame: its loading screen is the whole screen at once.)
+    full = args + (['-window-mode', 'borderless', '-screen-fullscreen', '1'] if '-rfvr-splittry' in args
+                   else ['-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720'])
     for attempt in range(1, 4):
         start = time.time()
         log(f'starting Ravenfield (attempt {attempt}): {" ".join(args)}')

@@ -198,17 +198,76 @@ namespace RavenfieldVR.Local
             }, IntPtr.Zero);
             // A copy's window took the focus as it showed: back to this one ("the loading screen gets unfocused when the other copies
             // launch", the user 2026-11-15).
-            if (stole)
+            IntPtr mine = RawInput.GameWindow();
+            if (mine != IntPtr.Zero)
             {
-                IntPtr mine = RawInput.GameWindow();
-                if (mine != IntPtr.Zero)
+                // Above every window while the players load (a copy's window, shown for a moment as it starts, does not cover it), and the
+                // focus taken back when a copy took it.
+                if (!_topmost)
                 {
-                    SetForegroundWindow(mine);
+                    _topmost = true;
+                    SetWindowPos(mine, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                }
+                if (stole || front != mine && Time.unscaledTime - _startedAt < 240f && pids.Contains(FrontPid(front)))
+                {
+                    TakeFocus(mine);
                 }
             }
         }
 
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        private static bool _topmost;
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1), HWND_NOTOPMOST = new IntPtr(-2);
+        private const uint SWP_NOMOVE = 0x0002, SWP_NOSIZE = 0x0001;
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint attach, uint to, bool on);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        private static uint FrontPid(IntPtr front)
+        {
+            GetWindowThreadProcessId(front, out uint pid);
+            return pid;
+        }
+
+        /// <summary>
+        /// This game's window to the front from behind: Windows refuses SetForegroundWindow to a program not in front, so the window in
+        /// front's input is joined for the moment (the usual way; plain SetForegroundWindow did nothing, the loading screen stayed behind).
+        /// </summary>
+        private static void TakeFocus(IntPtr mine)
+        {
+            IntPtr front = GetForegroundWindow();
+            uint frontThread = GetWindowThreadProcessId(front, out _), own = GetCurrentThreadId();
+            bool joined = frontThread != 0 && frontThread != own && AttachThreadInput(frontThread, own, true);
+            BringWindowToTop(mine);
+            SetForegroundWindow(mine);
+            if (joined)
+            {
+                AttachThreadInput(frontThread, own, false);
+            }
+        }
+
+        /// <summary>After go: an ordinary window again (above the others no longer), in front.</summary>
+        private static void EndTopmost()
+        {
+            if (!_topmost)
+            {
+                return;
+            }
+            _topmost = false;
+            IntPtr mine = RawInput.GameWindow();
+            if (mine != IntPtr.Zero)
+            {
+                SetWindowPos(mine, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                TakeFocus(mine);
+            }
+        }
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -244,6 +303,7 @@ namespace RavenfieldVR.Local
             {
                 _go = true;
                 _goAt = Time.unscaledTime;
+                EndTopmost();
                 Log.Info(all ? $"Splitscreen: all {Splitscreen.Players} players in: go." : $"Splitscreen: {ready + 1} of {Splitscreen.Players} players in after 4 minutes: go without the rest.");
             }
         }
@@ -453,6 +513,7 @@ namespace RavenfieldVR.Local
             }
             Copies.Clear();
             Pending.Clear();
+            EndTopmost();
             if (_embed)
             {
                 SplitPlayers.OwnViewBack();
