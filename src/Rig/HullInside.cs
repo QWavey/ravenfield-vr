@@ -132,12 +132,29 @@ namespace RavenfieldVR.Rig
                     }
                 }
             }
+            // (Once per vehicle: its parts' shaders, shown or not, to tell a hull's own from a water mask's.)
+            var shaders = new Dictionary<string, int>();
+            foreach (Renderer r in v.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null || r.sharedMaterials == null)
+                {
+                    continue;
+                }
+                foreach (Material m in r.sharedMaterials)
+                {
+                    string k = (m != null && m.shader != null ? m.shader.name : "none") + (r.enabled && r.gameObject.activeInHierarchy ? "" : " (hidden)") + $" q{(m != null ? m.renderQueue : 0)}";
+                    shaders.TryGetValue(k, out int c);
+                    shaders[k] = c + 1;
+                }
+            }
+            Log.InfoOnce("hull-shaders:" + v.name, $"Vehicle {v.name} parts' shaders: {string.Join(", ", System.Linq.Enumerable.Select(shaders, kv => kv.Key + " x" + kv.Value))}");
             int made = 0, skipped = 0;
             foreach (MeshRenderer r in v.GetComponentsInChildren<MeshRenderer>(true))
             {
                 // (Not the seated soldiers' bodies and guns: they hang under the vehicle while seated.)
-                // (Only what is drawn: hidden hitbox meshes and switched-off parts were made solid too, grey boxes round the seats.)
-                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy || lowerDetail.Contains(r) || r.sharedMaterials == null || r.GetComponentInParent<Actor>() != null)
+                // (The parts the game switched off for a seat inside are the hull itself, hidden so its own camera sees out: kept. Not the
+                // inactive ones (a wreck's, a damaged state's), nor hitbox meshes, which were grey boxes round the seats.)
+                if (r == null || !Hull(r) || lowerDetail.Contains(r) || r.sharedMaterials == null)
                 {
                     continue;
                 }
@@ -163,14 +180,14 @@ namespace RavenfieldVR.Rig
                 tr.sharedMaterials = r.sharedMaterials;
                 tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 tr.receiveShadows = false; // (the hull's own shadow lay on every inner face: black)
-                tr.enabled = r.enabled;
+                tr.enabled = true; // (also for a part the game hid for this seat: that hiding is what made the walls windows)
                 _twins.Add(twin);
                 _twinMesh[twin] = inward;
                 made++;
             }
             foreach (SkinnedMeshRenderer r in v.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials) && r.GetComponentInParent<Actor>() == null)
+                if (r != null && Hull(r) && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials))
                 {
                     DrawBack(r);
                 }
@@ -406,12 +423,32 @@ namespace RavenfieldVR.Rig
         }
         private readonly List<Renderer> _backDrawn = new List<Renderer>();
 
+        /// <summary>A part of the vehicle's body: its object active (switched-off renderers too), not a hitbox, not a soldier's.</summary>
+        private static bool Hull(Renderer r)
+        {
+            if (!r.gameObject.activeInHierarchy || r.GetComponentInParent<Actor>() != null || r is ParticleSystemRenderer)
+            {
+                return false;
+            }
+            // (By name only: the vehicles' own parts are on a layer the hitbox mask holds too, and the hull went with it.)
+            string n = r.name;
+            return n.IndexOf("hitbox", System.StringComparison.OrdinalIgnoreCase) < 0 && n.IndexOf("collider", System.StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
         /// <summary>No see-through material on it (glass, a sight's lens, a decal): those stay windows.</summary>
         private static bool Opaque(Material[] materials)
         {
             foreach (Material m in materials)
             {
                 if (m == null || m.renderQueue >= 2450)
+                {
+                    return false;
+                }
+                // (Nor the game's occlusion mesh (Custom/StandardOcclusionVertex: it keeps the water out of a hull) or another masking one:
+                // turned inside out it cut the sky out, black.)
+                string sh = m.shader != null ? m.shader.name : "";
+                if (sh.IndexOf("Occlusion", System.StringComparison.OrdinalIgnoreCase) >= 0 || sh.IndexOf("DepthMask", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || sh.StartsWith("Hidden/", System.StringComparison.Ordinal))
                 {
                     return false;
                 }

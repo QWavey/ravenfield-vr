@@ -176,6 +176,27 @@ namespace RavenfieldVR.Rig
                 Hands();
             }
             Aim();
+            PointScope();
+        }
+
+        /// <summary>
+        /// The periscope looks where the gun points (the APC's view sits on the seat, and its periscope stayed with the hull while the
+        /// turret turned: the user, 2026-11-15, "the view doesnt move but the turret does"), the world's up kept up (its picture came out
+        /// upside down there). With no gun, along the cabin's forward.
+        /// </summary>
+        private void PointScope()
+        {
+            if (_scope == null || _root == null)
+            {
+                return;
+            }
+            Weapon gun = _seat != null ? Gun(_seat) : null;
+            Vector3 dir = gun != null ? TurretGrip.AimReference(gun).forward : _root.transform.forward;
+            if (dir.sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            _scope.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
         }
 
         // ---- building ------------------------------------------------------------------------------------------------------
