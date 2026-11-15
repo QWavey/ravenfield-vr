@@ -607,7 +607,8 @@ namespace RavenfieldVR.Core
             System.Diagnostics.Process host = System.Diagnostics.Process.Start(start);
             report("vr-flat: the flat host game started");
             string text = "";
-            for (float until = Time.realtimeSinceStartup + 120f; Time.realtimeSinceStartup < until && !text.Contains("flat game hosting");)
+            // (Both games loading at once: the flat one hosted 121 s after it was started, a second after the old 120 s wait.)
+            for (float until = Time.realtimeSinceStartup + 240f; Time.realtimeSinceStartup < until && !text.Contains("flat game hosting");)
             {
                 yield return new WaitForSecondsRealtime(1f);
                 try
@@ -620,7 +621,7 @@ namespace RavenfieldVR.Core
             }
             if (!text.Contains("flat game hosting: yes"))
             {
-                report("vr-flat: the flat game DID NOT HOST in 120 s");
+                report("vr-flat: the flat game DID NOT HOST in 240 s");
                 yield break;
             }
             Net.Multiplayer.JoinAddress("127.0.0.1:" + Local.SplitGames.GamePort);
@@ -8143,6 +8144,10 @@ namespace RavenfieldVR.Core
 
         private static void Write(bool final = true)
         {
+            if (LanHostOnly)
+            {
+                return; // (the join check's flat host reports into its own log: the shared report is the VR game's, which it overwrote)
+            }
             _written |= final;
             var sb = new StringBuilder();
             sb.AppendLine($"Ravenfield VR {PluginInfo.Version} autotest, {DateTime.Now:yyyy-MM-dd HH:mm}, VR {(VRManager.Active ? "on" : "off")}");
