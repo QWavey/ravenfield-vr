@@ -149,7 +149,12 @@ namespace RavenfieldVR.Input
             {
                 // Auto-hover doubles player input on top of its stabilisation; match that.
                 float gain = __instance.helicopterAutoHoverEnabled ? 2f : 1f;
-                __result += VehicleInput.Helicopter() * gain;
+                Vector4 h = VehicleInput.Helicopter() * gain;
+                if (VehicleInput.Throttle.HasValue)
+                {
+                    h.y /= gain; // (the collective lever is a setting, not a push: full lever read 2.0 with auto-hover on; scout)
+                }
+                __result += h;
             }
         }
     }

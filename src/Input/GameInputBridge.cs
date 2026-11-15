@@ -474,6 +474,7 @@ namespace RavenfieldVR.Input
             {
                 // The trigger that got out may be the gun hand's: still pulled on foot it fired the gun as it came up (vehicles scout, 2026-11-05).
                 _fireHeldThroughSwap = true;
+                _useHeldThroughSwap = true; // (and as Use on foot: let go first; scout)
                 return true; // stays held: the game sees one press, and nothing more on foot until the trigger is let go
             }
             int tick = Mathf.FloorToInt(t * 5f);
@@ -819,6 +820,17 @@ namespace RavenfieldVR.Input
             {
                 // A personal weapon in hand (drawn from the seat, or a seat the game lets you shoot from): its buttons
                 // work the weapon, the car keeps the sticks and the wheel.
+                // (The left stick's click still moves seats: it did nothing with a gun drawn, the seat change below never reached; scout.)
+                Rig.VRRig armedRig = Rig.VRRig.Instance;
+                bool armedSteering = armedRig != null && armedRig.Hands != null && (armedRig.Hands[0]?.Role == Rig.HandRole.Cockpit || armedRig.Hands[1]?.Role == Rig.HandRole.Cockpit);
+                if (VRInput.GetPressed(DigitalAction.Sprint) && !armedSteering)
+                {
+                    int nextSeat = NextSeatIndex(actor.seat);
+                    if (nextSeat >= 0)
+                    {
+                        Set(SeatKeys[nextSeat], true);
+                    }
+                }
                 HandleWeaponButtons(actor.activeWeapon);
                 SprintActive = false;
                 HoldStickLatches(); // (spent, not cleared: a stick still pushed on getting out was a fresh flick on foot; input scout)

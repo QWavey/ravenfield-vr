@@ -323,7 +323,8 @@ namespace RavenfieldVR.Rig
                         value = 0f;
                     }
                     // A click in the hand at the notch and at the airbrake's line, crossed either way.
-                    if ((value == 0f != (_throttleShown == 0f) || value < -0.3f != _throttleShown < -0.3f) && Time.unscaledTime - _throttleClickAt > 0.15f)
+                    bool brakeLine = GameContext.SeatKind == VehicleKind.Airplane && value < -0.3f != _throttleShown < -0.3f; // (a plane's airbrake; a collective has none)
+                    if ((value == 0f != (_throttleShown == 0f) || brakeLine) && Time.unscaledTime - _throttleClickAt > 0.15f)
                     {
                         _throttleClickAt = Time.unscaledTime; // (spaced: a hand resting on a line clicked with its tremor)
                         hand.Haptic(0.02f, 160f, 0.5f);
