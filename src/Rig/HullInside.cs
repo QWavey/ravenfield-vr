@@ -64,23 +64,31 @@ namespace RavenfieldVR.Rig
             {
                 return false;
             }
-            Renderer biggest = null;
-            float size = 0f;
+            // The three biggest parts' boxes together (the hull, the turret...): a gunner's eyes sit in the turret, over the hull's box,
+            // and the Leopards' gunners got no inside in the full check.
+            var parts = new List<Renderer>();
             foreach (Renderer r in v.GetComponentsInChildren<Renderer>())
             {
-                if (r != null && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null && r.bounds.size.sqrMagnitude > size)
+                if (r != null && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null)
                 {
-                    size = r.bounds.size.sqrMagnitude;
-                    biggest = r;
+                    parts.Add(r);
                 }
             }
-            if (biggest == null)
+            if (parts.Count == 0)
             {
                 return false;
             }
-            Bounds b = biggest.bounds;
-            b.Expand(0.2f);
-            return b.Contains(rig.Head.position);
+            parts.Sort((x, y) => y.bounds.size.sqrMagnitude.CompareTo(x.bounds.size.sqrMagnitude));
+            for (int i = 0; i < parts.Count && i < 3; i++)
+            {
+                Bounds pb = parts[i].bounds;
+                pb.Expand(0.2f);
+                if (pb.Contains(rig.Head.position))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private Seat _lastSeat;
