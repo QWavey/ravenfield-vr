@@ -70,7 +70,7 @@ namespace RavenfieldVR.Rig
             var parts = new List<Renderer>();
             foreach (Renderer r in v.GetComponentsInChildren<Renderer>())
             {
-                if (r != null && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null)
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null)
                 {
                     parts.Add(r);
                 }
@@ -136,7 +136,8 @@ namespace RavenfieldVR.Rig
             foreach (MeshRenderer r in v.GetComponentsInChildren<MeshRenderer>(true))
             {
                 // (Not the seated soldiers' bodies and guns: they hang under the vehicle while seated.)
-                if (r == null || lowerDetail.Contains(r) || r.sharedMaterials == null || r.GetComponentInParent<Actor>() != null)
+                // (Only what is drawn: hidden hitbox meshes and switched-off parts were made solid too, grey boxes round the seats.)
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy || lowerDetail.Contains(r) || r.sharedMaterials == null || r.GetComponentInParent<Actor>() != null)
                 {
                     continue;
                 }
@@ -169,7 +170,7 @@ namespace RavenfieldVR.Rig
             }
             foreach (SkinnedMeshRenderer r in v.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
-                if (r != null && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials) && r.GetComponentInParent<Actor>() == null)
+                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !lowerDetail.Contains(r) && r.sharedMaterials != null && Opaque(r.sharedMaterials) && r.GetComponentInParent<Actor>() == null)
                 {
                     DrawBack(r);
                 }
