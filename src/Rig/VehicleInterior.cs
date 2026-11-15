@@ -576,7 +576,8 @@ namespace RavenfieldVR.Rig
             bool breech = cannon && roomLeft >= 0.73f;
             bool rack = gunHere != null && roomRight >= (SteersByWheel(_seat) ? 0.79f : 0.59f);
             Fit = $"room left {roomLeft:0.00} m, right {roomRight:0.00} m, floor {floor:0.00} m; {(breech ? "breech" : cannon ? "NO ROOM FOR THE BREECH" : "no breech")}, {(rack ? "rack" : gunHere != null ? "NO ROOM FOR THE RACK" : "no rack")}{(roomLeft >= 0.55f ? ", radio" : ", no room for the radio")}";
-            Vector3 rz = new Vector3(0f, 0f, breech ? -0.3f : 0f);
+            // (Behind the shoulder and up over the recoil guard's rails in a cannon's seat: at their height they ran through it.)
+            Vector3 rz = breech ? new Vector3(0f, 0.24f, -0.3f) : Vector3.zero;
             if (roomLeft >= 0.55f)
             {
                 Box("radio", rz + new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
@@ -680,7 +681,8 @@ namespace RavenfieldVR.Rig
                 // Low in the middle, in reach of either hand: forward above, back below, left and right either side.
                 // (Over the floor of a low hull: under it, the panel was not seen and its buttons pressed blind.)
                 float panelY = Mathf.Clamp(floor + 0.17f, -0.62f, -0.55f);
-                Box("panel", new Vector3(0f, panelY, 0.36f), new Vector3(0.36f, 0.3f, 0.04f), _paint).localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                // (26 cm wide: between the handwheels' rims; 36 ran its corners into them over a high floor.)
+                Box("panel", new Vector3(0f, panelY, 0.36f), new Vector3(0.26f, 0.3f, 0.04f), _paint).localRotation = Quaternion.Euler(-35f, 0f, 0f);
                 Vector3 c = new Vector3(0f, panelY, 0.33f);
                 _driveButtons.Add((Button("forward", c + new Vector3(0f, 0.08f, -0.04f)), new Vector2(0f, 1f)));
                 _driveButtons.Add((Button("back", c + new Vector3(0f, -0.08f, 0.04f)), new Vector2(0f, -1f)));
