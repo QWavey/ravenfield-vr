@@ -256,6 +256,11 @@ namespace RavenfieldVR.Rig
                     _loading = false;
                 }
                 hand.Haptic(0.09f, 50f, 1f);
+                // (The gun's own reload sound, the game's: InstantlyReload plays none, and the breech shut in silence.)
+                if (gun.reloadAudio != null && gun.reloadAudio.isActiveAndEnabled)
+                {
+                    gun.reloadAudio.Play();
+                }
                 _rammedAt = Time.unscaledTime;
                 DropShell();
             }
