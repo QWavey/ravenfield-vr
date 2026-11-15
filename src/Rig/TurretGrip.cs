@@ -76,7 +76,10 @@ namespace RavenfieldVR.Rig
         internal static bool Grabbable(Seat seat, out Weapon gun)
         {
             gun = null;
-            if (seat == null || !VRConfig.GrabMountedGuns.Value)
+            // (Not an enclosed seat: inside a hull the gun is aimed from the inside (Rig.VehicleInterior), not taken by hand. A mod's
+            // closed gunner seat was taken for a roof MG: no inside drawn, the hull seen through, the gun still with the view moving;
+            // the user, 2026-11-15.)
+            if (seat == null || seat.enclosed || !VRConfig.GrabMountedGuns.Value)
             {
                 return false;
             }
