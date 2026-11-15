@@ -672,7 +672,8 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.Scripted[side] = null;
                 yield return new WaitForSecondsRealtime(0.2f);
                 bool back = Input.VehicleInput.WheelSteer == null;
-                line += $"; cabin steering wheel 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.2f ? " (DID NOT STEER)" : "")}, let go: {(back ? "straight" : "STILL TURNED")}";
+                // (The hand went from the rim's top to its right: clockwise from the seat, a right turn: positive.)
+                line += $"; cabin steering wheel 60 deg clockwise: steering {steer:+0.00;-0.00}{(steer < 0.2f ? (steer < -0.2f ? " (STEERED LEFT)" : " (DID NOT STEER)") : "")}, let go: {(back ? "straight" : "STILL TURNED")}";
             }
             line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;

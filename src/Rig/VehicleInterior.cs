@@ -722,9 +722,10 @@ namespace RavenfieldVR.Rig
                         }
                         if (_onWheel[h] == 2)
                         {
-                            // The steering wheel: a third of a turn each way is full lock (turned clockwise steers right).
+                            // The steering wheel: a third of a turn each way is full lock. Clockwise from the seat (its top to the right)
+                            // grows the rim angle and steers right, the car input's positive.
                             _steerTurned = Mathf.Clamp(_steerTurned + turned, -120f, 120f);
-                            VehicleInput.WheelSteer = -_steerTurned / 120f;
+                            VehicleInput.WheelSteer = _steerTurned / 120f;
                         }
                         else
                         {
