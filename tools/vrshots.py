@@ -420,7 +420,7 @@ def build_sheets(shots, out):
 # A closed seat's cockpit sheet (VehicleShots names its pictures vehicle-NN-kind-Name-seatN-<view>.png).
 COCKPIT_TILES = [('ahead', 'ahead'), ('inside-left', 'inside, left'), ('inside-back', 'inside, back'), ('down', 'looking down'),
                  ('periscope', 'periscope x1'), ('periscope-zoom', 'periscope x3'), ('inside-combat-light', 'red combat light'),
-                 ('inside-alarm', 'alarm (burning)')]
+                 ('inside-alarm', 'alarm (burning)'), ('inside-damaged', 'badly hurt (smoke, sparks)')]
 
 
 def build_cockpit_sheets(shots, out):

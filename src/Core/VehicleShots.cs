@@ -822,6 +822,13 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(0.15f);
             Shots.Capture(name + "-inside-alarm2");
             Rig.VehicleInterior.TestAlarm = false;
+            // The badly hurt hull's look: smoke under the roof, a hit's sparks (pictured; its vehicles cannot be hurt).
+            Rig.VehicleInterior.TestSmoke = true;
+            yield return new WaitForSecondsRealtime(1.5f);
+            Rig.VehicleInterior.Instance?.TestHit();
+            yield return new WaitForSecondsRealtime(0.08f);
+            Shots.Capture(name + "-inside-damaged", head.position, Quaternion.LookRotation(hf + Vector3.up * 0.3f, Vector3.up), 100f);
+            Rig.VehicleInterior.TestSmoke = false;
             Actor player = LocalPlayer.actor;
             // The hatch handle gripped and pulled 12 cm down: out of the seat (the last step in the seat; the check sits in it again next).
             Transform hatch = Rig.VehicleInterior.Instance.HatchHandle;

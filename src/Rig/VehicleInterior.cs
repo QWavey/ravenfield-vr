@@ -368,8 +368,42 @@ namespace RavenfieldVR.Rig
             {
                 _hitAt = Time.unscaledTime;
                 _hitHard = Mathf.Clamp01((_lastHealth - health) * 8f + 0.3f);
+                Sparks(Mathf.RoundToInt(8 + 20 * _hitHard));
             }
             _lastHealth = health;
+            // Badly hurt (under 35 %): thin smoke gathering under the roof behind the head (never before the viewer).
+            bool smoking = (health < 0.35f || TestSmoke) && !v.dead;
+            if (smoking && _smoke == null)
+            {
+                _smoke = Particles("smoke", new Vector3(0f, 0.28f, -0.2f), 60);
+                ParticleSystem.MainModule main = _smoke.main;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(2f, 3.5f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.08f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.4f);
+                main.startColor = new Color(0.22f, 0.21f, 0.2f, 0.22f);
+                main.gravityModifier = -0.01f;
+                ParticleSystem.EmissionModule em = _smoke.emission;
+                em.rateOverTime = 6f;
+                ParticleSystem.ShapeModule shape = _smoke.shape;
+                shape.enabled = true;
+                shape.shapeType = ParticleSystemShapeType.Sphere;
+                shape.radius = 0.15f;
+                ParticleSystem.ColorOverLifetimeModule fade = _smoke.colorOverLifetime;
+                fade.enabled = true;
+                var g = new Gradient();
+                g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                          new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.25f), new GradientAlphaKey(0f, 1f) });
+                fade.color = g;
+                _smoke.Play();
+            }
+            else if (!smoking && _smoke != null && _smoke.isEmitting)
+            {
+                _smoke.Stop(true, ParticleSystemStopBehavior.StopEmitting); // (repaired: the smoke thins out)
+            }
+            else if (smoking && _smoke != null && !_smoke.isEmitting)
+            {
+                _smoke.Play();
+            }
             float since = Time.unscaledTime - _hitAt;
             float baseLight = _combatLight ? 0.7f : 1.1f;
             if (since >= 0f && since < 0.35f)
@@ -414,6 +448,95 @@ namespace RavenfieldVR.Rig
         }
 
         private readonly List<Material> _extra = new List<Material>();
+        private ParticleSystem _smoke, _sparks;
+
+        /// <summary>For the vehicle check: the smoke shown at full health (its vehicles cannot be hurt), and a hit's sparks.</summary>
+        internal static bool TestSmoke;
+
+        internal void TestHit() => Sparks(30);
+        private Material _puffMat;
+        private static Texture2D _puff;
+
+        /// <summary>A soft round particle (made once): the game's particle shaders may not be in the build, Sprites/Default is.</summary>
+        private static Texture2D Puff()
+        {
+            if (_puff == null)
+            {
+                const int n = 32;
+                _puff = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "RavenfieldVR puff", wrapMode = TextureWrapMode.Clamp };
+                var px = new Color[n * n];
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        float dx = (x + 0.5f) / n * 2f - 1f, dy = (y + 0.5f) / n * 2f - 1f;
+                        float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                        px[y * n + x] = new Color(1f, 1f, 1f, a * a);
+                    }
+                }
+                _puff.SetPixels(px);
+                _puff.Apply();
+                Object.DontDestroyOnLoad(_puff);
+            }
+            return _puff;
+        }
+
+        /// <summary>A particle system in the cabin (its frame, so it rides with the vehicle), drawn with the soft puff.</summary>
+        private ParticleSystem Particles(string name, Vector3 at, int most)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(_root.transform, false);
+            go.transform.localPosition = at;
+            ParticleSystem ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ParticleSystem.MainModule main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.maxParticles = most;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            if (_puffMat == null)
+            {
+                _puffMat = new Material(Shader.Find("Sprites/Default")) { mainTexture = Puff() };
+            }
+            ParticleSystemRenderer r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = _puffMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return ps;
+        }
+
+        /// <summary>A hit's sparks: a burst from a wall beside or before the head, falling, gone in half a second.</summary>
+        private void Sparks(int count)
+        {
+            if (_root == null)
+            {
+                return;
+            }
+            if (_sparks == null)
+            {
+                _sparks = Particles("sparks", Vector3.zero, 80);
+                ParticleSystem.MainModule main = _sparks.main;
+                main.loop = false;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, 0.55f);
+                main.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 2.2f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.008f, 0.02f);
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.85f, 0.4f), new Color(1f, 0.45f, 0.1f));
+                main.gravityModifier = 1.2f;
+                ParticleSystem.EmissionModule em = _sparks.emission;
+                em.rateOverTime = 0f;
+                ParticleSystem.ShapeModule shape = _sparks.shape;
+                shape.enabled = true;
+                shape.shapeType = ParticleSystemShapeType.Cone;
+                shape.angle = 35f;
+                shape.radius = 0.02f;
+            }
+            // (From one of the walls round the head, spraying inward.)
+            float side = Random.value < 0.5f ? -1f : 1f;
+            Vector3 from = new Vector3(side * 0.45f, Random.Range(-0.1f, 0.25f), Random.Range(-0.1f, 0.3f));
+            _sparks.transform.localPosition = from;
+            _sparks.transform.localRotation = Quaternion.LookRotation(new Vector3(-side, 0.2f, 0.1f));
+            _sparks.Emit(count);
+        }
 
         private void SetCombatLight(bool on)
         {
@@ -1985,6 +2108,12 @@ namespace RavenfieldVR.Rig
                 }
             }
             _extra.Clear();
+            _smoke = _sparks = null; // (their objects go with the root)
+            if (_puffMat != null)
+            {
+                Object.Destroy(_puffMat);
+                _puffMat = null;
+            }
             _cabin = null;
             _zoomText = null;
             _zoomed = false;
@@ -2039,6 +2168,7 @@ namespace RavenfieldVR.Rig
             WheelAim = null;
             Fire = false;
             TestAlarm = false;
+            TestSmoke = false;
             if (Instance == this)
             {
                 Instance = null;
