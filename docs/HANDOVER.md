@@ -2,7 +2,7 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-15 night (**1.19.4 INSTALLED** 19:57, Defender clean; earlier 1.19.3 on this PC with the tank cockpit, Defender clean; Tasks 402; the user playing it: treat the game as open, no game runs, no installs)
+## State 2026-11-15 night (**1.19.5 INSTALLED** 20:03 (Tasks 403: the Quest 3 frozen picture fixed: no vrcmd dashboard close on Meta Link), Defender clean; earlier 1.19.4 19:57; 1.19.3 on this PC with the tank cockpit, Defender clean; Tasks 402; the user playing it: treat the game as open, no game runs, no installs)
 
 - The cockpit, for every tank (`Rig/VehicleInterior.cs`): fire button by the hands on a fire box (guard, FIRE, ready lamp), readout (rounds | spare, LOAD SHELL, km/h for a driver), turret and elevation dials, a cannon's breech with recoil and hand-loading from the rack (Manual reload), tank drivers' two steering levers, sight reticle and x3 zoom knob, LIGHT toggle (red combat light), hit flicker, stowage; everything fitted to the hull's measured room. Offline 527 pass.
 - First thing when the user allows game runs: `python tools/vrshots.py --vehicleshots` (now also zoom, hand-load, lever, light switch, fit), look at the `-inside*` and `-periscope-zoom` pictures, then 1.19.3 (raise the version, `build.ps1 -Package`, install, Defender). The friend needs the same version.
