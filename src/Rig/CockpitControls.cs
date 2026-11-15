@@ -602,6 +602,22 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
+        /// <summary>For the vehicle check: the driver's wheel rim (world centre, turning axis, radius), false when the seat has none.</summary>
+        internal bool RimWorld(out Vector3 centre, out Vector3 axis, out float radius)
+        {
+            centre = axis = Vector3.zero;
+            radius = 0f;
+            if (_wheel == null)
+            {
+                return false;
+            }
+            Transform wt = _wheel.transform;
+            centre = wt.TransformPoint(_rimLocal);
+            axis = wt.forward;
+            radius = wt.TransformVector(new Vector3(_rimRadius, 0f, 0f)).magnitude;
+            return true;
+        }
+
         private Vector3 OnWheelPlaneInSeat(Vector3 palmInSeat, out Vector3 axis)
         {
             WheelInSeat(out Vector3 centre, out axis);

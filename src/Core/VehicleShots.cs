@@ -351,6 +351,10 @@ namespace RavenfieldVR.Core
             yield return null;
             Shots.Capture(name + "-down", head.position, Quaternion.LookRotation(vfwd * 0.5f + Vector3.down, vfwd), 100f);
             yield return null;
+            if (seat.IsDriverSeat() && rig.Cockpit != null && rig.Cockpit.RimWorld(out _, out _, out _))
+            {
+                yield return WheelCheck(name, what, report);
+            }
             if (Rig.VehicleInterior.Instance != null && Rig.VehicleInterior.Instance.Shown)
             {
                 yield return InteriorCheck(v, seat, name, what, report);
@@ -365,6 +369,41 @@ namespace RavenfieldVR.Core
                 float reach = pv != null && rig.Head != null ? Vector3.Distance(pv.position, rig.Head.position) : -1f;
                 report($"{what}: its gun ({seat.activeWeapon.GetType().Name}) is not taken by hand ({(pv == null ? "no turning parts" : seat.activeWeapon.overrideCamera != null ? "aimed through its own sight" : $"its pivot {reach:0.0} m from the eyes")})");
             }
+        }
+
+        /// <summary>The driver's wheel: the hand on its rim (at the top), turned 60 degrees round it: the steering and the drawn wheel follow.</summary>
+        private static IEnumerator WheelCheck(string name, string what, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            rig.Cockpit.RimWorld(out Vector3 centre, out Vector3 axis, out float radius);
+            Rig.VRHand hand = rig.Dominant;
+            int side = (int)hand.Side;
+            Vector3 up = Vector3.ProjectOnPlane(rig.Root.up, axis).normalized;
+            if (up.sqrMagnitude < 0.5f)
+            {
+                up = Vector3.ProjectOnPlane(Vector3.forward, axis).normalized;
+            }
+            Vector3 palmToRaw = hand.Raw.position - hand.Palm.position;
+            Quaternion rot = hand.Raw.rotation;
+            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(centre + up * radius + palmToRaw, rot);
+            yield return null;
+            yield return null;
+            Input.VRInput.SimulateGrabPress(hand.Side);
+            yield return new WaitForSecondsRealtime(0.3f);
+            bool taken = hand.Role == Rig.HandRole.Cockpit;
+            for (float t = 0f; t < 0.8f; t += Time.unscaledDeltaTime)
+            {
+                Vector3 at = centre + Quaternion.AngleAxis(-60f * Mathf.Clamp01(t / 0.8f), axis) * up * radius;
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(at + palmToRaw, rot);
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            float steer = Input.VehicleInput.WheelSteer ?? 0f;
+            Shots.Capture(name + "-wheel-turned");
+            Input.VRInput.SimulatedGrab[side] = false;
+            Rig.VRHand.Scripted[side] = null;
+            yield return new WaitForSecondsRealtime(0.3f);
+            report($"{what}: wheel (radius {radius:0.00} m): {(taken ? "taken" : "NOT TAKEN")}; turned 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.1f ? " (DID NOT STEER)" : "")}");
         }
 
         /// <summary>
