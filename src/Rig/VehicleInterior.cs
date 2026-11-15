@@ -39,6 +39,11 @@ namespace RavenfieldVR.Rig
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
         internal Transform TraverseWheel => _traverse;
 
+        /// <summary>For the vehicle check: the fire button and the forward drive button (null: none).</summary>
+        internal Transform FireButton => _fire;
+
+        internal Transform ForwardButton => _driveButtons.Count > 0 ? _driveButtons[0].t : null;
+
         /// <summary>For the vehicle check: the alarm shown without setting the vehicle on fire (that burned it, the player with it).</summary>
         internal static bool TestAlarm;
         private readonly List<(Transform t, Vector2 drive)> _driveButtons = new List<(Transform, Vector2)>();

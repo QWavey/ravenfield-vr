@@ -516,6 +516,41 @@ namespace RavenfieldVR.Core
                 float cranked = Mathf.DeltaAngle(y1, Yaw());
                 line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}";
             }
+            // The buttons, pressed by the gun hand: fire (rounds go), forward (the drive input goes forward).
+            {
+                Rig.VRHand hand = rig.Dominant;
+                int side = (int)hand.Side;
+                Vector3 toRaw = hand.Raw.position - hand.PalmCentre;
+                Quaternion rot = hand.Raw.rotation;
+                Transform fire = Rig.VehicleInterior.Instance.FireButton;
+                if (fire != null && gun != null)
+                {
+                    int before = gun.ammo;
+                    for (float t = 0f; t < 0.6f; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(fire.position + toRaw, rot);
+                        yield return null;
+                    }
+                    bool pressed = Rig.VehicleInterior.Fire;
+                    Rig.VRHand.Scripted[side] = null;
+                    yield return new WaitForSecondsRealtime(0.3f);
+                    line += $"; fire button: {(pressed ? "pressed" : "NOT PRESSED")}, ammo {before} -> {gun.ammo}{(gun.ammo >= before && !gun.reloading ? " (DID NOT FIRE)" : "")}";
+                }
+                Transform forward = Rig.VehicleInterior.Instance.ForwardButton;
+                if (forward != null)
+                {
+                    float drive = 0f;
+                    for (float t = 0f; t < 0.4f; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(forward.position + toRaw, rot);
+                        drive = Mathf.Max(drive, Input.VehicleInput.DriveButtons.y);
+                        yield return null;
+                    }
+                    Rig.VRHand.Scripted[side] = null;
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    line += $"; forward button: drive {drive:+0.0;-0.0}{(drive < 0.5f ? " (DID NOT DRIVE)" : "")}";
+                }
+            }
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
             Shots.Capture(name + "-inside-alarm");
