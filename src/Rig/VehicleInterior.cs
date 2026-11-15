@@ -507,7 +507,7 @@ namespace RavenfieldVR.Rig
             System.IO.File.WriteAllBytes(file, ImageConversion.EncodeToPNG(t));
             Object.Destroy(t);
             Renderer screen = _root != null ? _root.transform.Find("periscope screen")?.GetComponent<Renderer>() : null;
-            return screen == null ? "NO SCREEN" : $"screen {(screen.enabled ? "on" : "OFF")}, shader {(screen.sharedMaterial != null && screen.sharedMaterial.shader != null ? screen.sharedMaterial.shader.name : "NONE")}, texture {(screen.sharedMaterial != null && screen.sharedMaterial.mainTexture == _scopeTexture ? "the periscope's" : "OTHER")}, camera {(_scope != null && _scope.enabled ? "on" : "OFF")}";
+            return screen == null ? "NO SCREEN" : $"screen {(screen.enabled ? "on" : "OFF")}, shader {(screen.sharedMaterial != null && screen.sharedMaterial.shader != null ? screen.sharedMaterial.shader.name : "NONE")}, texture {(screen.sharedMaterial != null && screen.sharedMaterial.mainTexture == _scopeTexture ? "the periscope's" : "OTHER")}, camera {(_scope != null ? "present" : "NONE")}";
         }
 
         private Material _brass, _olive;
