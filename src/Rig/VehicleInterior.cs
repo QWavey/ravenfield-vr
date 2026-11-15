@@ -489,18 +489,32 @@ namespace RavenfieldVR.Rig
             // Military fittings: a radio set on the left (two knobs, a dial window, a handset), the gauges over the viewer. (In a
             // cannon's seat the breech stands on the left, the radio behind the shoulder.)
             Weapon gunHere = Gun(_seat);
+            // Fitted to this hull (mods' turrets go from roomy to tight): how far it reaches left and right at the hands' height and
+            // down to the floor, and what does not fit is left out (a fitting through the wall showed from inside as cut off).
+            float roomLeft = Room(new Vector3(0f, -0.15f, 0.2f), Vector3.left);
+            float roomRight = Room(new Vector3(0f, -0.25f, 0.1f), Vector3.right);
+            float floor = -Room(new Vector3(0f, 0f, 0.3f), Vector3.down);
             bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo <= 1;
-            Vector3 rz = new Vector3(0f, 0f, cannon ? -0.3f : 0f);
-            Box("radio", rz + new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
-            Cylinder("radio-knob-1", rz + new Vector3(-0.395f, -0.06f, 0.18f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
-            Cylinder("radio-knob-2", rz + new Vector3(-0.395f, -0.06f, 0.06f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
-            Box("radio-dial", rz + new Vector3(-0.398f, -0.16f, 0.12f), new Vector3(0.005f, 0.05f, 0.16f), _lamp);
-            Box("radio-handset", rz + new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
+            bool breech = cannon && roomLeft >= 0.73f;
+            bool rack = gunHere != null && roomRight >= (SteersByWheel(_seat) ? 0.79f : 0.59f);
+            Fit = $"room left {roomLeft:0.00} m, right {roomRight:0.00} m, floor {floor:0.00} m; {(breech ? "breech" : cannon ? "NO ROOM FOR THE BREECH" : "no breech")}, {(rack ? "rack" : gunHere != null ? "NO ROOM FOR THE RACK" : "no rack")}{(roomLeft >= 0.55f ? ", radio" : ", no room for the radio")}";
+            Vector3 rz = new Vector3(0f, 0f, breech ? -0.3f : 0f);
+            if (roomLeft >= 0.55f)
+            {
+                Box("radio", rz + new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
+                Cylinder("radio-knob-1", rz + new Vector3(-0.395f, -0.06f, 0.18f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+                Cylinder("radio-knob-2", rz + new Vector3(-0.395f, -0.06f, 0.06f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+                Box("radio-dial", rz + new Vector3(-0.398f, -0.16f, 0.12f), new Vector3(0.005f, 0.05f, 0.16f), _lamp);
+                Box("radio-handset", rz + new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
+            }
             // A grab handle overhead (the hatch's) and a cable run along the right wall: the inside reads as fitted out, not bare.
             Box("hatch-handle", new Vector3(0f, roof + 0.02f, 0.05f), new Vector3(0.22f, 0.02f, 0.02f), _metal);
             Box("hatch-handle-l", new Vector3(-0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
             Box("hatch-handle-r", new Vector3(0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
-            Cylinder("cable-run", new Vector3(0.44f, 0.2f, 0.05f), new Vector3(0.025f, 0.3f, 0.025f), Quaternion.Euler(90f, 0f, 0f), _metal);
+            if (roomRight >= 0.48f)
+            {
+                Cylinder("cable-run", new Vector3(0.44f, 0.2f, 0.05f), new Vector3(0.025f, 0.3f, 0.025f), Quaternion.Euler(90f, 0f, 0f), _metal);
+            }
             int dials = gunHere != null ? 5 : 3;
             for (int g = 0; g < dials; g++)
             {
@@ -527,7 +541,10 @@ namespace RavenfieldVR.Rig
                     hullMark.localRotation = Quaternion.identity;
                 }
             }
-            AmmoRack();
+            if (rack)
+            {
+                AmmoRack(); // (none: no shells to show nor to load by hand, the gun reloads the game's way)
+            }
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
@@ -561,7 +578,7 @@ namespace RavenfieldVR.Rig
                 // the steering wheel between the handwheels, outside the elevation wheel instead.
                 FireControl(SteersByWheel(_seat) ? new Vector3(apart + 0.21f, -0.3f, 0.31f) : new Vector3(apart - 0.21f, -0.3f, 0.31f));
                 AmmoReadout();
-                if (cannon)
+                if (breech)
                 {
                     BuildBreech();
                 }
@@ -574,20 +591,51 @@ namespace RavenfieldVR.Rig
             if (_seat.IsDriverSeat() && _seat.vehicle is Tank)
             {
                 // A tank steers by its tracks: a lever for each, either side below the handwheels (the buttons stay too).
-                _levers[0] = Lever("lever-left", new Vector3(-0.42f, -0.85f, 0.28f));
-                _levers[1] = Lever("lever-right", new Vector3(0.42f, -0.85f, 0.28f));
+                // (On the floor: from it, 30 cm up to the knob.)
+                float pivotY = Mathf.Clamp(floor, -0.85f, -0.45f);
+                _levers[0] = Lever("lever-left", new Vector3(-0.42f, pivotY, 0.28f));
+                _levers[1] = Lever("lever-right", new Vector3(0.42f, pivotY, 0.28f));
             }
             if (_seat.IsDriverSeat())
             {
                 // Low in the middle, in reach of either hand: forward above, back below, left and right either side.
-                Box("panel", new Vector3(0f, -0.62f, 0.36f), new Vector3(0.36f, 0.3f, 0.04f), _paint).localRotation = Quaternion.Euler(-35f, 0f, 0f);
-                Vector3 c = new Vector3(0f, -0.62f, 0.33f);
+                // (Over the floor of a low hull: under it, the panel was not seen and its buttons pressed blind.)
+                float panelY = Mathf.Clamp(floor + 0.17f, -0.62f, -0.55f);
+                Box("panel", new Vector3(0f, panelY, 0.36f), new Vector3(0.36f, 0.3f, 0.04f), _paint).localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                Vector3 c = new Vector3(0f, panelY, 0.33f);
                 _driveButtons.Add((Button("forward", c + new Vector3(0f, 0.08f, -0.04f)), new Vector2(0f, 1f)));
                 _driveButtons.Add((Button("back", c + new Vector3(0f, -0.08f, 0.04f)), new Vector2(0f, -1f)));
                 _driveButtons.Add((Button("left", c + new Vector3(-0.1f, 0f, 0f)), new Vector2(-1f, 0f)));
                 _driveButtons.Add((Button("right", c + new Vector3(0.1f, 0f, 0f)), new Vector2(1f, 0f)));
             }
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" + (cannon ? ", breech" : "") : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : "")}; {cleared} small part(s) cleared from before the eyes).");
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
+        }
+
+        /// <summary>For the vehicle check and the log: the hull's room round the seat and what was fitted in it.</summary>
+        internal string Fit { get; private set; } = "none";
+
+        /// <summary>
+        /// How far the hull reaches from a point in the cabin along a direction (metres, up to 1.5): its own colliders' outer surface,
+        /// cast in from outside (a ray from inside a collider meets nothing), the outermost of them. Nothing in the way: 1.5.
+        /// </summary>
+        private float Room(Vector3 from, Vector3 dir)
+        {
+            const float max = 1.5f;
+            Vector3 a = _root.transform.TransformPoint(from), d = _root.transform.TransformDirection(dir).normalized;
+            var ray = new Ray(a + d * max, -d);
+            float room = -1f;
+            foreach (Collider c in _seat.vehicle.GetComponentsInChildren<Collider>())
+            {
+                if (c == null || !c.enabled || c.isTrigger || c is WheelCollider || c.GetComponentInParent<Actor>() != null)
+                {
+                    continue;
+                }
+                if (c.Raycast(ray, out RaycastHit hit, max))
+                {
+                    room = Mathf.Max(room, max - hit.distance);
+                }
+            }
+            return room < 0f ? max : room;
         }
 
         /// <summary>
@@ -1426,6 +1474,7 @@ namespace RavenfieldVR.Rig
                 _needles[g] = null;
             }
             ReadyState = "none";
+            Fit = "none";
             _rounds.Clear();
             _rackCentres.Clear();
             _roundsShown = -1;

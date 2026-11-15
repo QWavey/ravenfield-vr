@@ -743,7 +743,7 @@ namespace RavenfieldVR.Core
                 float after = Input.VehicleInput.DriveButtons.magnitude;
                 line += $"; right steering lever 25 deg forward: drive ({most.x:+0.00;-0.00}, {most.y:+0.00;-0.00}){(most.y < 0.3f ? " (DID NOT DRIVE)" : most.x > -0.1f ? " (DID NOT TURN LEFT)" : "")}, let go: {(after < 0.05f ? "back in the middle" : "STILL PUSHED")}";
             }
-            line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}";
+            line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}; fitted: {Rig.VehicleInterior.Instance.Fit}";
             line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
