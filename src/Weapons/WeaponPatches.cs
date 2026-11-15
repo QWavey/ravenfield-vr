@@ -301,6 +301,10 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.TurretGrip.Kick();
             }
+            else if (__result && Rig.VehicleInterior.AimsGun)
+            {
+                Rig.VehicleInterior.Kick(__instance); // (a closed vehicle's gun: the hand on its button or wheels feels it)
+            }
             // Not a grenade let go or a melee swing (both run Shoot too): they got a gunshot's kick, view jolt and buzz.
             if (__result && !(__instance is ThrowableWeapon) && !(__instance is MeleeWeapon) && WeaponHooks.PlayerWeaponInVR(__instance))
             {

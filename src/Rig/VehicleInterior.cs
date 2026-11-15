@@ -65,6 +65,30 @@ namespace RavenfieldVR.Rig
         private float _nextLook;
         private bool _wanted;
 
+        /// <summary>A shot of the inside's gun: a buzz in each hand on the fire button or a handwheel, harder for a big gun.</summary>
+        internal static void Kick(Weapon w)
+        {
+            VehicleInterior me = Instance;
+            if (me == null || me._seat == null || me._seat.activeWeapon != w)
+            {
+                return;
+            }
+            bool heavy = w.configuration != null && w.configuration.ammo <= 1; // (a cannon: one round a load)
+            for (int h = 0; h < 2; h++)
+            {
+                VRHand hand = me._rig.Hands[h];
+                if (hand == null || !hand.Tracked)
+                {
+                    continue;
+                }
+                bool onControls = me._onWheel[h] >= 0 || me._fire != null && Vector3.Distance(hand.PalmCentre, me._fire.position) < ButtonReach + 0.03f;
+                if (onControls)
+                {
+                    hand.Haptic(heavy ? 0.12f : 0.03f, heavy ? 40f : 80f, heavy ? 1f : 0.6f);
+                }
+            }
+        }
+
         /// <summary>The seat's gun is aimed from the inside (stick and handwheels), not by the head; snap turning is off there.</summary>
         internal static bool AimsGun => Instance != null && Instance._root != null && Instance._seat != null && Gun(Instance._seat) != null;
 
