@@ -707,7 +707,6 @@ namespace RavenfieldVR.Rig
             return Mathf.Abs(Vector3.Dot(rel, axis)) < RimPlaneReach && Vector3.ProjectOnPlane(rel, axis).magnitude < radius + RimRadialReach;
         }
 
-        /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
         /// <summary>For the vehicle check: the plane's throttle or the helicopter's collective lever (null: none).</summary>
         internal Transform ThrottleLever => _throttle;
 
@@ -732,6 +731,7 @@ namespace RavenfieldVR.Rig
             return true;
         }
 
+        /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
         private Vector3 OnWheelPlaneInSeat(Vector3 palmInSeat, out Vector3 axis)
         {
             WheelInSeat(out Vector3 centre, out axis);
