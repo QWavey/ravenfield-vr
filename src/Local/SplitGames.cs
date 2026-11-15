@@ -737,6 +737,13 @@ namespace RavenfieldVR.Local
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
             }
             AudioListener.volume = 0f; // (the host plays the match's sound)
+            if (Application.targetFrameRate != 60 || QualitySettings.vSyncCount != 0)
+            {
+                // Held each frame (the game sets its own limit as it loads: the copies ran at 100 to 400 frames a second and took the
+                // power player 1's game needs; 2026-11-15).
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = 60;
+            }
             _fpsFrames++;
             if (Time.unscaledTime - _lagAt > 10f)
             {
