@@ -278,7 +278,7 @@ namespace RavenfieldVR.Input
                 _leaveArmed = false; // a seat taken with the trigger still held: let go once before it counts
             }
             // (Or a closed vehicle's hatch handle pulled down: Rig.VehicleInterior. Use held through it, so it does nothing on foot.)
-            bool hatch = actor.IsSeated() && Rig.VehicleInterior.HatchPulled();
+            bool hatch = Rig.VehicleInterior.HatchPulled() && actor.IsSeated(); // (counted down off a seat too: none left for the next; scout)
             if (hatch)
             {
                 _useHeldThroughSwap = true;

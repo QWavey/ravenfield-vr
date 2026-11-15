@@ -1079,7 +1079,6 @@ namespace RavenfieldVR.Rig
         private Transform _rangeButton;
         private string _rangeText;
         private float _rangeUntil = -10f;
-        private static readonly RaycastHit[] RangeHits = new RaycastHit[24];
 
         /// <summary>For the vehicle check: the rangefinder's button (null: none).</summary>
         internal Transform RangeButton => _rangeButton;
@@ -1105,22 +1104,26 @@ namespace RavenfieldVR.Rig
                 return;
             }
             Transform aim = TurretGrip.AimReference(gun);
-            int n = Physics.RaycastNonAlloc(aim.position, aim.forward, RangeHits, 3000f, ~(1 << 12), QueryTriggerInteraction.Ignore);
+            // (Every layer the game casts against: layer 12 is the vehicles', and with it left out, as the pilot readout's height
+            // does, an enemy tank read as the ground behind it; scout. RaycastAll on a press: a full buffer dropped the nearest.)
+            RaycastHit[] hits = Physics.RaycastAll(aim.position, aim.forward, 3000f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
             float nearest = float.MaxValue;
-            for (int i = 0; i < n; i++)
+            Actor me = GameContext.PlayerActor;
+            foreach (RaycastHit hit in hits)
             {
-                Collider c = RangeHits[i].collider;
-                if (c == null || RangeHits[i].distance >= nearest)
+                Collider c = hit.collider;
+                if (c == null || hit.distance >= nearest)
                 {
                     continue;
                 }
                 Vehicle hitVehicle = c.GetComponentInParent<Vehicle>();
                 Actor hitActor = c.GetComponentInParent<Actor>();
-                if (ReferenceEquals(hitVehicle, _seat.vehicle) || hitActor != null && hitActor.IsSeated() && ReferenceEquals(hitActor.seat.vehicle, _seat.vehicle))
+                if (ReferenceEquals(hitVehicle, _seat.vehicle) || ReferenceEquals(hitActor, me)
+                    || hitActor != null && hitActor.IsSeated() && ReferenceEquals(hitActor.seat.vehicle, _seat.vehicle))
                 {
                     continue;
                 }
-                nearest = RangeHits[i].distance;
+                nearest = hit.distance;
             }
             _rangeText = nearest < float.MaxValue ? $"RANGE {Mathf.RoundToInt(nearest / 5f) * 5} m" : "RANGE ---";
             _rangeUntil = Time.unscaledTime + 4f;
