@@ -20,6 +20,9 @@ LABEL_FILES = {'src/Weapons/AmmoState.cs', 'src/Weapons/MagLineTable.cs', 'src/W
 # Phrases that are no failure, or a failure the code raises itself with Problem(...) next to it.
 NOT_BY_PATTERN = {
     'THE EMPTY POSE': 'a diagnostic: which animator state the gun is in',
+    'LOAD SHELL': "the closed vehicle's readout (a label): the gun waits for its loader",
+    'DID NOT': "AutoTest's own test of a line (line.Contains), not a report",
+    'OPEN OVER THE GAME': "a log line on SteamVR's dashboard at the start, not a check's result",
     'WITH SHADOWS': 'AutoTest.RenderingStateCheck raises it with Problem(...)',
     '(TOO FAST': 'AutoTest raises it with Problem(line)',
     '(TOO FEW LENS FLASHES)': 'AutoTest raises the flash count with Problem(...)',

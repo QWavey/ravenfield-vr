@@ -800,7 +800,7 @@ namespace RavenfieldVR.Rig
             bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo <= 1;
             bool breech = cannon && roomLeft >= 0.73f;
             bool rack = gunHere != null && roomRight >= (SteersByWheel(_seat) ? 0.79f : 0.59f);
-            Fit = $"room left {roomLeft:0.00} m, right {roomRight:0.00} m, floor {floor:0.00} m; {(breech ? "breech" : cannon ? "NO ROOM FOR THE BREECH" : "no breech")}, {(rack ? "rack" : gunHere != null ? "NO ROOM FOR THE RACK" : "no rack")}{(roomLeft >= 0.55f ? ", radio" : ", no room for the radio")}";
+            Fit = $"room left {roomLeft:0.00} m, right {roomRight:0.00} m, floor {floor:0.00} m; {(breech ? "breech" : cannon ? "no room for the breech" : "no breech")}, {(rack ? "rack" : gunHere != null ? "no room for the rack" : "no rack")}{(roomLeft >= 0.55f ? ", radio" : ", no room for the radio")}";
             // (Behind the shoulder and up over the recoil guard's rails in a cannon's seat: at their height they ran through it.)
             Vector3 rz = breech ? new Vector3(0f, 0.24f, -0.3f) : Vector3.zero;
             if (roomLeft >= 0.55f)
