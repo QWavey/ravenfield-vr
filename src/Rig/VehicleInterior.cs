@@ -34,7 +34,15 @@ namespace RavenfieldVR.Rig
         private Seat _seat;
         private GameObject _root;
         private Material _wall, _metal, _red, _lamp, _button, _paint;
-        private Transform _traverse, _elevate, _fire;
+        private Transform _traverse, _elevate, _fire, _steer;
+        private float _steerTurned;
+
+        /// <summary>
+        /// A wheeled closed vehicle's driver (an APC, the mods' armoured cars) steers by a wheel in the middle too (the user: "make also
+        /// sure all steering wheels are turneable"); a tank steers by its tracks and keeps the buttons.
+        /// </summary>
+        private static bool SteersByWheel(Seat seat) =>
+            seat != null && seat.IsDriverSeat() && (seat.vehicle is Car || seat.vehicle is ArcadeCar) && !(seat.vehicle is Tank);
 
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
         internal Transform TraverseWheel => _traverse;
@@ -321,10 +329,16 @@ namespace RavenfieldVR.Rig
                 _aimLocal = _seat.vehicle.transform.InverseTransformDirection(TurretGrip.AimReference(Gun(_seat)).forward);
                 _aimSet = true;
                 // At the hands' height in front of the chest, where a gunner's hands rest: well in sight looking down.
-                _traverse = Wheel("traverse", new Vector3(-0.26f, -0.36f, 0.3f));
-                _elevate = Wheel("elevation", new Vector3(0.26f, -0.36f, 0.3f));
+                // (Further out when the driver's steering wheel sits between them.)
+                float apart = SteersByWheel(_seat) ? 0.36f : 0.26f;
+                _traverse = Wheel("traverse", new Vector3(-apart, -0.36f, 0.3f));
+                _elevate = Wheel("elevation", new Vector3(apart, -0.36f, 0.3f));
                 Box("fire-mount", new Vector3(0.26f, -0.2f, 0.4f), new Vector3(0.1f, 0.06f, 0.08f), _paint);
                 _fire = Cylinder("fire", new Vector3(0.26f, -0.16f, 0.39f), new Vector3(0.06f, 0.015f, 0.06f), Quaternion.Euler(-60f, 0f, 0f), _red);
+            }
+            if (SteersByWheel(_seat))
+            {
+                _steer = Wheel("steering", new Vector3(0f, -0.42f, 0.33f));
             }
             if (_seat.IsDriverSeat())
             {
@@ -564,11 +578,11 @@ namespace RavenfieldVR.Rig
                 }
                 Vector3 palm = hand.PalmCentre;
                 // A handwheel: taken by a grip at its rim, cranked round its axis.
-                if (_onWheel[h] < 0 && gun != null && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
+                if (_onWheel[h] < 0 && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
                 {
-                    for (int w = 0; w < 2; w++)
+                    for (int w = 0; w < 3; w++)
                     {
-                        Transform wheel = w == 0 ? _traverse : _elevate;
+                        Transform wheel = WheelOf(w);
                         if (wheel != null && OnRim(wheel, palm))
                         {
                             _onWheel[h] = w;
@@ -589,7 +603,7 @@ namespace RavenfieldVR.Rig
                     }
                     else
                     {
-                        Transform wheel = _onWheel[h] == 0 ? _traverse : _elevate;
+                        Transform wheel = WheelOf(_onWheel[h]);
                         float angle = RimAngle(wheel, palm);
                         float turned = Mathf.DeltaAngle(_wheelAngle[h], angle);
                         _wheelAngle[h] = angle;
@@ -598,8 +612,17 @@ namespace RavenfieldVR.Rig
                         {
                             hand.Haptic(0.008f, 200f, 0.2f); // (the gear's ticks)
                         }
-                        Crank(_onWheel[h], turned);
-                        anyWheel = true;
+                        if (_onWheel[h] == 2)
+                        {
+                            // The steering wheel: a third of a turn each way is full lock (turned clockwise steers right).
+                            _steerTurned = Mathf.Clamp(_steerTurned + turned, -120f, 120f);
+                            VehicleInput.WheelSteer = -_steerTurned / 120f;
+                        }
+                        else
+                        {
+                            Crank(_onWheel[h], turned);
+                            anyWheel = true;
+                        }
                     }
                 }
                 // Buttons: pressed while the hand is on them (not one holding a wheel).
@@ -748,11 +771,23 @@ namespace RavenfieldVR.Rig
             return Mathf.Atan2(local.x, local.y) * Mathf.Rad2Deg;
         }
 
+        private Transform WheelOf(int w) => w == 0 ? _traverse : w == 1 ? _elevate : _steer;
+
         private void ReleaseWheel(int h)
         {
             if (_onWheel[h] < 0)
             {
                 return;
+            }
+            if (_onWheel[h] == 2 && _onWheel[1 - h] != 2)
+            {
+                // Let go of the steering wheel: back to straight (as the cars' wheels), the stick steers again.
+                _steerTurned = 0f;
+                VehicleInput.WheelSteer = null;
+                if (_steer != null)
+                {
+                    _steer.localRotation = Quaternion.Euler(-30f, 0f, 0f);
+                }
             }
             _onWheel[h] = -1;
             VRHand hand = _rig.Hands[h];
@@ -778,7 +813,8 @@ namespace RavenfieldVR.Rig
         {
             ReleaseHands();
             _driveButtons.Clear();
-            _traverse = _elevate = _fire = null;
+            _traverse = _elevate = _fire = _steer = null;
+            _steerTurned = 0f;
             for (int i = 0; i < _pressed.Length; i++)
             {
                 _pressed[i] = false;
