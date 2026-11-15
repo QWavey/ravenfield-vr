@@ -188,12 +188,12 @@ namespace RavenfieldVR.Core
                 "Start the game in VR. Turn off to play flat with the mod installed.");
             AutoStartSteamVR = cfg.Bind("General", "AutoStartSteamVR", false,
                 "Start SteamVR yourself when the game launches and a headset driver reports a headset. Off: VR starts only if SteamVR is already running (or with -vr), so flat play never opens SteamVR.");
-            SplitPlayers = cfg.Bind("Splitscreen", "Players", 2, "Players at this PC in a splitscreen match, 2 to 4 (Multiplayer, Local, Splitscreen).");
+            SplitPlayers = cfg.Bind("Splitscreen", "Players", 2, new ConfigDescription("Players at this PC in a splitscreen match, 2 to 4 (Multiplayer, Local, Splitscreen).", new AcceptableValueRange<int>(2, 4)));
             SplitAboveBelow = cfg.Bind("Splitscreen", "AboveBelow", false, "Two players one above the other instead of side by side (three or four share quarters).");
             SplitFullGames = cfg.Bind("Splitscreen", "FullGames", true,
                 "Each player plays a whole copy of the game in their part of the screen (the same view, display, deploy screen and features as player 1; they join a LAN game this PC hosts). Off: the other players are soldiers drawn in the first game (lighter on the PC).");
             SplitFirstController = cfg.Bind("Splitscreen", "FirstController", 0,
-                "The controller the second player takes (0: the first). 1 when the game's own player plays with the first controller.");
+                new ConfigDescription("The controller the second player takes (0: the first). 1 when the game's own player plays with the first controller.", new AcceptableValueRange<int>(0, 3)));
             NoSteamVRTheater = cfg.Bind("General", "NoSteamVRTheater", true,
                 "Close SteamVR's dashboard when it opens over the game at the start (it opened by itself at every start and had to be closed by hand). "
                 + "Only in the first 20 seconds after VR starts; a dashboard you open later is left alone.");

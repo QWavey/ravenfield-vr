@@ -51,7 +51,21 @@ namespace RavenfieldVR.Input
             // The raw stick, zeroed while it scrolls one of the mod's panels (it pitched and rolled the aircraft meanwhile).
             Vector2 right = VRGameInput.ApplyDeadzone(VRGameInput.TurnStickRaw, VRConfig.StickDeadzone.Value);
             Vector2 cyclic = FlightStick ?? right;
-            return new Vector4(left.x, left.y, cyclic.x, cyclic.y);
+            // The collective lever in the off hand (as a plane's throttle: it stays where let go, the notch at hover), until the left
+            // stick is pushed (vehicles scout, 2026-11-15: a helicopter had nothing in the off hand).
+            float collective = left.y;
+            if (Throttle.HasValue)
+            {
+                if (Mathf.Abs(left.y) > 0.3f)
+                {
+                    Throttle = null;
+                }
+                else
+                {
+                    collective = Throttle.Value;
+                }
+            }
+            return new Vector4(left.x, collective, cyclic.x, cyclic.y);
         }
 
         public static Vector4 Airplane()
@@ -72,7 +86,8 @@ namespace RavenfieldVR.Input
             float throttle = left.y;
             if (Throttle.HasValue)
             {
-                if (!plane || Mathf.Abs(left.y) > 0.3f)
+                // (A helicopter's collective lever kept: the game reads this for its cockpit stick too, and dropped it every frame.)
+                if (!plane && GameContext.SeatKind != VehicleKind.Helicopter || Mathf.Abs(left.y) > 0.3f)
                 {
                     Throttle = null; // (the stick pushed: it has the throttle again, the lever's setting dropped)
                 }

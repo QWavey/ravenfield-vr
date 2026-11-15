@@ -226,8 +226,9 @@ namespace RavenfieldVR.Rig
             {
                 _stick = VRConfig.LeftHanded ? _seat.handTargetL : _seat.handTargetR;
             }
-            if (kind == VehicleKind.Airplane)
+            if (kind == VehicleKind.Airplane || kind == VehicleKind.Helicopter)
             {
+                // (A helicopter's off hand rests on its collective: the same lever, read as the collective in VehicleInput.Helicopter.)
                 Transform offRest = VRConfig.LeftHanded ? _seat.handTargetR : _seat.handTargetL;
                 _throttle = offRest != _stick ? offRest : null;
             }
