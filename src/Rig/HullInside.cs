@@ -146,9 +146,9 @@ namespace RavenfieldVR.Rig
             // (Drawn here the game's own pass got no light and came out black: one steel material of the vehicle's tint, glowing a little.)
             if (_steel == null)
             {
-                _steel = new Material(Shader.Find("Standard")) { color = _tint * 0.5f };
+                _steel = new Material(Shader.Find("Standard")) { color = _tint * 0.8f };
                 _steel.EnableKeyword("_EMISSION");
-                _steel.SetColor("_EmissionColor", _tint * 0.22f);
+                _steel.SetColor("_EmissionColor", _tint * 0.55f);
                 _steel.SetFloat("_Glossiness", 0.1f);
             }
             int subs = r.sharedMaterials.Length;

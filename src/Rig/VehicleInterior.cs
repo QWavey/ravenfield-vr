@@ -121,27 +121,26 @@ namespace RavenfieldVR.Rig
             _root.transform.localPosition = neutral.position;
             _root.transform.localRotation = Quaternion.Euler(0f, neutral.rotation.eulerAngles.y, 0f);
             Materials(_seat.vehicle);
-            // The cabin, the eyes at its origin: 1.5 m wide, from 1.0 m below to 0.35 m above the eyes, 0.75 m behind to 0.55 m ahead.
-            const float halfW = 0.75f, floor = -1.0f, roof = 0.35f, back = -0.75f, front = 0.55f, t = 0.03f;
-            Box("roof", new Vector3(0f, roof, (front + back) / 2f), new Vector3(halfW * 2f, t, front - back), _wall);
-            Box("floor", new Vector3(0f, floor, (front + back) / 2f), new Vector3(halfW * 2f, t, front - back), _metal);
-            Box("left", new Vector3(-halfW, (roof + floor) / 2f, (front + back) / 2f), new Vector3(t, roof - floor, front - back), _wall);
-            Box("right", new Vector3(halfW, (roof + floor) / 2f, (front + back) / 2f), new Vector3(t, roof - floor, front - back), _wall);
-            Box("back", new Vector3(0f, (roof + floor) / 2f, back), new Vector3(halfW * 2f, roof - floor, t), _wall);
-            // The front wall round the slot: 0.56 m wide, 0.2 m high, at the eyes.
-            const float slotW = 0.28f, slotTop = 0.1f, slotBottom = -0.1f;
-            Box("front-left", new Vector3(-(halfW + slotW) / 2f, (roof + floor) / 2f, front), new Vector3(halfW - slotW, roof - floor, t), _wall);
-            Box("front-right", new Vector3((halfW + slotW) / 2f, (roof + floor) / 2f, front), new Vector3(halfW - slotW, roof - floor, t), _wall);
-            Box("front-top", new Vector3(0f, (roof + slotTop) / 2f, front), new Vector3(slotW * 2f, roof - slotTop, t), _wall);
-            Box("front-bottom", new Vector3(0f, (slotBottom + floor) / 2f, front), new Vector3(slotW * 2f, slotBottom - floor, t), _wall);
-            Periscope(new Vector3(0f, (slotTop + slotBottom) / 2f, front + 0.005f), new Vector2(slotW * 2f, slotTop - slotBottom));
-            // The slot's frame and visor, a lamp above it, a handrail and pipes for the eye to hold on to.
-            Box("slot-frame-top", new Vector3(0f, slotTop + 0.02f, front - 0.04f), new Vector3(slotW * 2f + 0.08f, 0.04f, 0.08f), _metal);
-            Box("slot-frame-bottom", new Vector3(0f, slotBottom - 0.02f, front - 0.04f), new Vector3(slotW * 2f + 0.08f, 0.04f, 0.08f), _metal);
-            Box("lamp", new Vector3(0f, roof - 0.04f, front - 0.2f), new Vector3(0.12f, 0.03f, 0.06f), _lamp);
-            Cylinder("rail", new Vector3(0f, roof - 0.08f, -0.1f), new Vector3(0.025f, halfW * 0.9f, 0.025f), Quaternion.Euler(0f, 0f, 90f), _metal);
-            Cylinder("pipe-l", new Vector3(-halfW + 0.06f, 0f, 0.1f), new Vector3(0.04f, 0.5f, 0.04f), Quaternion.identity, _metal);
-            Cylinder("pipe-r", new Vector3(halfW - 0.06f, -0.2f, -0.2f), new Vector3(0.05f, 0.4f, 0.05f), Quaternion.Euler(90f, 0f, 0f), _metal);
+            // No drawn box: the vehicle's own hull is solid from inside now (HullInside) and is the cabin (the user found the drawn one
+            // "very bad"; a custom cockpit comes later). In front of the eyes a periscope viewer: a frame and a screen showing the world.
+            const float roof = 0.35f;
+            Box("viewer-top", new Vector3(0f, 0.115f, 0.42f), new Vector3(0.64f, 0.05f, 0.1f), _metal);
+            Box("viewer-bottom", new Vector3(0f, -0.115f, 0.42f), new Vector3(0.64f, 0.05f, 0.1f), _metal);
+            Box("viewer-left", new Vector3(-0.305f, 0f, 0.42f), new Vector3(0.03f, 0.28f, 0.1f), _metal);
+            Box("viewer-right", new Vector3(0.305f, 0f, 0.42f), new Vector3(0.03f, 0.28f, 0.1f), _metal);
+            Box("viewer-back", new Vector3(0f, 0f, 0.475f), new Vector3(0.64f, 0.28f, 0.01f), _metal);
+            Box("viewer-brow", new Vector3(0f, 0.15f, 0.36f), new Vector3(0.5f, 0.03f, 0.08f), _paint);
+            Periscope(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
+            // A dim warm light inside: the hull's inner walls face away from the sun and were black.
+            var lamp = new GameObject("cabin light");
+            lamp.transform.SetParent(_root.transform, false);
+            lamp.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+            Light cabin = lamp.AddComponent<Light>();
+            cabin.type = LightType.Point;
+            cabin.color = new Color(1f, 0.86f, 0.62f);
+            cabin.range = 3f;
+            cabin.intensity = 1.1f;
+            cabin.shadows = LightShadows.None;
             var alarm = new GameObject("alarm");
             alarm.transform.SetParent(_root.transform, false);
             alarm.transform.localPosition = new Vector3(0f, roof - 0.1f, 0f);
@@ -281,6 +280,31 @@ namespace RavenfieldVR.Rig
             m.EnableKeyword("_EMISSION");
             m.SetColor("_EmissionColor", c);
         }
+
+        /// <summary>For the vehicle check: how bright the periscope's picture is (0 black .. 1 white), -1 with none.</summary>
+        internal float PeriscopeBrightness()
+        {
+            if (_scopeTexture == null)
+            {
+                return -1f;
+            }
+            RenderTexture prev = RenderTexture.active;
+            RenderTexture.active = _scopeTexture;
+            var t = new Texture2D(_scopeTexture.width, _scopeTexture.height, TextureFormat.RGB24, false);
+            t.ReadPixels(new Rect(0, 0, _scopeTexture.width, _scopeTexture.height), 0, 0);
+            t.Apply();
+            RenderTexture.active = prev;
+            float sum = 0f;
+            Color[] px = t.GetPixels();
+            for (int i = 0; i < px.Length; i += 7)
+            {
+                sum += px[i].grayscale;
+            }
+            Object.Destroy(t);
+            return sum / Mathf.Max(1, px.Length / 7);
+        }
+
+        internal float PeriscopeNear => _scope != null ? _scope.nearClipPlane : -1f;
 
         private Transform Box(string name, Vector3 at, Vector3 size, Material m) => Part(PrimitiveType.Cube, name, at, size, Quaternion.identity, m);
 
