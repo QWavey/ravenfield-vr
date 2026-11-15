@@ -228,6 +228,7 @@ namespace RavenfieldVR.Rig
             {
                 Hands();
                 Gauges();
+                Rounds();
             }
             Aim();
             PointScope();
@@ -511,6 +512,47 @@ namespace RavenfieldVR.Rig
         }
 
         private Material _brass, _olive;
+        private readonly List<GameObject> _rounds = new List<GameObject>();
+        private int _roundsShown = -1;
+
+        /// <summary>
+        /// The rack shows what is left: a cannon's shells one by one with its spare rounds, a machine gun's boxes by halves of its spare
+        /// ammunition; all of them with ammunition without end. Only when the count changes.
+        /// </summary>
+        private void Rounds()
+        {
+            Weapon gun = _seat != null ? Gun(_seat) : null;
+            if (gun == null || _rounds.Count == 0)
+            {
+                return;
+            }
+            int show;
+            if (gun.HasInfiniteSpareAmmo())
+            {
+                show = _rounds.Count;
+            }
+            else if (gun.configuration.ammo <= 1)
+            {
+                show = Mathf.Clamp(gun.spareAmmo, 0, _rounds.Count);
+            }
+            else
+            {
+                int full = Mathf.Max(1, gun.configuration.spareAmmo);
+                show = gun.spareAmmo <= 0 ? 0 : gun.spareAmmo * 2 > full ? 2 : 1;
+            }
+            if (show == _roundsShown)
+            {
+                return;
+            }
+            _roundsShown = show;
+            for (int i = 0; i < _rounds.Count; i++)
+            {
+                if (_rounds[i] != null)
+                {
+                    _rounds[i].SetActive(i < show);
+                }
+            }
+        }
 
         /// <summary>
         /// The gun's rounds at the right, in reach: a cannon's (one round a load) as five shells standing in a rack (brass cases, dark
@@ -537,9 +579,12 @@ namespace RavenfieldVR.Rig
                 for (int i = 0; i < 5; i++)
                 {
                     float z = 0.2f - i * 0.11f;
-                    Cylinder("shell-case", new Vector3(0.52f, -0.32f, z), new Vector3(0.09f, 0.2f, 0.09f), Quaternion.identity, _brass);
-                    Cylinder("shell-tip", new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal);
-                    Cylinder("shell-nose", new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal);
+                    var shell = new GameObject("shell").transform;
+                    shell.SetParent(_root.transform, false);
+                    Cylinder("shell-case", new Vector3(0.52f, -0.32f, z), new Vector3(0.09f, 0.2f, 0.09f), Quaternion.identity, _brass).SetParent(shell, true);
+                    Cylinder("shell-tip", new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal).SetParent(shell, true);
+                    Cylinder("shell-nose", new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal).SetParent(shell, true);
+                    _rounds.Add(shell.gameObject);
                 }
                 Box("rack-strap-low", new Vector3(0.52f, -0.42f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
                 Box("rack-strap-high", new Vector3(0.52f, -0.2f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
@@ -549,9 +594,12 @@ namespace RavenfieldVR.Rig
                 for (int i = 0; i < 2; i++)
                 {
                     float z = 0.12f - i * 0.2f;
-                    Box("ammo-box", new Vector3(0.5f, -0.42f, z), new Vector3(0.12f, 0.16f, 0.17f), _olive);
-                    Box("ammo-box-lid", new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive);
-                    Box("ammo-box-handle", new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal);
+                    var box = new GameObject("ammo box").transform;
+                    box.SetParent(_root.transform, false);
+                    Box("ammo-box", new Vector3(0.5f, -0.42f, z), new Vector3(0.12f, 0.16f, 0.17f), _olive).SetParent(box, true);
+                    Box("ammo-box-lid", new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive).SetParent(box, true);
+                    Box("ammo-box-handle", new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal).SetParent(box, true);
+                    _rounds.Add(box.gameObject);
                 }
             }
         }
@@ -877,6 +925,8 @@ namespace RavenfieldVR.Rig
             ReleaseHands();
             _driveButtons.Clear();
             _traverse = _elevate = _fire = _steer = null;
+            _rounds.Clear();
+            _roundsShown = -1;
             _steerTurned = 0f;
             for (int i = 0; i < _pressed.Length; i++)
             {
