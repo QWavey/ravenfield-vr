@@ -583,7 +583,7 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(0.8f);
             float yawHeld = Yaw();
             Vector3? want = grip.WantedWorld;
-            float wantYaw = want != null ? Mathf.Atan2(frame.InverseTransformDirection(want.Value).x, frame.InverseTransformDirection(want.Value).z) * Mathf.Rad2Deg : float.NaN;
+            float wantYaw = want != null ? Vector3.SignedAngle(Vector3.ProjectOnPlane(aim0, Vector3.up), Vector3.ProjectOnPlane(frame.InverseTransformDirection(want.Value), Vector3.up), Vector3.up) : float.NaN; // (as Yaw: from the start aim)
             report($"{what}: grab numbers: palm {Vector3.Dot(arm, aimFlat):+0.00;-0.00} m along the barrel from the pivot, {arm.magnitude:0.00} m off it; the hands want {Mathf.DeltaAngle(yaw0, wantYaw):+0;-0} deg, the gun went {Mathf.DeltaAngle(yaw0, yawHeld):+0;-0} deg");
             Shots.Capture(name + "-held");
             Input.VRInput.SimulatedGrab[side] = false;

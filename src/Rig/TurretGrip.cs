@@ -79,7 +79,10 @@ namespace RavenfieldVR.Rig
             // (Not an enclosed seat: inside a hull the gun is aimed from the inside (Rig.VehicleInterior), not taken by hand. A mod's
             // closed gunner seat was taken for a roof MG: no inside drawn, the hull seen through, the gun still with the view moving;
             // the user, 2026-11-15.)
-            if (seat == null || seat.enclosed || !VRConfig.GrabMountedGuns.Value)
+            // (An aircraft's gun seat, a helicopter's door gun, a bomber's tail gun, is "enclosed" to the game but has no inside drawn and its
+            // gun is right at the hands: taken by hand.)
+            bool aircraft = seat != null && (seat.vehicle is Helicopter || seat.vehicle is Airplane || seat.vehicle is Plane);
+            if (seat == null || seat.enclosed && !aircraft || !VRConfig.GrabMountedGuns.Value)
             {
                 return false;
             }
