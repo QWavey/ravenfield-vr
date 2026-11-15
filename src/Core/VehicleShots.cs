@@ -140,50 +140,48 @@ namespace RavenfieldVR.Core
             Vector3 fwd = Vector3.ProjectOnPlane(rig0.Head.forward, Vector3.up).normalized;
             _watching = true;
             VRManager.Instance.StartCoroutine(SpinWatch());
-            Vector3 place = player.Position() + fwd * 14f;
+            // The player goes from seat to seat (the next vehicle's included) and never stands among them: stood up beside each, a
+            // vehicle made next knocked him over and he fell under the map (the user, 2026-11-15: "i got bugged under the map or in the
+            // water ... the vehicles could have pushed me down"). Each vehicle is held still (kinematic): it neither tips nor pushes.
+            Vector3 start = player.Position();
+            Vehicle previous = null;
             int n = 0;
             foreach ((GameObject prefab, string from) in prefabs)
             {
                 n++;
                 if (player.dead)
                 {
-                    report("vehicles: the player died: stopped");
-                    yield break;
-                }
-                if (player.IsSeated())
-                {
-                    player.LeaveSeat(false);
-                    yield return new WaitForSecondsRealtime(0.4f);
-                }
-                Vector3 at = place;
-                if (Physics.Raycast(at + Vector3.up * 50f, Vector3.down, out RaycastHit g, 120f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 12), QueryTriggerInteraction.Ignore))
-                {
-                    at = g.point + Vector3.up * 1.2f;
+                    report("vehicles: the player DIED: stopped");
+                    break;
                 }
                 Vehicle v = null;
                 try
                 {
-                    GameObject made = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(fwd, Vector3.up));
+                    // Made ahead of where he started, by its own size: its nearest side 8 m off (the last one, which he sits in, is
+                    // taken away only once he is in the next).
+                    GameObject made = UnityEngine.Object.Instantiate(prefab, start + fwd * 40f + Vector3.up * 30f, Quaternion.LookRotation(fwd, Vector3.up));
                     v = made.GetComponent<Vehicle>();
-                    // Clear of the player by its own size (a bomber made 14 m ahead stood on him: the user saw the view spin and a vehicle
-                    // in him, 2026-11-15): its nearest side 5 m ahead.
-                    Bounds b = new Bounds(made.transform.position, Vector3.zero);
-                    foreach (Renderer r in made.GetComponentsInChildren<Renderer>())
-                    {
-                        b.Encapsulate(r.bounds);
-                    }
-                    float size = Mathf.Max(b.extents.x, b.extents.z);
-                    Vector3 to = player.Position() + fwd * (5f + size);
-                    if (Physics.Raycast(to + Vector3.up * 50f, Vector3.down, out RaycastHit g2, 120f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 12), QueryTriggerInteraction.Ignore))
-                    {
-                        to = g2.point + Vector3.up * (made.transform.position.y - b.min.y + 0.3f);
-                    }
-                    made.transform.position = to;
                     Rigidbody body = made.GetComponent<Rigidbody>();
                     if (body != null)
                     {
+                        body.isKinematic = true;
+                    }
+                    Bounds bb = new Bounds(made.transform.position, Vector3.zero);
+                    foreach (Renderer r in made.GetComponentsInChildren<Renderer>())
+                    {
+                        bb.Encapsulate(r.bounds);
+                    }
+                    float size = Mathf.Min(Mathf.Max(bb.extents.x, bb.extents.z), 25f);
+                    Vector3 to = start + fwd * (8f + size) + Vector3.Cross(Vector3.up, fwd) * ((n % 2 == 0 ? 1f : -1f) * (4f + size));
+                    float lift = made.transform.position.y - bb.min.y + 0.05f;
+                    if (Physics.Raycast(to + Vector3.up * 60f, Vector3.down, out RaycastHit g2, 160f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 12), QueryTriggerInteraction.Ignore))
+                    {
+                        to = g2.point + Vector3.up * lift;
+                    }
+                    made.transform.position = to;
+                    if (body != null)
+                    {
                         body.position = to;
-                        body.velocity = Vector3.zero;
                     }
                 }
                 catch (Exception e)
@@ -191,7 +189,7 @@ namespace RavenfieldVR.Core
                     report($"vehicle {n} {prefab.name}: could not be made: {e.Message}");
                     continue;
                 }
-                yield return new WaitForSecondsRealtime(0.6f);
+                yield return new WaitForSecondsRealtime(0.5f);
                 if (v == null || v.seats == null || v.seats.Count == 0)
                 {
                     report($"vehicle {n} {prefab.name} ({from}): no seats");
@@ -219,14 +217,30 @@ namespace RavenfieldVR.Core
                 foreach (int si in seats)
                 {
                     yield return SitAndLook(v, si, $"vehicle-{tag}-seat{si + 1}", $"{prefab.name} ({from}) seat {si + 1} of {v.seats.Count}", report);
+                    if (previous != null && previous != v && player.IsSeated() && player.seat.vehicle == v)
+                    {
+                        Remove(previous); // (he is in this one now)
+                        previous = null;
+                    }
                 }
-                if (player.IsSeated())
+                if (previous != null)
                 {
-                    player.LeaveSeat(false);
-                    yield return new WaitForSecondsRealtime(0.3f);
+                    Remove(previous); // (no seat of this one took him: the last one goes anyway)
                 }
-                Remove(v);
+                previous = v;
+                if (player.fallenOver)
+                {
+                    report("vehicles: the player was KNOCKED OVER");
+                }
+            }
+            if (player.IsSeated())
+            {
+                player.LeaveSeat(false);
                 yield return new WaitForSecondsRealtime(0.3f);
+            }
+            if (previous != null)
+            {
+                Remove(previous);
             }
             _watching = false;
             report($"vehicles: the view's biggest turn in half a second: {_spinMax:0} deg{(_spinMax > 120f ? " (A SPIN, during " + _spinAt + ")" : "")}");
@@ -292,11 +306,6 @@ namespace RavenfieldVR.Core
         {
             Actor player = LocalPlayer.actor;
             Seat seat = v.seats[seatIndex];
-            if (player.IsSeated())
-            {
-                player.LeaveSeat(false);
-                yield return new WaitForSecondsRealtime(0.3f);
-            }
             _step = what;
             for (float until = Time.realtimeSinceStartup + 4f; !player.CanEnterSeat() && Time.realtimeSinceStartup < until;)
             {
@@ -311,6 +320,16 @@ namespace RavenfieldVR.Core
             {
                 report($"{what}: the seat threw: {e.Message}");
                 yield break;
+            }
+            if (!seated && player.IsSeated() && player.seat != seat)
+            {
+                // (Refused from another seat: out of it first, the game's wait, again.)
+                player.LeaveSeat(false);
+                for (float until = Time.realtimeSinceStartup + 4f; !player.CanEnterSeat() && Time.realtimeSinceStartup < until;)
+                {
+                    yield return null;
+                }
+                seated = player.EnterSeat(seat, true, true);
             }
             yield return new WaitForSecondsRealtime(1.6f);
             Rig.VRRig rig = Rig.VRRig.Instance;
