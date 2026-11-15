@@ -136,6 +136,13 @@ namespace RavenfieldVR.Core
                 yield break;
             }
             List<(GameObject prefab, string from)> prefabs = AllPrefabs();
+            // (-rfvr-vehicles=a,b: only the kinds whose name holds one of the words: a quick look at a few.)
+            string only = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("-rfvr-vehicles=", StringComparison.OrdinalIgnoreCase));
+            if (only != null)
+            {
+                string[] words = only.Substring("-rfvr-vehicles=".Length).Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                prefabs = prefabs.Where(p => words.Any(w => p.prefab.name.IndexOf(w.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)).ToList();
+            }
             report($"vehicles: {prefabs.Count} vehicle and turret kinds ({prefabs.Count(p => p.from == "game")} the game's, {prefabs.Count(p => p.from == "game turret")} turrets, {prefabs.Count(p => p.from == "mod")} from mods)");
             Vector3 fwd = Vector3.ProjectOnPlane(rig0.Head.forward, Vector3.up).normalized;
             _watching = true;
@@ -490,14 +497,17 @@ namespace RavenfieldVR.Core
             Transform realMuzzle = gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : gun.transform;
             report($"{what}: grab: the gun's muzzle part {Vector3.Angle(realMuzzle.forward, muzzle.forward):0} deg off the way it is steered");
             Transform frame = seat.vehicle.transform;
+            Vector3 aim0 = frame.InverseTransformDirection(muzzle.forward);
             float Yaw()
             {
+                // (Positive: to the gun's own right, from where it pointed at the start.)
                 Vector3 d = frame.InverseTransformDirection(muzzle.forward);
-                return Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg; // (positive: to the vehicle's right)
+                return Vector3.SignedAngle(Vector3.ProjectOnPlane(aim0, Vector3.up), Vector3.ProjectOnPlane(d, Vector3.up), Vector3.up);
             }
             Vector3 handle = handles[handles.Count - 1];
             Transform pivot = Rig.TurretGrip.Pivot(gun);
-            Vector3 right = frame.right;
+            // (The gun's own right: a gun facing backwards on its vehicle turned the "wrong way" for the vehicle's right.)
+            Vector3 right = Vector3.Cross(frame.up, Vector3.ProjectOnPlane(muzzle.forward, frame.up)).normalized;
             Vector3 palmToRaw = hand.Raw.position - hand.Palm.position;
             Quaternion rot = hand.Raw.rotation;
             Rig.VRHand.Scripted[side] = new Runtime.RigidPose(handle + palmToRaw, rot);
