@@ -674,6 +674,7 @@ namespace RavenfieldVR.Core
                 bool back = Input.VehicleInput.WheelSteer == null;
                 line += $"; cabin steering wheel 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.2f ? " (DID NOT STEER)" : "")}, let go: {(back ? "straight" : "STILL TURNED")}";
             }
+            line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
             Shots.Capture(name + "-inside-alarm");

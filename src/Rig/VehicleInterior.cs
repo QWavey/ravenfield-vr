@@ -54,6 +54,9 @@ namespace RavenfieldVR.Rig
 
         internal Transform CabinSteeringWheel => _steer;
 
+        /// <summary>For the vehicle check: the rack's rounds shown and in all.</summary>
+        internal string RackState => _rounds.Count == 0 ? "none" : $"{_roundsShown} of {_rounds.Count} shown";
+
         internal Transform ForwardButton => _driveButtons.Count > 0 ? _driveButtons[0].t : null;
 
         /// <summary>For the vehicle check: the alarm shown without setting the vehicle on fire (that burned it, the player with it).</summary>
