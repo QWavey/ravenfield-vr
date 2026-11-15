@@ -247,7 +247,30 @@ namespace RavenfieldVR.Core
                     report("vehicles: the player was KNOCKED OVER");
                 }
             }
-            if (player.IsSeated())
+            _watching = false;
+            // Last (it kills the player): killed in a seat, the view stays in it for a moment before the game's camera takes it.
+            if (player.IsSeated() && !player.dead)
+            {
+                Rig.VRRig rig = Rig.VRRig.Instance;
+                string seatName = player.seat.vehicle.name;
+                player.KillSilently();
+                float stayed = 0f, start = Time.realtimeSinceStartup;
+                bool after = false;
+                while (Time.realtimeSinceStartup - start < 3f)
+                {
+                    if (rig != null && rig.Mode == Rig.RigMode.Anchored)
+                    {
+                        stayed = Time.realtimeSinceStartup - start;
+                    }
+                    else if (stayed > 0f)
+                    {
+                        after = true;
+                    }
+                    yield return null;
+                }
+                report($"vehicles: killed in a seat ({seatName}): the view stayed in it {stayed:0.0} s{(stayed < 1f ? " (DID NOT STAY)" : stayed > 2.5f ? " (STUCK IN THE SEAT)" : "")}, then {(after ? "the game's camera" : "NOT HANDED OVER")}");
+            }
+            else if (player.IsSeated())
             {
                 player.LeaveSeat(false);
                 yield return new WaitForSecondsRealtime(0.3f);
@@ -256,7 +279,6 @@ namespace RavenfieldVR.Core
             {
                 Remove(previous);
             }
-            _watching = false;
             report($"vehicles: the view's biggest turn in half a second: {_spinMax:0} deg{(_spinMax > 120f ? " (A SPIN, during " + _spinAt + ")" : "")}");
             report("vehicles: done");
         }
