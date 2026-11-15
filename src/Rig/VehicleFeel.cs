@@ -22,6 +22,7 @@ namespace RavenfieldVR.Rig
         {
             Actor actor = GameContext.PlayerActor;
             Vehicle v = actor != null && !actor.dead && actor.IsSeated() && actor.seat != null ? actor.seat.vehicle : null;
+            Readout(rig, actor, v);
             if (v == null || v.dead || v.isTurret || GameManager.IsPaused() || rig == null)
             {
                 _of = null;
@@ -111,6 +112,68 @@ namespace RavenfieldVR.Rig
         }
 
         private static float _nextBurnPulse;
+        private static TextMesh _readout;
+        private static float _nextReadout;
+        private static int _shownSpeed = -1, _shownHeight = -1;
+
+        /// <summary>
+        /// A pilot's speed and height, low in front of the view (the vehicles scout, 2026-11-15: the only readout was on the wrist, and
+        /// lifting it meant letting go of the stick). Five times a second, its text built only when a number changed.
+        /// </summary>
+        private static void Readout(VRRig rig, Actor actor, Vehicle v)
+        {
+            bool pilot = rig != null && v != null && !v.dead && actor != null && actor.seat != null && actor.seat.IsDriverSeat()
+                         && (v is Helicopter || v is Airplane || v is Plane) && !GameContext.GameMenuOpen;
+            if (!pilot)
+            {
+                if (_readout != null && _readout.gameObject.activeSelf)
+                {
+                    _readout.gameObject.SetActive(false);
+                }
+                return;
+            }
+            if (_readout == null)
+            {
+                var go = new GameObject("RavenfieldVR Flight Readout");
+                Object.DontDestroyOnLoad(go);
+                _readout = go.AddComponent<TextMesh>();
+                Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _readout.font = font;
+                go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                _readout.anchor = TextAnchor.MiddleCenter;
+                _readout.alignment = TextAlignment.Center;
+                _readout.fontSize = 64;
+                _readout.characterSize = 0.0045f;
+                _readout.color = new Color(0.75f, 1f, 0.75f, 0.85f);
+            }
+            if (!_readout.gameObject.activeSelf)
+            {
+                _readout.gameObject.SetActive(true);
+            }
+            // Under the eyes, in the seat's frame (it rides with the aircraft, not with the head).
+            Transform root = rig.Root;
+            Runtime.RigidPose neutral = rig.NeutralHead;
+            Vector3 eyes = root.TransformPoint(neutral.position);
+            Quaternion facing = root.rotation * Quaternion.Euler(0f, neutral.rotation.eulerAngles.y, 0f);
+            _readout.transform.SetPositionAndRotation(eyes + facing * new Vector3(0f, -0.3f, 0.55f), facing * Quaternion.Euler(25f, 0f, 0f));
+            if (Time.unscaledTime < _nextReadout)
+            {
+                return;
+            }
+            _nextReadout = Time.unscaledTime + 0.2f;
+            int speed = Mathf.RoundToInt(v.Velocity().magnitude * 3.6f);
+            int height = -1;
+            if (Physics.Raycast(v.transform.position, Vector3.down, out RaycastHit ground, 2000f, ~(1 << 12), QueryTriggerInteraction.Ignore))
+            {
+                height = Mathf.RoundToInt(ground.distance);
+            }
+            if (speed != _shownSpeed || height != _shownHeight)
+            {
+                _shownSpeed = speed;
+                _shownHeight = height;
+                _readout.text = height >= 0 ? $"{speed} km/h    {height} m" : $"{speed} km/h";
+            }
+        }
         private static Seat _saidSeat;
         private static bool? _hoverWas;
 
