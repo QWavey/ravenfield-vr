@@ -731,6 +731,7 @@ namespace RavenfieldVR.Rig
                 LoadHint();
                 HitFlicker();
                 Breech();
+                AimMark();
             }
             Aim();
             PointScope();
@@ -1082,6 +1083,61 @@ namespace RavenfieldVR.Rig
             }
         }
 
+        private Transform _aimMark;
+        private Material _markMat;
+        private float _markAngle = float.NaN, _markUntil = -10f, _scopeHeight = 0.2f;
+
+        /// <summary>For the vehicle check: the aim mark's drop below the sight's centre (metres on the screen; NaN: not shown).</summary>
+        internal float AimMarkDrop => _aimMark != null && _aimMark.gameObject.activeSelf ? -_aimMark.localPosition.y : float.NaN;
+
+        /// <summary>
+        /// How far over the line of sight a gun must point (degrees) for its round, leaving at <paramref name="speed"/> m/s and falling
+        /// at <paramref name="gravity"/> m/s^2 with no drag (as the game's projectiles fly), to come down at <paramref name="range"/> m
+        /// on the level: half the arc sine of g R / v^2. NaN past the round's reach. Pure (offline tests).
+        /// </summary>
+        internal static float AimDrop(float range, float speed, float gravity)
+        {
+            if (speed <= 0f || range <= 0f)
+            {
+                return float.NaN;
+            }
+            float k = gravity * range / (speed * speed);
+            return k > 1f ? float.NaN : 0.5f * Mathf.Asin(Mathf.Max(k, 0f)) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>
+        /// An angle under the sight's centre as a distance down a screen <paramref name="height"/> tall showing <paramref name="fov"/>
+        /// degrees top to bottom (the periscope's camera). Pure (offline tests).
+        /// </summary>
+        internal static float ScreenDrop(float degrees, float fov, float height) =>
+            Mathf.Tan(degrees * Mathf.Deg2Rad) / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) * height * 0.5f;
+
+        /// <summary>
+        /// The aim mark after a range is taken: the target put on it, the gun points high enough for the round to come down there
+        /// (it moves with the zoom). Red at the bottom edge past the round's reach. Ten seconds, or until the next range.
+        /// </summary>
+        private void AimMark()
+        {
+            if (_aimMark == null || _scope == null)
+            {
+                return;
+            }
+            bool show = Time.unscaledTime < _markUntil;
+            if (_aimMark.gameObject.activeSelf != show)
+            {
+                _aimMark.gameObject.SetActive(show);
+            }
+            if (!show)
+            {
+                return;
+            }
+            float half = _scopeHeight * 0.5f - 0.004f;
+            bool reach = !float.IsNaN(_markAngle);
+            float drop = reach ? Mathf.Min(ScreenDrop(_markAngle, _scope.fieldOfView, _scopeHeight), half) : half;
+            _aimMark.localPosition = new Vector3(0f, -drop, _aimMark.localPosition.z);
+            _markMat.color = reach && drop < half ? new Color(0.3f, 1f, 0.35f) : new Color(1f, 0.15f, 0.1f);
+        }
+
         private Transform _rangeButton;
         private string _rangeText;
         private float _rangeUntil = -10f;
@@ -1132,6 +1188,20 @@ namespace RavenfieldVR.Rig
                 nearest = hit.distance;
             }
             _rangeText = nearest < float.MaxValue ? $"RANGE {Mathf.RoundToInt(nearest / 5f) * 5} m" : "RANGE ---";
+            // The fire control: the gun's own round (Weapon.projectileSpeed and projectileGravity, the game's from its prefab).
+            if (nearest < float.MaxValue && gun.projectileSpeed > 1f)
+            {
+                _markAngle = AimDrop(nearest, gun.projectileSpeed, gun.projectileGravity.magnitude);
+                _markUntil = Time.unscaledTime + 10f;
+                if (float.IsNaN(_markAngle))
+                {
+                    _rangeText += "  OUT"; // (past the round's reach)
+                }
+            }
+            else
+            {
+                _markUntil = -10f;
+            }
             _rangeUntil = Time.unscaledTime + 4f;
             _nextReadout = 0f; // (shown now, not at the readout's next tick)
         }
@@ -1331,6 +1401,19 @@ namespace RavenfieldVR.Rig
                 Line("range" + i, 0f, -(gap + i * post / 3.2f), 0.008f + i * 0.002f, t);
             }
             Line("top", 0f, gap + 0.006f, t, 0.012f);
+            // The fire control's aim mark (shown after the range is taken: AimMark): a short green bar with a gap, where the target goes.
+            _markMat = new Material(Shader.Find("Unlit/Color")) { color = new Color(0.3f, 1f, 0.35f) };
+            _aimMark = new GameObject("aim mark").transform;
+            _aimMark.SetParent(_root.transform, false);
+            _aimMark.localPosition = new Vector3(0f, 0f, z - 0.0005f);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                Transform bar = Part(PrimitiveType.Cube, "aim-mark", Vector3.zero, new Vector3(0.014f, 0.0022f, 0.0005f), Quaternion.identity, _markMat);
+                bar.SetParent(_aimMark, false);
+                bar.localPosition = new Vector3(side * 0.012f, 0f, 0f);
+            }
+            _aimMark.gameObject.SetActive(false);
+            _scopeHeight = size.y;
         }
 
         /// <summary>The sight's zoom knob on the viewer's right: pressed, x1 to x3 and back (the label beside it shows which).</summary>
@@ -2107,6 +2190,9 @@ namespace RavenfieldVR.Rig
             _zoomKnob = null;
             _rangeButton = null;
             _hatch = null;
+            _aimMark = null;
+            _markUntil = -10f;
+            _markAngle = float.NaN;
             _hatchFrames = 0;
             _rangeText = null;
             _rangeUntil = -10f;
@@ -2162,14 +2248,14 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle, _hintMat })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle, _hintMat, _markMat })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = _reticle = _hintMat = null;
+            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = _reticle = _hintMat = _markMat = null;
         }
 
         public void Destroy()

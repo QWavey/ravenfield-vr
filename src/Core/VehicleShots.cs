@@ -570,7 +570,8 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.Scripted[rs] = null;
                 yield return new WaitForSecondsRealtime(0.3f);
                 string shown = Rig.VehicleInterior.Instance.Readout;
-                zoom += $"; rangefinder: \"{shown}\"{(shown.StartsWith("RANGE") ? "" : " (NO RANGE SHOWN)")}";
+                float mark = Rig.VehicleInterior.Instance.AimMarkDrop;
+                zoom += $"; rangefinder: \"{shown}\"{(shown.StartsWith("RANGE") ? "" : " (NO RANGE SHOWN)")}, aim mark {(float.IsNaN(mark) ? "none" : $"{mark * 1000f:0} mm under the centre")}";
             }
             string line = $"{what}: {scopeState}; periscope picture {Rig.VehicleInterior.Instance.PeriscopeBrightness():0.00} bright{(Rig.VehicleInterior.Instance.PeriscopeBrightness() < 0.05f ? " (BLACK)" : "")}, near plane {Rig.VehicleInterior.Instance.PeriscopeNear:0.0} m; inside shown, hull solid from inside ({(rig.Hull != null ? rig.Hull.Twins : 0)} inward twins, {(rig.Hull != null ? rig.Hull.DrawnBack : 0)} drawn back side out){zoom}";
             if (gun != null)

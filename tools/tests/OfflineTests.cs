@@ -717,6 +717,27 @@ namespace RavenfieldVR.Tests
             Check(L(0.3f, -0.5f) < -0.99f, "Tank levers: far back is full back");
             Check(L(-0.2f, 0.1f) > 0.99f, "Tank levers: a palm under the pivot's height in front reads full forward, not back");
             Check(L(-0.2f, -0.1f) < -0.99f, "Tank levers: a palm under the pivot's height behind reads full back");
+            System.Reflection.MethodInfo drop = vi.GetMethod("AimDrop", any), screen = vi.GetMethod("ScreenDrop", any);
+            Check(drop != null && screen != null, "Fire control: AimDrop and ScreenDrop found");
+            if (drop == null || screen == null)
+            {
+                return;
+            }
+            float D(float r, float v, float g) => (float)drop.Invoke(null, new object[] { r, v, g });
+            float S(float a, float f, float h) => (float)screen.Invoke(null, new object[] { a, f, h });
+            // A round at 300 m/s under 9.81: at 450 m, half asin(9.81 * 450 / 90000) = 1.405 degrees.
+            float d450 = D(450f, 300f, 9.81f);
+            Check(Math.Abs(d450 - 1.405f) < 0.01f, $"Fire control: 450 m at 300 m/s needs 1.405 deg ({d450:0.000})");
+            // Fired so, it comes down at the range: R = v^2 sin(2 theta) / g.
+            double landed = 300.0 * 300.0 * Math.Sin(2.0 * d450 * Math.PI / 180.0) / 9.81;
+            Check(Math.Abs(landed - 450.0) < 0.5, $"Fire control: the angle brings the round down at 450 m ({landed:0.0})");
+            Check(D(900f, 300f, 9.81f) > d450 * 1.9f, "Fire control: twice the range, about twice the angle (flat fire)");
+            Check(float.IsNaN(D(20000f, 300f, 9.81f)), "Fire control: past the round's reach, no angle (NaN)");
+            Check(Math.Abs(D(450f, 300f, 0f)) < 1e-6f, "Fire control: a round that does not fall needs no lift");
+            Check(float.IsNaN(D(450f, 0f, 9.81f)), "Fire control: no speed, no angle");
+            float s20 = S(20f, 40f, 0.2f);
+            Check(Math.Abs(s20 - 0.1f) < 1e-4f, $"Fire control: half the view's height down is at the screen's edge ({s20:0.0000})");
+            Check(S(2f, 13f, 0.2f) > S(2f, 40f, 0.2f) * 3f, "Fire control: zoomed in, the mark sits further down the screen");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)
