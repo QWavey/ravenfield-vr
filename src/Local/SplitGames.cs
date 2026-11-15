@@ -125,6 +125,38 @@ namespace RavenfieldVR.Local
             public readonly FlatPlayerInput.DeviceState State = new FlatPlayerInput.DeviceState();
             /// <summary>In the host's match (its log says so); its player left by its own menu (not started again).</summary>
             public bool Ready, Left;
+            /// <summary>How far its log has been read (only what is new is read: the whole log every 30 frames made garbage on player 1's game).</summary>
+            public long LogRead;
+
+            /// <summary>Looks at what its log says since the last look; Ready and Left kept once seen (a log only grows).</summary>
+            public void ReadLog()
+            {
+                string log = CopyLog(Index);
+                if (!System.IO.File.Exists(log))
+                {
+                    return;
+                }
+                using (var f = new System.IO.FileStream(log, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete))
+                {
+                    if (f.Length < LogRead)
+                    {
+                        LogRead = 0; // (a new log: this copy started again)
+                    }
+                    if (f.Length == LogRead)
+                    {
+                        return;
+                    }
+                    // (From a little before: a line written in two parts is still found whole.)
+                    long from = Math.Max(0, LogRead - 64);
+                    f.Position = from;
+                    var bytes = new byte[f.Length - from];
+                    int got = f.Read(bytes, 0, bytes.Length);
+                    LogRead = from + got;
+                    string text = System.Text.Encoding.UTF8.GetString(bytes, 0, got);
+                    Ready |= text.Contains("in the host's match");
+                    Left |= text.Contains("this player left");
+                }
+            }
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
@@ -432,10 +464,7 @@ namespace RavenfieldVR.Local
             {
                 try
                 {
-                    string log = CopyLog(c.Index);
-                    string text = System.IO.File.Exists(log) ? System.IO.File.ReadAllText(log) : "";
-                    c.Ready = text.Contains("in the host's match");
-                    c.Left = text.Contains("this player left");
+                    c.ReadLog();
                 }
                 catch (Exception)
                 {
@@ -595,8 +624,7 @@ namespace RavenfieldVR.Local
                 try
                 {
                     // (Read now: its last words may be newer than the last look, and the next start deletes the log.)
-                    string log = CopyLog(gone.Index);
-                    gone.Left |= System.IO.File.Exists(log) && System.IO.File.ReadAllText(log).Contains("this player left");
+                    gone.ReadLog();
                 }
                 catch (Exception)
                 {
