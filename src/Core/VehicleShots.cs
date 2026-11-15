@@ -819,6 +819,31 @@ namespace RavenfieldVR.Core
             yield return new WaitForSecondsRealtime(0.15f);
             Shots.Capture(name + "-inside-alarm2");
             Rig.VehicleInterior.TestAlarm = false;
+            Actor player = LocalPlayer.actor;
+            // The hatch handle gripped and pulled 12 cm down: out of the seat (the last step in the seat; the check sits in it again next).
+            Transform hatch = Rig.VehicleInterior.Instance.HatchHandle;
+            if (hatch != null && hatch.parent != null)
+            {
+                Rig.VRHand hh = rig.Dominant;
+                int hs = (int)hh.Side;
+                Vector3 hRaw = hh.Raw.position - hh.PalmCentre;
+                Vector3 bar = hatch.position;
+                Vector3 downward = -hatch.parent.up;
+                for (float t = 0f; t < 1f && player.IsSeated(); t += Time.unscaledDeltaTime)
+                {
+                    float pulled = Mathf.Clamp01((t - 0.2f) / 0.5f) * 0.12f;
+                    Rig.VRHand.Scripted[hs] = new Runtime.RigidPose(bar + downward * pulled + hRaw, hh.Raw.rotation);
+                    if (t > 0.1f && !Input.VRInput.SimulatedGrab[hs])
+                    {
+                        Input.VRInput.SimulateGrabPress(hh.Side);
+                    }
+                    yield return null;
+                }
+                Input.VRInput.SimulatedGrab[hs] = false;
+                Rig.VRHand.Scripted[hs] = null;
+                yield return new WaitForSecondsRealtime(0.3f);
+                line += $"; hatch pulled: {(!player.IsSeated() ? "out of the seat" : "STILL SEATED")}";
+            }
             report(line + "; the alarm pictured");
         }
 

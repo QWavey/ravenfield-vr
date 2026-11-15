@@ -277,7 +277,13 @@ namespace RavenfieldVR.Input
                 _leaveHeldSince = -1f;
                 _leaveArmed = false; // a seat taken with the trigger still held: let go once before it counts
             }
-            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned && !_useHeldThroughSwap));
+            // (Or a closed vehicle's hatch handle pulled down: Rig.VehicleInterior. Use held through it, so it does nothing on foot.)
+            bool hatch = actor.IsSeated() && Rig.VehicleInterior.HatchPulled();
+            if (hatch)
+            {
+                _useHeldThroughSwap = true;
+            }
+            Set(KeyBinds.Use, !onPanel && (actor.IsSeated() ? hatch || HeldToLeaveSeat(actor) : VRInput.GetHeld(DigitalAction.Use, off) && !SupportTriggerOwned && !_useHeldThroughSwap));
             // (Next weapon, squad and countermeasures with the laser on a panel: its stick or trackpad click switched the weapon behind
             // it, started an order or fired the countermeasures; round-7 scout.)
             Set(KeyBinds.Call, squadHeld && !_squadFromPanel);

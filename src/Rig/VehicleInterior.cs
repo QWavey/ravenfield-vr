@@ -685,9 +685,21 @@ namespace RavenfieldVR.Rig
                 Box("radio-handset", rz + new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
             }
             // A grab handle overhead (the hatch's) and a cable run along the right wall: the inside reads as fitted out, not bare.
-            Box("hatch-handle", new Vector3(0f, roof + 0.02f, 0.05f), new Vector3(0.22f, 0.02f, 0.02f), _metal);
-            Box("hatch-handle-l", new Vector3(-0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
-            Box("hatch-handle-r", new Vector3(0.1f, roof + 0.05f, 0.05f), new Vector3(0.02f, 0.06f, 0.02f), _metal);
+            // (The hatch handle is the way out: gripped and pulled down 8 cm, the seat is left, as the trigger held for a second does.)
+            _hatch = new GameObject("hatch").transform;
+            _hatch.SetParent(_root.transform, false);
+            _hatchAt = new Vector3(0f, roof + 0.02f, 0.05f);
+            _hatch.localPosition = _hatchAt;
+            foreach (Transform t in new[]
+            {
+                Box("hatch-handle", _hatchAt, new Vector3(0.22f, 0.02f, 0.02f), _guard),
+                Box("hatch-handle-l", _hatchAt + new Vector3(-0.1f, 0.03f, 0f), new Vector3(0.02f, 0.06f, 0.02f), _metal),
+                Box("hatch-handle-r", _hatchAt + new Vector3(0.1f, 0.03f, 0f), new Vector3(0.02f, 0.06f, 0.02f), _metal),
+            })
+            {
+                t.SetParent(_hatch, true);
+            }
+            Label("HATCH", _hatchAt + new Vector3(0f, 0.065f, 0f), Quaternion.Euler(-90f, 0f, 0f), 0.0014f, new Color(1f, 0.85f, 0.3f));
             if (roomRight >= 0.48f)
             {
                 Cylinder("cable-run", new Vector3(0.44f, 0.2f, 0.05f), new Vector3(0.025f, 0.3f, 0.025f), Quaternion.Euler(90f, 0f, 0f), _metal);
@@ -837,6 +849,92 @@ namespace RavenfieldVR.Rig
             _fire = Part(PrimitiveType.Cylinder, "fire", at + tilt * new Vector3(0f, 0.006f, 0f), new Vector3(0.058f, 0.014f, 0.058f), tilt, _red);
             _fireReady = Part(PrimitiveType.Sphere, "fire-ready", at + tilt * new Vector3(0.036f, 0f, 0.05f), new Vector3(0.016f, 0.016f, 0.016f), Quaternion.identity, _ready);
             Label("FIRE", at + tilt * new Vector3(-0.008f, -0.006f, 0.054f), Quaternion.LookRotation(tilt * Vector3.down, tilt * Vector3.forward), 0.0016f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        private Transform _hatch;
+        private Vector3 _hatchAt;
+        private int _hatchHand = -1;
+        private float _hatchGripY;
+        private static int _hatchFrames;
+        private const float HatchPull = 0.08f, HatchReach = 0.08f;
+
+        /// <summary>For the vehicle check: the hatch handle (null: none).</summary>
+        internal Transform HatchHandle => _hatch;
+
+        /// <summary>
+        /// The hatch handle pulled down far enough: the seat's leave key is pressed for three frames (the game's own leave, as the
+        /// trigger held for a second; GameInputBridge reads this).
+        /// </summary>
+        internal static bool HatchPulled()
+        {
+            if (_hatchFrames <= 0)
+            {
+                return false;
+            }
+            _hatchFrames--;
+            return true;
+        }
+
+        /// <summary>The hatch handle: a grip within reach of its bar takes it; it follows the hand down; 8 cm down opens the hatch.</summary>
+        private void Hatch(VRHand hand, int h, Vector3 palm)
+        {
+            if (_hatch == null)
+            {
+                return;
+            }
+            Vector3 local = _root.transform.InverseTransformPoint(palm);
+            if (_hatchHand < 0)
+            {
+                bool onBar = Mathf.Abs(local.x - _hatchAt.x) < 0.13f && Mathf.Abs(local.y - _hatchAt.y) < HatchReach && Mathf.Abs(local.z - _hatchAt.z) < HatchReach;
+                if (onBar && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
+                {
+                    _hatchHand = h;
+                    _hatchGripY = local.y;
+                    hand.Role = HandRole.Cockpit;
+                    hand.Model.CockpitStick = true;
+                    VRInput.Consume(DigitalAction.Grab, hand.Side);
+                    hand.Haptic(0.03f, 120f, 0.4f);
+                }
+                return;
+            }
+            if (_hatchHand != h)
+            {
+                return;
+            }
+            if (!hand.GrabHeld)
+            {
+                ReleaseHatch();
+                return;
+            }
+            float down = Mathf.Clamp(_hatchGripY - local.y, 0f, HatchPull + 0.02f);
+            _hatch.localPosition = _hatchAt + new Vector3(0f, -down, 0f);
+            if (down >= HatchPull)
+            {
+                hand.Haptic(0.08f, 60f, 1f); // (the hatch thrown open)
+                _hatchFrames = 3;
+                ReleaseHatch();
+            }
+        }
+
+        private void ReleaseHatch()
+        {
+            if (_hatchHand >= 0)
+            {
+                VRHand hand = _rig.Hands[_hatchHand];
+                if (hand != null)
+                {
+                    if (hand.Role == HandRole.Cockpit)
+                    {
+                        hand.Role = HandRole.Free;
+                    }
+                    hand.Model.CockpitStick = false;
+                }
+                _hatchHand = -1;
+            }
+            if (_hatch != null)
+            {
+                _hatch.localPosition = _hatchAt;
+            }
         }
 
         private Transform _rangeButton;
@@ -1432,9 +1530,14 @@ namespace RavenfieldVR.Rig
                     {
                         DropShell();
                     }
+                    if (_hatchHand == h)
+                    {
+                        ReleaseHatch();
+                    }
                     continue;
                 }
                 Vector3 palm = hand.PalmCentre;
+                Hatch(hand, h, palm);
                 // A steering lever: taken by a grip on its knob, pushed or pulled round its pivot.
                 if (_onWheel[h] < 0 && _onLever[h] < 0 && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
                 {
@@ -1831,6 +1934,7 @@ namespace RavenfieldVR.Rig
             ReleaseWheel(1);
             ReleaseLever(0);
             ReleaseLever(1);
+            ReleaseHatch();
             _leverValue[0] = _leverValue[1] = 0f;
             DropShell();
             Fire = false;
@@ -1847,6 +1951,7 @@ namespace RavenfieldVR.Rig
             _shotAt = _rammedAt = _hitAt = -10f; // (a seat changed straight after a shot: the new breech twitched)
             _zoomKnob = null;
             _rangeButton = null;
+            _hatch = null;
             _rangeText = null;
             _rangeUntil = -10f;
             _lightSwitch = _hint = null;
