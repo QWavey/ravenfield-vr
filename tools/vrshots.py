@@ -583,6 +583,7 @@ def main():
     ap.add_argument('--vrflatcheck', action='store_true', help='a VR player hosts (the null headset), a flat copy of the game joins it over LAN and plays by script; both views of the other player reported')
     ap.add_argument('--vrjoinflatcheck', action='store_true', help='a flat game hosts a LAN game on this PC, the VR game joins it; both views of the other player reported')
     ap.add_argument('--splitgamescheck', action='store_true', help='splitscreen with a copy of the game for player 2, the copy played by a script (flat, about three minutes)')
+    ap.add_argument('--players', type=int, default=2, choices=[2, 3, 4], help='with --splittry: how many players (2 to 4)')
     ap.add_argument('--splittry', action='store_true', help='a match with splitscreen for 2 to play by hand: player 2 on your keyboard and mouse (or a controller), the game own player idle; close the game when done')
     ap.add_argument('--splitcheck', action='store_true', help='only the local play: Steam status, a LAN game heard, splitscreen with 4 and 2 players (flat, two minutes)')
     ap.add_argument('--dashcheck', action='store_true', help="only VR's start: whether SteamVR's dashboard stands over the game, closed (half a minute)")
@@ -710,7 +711,7 @@ def main():
         elif mode == 'splitgamescheck':
             args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-splitgamescheck', '-rfvr-mods=none'], a.timeout or 6
         elif mode == 'splittry':
-            args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-splittry', '-rfvr-mods=none'], a.timeout or 120
+            args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-splittry', f'-rfvr-splitplayers={a.players}', '-rfvr-mods=none'], a.timeout or 120
         elif mode == 'splitcheck':
             args, timeout = ['-novr', f'-map {a.map}', '-nointro', '-rfvr-autotest', '-rfvr-splitcheck', '-rfvr-mods=none'], a.timeout or 5
         elif mode == 'dashcheck':

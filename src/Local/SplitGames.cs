@@ -113,7 +113,9 @@ namespace RavenfieldVR.Local
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
-        private static bool _hosting, _weHosted, _tryOnHost, _f12Was, _hostRanInBackground;
+        private static bool _hosting, _weHosted, _f12Was, _hostRanInBackground;
+        /// <summary>Try mode: the player the one keyboard and mouse play now (0: player 1; F12 the next).</summary>
+        private static int _tryPlayer = 1;
         private static float _tryNoteUntil;
 
         /// <summary>Changes when a player's keyboard and mouse change hands (F12 in try mode): the copy forgets its mouse's last totals.</summary>
@@ -121,7 +123,7 @@ namespace RavenfieldVR.Local
 
         /// <summary>The host's line in try mode: whose keyboard it is now.</summary>
         internal static string TryLine => TryMode && _hosting
-            ? (Time.unscaledTime < _tryNoteUntil ? $"Your keyboard and mouse now play PLAYER {(_tryOnHost ? 1 : 2)}" : $"Try mode: your keyboard and mouse play player {(_tryOnHost ? 1 : 2)}.   F12: the other player")
+            ? (Time.unscaledTime < _tryNoteUntil ? $"Your keyboard and mouse now play PLAYER {_tryPlayer + 1}" : $"Try mode: your keyboard and mouse play player {_tryPlayer + 1}.   F12: the next player")
             : null;
         private static UdpClient _hostSocket;
         private static GameObject _hostDrawer;
@@ -298,16 +300,16 @@ namespace RavenfieldVR.Local
                 bool f12 = k0 != null && k0.Keys[0x7B];
                 if (f12 && !_f12Was)
                 {
-                    _tryOnHost = !_tryOnHost;
+                    _tryPlayer = (_tryPlayer + 1) % Math.Max(2, Splitscreen.Players);
                     _generation++;
                     FlatPlayerInput.ResetMouse();
                     _tryNoteUntil = Time.unscaledTime + 4f;
-                    Log.Info($"Splitscreen try: the keyboard and mouse now play player {(_tryOnHost ? 1 : 2)}.");
+                    Log.Info($"Splitscreen try: the keyboard and mouse now play player {_tryPlayer + 1}.");
                 }
                 _f12Was = f12;
                 // (While the keyboard is player 2's, the host's player gets none of it, Esc either: it paused both games; F12 brings it back.)
                 FlatPlayerInput.OnlyPause = false;
-                FlatPlayerInput.Keys = _tryOnHost ? 0 : -1;
+                FlatPlayerInput.Keys = _tryPlayer == 0 ? 0 : -1;
             }
             // No game window in front (another program): every key and button let go, as Windows does not tell the game their release
             // (held W kept a soldier walking after an alt-tab; scout, 2026-11-14).
@@ -317,8 +319,8 @@ namespace RavenfieldVR.Local
             }
             foreach (Copy c in Copies)
             {
-                int keys = TryMode ? c.Index - 1 : c.Index;
-                if (TryMode && _tryOnHost)
+                int keys = TryMode ? 0 : c.Index;
+                if (TryMode && _tryPlayer != c.Index)
                 {
                     // (Its player gets nothing meanwhile: its keys let go, its mouse where it was.)
                     Array.Clear(c.State.Keys, 0, 256);

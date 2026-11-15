@@ -822,7 +822,8 @@ namespace RavenfieldVR.Core
                 if (SplitTry)
                 {
                     _context = "splitscreen try";
-                    Local.Splitscreen.Players = 2;
+                    string count = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("-rfvr-splitplayers=", StringComparison.OrdinalIgnoreCase));
+                    Local.Splitscreen.Players = count != null && int.TryParse(count.Substring("-rfvr-splitplayers=".Length), out int n) ? n : 2;
                     Local.SplitPlayers.TryMode = true;
                     Local.SplitGames.TryMode = true;
                     PlayerCanBeHurt = true; // (players fight each other here: the autotest's shield made player 1 unhurtable, the user 2026-11-14)
