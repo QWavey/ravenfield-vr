@@ -33,7 +33,7 @@ namespace RavenfieldVR.Rig
         private readonly VRRig _rig;
         private Seat _seat;
         private GameObject _root;
-        private Material _wall, _metal, _red, _lamp, _button;
+        private Material _wall, _metal, _red, _lamp, _button, _paint;
         private Transform _traverse, _elevate, _fire;
 
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
@@ -154,15 +154,17 @@ namespace RavenfieldVR.Rig
             {
                 _aimLocal = _seat.vehicle.transform.InverseTransformDirection(TurretGrip.AimReference(Gun(_seat)).forward);
                 _aimSet = true;
-                _traverse = Wheel("traverse", new Vector3(-0.3f, -0.42f, 0.32f));
-                _elevate = Wheel("elevation", new Vector3(0.3f, -0.42f, 0.32f));
-                _fire = Cylinder("fire", new Vector3(0.3f, -0.26f, 0.36f), new Vector3(0.06f, 0.015f, 0.06f), Quaternion.Euler(-60f, 0f, 0f), _red);
+                // At the hands' height in front of the chest, where a gunner's hands rest: well in sight looking down.
+                _traverse = Wheel("traverse", new Vector3(-0.26f, -0.36f, 0.3f));
+                _elevate = Wheel("elevation", new Vector3(0.26f, -0.36f, 0.3f));
+                Box("fire-mount", new Vector3(0.26f, -0.2f, 0.4f), new Vector3(0.1f, 0.06f, 0.08f), _paint);
+                _fire = Cylinder("fire", new Vector3(0.26f, -0.16f, 0.39f), new Vector3(0.06f, 0.015f, 0.06f), Quaternion.Euler(-60f, 0f, 0f), _red);
             }
             if (_seat.IsDriverSeat())
             {
                 // Low in the middle, in reach of either hand: forward above, back below, left and right either side.
-                Box("panel", new Vector3(0f, -0.72f, 0.36f), new Vector3(0.36f, 0.3f, 0.04f), _metal).localRotation = Quaternion.Euler(-35f, 0f, 0f);
-                Vector3 c = new Vector3(0f, -0.72f, 0.33f);
+                Box("panel", new Vector3(0f, -0.62f, 0.36f), new Vector3(0.36f, 0.3f, 0.04f), _paint).localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                Vector3 c = new Vector3(0f, -0.62f, 0.33f);
                 _driveButtons.Add((Button("forward", c + new Vector3(0f, 0.08f, -0.04f)), new Vector2(0f, 1f)));
                 _driveButtons.Add((Button("back", c + new Vector3(0f, -0.08f, 0.04f)), new Vector2(0f, -1f)));
                 _driveButtons.Add((Button("left", c + new Vector3(-0.1f, 0f, 0f)), new Vector2(-1f, 0f)));
@@ -198,12 +200,20 @@ namespace RavenfieldVR.Rig
                 tex = m.HasProperty("_MainTex") ? m.mainTexture : null;
                 tint = m.HasProperty("_Color") ? m.color : tint;
             }
+            // Halfway to a steel grey: a hull's material often carries its team's colour (an attack boat's cabin came out pink).
+            float grey = tint.grayscale;
+            tint = Color.Lerp(tint, new Color(grey, grey, grey), 0.5f);
+            tint.a = 1f;
             _wall = new Material(standard) { color = tint * 0.6f, mainTexture = tex };
             _wall.mainTextureScale = new Vector2(1.5f, 1.5f);
             _wall.SetFloat("_Glossiness", 0.15f);
             _wallEmit = tint * 0.12f;
             Emit(_wall, _wallEmit);
-            _metal = new Material(standard) { color = tint * 0.35f };
+            _metal = new Material(standard) { color = tint * 0.45f };
+            _paint = new Material(standard) { color = Color.Lerp(tint, new Color(0.55f, 0.56f, 0.5f), 0.6f) };
+            _paint.SetFloat("_Metallic", 0.4f);
+            _paint.SetFloat("_Glossiness", 0.45f);
+            Emit(_paint, new Color(0.07f, 0.07f, 0.06f));
             _metal.SetFloat("_Metallic", 0.6f);
             _metal.SetFloat("_Glossiness", 0.35f);
             Emit(_metal, tint * 0.05f);
@@ -253,14 +263,14 @@ namespace RavenfieldVR.Rig
             for (int i = 0; i < 8; i++)
             {
                 float a = i * 45f;
-                Transform bar = Cylinder("rim", Vector3.zero, new Vector3(0.022f, r * 0.42f, 0.022f), Quaternion.identity, _metal);
+                Transform bar = Cylinder("rim", Vector3.zero, new Vector3(0.022f, r * 0.42f, 0.022f), Quaternion.identity, _paint);
                 bar.SetParent(hub, false);
                 bar.localPosition = Quaternion.Euler(0f, 0f, a) * new Vector3(0f, r, 0f);
                 bar.localRotation = Quaternion.Euler(0f, 0f, a + 90f);
             }
             for (int i = 0; i < 3; i++)
             {
-                Transform spoke = Cylinder("spoke", Vector3.zero, new Vector3(0.014f, r * 0.5f, 0.014f), Quaternion.identity, _metal);
+                Transform spoke = Cylinder("spoke", Vector3.zero, new Vector3(0.014f, r * 0.5f, 0.014f), Quaternion.identity, _paint);
                 spoke.SetParent(hub, false);
                 spoke.localPosition = Quaternion.Euler(0f, 0f, i * 120f) * new Vector3(0f, r * 0.5f, 0f);
                 spoke.localRotation = Quaternion.Euler(0f, 0f, i * 120f);
@@ -505,14 +515,14 @@ namespace RavenfieldVR.Rig
                 Object.Destroy(_root);
                 _root = null;
             }
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = null;
+            _wall = _metal = _red = _lamp = _button = _paint = null;
         }
 
         public void Destroy() => Clear();
