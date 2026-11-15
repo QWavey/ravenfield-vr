@@ -39,8 +39,9 @@ namespace RavenfieldVR.Rig
                 _lastSeat = seat;
                 _wanted = false;
                 _nextLook = Time.unscaledTime + 0.3f; // (as the inside: judged once the eyes are in the seat)
+                _lookUntil = Time.unscaledTime + 3f;
             }
-            else if (!_wanted && Time.unscaledTime >= _nextLook)
+            else if (!_wanted && Time.unscaledTime >= _nextLook && Time.unscaledTime < _lookUntil) // (as the inside: the first 3 s only)
             {
                 _nextLook = Time.unscaledTime + 0.5f;
                 _wanted = seat != null && VehicleInterior.Wanted(seat); // (the same rule as the inside: a solid hull with no viewer and no clear view out happened otherwise)
@@ -105,6 +106,7 @@ namespace RavenfieldVR.Rig
         private Seat _lastSeat;
         private float _nextLook;
         private bool _wanted;
+        private float _lookUntil;
         private Material _steel;
         private Color _tint = new Color(0.35f, 0.37f, 0.33f);
 

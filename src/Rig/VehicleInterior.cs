@@ -105,6 +105,7 @@ namespace RavenfieldVR.Rig
         private Seat _lastSeat;
         private float _nextLook;
         private bool _wanted;
+        private float _lookUntil;
 
         /// <summary>A shot of the inside's gun: a buzz in each hand on the fire button or a handwheel, harder for a big gun.</summary>
         internal static void Kick(Weapon w)
@@ -530,8 +531,11 @@ namespace RavenfieldVR.Rig
                 _lastSeat = raw;
                 _wanted = false;
                 _nextLook = Time.unscaledTime + 0.3f;
+                _lookUntil = Time.unscaledTime + 3f;
             }
-            else if (!_wanted && Time.unscaledTime >= _nextLook)
+            // (Looked at for the first 3 s in the seat: the eyes have settled by then, and an open seat walked the vehicle's parts twice a
+            // second for as long as it was sat in.)
+            else if (!_wanted && Time.unscaledTime >= _nextLook && Time.unscaledTime < _lookUntil)
             {
                 _nextLook = Time.unscaledTime + 0.5f;
                 _wanted = raw != null && Wanted(raw); // (not each frame: it walks the vehicle's parts)
