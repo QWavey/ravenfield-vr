@@ -208,16 +208,24 @@ namespace RavenfieldVR.Local
                           + (mods != null ? " " + mods : "");
             try
             {
-                var start = new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe) };
                 // (Without the mod loader's own variables: inherited, its loader in the copy took itself for already run and loaded no
-                // mod, so the copy never joined; 2026-11-14 22:20.)
-                foreach (string key in start.EnvironmentVariables.Keys.Cast<string>().ToList())
+                // mod, so the copy never joined; 2026-11-14 22:20. Taken out of this game's own environment: they matter only as it
+                // starts, and the copy is started through the shell so that it can start hidden.)
+                foreach (System.Collections.DictionaryEntry v in Environment.GetEnvironmentVariables())
                 {
-                    if (key.StartsWith("DOORSTOP", StringComparison.OrdinalIgnoreCase))
+                    string key = v.Key as string;
+                    if (key != null && key.StartsWith("DOORSTOP", StringComparison.OrdinalIgnoreCase))
                     {
-                        start.EnvironmentVariables.Remove(key);
+                        Environment.SetEnvironmentVariable(key, null);
                     }
                 }
+                // Hidden from its start (Windows' own start setting, which a game's first window takes): shown when every player is in,
+                // over its part, so the screen is one from the start (the user, 2026-11-15: "the windows are only seperated on laoding
+                // in ... they should start as one").
+                var start = new ProcessStartInfo(exe, args)
+                {
+                    UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden, WorkingDirectory = System.IO.Path.GetDirectoryName(exe),
+                };
                 c.Process = Process.Start(start);
                 Copies.Add(c);
                 Log.Info($"Splitscreen: player {i + 1}'s own copy of the game started ({args}).");
@@ -597,8 +605,13 @@ namespace RavenfieldVR.Local
             }
             // The window in its part of the screen, looked at once a second for as long as it plays (the game set its own size again
             // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
-            // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go.
+            // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go. Kept hidden: the
+            // game shows its window again as it loads.
             IntPtr own = RawInput.GameWindow();
+            if (own != IntPtr.Zero && !_goFromHost && IsWindowVisible(own))
+            {
+                ShowWindow(own, SW_HIDE);
+            }
             if (own != IntPtr.Zero && _shown != _goFromHost)
             {
                 _shown = _goFromHost;
@@ -622,13 +635,14 @@ namespace RavenfieldVR.Local
                     Window(ClientIndex, ClientCount);
                 }
             }
-            // No pointer here (the keys work the menus): the cursor hidden and kept in place over this window.
+            // No pointer here (the keys work the menus): the cursor not drawn over this window, and never held by it (held, it stayed
+            // in the middle of the screen with no game in front; the user, 2026-11-15).
             if (SplitPlayers.InMatch)
             {
                 Cursor.visible = false;
-                if (Application.isFocused && Cursor.lockState != CursorLockMode.Locked)
+                if (Cursor.lockState != CursorLockMode.None)
                 {
-                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.lockState = CursorLockMode.None;
                 }
                 // The game's loadout screen needs the pointer: closed while this player is alive (its weapons are picked in its Esc menu).
                 if (LocalPlayer.actor != null && !LocalPlayer.actor.dead && LoadoutUi.instance != null && LoadoutUi.IsOpen())
@@ -780,6 +794,9 @@ namespace RavenfieldVR.Local
 
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int command);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
 
         private static bool _owned;
 
