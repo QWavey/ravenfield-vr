@@ -68,7 +68,7 @@ namespace RavenfieldVR.UI
                 {
                     shown = shown * 31 + g.Address.GetHashCode() + g.Players * 7;
                 }
-                shown = shown * 31 + Splitscreen.Players * 3 + (int)Splitscreen.Layout;
+                shown = shown * 31 + Splitscreen.Players * 3 + (int)Splitscreen.Layout + (Splitscreen.FullGames ? 1000 : 0);
             }
             if (!Multiplayer.Active)
             {
@@ -172,6 +172,9 @@ namespace RavenfieldVR.UI
             ActionRow($"Players: {Splitscreen.Players} (you and {Splitscreen.Players - 1} more, on controllers or a second keyboard and mouse).", "More",
                       () => { Splitscreen.Players = Splitscreen.Players >= 4 ? 2 : Splitscreen.Players + 1; Rebuild(); });
             ActionRow($"Screen: {Splitscreen.LayoutName}.", "Change", () => { Splitscreen.NextLayout(); Rebuild(); });
+            ActionRow(Splitscreen.FullGames ? "Players as: whole games (each the same as you: view, display, deploy, every feature)."
+                                            : "Players as: soldiers in this game (lighter on the PC).",
+                      "Change", () => { Splitscreen.FullGames = !Splitscreen.FullGames; Rebuild(); });
             ActionRow(Splitscreen.On ? "Splitscreen is on: start a match from the game's menu." : "Turn it on, then start a match from the game's menu.",
                       Splitscreen.On ? "Turn off" : "Turn on", () => { Splitscreen.On = !Splitscreen.On; Rebuild(); });
         }

@@ -185,6 +185,13 @@ namespace RavenfieldVR.UI
                 Local.Splitscreen.NextLayout();
             }
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(Local.Splitscreen.FullGames ? "Players as: whole games (each the same as you)" : "Players as: soldiers in this game (lighter)");
+            if (GUILayout.Button("Change", GUILayout.Width(80f)))
+            {
+                Local.Splitscreen.FullGames = !Local.Splitscreen.FullGames;
+            }
+            GUILayout.EndHorizontal();
             if (GUILayout.Button(Local.Splitscreen.On ? "Turn splitscreen off" : "Turn splitscreen on (then start a match from the game's menu)"))
             {
                 Local.Splitscreen.On = !Local.Splitscreen.On;
