@@ -782,7 +782,7 @@ def main():
         elif mode == 'netcheck':
             args, timeout = base + ['-rfvr-netcheck'], a.timeout or 6
         elif mode == 'vehicleshots':
-            args, timeout = base + ['-rfvr-vehicleshots'] + (['-rfvr-vehicles=' + a.vehicles] if a.vehicles else []), a.timeout or 14
+            args, timeout = base + ['-rfvr-vehicleshots'] + (['-rfvr-vehicles=' + a.vehicles] if a.vehicles else []), a.timeout or 20  # (20: the cockpit's steps, 2026-11-15, add about 3 min over 20 closed seats)
         elif mode == 'sandboxcheck':
             args, timeout = base + ['-rfvr-sandboxcheck'] + (['-rfvr-sandboxmode'] if a.sandboxmode else []), a.timeout or 8
         elif mode == 'grabcheck':
