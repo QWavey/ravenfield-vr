@@ -113,6 +113,9 @@ namespace RavenfieldVR.Rig
 
         private static float _nextBurnPulse;
         private static TextMesh _readout;
+
+        /// <summary>For the vehicle check: the pilot's readout as shown (null: not shown).</summary>
+        internal static string ReadoutText => _readout != null && _readout.gameObject.activeSelf ? _readout.text : null;
         private static float _nextReadout;
         private static int _shownSpeed = -1, _shownHeight = -1;
 

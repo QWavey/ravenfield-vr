@@ -388,6 +388,12 @@ namespace RavenfieldVR.Core
             {
                 yield return WheelCheck(name, what, report);
             }
+            if (seat.IsDriverSeat() && (v is Helicopter || v is Airplane || v is Plane))
+            {
+                yield return new WaitForSecondsRealtime(0.3f);
+                string read = Rig.VehicleFeel.ReadoutText;
+                report($"{what}: pilot readout: {(string.IsNullOrEmpty(read) ? "NOT SHOWN" : "\"" + read + "\"")}");
+            }
             if (seat.IsDriverSeat() && rig.Cockpit != null && rig.Cockpit.ThrottleLever != null)
             {
                 yield return LeverCheck(seat, what, report);
