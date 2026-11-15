@@ -707,6 +707,9 @@ namespace RavenfieldVR.Rig
 
         /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
         /// <summary>For the vehicle check: the driver's wheel rim (world centre, turning axis, radius), false when the seat has none.</summary>
+        /// <summary>For the vehicle check: the plane's throttle or the helicopter's collective lever (null: none).</summary>
+        internal Transform ThrottleLever => _throttle;
+
         /// <summary>For the vehicle check: a hand on the wheel, and the steering it makes.</summary>
         internal bool OnWheel => _onWheel[0] || _onWheel[1];
 

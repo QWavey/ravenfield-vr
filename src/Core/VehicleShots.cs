@@ -366,6 +366,10 @@ namespace RavenfieldVR.Core
             {
                 yield return WheelCheck(name, what, report);
             }
+            if (seat.IsDriverSeat() && rig.Cockpit != null && rig.Cockpit.ThrottleLever != null)
+            {
+                yield return LeverCheck(seat, what, report);
+            }
             if (Rig.VehicleInterior.Instance != null && Rig.VehicleInterior.Instance.Shown)
             {
                 yield return InteriorCheck(v, seat, name, what, report);
@@ -380,6 +384,35 @@ namespace RavenfieldVR.Core
                 float reach = pv != null && rig.Head != null ? Vector3.Distance(pv.position, rig.Head.position) : -1f;
                 report($"{what}: its gun ({seat.activeWeapon.GetType().Name}) is not taken by hand ({(pv == null ? "no turning parts" : seat.activeWeapon.overrideCamera != null ? "aimed through its own sight" : $"its pivot {reach:0.0} m from the eyes")})");
             }
+        }
+
+        /// <summary>The plane's throttle or helicopter's collective: the off hand takes it, pushes 6 cm forward, lets go: the setting stays.</summary>
+        private static IEnumerator LeverCheck(Seat seat, string what, Action<string> report)
+        {
+            Rig.VRRig rig = Rig.VRRig.Instance;
+            Transform lever = rig.Cockpit.ThrottleLever;
+            Rig.VRHand hand = rig.Hands[1 - (int)rig.Dominant.Side];
+            int side = (int)hand.Side;
+            Vector3 toRaw = hand.Raw.position - hand.Palm.position;
+            Quaternion rot = hand.Raw.rotation;
+            Vector3 start = lever.position, fwd = seat.transform.forward;
+            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start + toRaw, rot);
+            yield return null;
+            yield return null;
+            Input.VRInput.SimulateGrabPress(hand.Side);
+            yield return new WaitForSecondsRealtime(0.3f);
+            for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime)
+            {
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start + fwd * (0.06f * Mathf.Clamp01(t / 0.5f)) + toRaw, rot);
+                yield return null;
+            }
+            float held = Input.VehicleInput.Throttle ?? float.NaN;
+            Input.VRInput.SimulatedGrab[side] = false;
+            Rig.VRHand.Scripted[side] = null;
+            yield return new WaitForSecondsRealtime(0.4f);
+            float kept = Input.VehicleInput.Throttle ?? float.NaN;
+            string kind = seat.vehicle is Helicopter ? "collective" : "throttle";
+            report($"{what}: {kind} lever: pushed 6 cm, {(float.IsNaN(held) ? "NOT TAKEN" : $"set {held:+0.00;-0.00}")}; let go: {(float.IsNaN(kept) ? "DROPPED" : $"kept {kept:+0.00;-0.00}")}");
         }
 
         /// <summary>The driver's wheel: the hand on its rim (at the top), turned 60 degrees round it: the steering and the drawn wheel follow.</summary>
