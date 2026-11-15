@@ -220,10 +220,9 @@ namespace RavenfieldVR.Rig
                 }
                 return;
             }
-            if (_scope != null)
+            if (_scope != null && !_scope.enabled)
             {
-                // (Every other frame: a whole second scene each frame cost as much as the headset's own view of a small screen.)
-                _scope.enabled = (Time.frameCount & 1) == 0;
+                _scope.enabled = true; // (every frame: at every other one its picture stepped at half the headset's rate; scout)
             }
             if (_root != null)
             {
@@ -369,7 +368,8 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void Periscope(Vector3 at, Vector2 size)
         {
-            _scopeTexture = new RenderTexture(512, Mathf.RoundToInt(512 * size.y / size.x), 16) { name = "RavenfieldVR periscope" };
+            // (384 wide: a small screen, and its camera draws every frame.)
+            _scopeTexture = new RenderTexture(384, Mathf.RoundToInt(384 * size.y / size.x), 16) { name = "RavenfieldVR periscope" };
             var go = new GameObject("periscope camera");
             go.transform.SetParent(_root.transform, false);
             _scope = go.AddComponent<Camera>();

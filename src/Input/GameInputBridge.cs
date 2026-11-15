@@ -823,7 +823,7 @@ namespace RavenfieldVR.Input
                 // (The left stick's click still moves seats: it did nothing with a gun drawn, the seat change below never reached; scout.)
                 Rig.VRRig armedRig = Rig.VRRig.Instance;
                 bool armedSteering = armedRig != null && armedRig.Hands != null && (armedRig.Hands[0]?.Role == Rig.HandRole.Cockpit || armedRig.Hands[1]?.Role == Rig.HandRole.Cockpit);
-                if (VRInput.GetPressed(DigitalAction.Sprint) && !armedSteering)
+                if (VRInput.GetPressed(DigitalAction.Sprint) && !armedSteering && !GunInputBlocked)
                 {
                     int nextSeat = NextSeatIndex(actor.seat);
                     if (nextSeat >= 0)

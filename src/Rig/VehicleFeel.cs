@@ -113,6 +113,7 @@ namespace RavenfieldVR.Rig
 
         private static float _nextBurnPulse;
         private static TextMesh _readout;
+        private static readonly RaycastHit[] Hits = new RaycastHit[16];
 
         /// <summary>For the vehicle check: the pilot's readout as shown (null: not shown).</summary>
         internal static string ReadoutText => _readout != null && _readout.gameObject.activeSelf ? _readout.text : null;
@@ -166,9 +167,19 @@ namespace RavenfieldVR.Rig
             _nextReadout = Time.unscaledTime + 0.2f;
             int speed = Mathf.RoundToInt(v.Velocity().magnitude * 3.6f);
             int height = -1;
-            if (Physics.Raycast(v.transform.position, Vector3.down, out RaycastHit ground, 2000f, ~(1 << 12), QueryTriggerInteraction.Ignore))
+            // (The nearest hit that is not the aircraft itself: its gear or rotor read "0 m"; scout.)
+            float nearest = float.MaxValue;
+            int hits = Physics.RaycastNonAlloc(v.transform.position, Vector3.down, Hits, 2000f, ~(1 << 12), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hits; i++)
             {
-                height = Mathf.RoundToInt(ground.distance);
+                if (Hits[i].collider != null && Hits[i].collider.GetComponentInParent<Vehicle>() != v && Hits[i].distance < nearest)
+                {
+                    nearest = Hits[i].distance;
+                }
+            }
+            if (nearest < float.MaxValue)
+            {
+                height = Mathf.RoundToInt(nearest);
             }
             if (speed != _shownSpeed || height != _shownHeight)
             {

@@ -86,6 +86,14 @@ namespace RavenfieldVR.Rig
         private RigidPose _lastSeatAnchor = RigidPose.Identity;
         private bool _hasSeatAnchor => _lastSeatAnchor.position != Vector3.zero;
         private static readonly object DeathHold = new object();
+        /// <summary>The seat's last view in the seat's own frame (the hold follows a vehicle still moving).</summary>
+        private RigidPose _seatAnchorLocal = RigidPose.Identity;
+
+        private void KeepSeatAnchor(Seat seat)
+        {
+            Transform st = seat.transform;
+            _seatAnchorLocal = new RigidPose(st.InverseTransformPoint(_lastSeatAnchor.position), Quaternion.Inverse(st.rotation) * _lastSeatAnchor.rotation);
+        }
         private float _diedInSeatAt = -1f;
         /// <summary>The head's neutral pose in the rig's root (where the anchor puts the eyes; its forward is the seat's or the sight's).</summary>
         internal RigidPose NeutralHead => _neutralHead;
@@ -1421,6 +1429,7 @@ namespace RavenfieldVR.Rig
                 if (seatOfCam != null)
                 {
                     _lastSeatAnchor = atCam; // (a sight seat's view too, for the hold when killed in it)
+                    KeepSeatAnchor(seatOfCam);
                 }
                 return atCam;
             }
@@ -1451,11 +1460,19 @@ namespace RavenfieldVR.Rig
             Transform root = player.fpCameraRoot;
             if (ReferenceEquals(_anchorKey, DeathHold))
             {
-                return _lastSeatAnchor; // (killed in a seat, gone or not: where the view last was in it)
+                // Killed in a seat: with the seat while it stands (a car or an aircraft moves on: held in the world, the cabin slid out
+                // of the view; scout), where it last was once it is gone with its vehicle.
+                if (_aliveSeat != null)
+                {
+                    Transform st = _aliveSeat.transform;
+                    _lastSeatAnchor = new RigidPose(st.TransformPoint(_seatAnchorLocal.position), st.rotation * _seatAnchorLocal.rotation);
+                }
+                return _lastSeatAnchor;
             }
             if (_anchorKey is Seat seat && seat != null)
             {
                 _lastSeatAnchor = Level(new RigidPose(root.position, seat.transform.rotation));
+                KeepSeatAnchor(seat);
                 return _lastSeatAnchor;
             }
             // Ladder: camera root hangs off the actor; keep the actor's facing.
