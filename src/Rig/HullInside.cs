@@ -34,9 +34,14 @@ namespace RavenfieldVR.Rig
             Actor actor = GameContext.PlayerActor;
             Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
             // (Looked at on a seat change and twice a second after: the eyes settle into the seat a moment after it is taken.)
-            if (seat != _lastSeat || !_wanted && Time.unscaledTime >= _nextLook)
+            if (!ReferenceEquals(seat, _lastSeat))
             {
                 _lastSeat = seat;
+                _wanted = false;
+                _nextLook = Time.unscaledTime + 0.3f; // (as the inside: judged once the eyes are in the seat)
+            }
+            else if (!_wanted && Time.unscaledTime >= _nextLook)
+            {
                 _nextLook = Time.unscaledTime + 0.5f;
                 _wanted = seat != null && VehicleInterior.Wanted(seat); // (the same rule as the inside: a solid hull with no viewer and no clear view out happened otherwise)
             }
@@ -58,10 +63,15 @@ namespace RavenfieldVR.Rig
         /// The eyes are inside the vehicle's body (its biggest part's box): an enclosed seat whose view the game puts on top of the vehicle
         /// (the APC's driver, 2 m over his seat) looks from outside, and an inside drawn there showed the hull from above in a black void.
         /// </summary>
-        internal static bool EyesInside(Vehicle v)
+        internal static bool EyesInside(Vehicle v, Seat seat = null)
         {
             VRRig rig = VRRig.Instance;
             if (v == null || rig == null || rig.Head == null)
+            {
+                return false;
+            }
+            // Eyes well over the seat (a seated soldier's are 0.85 m up): the game's view from on top of the vehicle (the APC's driver, 2 m).
+            if (seat != null && seat.transform.InverseTransformPoint(rig.Head.position).y > 1.4f)
             {
                 return false;
             }
@@ -70,7 +80,7 @@ namespace RavenfieldVR.Rig
             var parts = new List<Renderer>();
             foreach (Renderer r in v.GetComponentsInChildren<Renderer>())
             {
-                if (r != null && r.enabled && r.gameObject.activeInHierarchy && !(r is ParticleSystemRenderer) && r.GetComponentInParent<Actor>() == null)
+                if (r != null && Hull(r))
                 {
                     parts.Add(r);
                 }

@@ -115,7 +115,7 @@ namespace RavenfieldVR.Rig
             }
             Vehicle v = seat.vehicle;
             // (Not a seat whose gun is taken by hand: that gunner stands out of a hatch, a tank's roof MG.)
-            return !(v is Helicopter || v is Airplane || v is Plane) && !TurretGrip.Grabbable(seat, out _) && HullInside.EyesInside(v);
+            return !(v is Helicopter || v is Airplane || v is Plane) && !TurretGrip.Grabbable(seat, out _) && HullInside.EyesInside(v, seat);
         }
 
         private static Weapon Gun(Seat seat)
@@ -130,9 +130,16 @@ namespace RavenfieldVR.Rig
             Seat raw = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
             // (Once a seat has its inside it keeps it until the seat changes: looked at again, the eyes crossing a part's box edge as the
             // turret turned tore it down and built it again, twice a second.)
-            if (raw != _lastSeat || !_wanted && Time.unscaledTime >= _nextLook)
+            if (!ReferenceEquals(raw, _lastSeat))
             {
+                // (Judged 0.3 s after the seat is taken: in its first frame the eyes are still where they were, and the APC driver's view,
+                // 2 m over his seat, was judged from inside the hull and kept so.)
                 _lastSeat = raw;
+                _wanted = false;
+                _nextLook = Time.unscaledTime + 0.3f;
+            }
+            else if (!_wanted && Time.unscaledTime >= _nextLook)
+            {
                 _nextLook = Time.unscaledTime + 0.5f;
                 _wanted = raw != null && Wanted(raw); // (not each frame: it walks the vehicle's parts)
             }
