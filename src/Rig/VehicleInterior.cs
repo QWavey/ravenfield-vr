@@ -1626,8 +1626,10 @@ namespace RavenfieldVR.Rig
             _wall.SetFloat("_Glossiness", 0.15f);
             _wallEmit = tint * 0.12f;
             Emit(_wall, _wallEmit);
-            _metal = new Material(standard) { color = tint * 0.45f };
-            _paint = new Material(standard) { color = Color.Lerp(tint, new Color(0.55f, 0.56f, 0.5f), 0.6f) };
+            // (Worn: the interior's grime over the metal and the paint, not flat plastic colours.)
+            _metal = new Material(standard) { color = tint * 0.45f, mainTexture = InteriorLook.Grime() };
+            _paint = new Material(standard) { color = Color.Lerp(tint, new Color(0.55f, 0.56f, 0.5f), 0.6f), mainTexture = InteriorLook.Grime() };
+            _metal.mainTextureScale = _paint.mainTextureScale = new Vector2(0.6f, 0.6f);
             _paint.SetFloat("_Metallic", 0.4f);
             _paint.SetFloat("_Glossiness", 0.45f);
             Emit(_paint, new Color(0.07f, 0.07f, 0.06f));
@@ -1762,7 +1764,7 @@ namespace RavenfieldVR.Rig
                 _brass = new Material(standard) { color = new Color(0.78f, 0.6f, 0.28f) };
                 _brass.SetFloat("_Metallic", 0.8f);
                 _brass.SetFloat("_Glossiness", 0.55f);
-                _olive = new Material(standard) { color = new Color(0.27f, 0.3f, 0.18f) };
+                _olive = new Material(standard) { color = new Color(0.27f, 0.3f, 0.18f), mainTexture = InteriorLook.Grime() };
                 _olive.SetFloat("_Glossiness", 0.2f);
             }
             // (With the fire control outside the elevation wheel, a steering wheel between the handwheels, the rack stands further out.)

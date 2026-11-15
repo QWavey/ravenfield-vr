@@ -107,7 +107,7 @@ namespace RavenfieldVR.Rig
         private float _nextLook;
         private bool _wanted;
         private float _lookUntil;
-        private Material _steel;
+        private Material _steel, _paint;
         private Color _tint = new Color(0.35f, 0.37f, 0.33f);
 
         private void Build(Vehicle v)
@@ -189,7 +189,18 @@ namespace RavenfieldVR.Rig
                 twin.transform.SetParent(r.transform, false);
                 twin.AddComponent<MeshFilter>().sharedMesh = inward;
                 MeshRenderer tr = twin.AddComponent<MeshRenderer>();
-                tr.sharedMaterials = r.sharedMaterials;
+                // (Painted as an inside is, not the hull's outside camouflage turned round: the user, 2026-11-15, "the interiors are
+                // still bad". InteriorLook.Paint, one material for every submesh.)
+                if (_paint == null)
+                {
+                    _paint = InteriorLook.Paint(_tint);
+                }
+                var paints = new Material[r.sharedMaterials.Length];
+                for (int k = 0; k < paints.Length; k++)
+                {
+                    paints[k] = _paint;
+                }
+                tr.sharedMaterials = paints;
                 tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 tr.receiveShadows = false; // (the hull's own shadow lay on every inner face: black)
                 tr.enabled = true; // (also for a part the game hid for this seat: that hiding is what made the walls windows)
@@ -227,10 +238,9 @@ namespace RavenfieldVR.Rig
             // (Drawn here the game's own pass got no light and came out black: one steel material of the vehicle's tint, glowing a little.)
             if (_steel == null)
             {
-                _steel = new Material(Shader.Find("Standard")) { color = _tint * 0.8f };
-                _steel.EnableKeyword("_EMISSION");
-                _steel.SetColor("_EmissionColor", _tint * 0.55f);
-                _steel.SetFloat("_Glossiness", 0.1f);
+                // (The same paint as the twins; lit mostly from within, the command buffer's pass gets little light.)
+                _steel = InteriorLook.Paint(_tint);
+                _steel.SetColor("_EmissionColor", _steel.color * 0.55f);
             }
             int subs = r.sharedMaterials.Length;
             for (int i = 0; i < subs; i++)
@@ -567,6 +577,11 @@ namespace RavenfieldVR.Rig
             {
                 Object.Destroy(_steel);
                 _steel = null;
+            }
+            if (_paint != null)
+            {
+                Object.Destroy(_paint);
+                _paint = null;
             }
         }
 
