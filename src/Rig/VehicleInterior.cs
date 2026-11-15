@@ -220,9 +220,10 @@ namespace RavenfieldVR.Rig
                 }
                 return;
             }
-            if (_scope != null && !_scope.enabled)
+            if (_scope != null)
             {
-                _scope.enabled = true;
+                // (Every other frame: a whole second scene each frame cost as much as the headset's own view of a small screen.)
+                _scope.enabled = (Time.frameCount & 1) == 0;
             }
             if (_root != null)
             {
