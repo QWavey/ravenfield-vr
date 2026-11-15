@@ -90,7 +90,16 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The seat's gun is aimed from the inside (stick and handwheels), not by the head; snap turning is off there.</summary>
-        internal static bool AimsGun => Instance != null && Instance._root != null && Instance._seat != null && Gun(Instance._seat) != null;
+        internal static bool AimsGun => Instance != null && Instance._aimSeat != null;
+
+        /// <summary>
+        /// The seat whose gun is aimed by stick and handwheels: any enclosed seat with a turret not taken by hand, its cabin drawn or not.
+        /// Head aim there chased itself: the view sits on the turret's own camera, turning the turret turned the head's direction, and the
+        /// gun spun round (378 degrees in half a second in the vehicle check; the user's "spins 360 degrees").
+        /// </summary>
+        private Seat _aimSeat;
+
+        private static bool AimSeat(Seat seat) => seat != null && seat.enclosed && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _);
 
         private Light _alarm;
         private Color _wallEmit, _lampColor;
@@ -122,6 +131,16 @@ namespace RavenfieldVR.Rig
                 _nextLook = Time.unscaledTime + 0.5f;
                 _wanted = raw != null && Wanted(raw); // (not each frame: it walks the vehicle's parts)
             }
+            Seat aim = raw != null && AimSeat(raw) ? raw : null;
+            if (aim != _aimSeat)
+            {
+                _aimSeat = aim;
+                _aimSet = aim != null;
+                if (aim != null)
+                {
+                    _aimLocal = aim.vehicle.transform.InverseTransformDirection(TurretGrip.AimReference(Gun(aim)).forward);
+                }
+            }
             Seat seat = _wanted ? raw : null;
             if (seat != _seat)
             {
@@ -132,16 +151,16 @@ namespace RavenfieldVR.Rig
                     Build();
                 }
             }
-            if (_root == null)
-            {
-                return;
-            }
             if (GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 ReleaseHands();
                 return;
             }
-            Hands();
+            if (_root != null)
+            {
+                Hands();
+            }
+            Aim();
         }
 
         // ---- building ------------------------------------------------------------------------------------------------------
@@ -519,6 +538,13 @@ namespace RavenfieldVR.Rig
             }
             Fire = fire;
             VehicleInput.DriveButtons = Vector2.ClampMagnitude(drive, 1f);
+            Alarm();
+        }
+
+        /// <summary>The aim seat's gun: the right stick turns the wanted aim (the wheels too, in Hands), kept near the gun.</summary>
+        private void Aim()
+        {
+            Weapon gun = _aimSeat != null ? Gun(_aimSeat) : null;
             if (gun != null && _aimSet)
             {
                 // The right thumbstick (the gun hand's) turns it too: 70 degrees a second sideways, 35 up and down at full push.
@@ -531,18 +557,17 @@ namespace RavenfieldVR.Rig
                 }
                 // Never far ahead of the gun: at a stop of its turn (or held by the game), the wanted aim waits there (no wind-up
                 // to turn back through).
-                Vector3 actual = _seat.vehicle.transform.InverseTransformDirection(TurretGrip.AimReference(gun).forward);
+                Vector3 actual = _aimSeat.vehicle.transform.InverseTransformDirection(TurretGrip.AimReference(gun).forward);
                 if (Vector3.Angle(actual, _aimLocal) > 20f)
                 {
                     _aimLocal = Vector3.RotateTowards(actual, _aimLocal, 20f * Mathf.Deg2Rad, 0f);
                 }
-                WheelAim = _seat.vehicle.transform.TransformDirection(_aimLocal);
+                WheelAim = _aimSeat.vehicle.transform.TransformDirection(_aimLocal);
             }
             else
             {
                 WheelAim = null;
             }
-            Alarm();
         }
 
         /// <summary>Burning or wrecked: a red light flashing twice a second, the lamp and the walls red with it (no sound).</summary>
@@ -657,9 +682,7 @@ namespace RavenfieldVR.Rig
             ReleaseWheel(0);
             ReleaseWheel(1);
             Fire = false;
-            WheelAim = null;
-            _aimSet = false;
-            VehicleInput.DriveButtons = Vector2.zero;
+            VehicleInput.DriveButtons = Vector2.zero; // (the wanted aim stays: a pause or a rebuilt cabin left the gun with none)
         }
 
         private void Clear()
