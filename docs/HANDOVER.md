@@ -2,6 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-15 night (1.19.2 installed; tank cockpit run to 50%, Tasks 402; NOT RUN IN THE GAME, the user playing with a friend)
+
+- The cockpit, for every tank (`Rig/VehicleInterior.cs`): fire button by the hands on a fire box (guard, FIRE, ready lamp), readout (rounds | spare, LOAD SHELL, km/h for a driver), turret and elevation dials, a cannon's breech with recoil and hand-loading from the rack (Manual reload), tank drivers' two steering levers, sight reticle and x3 zoom knob, LIGHT toggle (red combat light), hit flicker, stowage; everything fitted to the hull's measured room. Offline 527 pass.
+- First thing when the user allows game runs: `python tools/vrshots.py --vehicleshots` (now also zoom, hand-load, lever, light switch, fit), look at the `-inside*` and `-periscope-zoom` pictures, then 1.19.3 (raise the version, `build.ps1 -Package`, install, Defender). The friend needs the same version.
+- To watch in the check: the rack's room rule on the vanilla Tank (the shells are its hand-load), the floor height for the levers, whether the reticle's centre sits on the gun's line at range.
+
 ## State 2026-11-15 evening (**1.19.2 INSTALLED** on this PC, Defender clean; Tasks 400-401; vehicles run to 85% going on)
 
 - Vehicles: open mounted guns taken by their handles (`Rig/TurretGrip.cs`, reload by the cocking handle); closed vehicles solid from inside (`Rig/HullInside.cs`) with an inside (`Rig/VehicleInterior.cs`: periscope viewer, handwheels, fire button, drive buttons, radio, gauges, alarm), every enclosed gunner seat aimed by the right stick and the wheels (head aim there spun the turret). Check: `vrshots --vehicleshots [--vehicles a,b]` spawns every vehicle and turret (39 here with the mods).
