@@ -135,7 +135,86 @@ namespace RavenfieldVR.Local
         private static int _ready;
 
         /// <summary>The players in the match so far (player 1 counted), and all of them.</summary>
-        internal static string Loading => _hosting && !_go ? $"Loading players ...   {_ready + 1} of {Splitscreen.Players} in" : null;
+        internal static string Loading => _hosting && !_go ? $"Loading players ...   {_ready + 1} of {Splitscreen.Players} in"
+            : StartsSplit && !_hosting && !_everHosted ? "Loading ..." : null;
+
+        /// <summary>This game starts straight into a splitscreen match (try mode): its loading screen from its first frame, full screen.</summary>
+        internal static readonly bool StartsSplit = Args.Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
+
+        private static bool _everHosted, _earlyDone;
+
+        /// <summary>Called as the mod starts: a game that starts straight into splitscreen goes full screen and shows "Loading" at once.</summary>
+        internal static void Early()
+        {
+            if (_earlyDone || !StartsSplit)
+            {
+                return;
+            }
+            _earlyDone = true;
+            Screen.SetResolution(GetSystemMetrics(0), GetSystemMetrics(1), FullScreenMode.FullScreenWindow);
+            if (_hostDrawer == null)
+            {
+                _hostDrawer = new GameObject("RavenfieldVR Split Host");
+                UnityEngine.Object.DontDestroyOnLoad(_hostDrawer);
+                _hostDrawer.AddComponent<SplitCopyHost>();
+            }
+        }
+
+        /// <summary>
+        /// While the players load, every copy's window hidden by this game, each frame: a game shows its window itself as it starts, about
+        /// 10 s before its mod is up to hide it (the copies showed one by one over "Loading players"; 2026-11-15).
+        /// </summary>
+        private static void HideCopies()
+        {
+            if (Copies.Count == 0)
+            {
+                return;
+            }
+            var pids = new HashSet<uint>();
+            foreach (Copy c in Copies)
+            {
+                try
+                {
+                    if (c.Process != null && !c.Process.HasExited)
+                    {
+                        pids.Add((uint)c.Process.Id);
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            bool stole = false;
+            IntPtr front = GetForegroundWindow();
+            EnumWindows((h, _) =>
+            {
+                GetWindowThreadProcessId(h, out uint pid);
+                if (pids.Contains(pid) && IsWindowVisible(h))
+                {
+                    stole |= h == front;
+                    ShowWindow(h, SW_HIDE);
+                }
+                return true;
+            }, IntPtr.Zero);
+            // A copy's window took the focus as it showed: back to this one ("the loading screen gets unfocused when the other copies
+            // launch", the user 2026-11-15).
+            if (stole)
+            {
+                IntPtr mine = RawInput.GameWindow();
+                if (mine != IntPtr.Zero)
+                {
+                    SetForegroundWindow(mine);
+                }
+            }
+        }
+
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
 
         /// <summary>Once a frame on the host: the copies' own logs say when each is in the match.</summary>
         private static void CheckReady()
@@ -178,11 +257,8 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
-            Copy last = Copies.LastOrDefault();
-            if (last != null && !System.IO.File.Exists(CopyLog(last.Index)) && Time.unscaledTime < _nextStart + 25f)
-            {
-                return;
-            }
+            // (5 s apart: the mod loader's files are taken in a game's first seconds only; waiting for each copy's mod to be up made
+            // four players slow to start.)
             int i = Pending[0];
             Pending.RemoveAt(0);
             int n = Splitscreen.Players;
@@ -234,7 +310,7 @@ namespace RavenfieldVR.Local
             {
                 Log.Warn($"Splitscreen: player {i + 1}'s copy of the game could not start: {e.Message}");
             }
-            _nextStart = Time.unscaledTime + 3f;
+            _nextStart = Time.unscaledTime + 5f;
         }
         private static bool _hosting, _weHosted, _f12Was, _hostRanInBackground;
         /// <summary>Try mode: the player the one keyboard and mouse play now (0: player 1; F12 the next).</summary>
@@ -275,6 +351,10 @@ namespace RavenfieldVR.Local
             }
             StartNextCopy();
             CheckReady();
+            if (!_go)
+            {
+                HideCopies();
+            }
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
             if (_embed)
             {
@@ -324,6 +404,7 @@ namespace RavenfieldVR.Local
             // loader's files taken ("sharing violation") and stayed in the menu with no mod (2026-11-15).
             Pending.Clear();
             _go = false;
+            _everHosted = true;
             _ready = 0;
             _startedAt = Time.unscaledTime;
             for (int i = 1; i < n; i++)
@@ -568,6 +649,12 @@ namespace RavenfieldVR.Local
             {
                 _clientSetUp = true;
                 Application.runInBackground = true;
+                // Light on the PC: four whole games share it, and a copy's view is a part of the screen (the user: "the copys are also
+                // very slow").
+                QualitySettings.SetQualityLevel(0, true);
+                QualitySettings.shadows = ShadowQuality.Disable;
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = 60;
                 _clientSocket = Quiet(new UdpClient(new IPEndPoint(IPAddress.Loopback, HostInputPort + ClientIndex)));
                 _hostInput = new IPEndPoint(IPAddress.Loopback, HostInputPort);
                 RawInput.Start();

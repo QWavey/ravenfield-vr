@@ -64,6 +64,7 @@ namespace RavenfieldVR.Core
             VRManager manager = host.AddComponent<VRManager>();
             manager.RequestVR = wantVR;
             manager.StartProblem = startProblem;
+            Local.SplitGames.Early(); // (a game started straight into splitscreen: full screen, "Loading" from now)
             host.AddComponent<UI.FlatMultiplayerWindow>(); // (F8 without a headset: Tasks 383.8)
             WorkshopFetch.InstallIfAsked(host);
             AutoTest.Install();
