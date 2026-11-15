@@ -727,7 +727,7 @@ def main():
         elif mode == 'netcheck':
             args, timeout = base + ['-rfvr-netcheck'], a.timeout or 6
         elif mode == 'vehicleshots':
-            args, timeout = base + ['-rfvr-vehicleshots'], a.timeout or 5
+            args, timeout = base + ['-rfvr-vehicleshots'], a.timeout or 14
         elif mode == 'sandboxcheck':
             args, timeout = base + ['-rfvr-sandboxcheck'] + (['-rfvr-sandboxmode'] if a.sandboxmode else []), a.timeout or 8
         elif mode == 'grabcheck':

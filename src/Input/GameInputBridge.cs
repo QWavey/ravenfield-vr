@@ -203,7 +203,9 @@ namespace RavenfieldVR.Input
             {
                 _useHeldThroughSwap = false;
             }
-            Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) && !_fireHeldThroughSwap || SupportFire) && !SuppressFire
+            // (A mounted gun held by its handles fires from the trigger of either hand on them: held by the other hand alone it did not.)
+            bool gripFire = Rig.TurretGrip.HoldsWith(off) && (VRInput.GetHeld(DigitalAction.Fire, off) || VRInput.GetHeld(DigitalAction.Use, off));
+            Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) && !_fireHeldThroughSwap || SupportFire || gripFire) && !SuppressFire
                                && !((menu || PanelOpen) && PointerOverUI) && !GameManager.IsPaused());
             // Slow motion in a menu and while dead too, as the flat game's key works there: set after the returns below, it could
             // not be switched in the loadout menu or after dying (user, 2026-10-19 night, task 313). (A toggle in the game: one

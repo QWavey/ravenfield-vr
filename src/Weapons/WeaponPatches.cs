@@ -296,6 +296,11 @@ namespace RavenfieldVR.Weapons
                 _turned.rotation = _turnedBack;
                 _turned = null;
             }
+            // A mounted gun held by its handles kicks in the hands that hold it, each shot (it was felt nowhere).
+            if (__result && Rig.TurretGrip.Governs(__instance))
+            {
+                Rig.TurretGrip.Kick();
+            }
             // Not a grenade let go or a melee swing (both run Shoot too): they got a gunshot's kick, view jolt and buzz.
             if (__result && !(__instance is ThrowableWeapon) && !(__instance is MeleeWeapon) && WeaponHooks.PlayerWeaponInVR(__instance))
             {

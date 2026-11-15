@@ -49,6 +49,7 @@ namespace RavenfieldVR.Rig
         private readonly UnderwaterVeil _underwater;
         private readonly LensEffects _lens;
         private readonly CockpitControls _cockpit;
+        private readonly TurretGrip _turretGrip;
         private readonly VehicleTouchEnter _touchEnter;
 
         /// <summary>The steering wheel and flight stick the hands grab in a seat.</summary>
@@ -140,6 +141,7 @@ namespace RavenfieldVR.Rig
                     Log.Exception("Explosion dirt could not be set up; playing without it", e);
                 }
                 _cockpit = new CockpitControls(this);
+                _turretGrip = new TurretGrip(this);
                 _touchEnter = new VehicleTouchEnter(this);
             }
             catch
@@ -365,6 +367,7 @@ namespace RavenfieldVR.Rig
 
             HandleTurning(player);
             _cockpit.Update();
+            _turretGrip?.Update(); // (an open mounted gun by its handles)
             VehicleFeel.Update(this);
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
             if (Mode == RigMode.OnFoot && player != null && player.actor != null && player.actor.IsSeated())
@@ -1117,6 +1120,7 @@ namespace RavenfieldVR.Rig
                 h.UpdatePose(Root);
             }
             _cockpit.BeforeRender();
+            _turretGrip?.BeforeRender();
 
             UpdateHudPose(Mathf.Min(Time.unscaledDeltaTime, 0.1f));
             if (player != null && (Mode == RigMode.OnFoot || Mode == RigMode.Anchored) && player.fpCamera != null)

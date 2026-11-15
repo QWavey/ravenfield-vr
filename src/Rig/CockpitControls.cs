@@ -181,12 +181,21 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
+            float nearest = 1.5f;
             foreach (SteeringWheel w in _seat.vehicle.GetComponentsInChildren<SteeringWheel>())
             {
                 if (w.driverSeat == _seat)
                 {
                     _wheel = w;
                     break;
+                }
+                // A wheel linked to no seat (a mod's vehicle often leaves it so): the driver's if it is in front of him, within 1.5 m.
+                // Every steering wheel turnable (the user, 2026-11-15).
+                float d = Vector3.Distance(w.transform.position, _seat.transform.position);
+                if (w.driverSeat == null && d < nearest)
+                {
+                    nearest = d;
+                    _wheel = w;
                 }
             }
             _rimLocal = Vector3.zero;

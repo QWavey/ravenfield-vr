@@ -89,6 +89,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<string> HandModelPosition;
         public static ConfigEntry<string> LaserRotationOffset;
         public static ConfigEntry<TurretAimMode> TurretAim;
+        public static ConfigEntry<bool> GrabMountedGuns;
 
         // Weapons
         public static ConfigEntry<ReloadMode> Reload;
@@ -289,6 +290,8 @@ namespace RavenfieldVR.Core
                 "Euler degrees for the menu laser when the controller has no tip pose.");
             TurretAim = cfg.Bind("Controls", "TurretAim", TurretAimMode.Head,
                 "Mounted guns and vehicle turrets follow your head or your weapon hand's pointing direction.");
+            GrabMountedGuns = cfg.Bind("Controls", "GrabMountedGuns", true,
+                "Open mounted guns (gun nests, a jeep's MG): take their handles with your grip and swing them; let go and they stay where they are. Off: they follow TurretAim.");
 
             Reload = cfg.Bind("Weapons", "ReloadMode", ReloadMode.Manual,
                 "Manual: eject, grab and insert magazines and rack slides yourself. Assisted: the magazine release button plays the game's normal reload.");

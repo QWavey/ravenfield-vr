@@ -38,7 +38,21 @@ namespace RavenfieldVR.Input
             {
                 return true;
             }
-            Vector3? dir = Direction();
+            Vector3? dir;
+            if (Rig.TurretGrip.Governs(turret))
+            {
+                // An open mounted gun goes by its handles: held, where they swing it; let go, it stays (no head aim; the user, 2026-11-15).
+                dir = Rig.TurretGrip.Direction(turret);
+                if (dir == null)
+                {
+                    result = Vector2.zero;
+                    return false;
+                }
+            }
+            else
+            {
+                dir = Direction();
+            }
             if (dir == null)
             {
                 return true;
