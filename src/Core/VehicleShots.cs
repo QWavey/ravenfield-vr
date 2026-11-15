@@ -138,6 +138,8 @@ namespace RavenfieldVR.Core
             List<(GameObject prefab, string from)> prefabs = AllPrefabs();
             report($"vehicles: {prefabs.Count} vehicle and turret kinds ({prefabs.Count(p => p.from == "game")} the game's, {prefabs.Count(p => p.from == "game turret")} turrets, {prefabs.Count(p => p.from == "mod")} from mods)");
             Vector3 fwd = Vector3.ProjectOnPlane(rig0.Head.forward, Vector3.up).normalized;
+            _watching = true;
+            VRManager.Instance.StartCoroutine(SpinWatch());
             Vector3 place = player.Position() + fwd * 14f;
             int n = 0;
             foreach ((GameObject prefab, string from) in prefabs)
@@ -163,6 +165,26 @@ namespace RavenfieldVR.Core
                 {
                     GameObject made = UnityEngine.Object.Instantiate(prefab, at, Quaternion.LookRotation(fwd, Vector3.up));
                     v = made.GetComponent<Vehicle>();
+                    // Clear of the player by its own size (a bomber made 14 m ahead stood on him: the user saw the view spin and a vehicle
+                    // in him, 2026-11-15): its nearest side 5 m ahead.
+                    Bounds b = new Bounds(made.transform.position, Vector3.zero);
+                    foreach (Renderer r in made.GetComponentsInChildren<Renderer>())
+                    {
+                        b.Encapsulate(r.bounds);
+                    }
+                    float size = Mathf.Max(b.extents.x, b.extents.z);
+                    Vector3 to = player.Position() + fwd * (5f + size);
+                    if (Physics.Raycast(to + Vector3.up * 50f, Vector3.down, out RaycastHit g2, 120f, ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 12), QueryTriggerInteraction.Ignore))
+                    {
+                        to = g2.point + Vector3.up * (made.transform.position.y - b.min.y + 0.3f);
+                    }
+                    made.transform.position = to;
+                    Rigidbody body = made.GetComponent<Rigidbody>();
+                    if (body != null)
+                    {
+                        body.position = to;
+                        body.velocity = Vector3.zero;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -175,7 +197,7 @@ namespace RavenfieldVR.Core
                     report($"vehicle {n} {prefab.name} ({from}): no seats");
                     if (v != null)
                     {
-                        UnityEngine.Object.Destroy(v.gameObject);
+                        Remove(v);
                     }
                     continue;
                 }
@@ -203,10 +225,65 @@ namespace RavenfieldVR.Core
                     player.LeaveSeat(false);
                     yield return new WaitForSecondsRealtime(0.3f);
                 }
-                UnityEngine.Object.Destroy(v.gameObject);
+                Remove(v);
                 yield return new WaitForSecondsRealtime(0.3f);
             }
+            _watching = false;
+            report($"vehicles: the view's biggest turn in half a second: {_spinMax:0} deg{(_spinMax > 120f ? " (A SPIN, during " + _spinAt + ")" : "")}");
             report("vehicles: done");
+        }
+
+        private static bool _watching;
+        private static float _spinMax;
+        private static string _spinAt = "", _step = "";
+
+        /// <summary>The view's biggest turn within half a second over the run (a seat entered or left turns it once, to the seat's way).</summary>
+        private static IEnumerator SpinWatch()
+        {
+            var yaws = new Queue<(float t, float yaw)>();
+            float total = 0f, last = float.NaN;
+            while (_watching)
+            {
+                Rig.VRRig rig = Rig.VRRig.Instance;
+                if (rig != null && rig.Head != null)
+                {
+                    Vector3 f = rig.Head.forward;
+                    float yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+                    if (!float.IsNaN(last))
+                    {
+                        total += Mathf.DeltaAngle(last, yaw); // (unwrapped: a full turn adds up to 360)
+                    }
+                    last = yaw;
+                    yaws.Enqueue((Time.unscaledTime, total));
+                    while (yaws.Count > 0 && Time.unscaledTime - yaws.Peek().t > 0.5f)
+                    {
+                        yaws.Dequeue();
+                    }
+                    foreach ((float t, float y) in yaws)
+                    {
+                        float turn = Mathf.Abs(total - y);
+                        if (turn > _spinMax)
+                        {
+                            _spinMax = turn;
+                            _spinAt = _step;
+                        }
+                    }
+                }
+                yield return null;
+            }
+        }
+
+        /// <summary>A made vehicle taken out the game's way (its lists let go first: deleted alone, the game's vehicle checks threw).</summary>
+        private static void Remove(Vehicle v)
+        {
+            try
+            {
+                ActorManager.DropVehicle(v);
+            }
+            catch (Exception)
+            {
+            }
+            UnityEngine.Object.Destroy(v.gameObject);
         }
 
         private static string Clean(string s) => new string(s.Where(c => char.IsLetterOrDigit(c)).Take(20).ToArray());
@@ -219,6 +296,11 @@ namespace RavenfieldVR.Core
             {
                 player.LeaveSeat(false);
                 yield return new WaitForSecondsRealtime(0.3f);
+            }
+            _step = what;
+            for (float until = Time.realtimeSinceStartup + 4f; !player.CanEnterSeat() && Time.realtimeSinceStartup < until;)
+            {
+                yield return null; // (the game's wait after leaving a seat: entered at once, a seat now and then refused the player)
             }
             bool seated;
             try
@@ -257,12 +339,23 @@ namespace RavenfieldVR.Core
             }
         }
 
-        /// <summary>The gun taken by a handle, the hand swung 20 cm to the right, let go, the hand moved again: held it turns, let go it stays.</summary>
+        /// <summary>
+        /// The gun taken by a handle, the hand swung 20 cm to the right (or turned 25 degrees, handles under the gun), let go, moved again:
+        /// held it turns the way a rigid gun round its pivot does, let go it stays. Then, for a gun reloaded by hand: emptied, left alone
+        /// (no reload of its own), its cocking handle pulled back by the other hand.
+        /// </summary>
         private static IEnumerator GrabCheck(Seat seat, Weapon gun, string name, string what, Action<string> report)
         {
             Rig.VRRig rig = Rig.VRRig.Instance;
+            Rig.TurretGrip grip = Rig.TurretGrip.Instance;
+            yield return null; // (the grip finds the gun and its handles on its update)
+            List<Vector3> handles = grip != null ? grip.HandlesWorld() : new List<Vector3>();
+            if (handles.Count == 0)
+            {
+                report($"{what}: grab: NO HANDLES found");
+                yield break;
+            }
             Rig.VRHand hand = rig.Dominant;
-            Transform handle = seat.handTargetR != null ? seat.handTargetR : seat.handTargetL;
             int side = (int)hand.Side;
             Transform muzzle = gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : gun.transform;
             Transform frame = seat.vehicle.transform;
@@ -271,20 +364,28 @@ namespace RavenfieldVR.Core
                 Vector3 d = frame.InverseTransformDirection(muzzle.forward);
                 return Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg; // (positive: to the vehicle's right)
             }
+            Vector3 handle = handles[handles.Count - 1];
+            Transform pivot = Rig.TurretGrip.Pivot(gun);
+            Vector3 arm = Vector3.ProjectOnPlane(frame.InverseTransformPoint(handle) - frame.InverseTransformPoint(pivot.position), Vector3.up);
+            Vector3 aimFlat = Vector3.ProjectOnPlane(frame.InverseTransformDirection(muzzle.forward), Vector3.up).normalized;
+            bool under = arm.magnitude < 0.12f;
+            float expect = under ? 1f : -Mathf.Sign(Vector3.Dot(arm, aimFlat)); // (behind the pivot: the hand right turns it left)
             Vector3 right = frame.right;
             Vector3 palmToRaw = hand.Raw.position - hand.Palm.position;
             Quaternion rot = hand.Raw.rotation;
-            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(handle.position + palmToRaw, rot);
+            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(handle + palmToRaw, rot);
             yield return null;
             yield return null;
             Input.VRInput.SimulateGrabPress(hand.Side);
             yield return new WaitForSecondsRealtime(0.4f);
-            bool taken = Rig.TurretGrip.Instance != null && Rig.TurretGrip.Instance.Held;
+            bool taken = grip.Held;
             float yaw0 = Yaw();
-            Vector3 start = handle.position;
             for (float t = 0f; t < 0.6f; t += Time.unscaledDeltaTime)
             {
-                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start + right * (0.2f * t / 0.6f) + palmToRaw, rot);
+                float k = Mathf.Clamp01(t / 0.6f);
+                Rig.VRHand.Scripted[side] = under
+                    ? new Runtime.RigidPose(handle + palmToRaw, Quaternion.AngleAxis(25f * k, frame.up) * rot)
+                    : new Runtime.RigidPose(handle + right * (0.2f * k) + palmToRaw, rot);
                 yield return null;
             }
             yield return new WaitForSecondsRealtime(0.8f);
@@ -292,20 +393,56 @@ namespace RavenfieldVR.Core
             Shots.Capture(name + "-held");
             Input.VRInput.SimulatedGrab[side] = false;
             yield return new WaitForSecondsRealtime(0.3f);
-            bool letGo = Rig.TurretGrip.Instance == null || !Rig.TurretGrip.Instance.Held;
+            bool letGo = !grip.Held;
             float yawLet = Yaw();
             for (float t = 0f; t < 0.6f; t += Time.unscaledDeltaTime)
             {
-                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(start - right * (0.2f * t / 0.6f) + palmToRaw, rot);
+                Rig.VRHand.Scripted[side] = new Runtime.RigidPose(handle - right * (0.2f * Mathf.Clamp01(t / 0.6f)) + palmToRaw, rot);
                 yield return null;
             }
             yield return new WaitForSecondsRealtime(0.8f);
             float yawAfter = Yaw();
             Rig.VRHand.Scripted[side] = null;
             float turned = Mathf.DeltaAngle(yaw0, yawHeld), drift = Mathf.DeltaAngle(yawLet, yawAfter);
-            report($"{what}: grab: {(taken ? "taken by its handle" : "NOT TAKEN by its handle")}; held, the hand 20 cm right turned it {turned:+0;-0} deg "
-                   + $"{(turned < -2f ? "(to the left, as a mounted gun does)" : turned > 2f ? "(TO THE RIGHT)" : "(DID NOT TURN)")}; "
+            bool right_way = turned * expect > 4f;
+            report($"{what}: grab ({(grip.MadeHandles ? "handles made from the model" : "the seat's handles")}, {(under ? "under the gun: the hand turned 25 deg" : expect < 0 ? "behind the pivot: the hand 20 cm right" : "in front of the pivot: the hand 20 cm right")}): "
+                   + $"{(taken ? "taken" : "NOT TAKEN")}; turned it {turned:+0;-0} deg {(right_way ? "(the right way)" : "(NOT THE RIGHT WAY)")}; "
                    + $"{(letGo ? "let go" : "NOT LET GO")}, the hand moved again: {(Mathf.Abs(drift) < 2f ? "it stayed" : $"IT MOVED {drift:+0;-0} deg")}");
+            if (!Rig.TurretGrip.ReloadsByHand(gun))
+            {
+                report($"{what}: reload: {(gun.configuration != null && gun.configuration.ammo <= 0 ? "none needed (no magazine)" : "the game's (not Manual reload)")}");
+                yield break;
+            }
+            // Reload by hand: emptied; no reload of its own in 2.5 s; the other hand on the cocking handle, pulled 10 cm back.
+            gun.ammo = 0;
+            yield return new WaitForSecondsRealtime(2.5f);
+            bool waited = gun.ammo == 0 && !gun.reloading;
+            Rig.VRHand other = rig.Hands[1 - side];
+            int os = (int)other.Side;
+            Vector3 cock = grip.CockPointWorld;
+            Vector3 back = -muzzle.forward;
+            Vector3 otherToRaw = other.Raw.position - other.Palm.position;
+            Quaternion orot = other.Raw.rotation;
+            Rig.VRHand.Scripted[os] = new Runtime.RigidPose(cock + otherToRaw, orot);
+            yield return null;
+            yield return null;
+            Input.VRInput.SimulateGrabPress(other.Side);
+            yield return new WaitForSecondsRealtime(0.3f);
+            for (float t = 0f; t < 0.4f; t += Time.unscaledDeltaTime)
+            {
+                Rig.VRHand.Scripted[os] = new Runtime.RigidPose(cock + back * (0.1f * Mathf.Clamp01(t / 0.4f)) + otherToRaw, orot);
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime(0.3f);
+            bool reloading = gun.reloading || gun.ammo > 0;
+            Input.VRInput.SimulatedGrab[os] = false;
+            Rig.VRHand.Scripted[os] = null;
+            float until2 = Time.realtimeSinceStartup + 8f;
+            while (gun.reloading && Time.realtimeSinceStartup < until2)
+            {
+                yield return null;
+            }
+            report($"{what}: reload by hand: emptied, {(waited ? "waited for the hand" : "RELOADED BY ITSELF")}; the cocking handle pulled: {(reloading ? $"reloaded ({gun.ammo} of {gun.configuration.ammo})" : "NO RELOAD")}");
         }
     }
 }

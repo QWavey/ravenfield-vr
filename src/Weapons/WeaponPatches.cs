@@ -322,6 +322,11 @@ namespace RavenfieldVR.Weapons
     {
         private static bool Prefix(Weapon __instance)
         {
+            // A mounted gun held by its handles reloads when its cocking handle is pulled (Rig.TurretGrip), not on its own.
+            if (Rig.TurretGrip.HoldsReload(__instance))
+            {
+                return false;
+            }
             if (!WeaponHooks.PlayerWeaponInVR(__instance) || VRConfig.ReloadNow != ReloadMode.Manual)
             {
                 return true;
