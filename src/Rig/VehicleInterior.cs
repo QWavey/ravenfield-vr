@@ -46,6 +46,10 @@ namespace RavenfieldVR.Rig
         private readonly Transform[] _levers = new Transform[2]; // left track, right track
         private readonly float[] _leverValue = new float[2];     // -1 pulled back .. 1 pushed forward
         private readonly int[] _onLever = { -1, -1 };            // per hand: the lever held, -1 none
+        private bool _throttleOnly;                              // the right lever is a wheeled driver's throttle (no left one)
+
+        /// <summary>For the vehicle check: the right lever is a throttle (forward and back only), not a track's.</summary>
+        internal bool ThrottleOnly => _throttleOnly;
 
         /// <summary>
         /// A wheeled closed vehicle's driver (an APC, the mods' armoured cars) steers by a wheel in the middle too (the user: "make also
@@ -790,6 +794,13 @@ namespace RavenfieldVR.Rig
                 _levers[0] = Lever("lever-left", new Vector3(-0.42f, pivotY, 0.28f));
                 _levers[1] = Lever("lever-right", new Vector3(0.42f, pivotY, 0.28f));
             }
+            else if (SteersByWheel(_seat) && Gun(_seat) == null)
+            {
+                // A wheeled one's driver steers by the wheel: a throttle lever to its right (forward: gas, back: reverse), so both hands
+                // drive (no handwheels there: the driver has no gun).
+                _levers[1] = Lever("throttle", new Vector3(0.3f, Mathf.Clamp(floor, -0.85f, -0.45f), 0.28f));
+                _throttleOnly = true;
+            }
             if (_seat.IsDriverSeat())
             {
                 // Low in the middle, in reach of either hand: forward above, back below, left and right either side.
@@ -807,7 +818,7 @@ namespace RavenfieldVR.Rig
                     AmmoReadout(); // (a driver with no gun: the readout shows the speed)
                 }
             }
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
 
         /// <summary>For the vehicle check and the log: the hull's room round the seat and what was fitted in it.</summary>
@@ -1736,6 +1747,10 @@ namespace RavenfieldVR.Rig
             {
                 drive += TillerDrive(_leverValue[0], _leverValue[1]);
             }
+            else if (_throttleOnly && _levers[1] != null)
+            {
+                drive += new Vector2(0f, _leverValue[1]); // (the throttle: forward and back only, the wheel steers)
+            }
             Fire = fire;
             VehicleInput.DriveButtons = Vector2.ClampMagnitude(drive, 1f);
             Alarm();
@@ -1968,6 +1983,7 @@ namespace RavenfieldVR.Rig
             _zoomed = false;
             _ammoText = null;
             _levers[0] = _levers[1] = null;
+            _throttleOnly = false;
             for (int g = 0; g < _needles.Length; g++)
             {
                 _needles[g] = null;

@@ -784,7 +784,10 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.Scripted[side] = null;
                 yield return new WaitForSecondsRealtime(0.5f);
                 float after = Input.VehicleInput.DriveButtons.magnitude;
-                line += $"; right steering lever 25 deg forward: drive ({most.x:+0.00;-0.00}, {most.y:+0.00;-0.00}){(most.y < 0.3f ? " (DID NOT DRIVE)" : most.x > -0.1f ? " (DID NOT TURN LEFT)" : "")}, let go: {(after < 0.05f ? "back in the middle" : "STILL PUSHED")}";
+                bool throttle = Rig.VehicleInterior.Instance.ThrottleOnly;
+                // (A track's lever alone turns to the other side; a wheeled driver's throttle only drives.)
+                string turnFault = throttle ? (Mathf.Abs(most.x) > 0.1f ? " (THE THROTTLE STEERED)" : "") : most.x > -0.1f ? " (DID NOT TURN LEFT)" : "";
+                line += $"; {(throttle ? "throttle lever" : "right steering lever")} 25 deg forward: drive ({most.x:+0.00;-0.00}, {most.y:+0.00;-0.00}){(most.y < 0.3f ? " (DID NOT DRIVE)" : turnFault)}, let go: {(after < 0.05f ? "back in the middle" : "STILL PUSHED")}";
             }
             // The cabin light's switch flicked by the gun hand: the red combat light (pictured), flicked again: the warm light.
             Transform flick = Rig.VehicleInterior.Instance.LightSwitch;
