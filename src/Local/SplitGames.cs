@@ -218,6 +218,37 @@ namespace RavenfieldVR.Local
             : StartsSplit && !_hosting && !_everHosted ? "Loading ..." : null;
 
         /// <summary>The copies check: a copy's process ended as a crash would end it (the host must start it again).</summary>
+        /// <summary>For the check: whether player (index + 1)'s copy has a window on the screen (a rejoined copy stayed hidden once).</summary>
+        internal static bool CopyWindowShown(int index)
+        {
+            uint pid = 0;
+            foreach (Copy c in Copies)
+            {
+                try
+                {
+                    if (c.Index == index && c.Process != null && !c.Process.HasExited)
+                    {
+                        pid = (uint)c.Process.Id;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            if (pid == 0)
+            {
+                return false;
+            }
+            bool shown = false;
+            EnumWindows((h, _) =>
+            {
+                GetWindowThreadProcessId(h, out uint p);
+                shown |= p == pid && IsWindowVisible(h);
+                return true;
+            }, IntPtr.Zero);
+            return shown;
+        }
+
         internal static bool KillCopyForCheck(int index)
         {
             Copy c = Copies.FirstOrDefault(x => x.Index == index);

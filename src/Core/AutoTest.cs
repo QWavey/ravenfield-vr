@@ -929,6 +929,12 @@ namespace RavenfieldVR.Core
                         {
                         }
                         Results.Add($"copies: after the rejoin: {(again.Contains("deploying at") ? "deployed again" : "NOT DEPLOYED AGAIN")}");
+                        bool seen = Local.SplitGames.CopyWindowShown(1);
+                        Results.Add($"copies: after the rejoin: player 2's window {(seen ? "on the screen" : "NOT SHOWN")}");
+                        if (!seen)
+                        {
+                            Problem("[copies] the rejoined player's window is not shown");
+                        }
                     }
                     string shot = Shots.FileFor("split-copies");
                     System.IO.Directory.CreateDirectory(Shots.Dir);
