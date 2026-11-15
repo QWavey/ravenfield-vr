@@ -16,7 +16,10 @@ namespace RavenfieldVR.Rig
         {
             if (__instance == null)
             {
-                return true;
+                // The player's controller itself already destroyed (the old map's, asked by the new map's triggers during a joined game's
+                // map change): the camera that draws now, not the original's throw on its gone cameras.
+                __result = Camera.main;
+                return false;
             }
             // (The game's own order, each camera looked at only if it is still there.)
             if (__instance.IsUsingOverrideCamera() && __instance.overrideCamera != null)

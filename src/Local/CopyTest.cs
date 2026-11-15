@@ -24,7 +24,8 @@ namespace RavenfieldVR.Local
         private static string _primaryFrom = "";
         private static float _healthFrom;
         private static bool _hitDone, _nextPressed;
-        private static float _nextAt;
+        private static float _nextAt = -10f;
+        private static int _nextTries;
         private static float _turned;
 
         private static void Next(int step)
@@ -192,13 +193,16 @@ namespace RavenfieldVR.Local
                     }
                     break;
                 case 7: // next weapon (after the reload)
-                    if (t > 6f && !_nextPressed && (me.activeWeapon == null || !me.activeWeapon.reloading))
+                    // One notch, then another a second later if the gun did not change (up to three, as a person turns the wheel again: a
+                    // single notch in the frame a reload ends was dropped now and then).
+                    if (t > 6f && _nextTries < 3 && t - _nextAt > 1f && me.activeWeaponSlot == _slotFrom && (me.activeWeapon == null || !me.activeWeapon.reloading))
                     {
-                        _nextPressed = true; // (once: a wheel notch each frame of a window turned back to the same slot)
+                        _nextPressed = true;
+                        _nextTries++;
                         _nextAt = t;
                         Press(SteelInput.KeyBinds.NextWeapon);
                     }
-                    if (t > 7.5f && _nextPressed && t - _nextAt > 1.5f || t > 14f)
+                    if (_nextPressed && (me.activeWeaponSlot != _slotFrom || _nextTries >= 3) && t - _nextAt > 1f || t > 16f)
                     {
                         note($"copy test: next weapon key: slot {_slotFrom + 1} -> {me.activeWeaponSlot + 1}{(me.activeWeaponSlot == _slotFrom ? " (DID NOT SWITCH)" : "")}");
                         _teamFrom = me.team;
