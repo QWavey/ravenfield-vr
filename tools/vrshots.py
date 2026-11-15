@@ -417,6 +417,60 @@ def build_sheets(shots, out):
     return index
 
 
+# A closed seat's cockpit sheet (VehicleShots names its pictures vehicle-NN-kind-Name-seatN-<view>.png).
+COCKPIT_TILES = [('ahead', 'ahead'), ('inside-left', 'inside, left'), ('inside-back', 'inside, back'), ('down', 'looking down'),
+                 ('periscope', 'periscope x1'), ('periscope-zoom', 'periscope x3'), ('inside-combat-light', 'red combat light'),
+                 ('inside-alarm', 'alarm (burning)')]
+
+
+def build_cockpit_sheets(shots, out):
+    """One labelled sheet per closed seat that has pictures of its inside, and an overview (cockpits.jpg) of every one's
+    ahead and periscope pictures. Returns the index: [{'seat', 'sheet', 'pictures'}]."""
+    from PIL import Image, ImageDraw
+    pat = re.compile(r'^(?P<seat>vehicle-\d+-[a-z]+-.+?-seat\d+)-(?P<view>' + '|'.join(sorted((re.escape(k) for k, _ in COCKPIT_TILES), key=len, reverse=True)) + r')\.png$')
+    seats = {}
+    for f in os.listdir(shots):
+        m = pat.match(f)
+        if m:
+            seats.setdefault(m.group('seat'), {})[m.group('view')] = f
+    seats = {s: t for s, t in seats.items() if any(k.startswith(('inside', 'periscope')) for k in t)}
+    index = []
+    if not seats:
+        return index
+    os.makedirs(out, exist_ok=True)
+    tw, th, cols = 400, 250, 4
+    rows = (len(COCKPIT_TILES) + cols - 1) // cols
+    for seat, tiles in sorted(seats.items()):
+        sheet = Image.new('RGB', (tw * cols, th * rows + 30), (40, 40, 40))
+        d = ImageDraw.Draw(sheet)
+        d.text((8, 8), seat, fill=(255, 255, 255))
+        for i, (key, label) in enumerate(COCKPIT_TILES):
+            x, y = (i % cols) * tw, 30 + (i // cols) * th
+            if key in tiles:
+                sheet.paste(Image.open(os.path.join(shots, tiles[key])).convert('RGB').resize((tw, th)), (x, y))
+            else:
+                d.rectangle([x, y, x + tw - 1, y + th - 1], fill=(90, 90, 90))
+                d.text((x + tw // 2 - 15, y + th // 2), 'none', fill=(200, 200, 200))
+            d.rectangle([x, y, x + tw - 1, y + 16], fill=(0, 0, 0))
+            d.text((x + 4, y + 2), f'{i + 1}. {label}', fill=(255, 230, 120))
+        path = os.path.join(out, re.sub(r'[^A-Za-z0-9_.-]+', '_', seat) + '.jpg')
+        sheet.save(path, quality=82)
+        index.append({'seat': seat, 'sheet': os.path.relpath(path, REPO), 'pictures': [k for k, _ in COCKPIT_TILES if k in tiles]})
+    # The overview: a row a seat, its ahead and periscope pictures (small).
+    ow, oh = 320, 200
+    over = Image.new('RGB', (ow * 2, (oh + 18) * len(seats)), (40, 40, 40))
+    d = ImageDraw.Draw(over)
+    for r, (seat, tiles) in enumerate(sorted(seats.items())):
+        y = r * (oh + 18)
+        d.text((4, y + 2), seat, fill=(255, 230, 120))
+        for c, key in enumerate(('ahead', 'periscope')):
+            if key in tiles:
+                over.paste(Image.open(os.path.join(shots, tiles[key])).convert('RGB').resize((ow, oh)), (c * ow, y + 18))
+    over.save(os.path.join(out, 'cockpits.jpg'), quality=80)
+    json.dump(index, open(os.path.join(out, 'index.json'), 'w', encoding='utf-8'), indent=1)
+    return index
+
+
 def collect(game, mode, since):
     """The run's pictures and reports into reports/shots/<mode> (the run before kept as <mode>-previous)."""
     src = os.path.join(game, 'BepInEx', 'RavenfieldVR-shots')
@@ -758,6 +812,9 @@ def main():
             log(f'{len(index)} weapon sheet(s) in {os.path.relpath(os.path.join(dest, "sheets"), REPO)}')
             for e in index[:40]:
                 print(f'    {e["id"]:4d}  {e["name"]:40s} {e["sheet"]}')
+        if mode == 'vehicleshots':
+            index = build_cockpit_sheets(dest, os.path.join(dest, 'cockpits'))
+            log(f'{len(index)} cockpit sheet(s) in {os.path.relpath(os.path.join(dest, "cockpits"), REPO)}')
         if mode == 'film':
             subprocess.run([sys.executable, '-I', os.path.join(REPO, 'tools', 'flashfilm.py'), dest])
         if mode == 'showcase':

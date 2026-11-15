@@ -63,6 +63,9 @@ python -I (Join-Path $PSScriptRoot 'vrshots_restore_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The picture tool's sheets: the tiles each kind of gun gets (tools/tests/vrshots_sheets_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_sheets_test.py')
+
+# The vehicle check's cockpit sheets: a sheet per closed seat, its views read whole (tools/tests/vrshots_cockpit_test.py).
+python -I (Join-Path $PSScriptRoot 'vrshots_cockpit_test.py')
 if ($LASTEXITCODE -ne 0) { $code = 1 }
 # The fast test mode's mod picking from the weapon-to-mod list (tools/tests/vrshots_fast_test.py).
 python -I (Join-Path $PSScriptRoot 'vrshots_fast_test.py')
