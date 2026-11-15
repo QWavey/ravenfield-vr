@@ -594,7 +594,8 @@ namespace RavenfieldVR.Core
                 float y1 = Yaw();
                 if (wheel == null || wheel.parent == null)
                 {
-                    report($"{what}: the inside's traverse wheel is GONE (the inside taken down)");
+                    // (With what the seat's check had gathered: its periscope and zoom lines were lost with it.)
+                    report(line + "; the inside's traverse wheel is GONE (the inside taken down)");
                     yield break;
                 }
                 Vector3 hubAt = wheel.parent.InverseTransformPoint(wheel.position);
