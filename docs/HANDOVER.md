@@ -2,10 +2,10 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-15 evening (**1.19.1 INSTALLED** on this PC, Defender clean; Tasks 400-401; vehicles run to 85% going on)
+## State 2026-11-15 evening (**1.19.2 INSTALLED** on this PC, Defender clean; Tasks 400-401; vehicles run to 85% going on)
 
 - Vehicles: open mounted guns taken by their handles (`Rig/TurretGrip.cs`, reload by the cocking handle); closed vehicles solid from inside (`Rig/HullInside.cs`) with an inside (`Rig/VehicleInterior.cs`: periscope viewer, handwheels, fire button, drive buttons, radio, gauges, alarm), every enclosed gunner seat aimed by the right stick and the wheels (head aim there spun the turret). Check: `vrshots --vehicleshots [--vehicles a,b]` spawns every vehicle and turret (39 here with the mods).
-- Waiting for the user: OK to download `Flat_Ammunition.zip` (2.5 MB, CC0) for ammo racks (the sci-fi kit was refused). The friend's PC needs 1.19.1 too.
+- Waiting for the user: OK to download `Flat_Ammunition.zip` (2.5 MB, CC0) for ammo racks (the sci-fi kit was refused). The friend's PC needs 1.19.2 too. 1.19.2: full vehicle check 0 problems (20 closed seats with insides, 10 open guns taken by hand).
 
 ## State 2026-11-15 13:01 (**1.19.0 INSTALLED** on this PC, Defender clean; Tasks 398-399; run to 65% going on)
 
