@@ -254,13 +254,13 @@ namespace RavenfieldVR.Core
                 Rig.VRRig rig = Rig.VRRig.Instance;
                 string seatName = player.seat.vehicle.name;
                 player.KillSilently();
-                float stayed = 0f, start = Time.realtimeSinceStartup;
+                float stayed = 0f, killedAt = Time.realtimeSinceStartup;
                 bool after = false;
-                while (Time.realtimeSinceStartup - start < 3f)
+                while (Time.realtimeSinceStartup - killedAt < 3f)
                 {
                     if (rig != null && rig.Mode == Rig.RigMode.Anchored)
                     {
-                        stayed = Time.realtimeSinceStartup - start;
+                        stayed = Time.realtimeSinceStartup - killedAt;
                     }
                     else if (stayed > 0f)
                     {
