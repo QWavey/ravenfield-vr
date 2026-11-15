@@ -189,7 +189,7 @@ namespace RavenfieldVR.Rig
             }
             Weapon gun = _cannon;
             bool open = gun != null && (gun.reloading || gun.ammo <= 0);
-            Quaternion want = Quaternion.Euler(open ? -50f : 0f, 0f, 0f);
+            Quaternion want = Quaternion.Euler(open ? 50f : 0f, 0f, 0f); // (+: the plate, toward the eyes from its hinge, swings up; scout)
             _feedLid.localRotation = Quaternion.RotateTowards(_feedLid.localRotation, want, Time.unscaledDeltaTime * 300f);
         }
 
@@ -210,7 +210,8 @@ namespace RavenfieldVR.Rig
             }
             // (The cannon the breech was built for, whichever of the seat's guns is drawn: the coaxial machine gun is not loaded by hand.)
             Weapon mine = me._cannon;
-            return mine != null && (ReferenceEquals(mine, gun) || ReferenceEquals(mine.GetActiveSubWeapon(), gun));
+            // (Only the cannon itself: its coaxial sub-weapon's own reload held too left the MG empty for good; scout.)
+            return mine != null && ReferenceEquals(mine, gun) && ReferenceEquals(mine.GetActiveSubWeapon(), mine);
         }
 
         /// <summary>For the vehicle check: the first shell in the rack and the breech's mouth (world; zero: none).</summary>
@@ -326,8 +327,11 @@ namespace RavenfieldVR.Rig
             // (A shell's nose at the breech's mouth, its middle a hand's length behind it; a box's middle over the feed tray.)
             Vector3 nose = _breech != null ? _carried.TransformPoint(new Vector3(0f, 0.25f, 0f)) : _carried.position;
             float reach = _breech != null ? BreechReach : FeedReach;
-            if (gun.ammo < gun.configuration.ammo && gun.HasSpareAmmo() && Vector3.Distance(nose, BreechMouth) < reach)
+            // (With its sub-weapon drawn the game's reload goes to the sub-weapon: no ram then; scout.)
+            if (gun.ammo < gun.configuration.ammo && gun.HasSpareAmmo() && ReferenceEquals(gun.GetActiveSubWeapon(), gun)
+                && Vector3.Distance(nose, BreechMouth) < reach)
             {
+                int before = gun.ammo;
                 _loading = true;
                 try
                 {
@@ -336,6 +340,10 @@ namespace RavenfieldVR.Rig
                 finally
                 {
                     _loading = false;
+                }
+                if (gun.ammo <= before)
+                {
+                    return; // (nothing went in, an advanced-reload gun's: the shell stays in the hand)
                 }
                 hand.Haptic(0.09f, 50f, 1f);
                 // (The gun's own reload sound, the game's: InstantlyReload plays none, and the breech shut in silence.)
@@ -860,7 +868,7 @@ namespace RavenfieldVR.Rig
             float roomLeft = Room(new Vector3(0f, -0.15f, 0.2f), Vector3.left);
             float roomRight = Room(new Vector3(0f, -0.25f, 0.1f), Vector3.right);
             float floor = -Room(new Vector3(0f, 0f, 0.3f), Vector3.down);
-            bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo <= 1;
+            bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo > 0 && gunHere.configuration.ammo <= 1; // (-1: an endless magazine)
             bool breech = cannon && roomLeft >= 0.73f;
             bool feed = gunHere != null && !cannon && gunHere.configuration != null && gunHere.configuration.ammo > 1 && roomLeft >= 0.58f;
             bool rack = gunHere != null && roomRight >= (SteersByWheel(_seat) ? 0.79f : 0.59f);
