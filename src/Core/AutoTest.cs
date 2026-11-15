@@ -828,7 +828,7 @@ namespace RavenfieldVR.Core
                             {
                                 yield return Deploy();
                             }
-                            PlayerCanBeHurt = true;
+                            Results.Add($"copies: player 1 readied for the damage step: {(LocalPlayer.actor == null ? "no soldier" : LocalPlayer.actor.dead ? "STILL DOWN" : $"on the field, health {LocalPlayer.actor.health:0}")}");
                         }
                         // The copy has hit this player's soldier and asks to be hit back.
                         if (!hitBack && text.Contains("copy test: hit me now"))
@@ -8260,9 +8260,11 @@ namespace RavenfieldVR.Core
     [HarmonyPatch(typeof(Actor), nameof(Actor.Damage))]
     internal static class AutoTestInvulnerablePatch
     {
-        private static bool Prefix(Actor __instance, ref bool __result)
+        private static bool Prefix(Actor __instance, DamageInfo info, ref bool __result)
         {
-            if (AutoTest.Requested && !AutoTest.PlayerCanBeHurt && __instance != null && !__instance.aiControlled)
+            // (Another player's hit gets through: the copies check measures players hurting each other while the enemies are kept off.)
+            if (AutoTest.Requested && !AutoTest.PlayerCanBeHurt && __instance != null && !__instance.aiControlled
+                && !(info.sourceActor != null && Net.NetGame.IsRemote(info.sourceActor)))
             {
                 __result = false;
                 return false;

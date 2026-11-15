@@ -23,7 +23,8 @@ namespace RavenfieldVR.Local
         private static bool _saidAim;
         private static string _primaryFrom = "";
         private static float _healthFrom;
-        private static bool _hitDone;
+        private static bool _hitDone, _nextPressed;
+        private static float _nextAt;
         private static float _turned;
 
         private static void Next(int step)
@@ -176,12 +177,12 @@ namespace RavenfieldVR.Local
                         Next(6);
                     }
                     break;
-                case 6: // reload
-                    if (t < 0.15f)
+                case 6: // reload: R held as a person holds it (a shotgun still cycling ignored a 0.15 s press)
+                    if (t > 0.3f && t < 0.7f)
                     {
                         Press(SteelInput.KeyBinds.Reload);
                     }
-                    if (t > 0.6f)
+                    if (t > 1.2f)
                     {
                         Weapon w = me.activeWeapon;
                         bool ok = w != null && (w.reloading || w.ammo == w.configuration.ammo);
@@ -191,11 +192,13 @@ namespace RavenfieldVR.Local
                     }
                     break;
                 case 7: // next weapon (after the reload)
-                    if (t > 2.5f && t < 2.65f)
+                    if (t > 6f && !_nextPressed && (me.activeWeapon == null || !me.activeWeapon.reloading))
                     {
+                        _nextPressed = true; // (once: a wheel notch each frame of a window turned back to the same slot)
+                        _nextAt = t;
                         Press(SteelInput.KeyBinds.NextWeapon);
                     }
-                    if (t > 4f)
+                    if (t > 7.5f && _nextPressed && t - _nextAt > 1.5f || t > 14f)
                     {
                         note($"copy test: next weapon key: slot {_slotFrom + 1} -> {me.activeWeaponSlot + 1}{(me.activeWeaponSlot == _slotFrom ? " (DID NOT SWITCH)" : "")}");
                         _teamFrom = me.team;
@@ -234,9 +237,9 @@ namespace RavenfieldVR.Local
                     }
                     break;
                 case 40: // damage both ways, on opposite teams now: this player hits player 1's soldier, then player 1 hits this one
-                    if (t < 5f)
+                    if (t < 15f)
                     {
-                        break; // (player 1's game readies its player first: back on the field, its shield off)
+                        break; // (player 1's game readies its player first: deployed, its shield off; a deploy takes seconds)
                     }
                     if (!_hitDone)
                     {
@@ -264,7 +267,7 @@ namespace RavenfieldVR.Local
                         _healthFrom = me.health;
                         note($"copy test: hit me now (health {me.health:0})");
                     }
-                    if (t > 11f)
+                    if (t > 21f)
                     {
                         float took = _healthFrom - (me.dead ? 0f : me.health);
                         note($"copy test: player 1's and an enemy AI's hits (25 each): this player's health {_healthFrom:0} -> {(me.dead ? "down" : me.health.ToString("0"))}{(took < 1f ? " (TOOK NO DAMAGE)" : took < 40f ? " (ONE HIT LOST)" : "")}");
