@@ -82,6 +82,10 @@ namespace RavenfieldVR.Rig
         private object _anchorKey;
         private RigidPose _neutralHead = RigidPose.Identity;
         private Seat _aliveSeat;
+        /// <summary>The view's anchor in the seat as it last was (held when killed there).</summary>
+        private RigidPose _lastSeatAnchor = RigidPose.Identity;
+        private bool _hasSeatAnchor => _lastSeatAnchor.position != Vector3.zero;
+        private static readonly object DeathHold = new object();
         private float _diedInSeatAt = -1f;
         /// <summary>The head's neutral pose in the rig's root (where the anchor puts the eyes; its forward is the seat's or the sight's).</summary>
         internal RigidPose NeutralHead => _neutralHead;
@@ -517,20 +521,26 @@ namespace RavenfieldVR.Rig
                 // at once from inside the vehicle to outside; vehicles scout, 2026-11-15).
                 if (actor != null && !actor.dead && actor.IsSeated())
                 {
+                    if (!ReferenceEquals(_aliveSeat, actor.seat))
+                    {
+                        _lastSeatAnchor = RigidPose.Identity; // (a new seat: the last one's view is not this one's)
+                    }
                     _aliveSeat = actor.seat;
                     _diedInSeatAt = -1f;
                 }
-                else if (actor != null && actor.dead && _aliveSeat != null)
+                else if (actor != null && actor.dead && (object)_aliveSeat != null && _hasSeatAnchor)
                 {
                     if (_diedInSeatAt < 0f)
                     {
                         _diedInSeatAt = Time.unscaledTime;
                         OpenVR.Compositor?.FadeToColor(1.2f, 0.25f, 0f, 0f, 0.9f, false);
                     }
-                    if (Time.unscaledTime - _diedInSeatAt < 1.4f && _aliveSeat != null && _aliveSeat.transform != null)
+                    if (Time.unscaledTime - _diedInSeatAt < 1.4f)
                     {
+                        // (Held at the seat's last view, which stands even when the vehicle was blown up with the seat: before, a
+                        // destroyed seat cut straight to the outside; vehicle scout, 2026-11-15.)
                         mode = RigMode.Anchored;
-                        key = _aliveSeat;
+                        key = DeathHold;
                         return;
                     }
                     _aliveSeat = null; // (the change of view fades back in by itself: a fade here was cut by its black blip)
@@ -1407,7 +1417,12 @@ namespace RavenfieldVR.Rig
                 {
                     rest = SeatEyes(seatOfCam, overrideCam, rest);
                 }
-                return Level(new RigidPose(rest, rot));
+                RigidPose atCam = Level(new RigidPose(rest, rot));
+                if (seatOfCam != null)
+                {
+                    _lastSeatAnchor = atCam; // (a sight seat's view too, for the hold when killed in it)
+                }
+                return atCam;
             }
             if (player == null)
             {
@@ -1434,9 +1449,14 @@ namespace RavenfieldVR.Rig
                 }
             }
             Transform root = player.fpCameraRoot;
+            if (ReferenceEquals(_anchorKey, DeathHold))
+            {
+                return _lastSeatAnchor; // (killed in a seat, gone or not: where the view last was in it)
+            }
             if (_anchorKey is Seat seat && seat != null)
             {
-                return Level(new RigidPose(root.position, seat.transform.rotation));
+                _lastSeatAnchor = Level(new RigidPose(root.position, seat.transform.rotation));
+                return _lastSeatAnchor;
             }
             // Ladder: camera root hangs off the actor; keep the actor's facing.
             return new RigidPose(root.position, Quaternion.Euler(0f, player.actor.transform.eulerAngles.y, 0f));
