@@ -874,6 +874,17 @@ namespace RavenfieldVR.Rig
             Box("viewer-right", new Vector3(0.305f, 0f, 0.42f), new Vector3(0.03f, 0.28f, 0.1f), _metal);
             Box("viewer-back", new Vector3(0f, 0f, 0.475f), new Vector3(0.64f, 0.28f, 0.01f), _metal);
             Box("viewer-brow", new Vector3(0f, 0.15f, 0.36f), new Vector3(0.5f, 0.03f, 0.08f), _paint);
+            // A rubber brow pad over the viewer (as on a sight: the forehead rests on it) and rivets along the frame.
+            var rubber = new Material(Shader.Find("Standard")) { color = new Color(0.06f, 0.06f, 0.06f) };
+            rubber.SetFloat("_Glossiness", 0.15f);
+            _extra.Add(rubber);
+            Cylinder("brow-pad", new Vector3(0f, 0.152f, 0.33f), new Vector3(0.045f, 0.2f, 0.045f), Quaternion.Euler(0f, 0f, 90f), rubber);
+            for (int k = 0; k < 7; k++)
+            {
+                float x = -0.27f + k * 0.09f;
+                Part(PrimitiveType.Sphere, "rivet", new Vector3(x, 0.14f, 0.368f), Vector3.one * 0.011f, Quaternion.identity, _metal);
+                Part(PrimitiveType.Sphere, "rivet", new Vector3(x, -0.14f, 0.368f), Vector3.one * 0.011f, Quaternion.identity, _metal);
+            }
             Periscope(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
             if (Gun(_seat) != null)
             {
@@ -977,6 +988,19 @@ namespace RavenfieldVR.Rig
             cabin.intensity = 1.1f;
             LightSwitchAt(new Vector3(-0.36f, 0.2f, 0.38f));
             Stowage(roomLeft, roomRight, floor);
+            // Grab handles on the side walls at eye height (over the rack and the radio, which ran through them lower), where the hull leaves room (to hold on to over rough ground).
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float room = side < 0f ? roomLeft : roomRight;
+                if (room < 0.5f || room > 1.2f)
+                {
+                    continue; // (no wall near: a handle in the air reads wrong)
+                }
+                float x = side * (room - 0.04f);
+                Box("wall-handle", new Vector3(x, 0.2f, 0.19f), new Vector3(0.02f, 0.02f, 0.18f), _metal);
+                Box("wall-handle-a", new Vector3(x + side * 0.02f, 0.2f, 0.11f), new Vector3(0.04f, 0.02f, 0.02f), _metal);
+                Box("wall-handle-b", new Vector3(x + side * 0.02f, 0.2f, 0.27f), new Vector3(0.04f, 0.02f, 0.02f), _metal);
+            }
             _lastHealth = -1f;
             cabin.shadows = LightShadows.None;
             var alarm = new GameObject("alarm");
