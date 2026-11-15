@@ -342,7 +342,7 @@ namespace RavenfieldVR.Rig
             Vector3 aimFlat = Vector3.ProjectOnPlane(aim0, up);
             Vector3 across = Vector3.Cross(up, aimFlat.sqrMagnitude > 1e-4f ? aimFlat.normalized : Vector3.forward); // the gun's right
             // The grip with the sideways turn taken off, against where it was, round the across axis.
-            Vector3 unturned = Quaternion.AngleAxis(-yaw, up) * grip1;
+            Vector3 unturned = Rotate(grip1, up, -yaw);
             Vector3 v0 = Vector3.ProjectOnPlane(grip0, across), v1 = Vector3.ProjectOnPlane(unturned, across);
             float pitch;
             if (v0.magnitude >= ShortArm && v1.magnitude >= ShortArm)
@@ -354,7 +354,19 @@ namespace RavenfieldVR.Rig
                 Vector3 f = Vector3.ProjectOnPlane(handTurn * aim0, across);
                 pitch = f.sqrMagnitude > 1e-6f ? Vector3.SignedAngle(Vector3.ProjectOnPlane(aim0, across), f, across) : 0f;
             }
-            return (Quaternion.AngleAxis(yaw, up) * Quaternion.AngleAxis(pitch, across) * aim0).normalized;
+            return Rotate(Rotate(aim0, across, pitch), up, yaw).normalized;
+        }
+
+        /// <summary>
+        /// A vector turned round an axis by degrees (Unity's sense: clockwise looking down the axis), in plain arithmetic (Rodrigues):
+        /// the offline tests run Swing outside the game, where Unity's native Quaternion.AngleAxis is not there.
+        /// </summary>
+        internal static Vector3 Rotate(Vector3 v, Vector3 axis, float degrees)
+        {
+            Vector3 k = axis.normalized;
+            float a = degrees * Mathf.Deg2Rad; // (with Unity's own cross product this is AngleAxis's sense: up by 90 takes forward to right)
+            float c = Mathf.Cos(a), s = Mathf.Sin(a);
+            return v * c + Vector3.Cross(k, v) * s + k * (Vector3.Dot(k, v) * (1f - c));
         }
 
         /// <summary>The palms against the vehicle as both are drawn (VRRig poses the hands just before): read by the next Update.</summary>

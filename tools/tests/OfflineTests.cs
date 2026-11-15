@@ -139,6 +139,7 @@ namespace RavenfieldVR.Tests
             PaceBudgetTests(mod);
             HeadLookTests(mod);
             ExpoTests(mod);
+            TurretSwingTests(mod);
             VectorSettingTests(mod);
         }
 
@@ -592,6 +593,49 @@ namespace RavenfieldVR.Tests
         /// with no frame's step more than 9 mm over the one before; beside a hand going 2 cm a frame it stays with it; and while the
         /// player runs 3 cm a frame the run is not held back.
         /// </summary>
+        /// <summary>
+        /// A mounted gun taken by its handles turns with them as a rigid body round its pivot (Rig.TurretGrip.Swing, 2026-11-15): handles
+        /// behind the pivot moved right turn it left, in front right; raised behind, the muzzle dips; handles under the pivot turn it by
+        /// the hand's own turn; Rotate keeps Unity's sense (up by 90 takes forward to right).
+        /// </summary>
+        private static void TurretSwingTests(System.Reflection.Assembly mod)
+        {
+            Type grip = mod.GetType("RavenfieldVR.Rig.TurretGrip");
+            const System.Reflection.BindingFlags any = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            System.Reflection.MethodInfo swing = grip?.GetMethod("Swing", any), rotate = grip?.GetMethod("Rotate", any);
+            Check(swing != null && rotate != null, "Gun grip: TurretGrip.Swing and Rotate found");
+            if (swing == null || rotate == null)
+            {
+                return;
+            }
+            UnityEngine.Vector3 V(float x, float y, float z) => new UnityEngine.Vector3(x, y, z);
+            UnityEngine.Vector3 R(UnityEngine.Vector3 v, UnityEngine.Vector3 axis, float deg) => (UnityEngine.Vector3)rotate.Invoke(null, new object[] { v, axis, deg });
+            UnityEngine.Vector3 up = V(0f, 1f, 0f), fwd = V(0f, 0f, 1f);
+            UnityEngine.Vector3 r90 = R(fwd, up, 90f);
+            Check(Math.Abs(r90.x - 1f) < 1e-4 && Math.Abs(r90.z) < 1e-4, $"Gun grip: Rotate(forward, up, 90) is right ({r90.x:0.000}, {r90.z:0.000})");
+            UnityEngine.Vector3 p90 = R(fwd, V(1f, 0f, 0f), 90f);
+            Check(Math.Abs(p90.y + 1f) < 1e-4, $"Gun grip: Rotate(forward, right, 90) is down ({p90.y:0.000})");
+            UnityEngine.Quaternion still = new UnityEngine.Quaternion(0f, 0f, 0f, 1f);
+            UnityEngine.Vector3 S(UnityEngine.Vector3 g0, UnityEngine.Vector3 g1, UnityEngine.Vector3 u) => (UnityEngine.Vector3)swing.Invoke(null, new object[] { fwd, g0, g1, still, u });
+            float Yaw(UnityEngine.Vector3 d) => (float)(Math.Atan2(d.x, d.z) * 180.0 / Math.PI);
+            float Pitch(UnityEngine.Vector3 d) => (float)(Math.Asin(Math.Max(-1f, Math.Min(1f, d.y))) * 180.0 / Math.PI);
+            // Behind the pivot, 50 cm back, moved 20 cm right: left by atan(0.2/0.5) = 21.8 degrees.
+            float behind = Yaw(S(V(0f, 0f, -0.5f), V(0.2f, 0f, -0.5f), up));
+            Check(behind < -20f && behind > -24f, $"Gun grip: handles behind the pivot moved right turn it left ({behind:0.0})");
+            float infront = Yaw(S(V(0f, 0f, 0.5f), V(0.2f, 0f, 0.5f), up));
+            Check(infront > 20f && infront < 24f, $"Gun grip: handles in front moved right turn it right ({infront:0.0})");
+            float dip = Pitch(S(V(0f, 0f, -0.5f), V(0f, 0.15f, -0.5f), up));
+            Check(dip < -12f && dip > -19f, $"Gun grip: handles behind raised dip the muzzle ({dip:0.0})");
+            // Under the pivot, the hand not turned: no sideways turn from moving it right (its own turn would do that).
+            float under = Yaw(S(V(0f, -0.1f, 0f), V(0.05f, -0.1f, 0f), up));
+            Check(Math.Abs(under) < 1f, $"Gun grip: handles under the pivot do not swing it sideways by the move ({under:0.0})");
+            // A tipped frame (its up is the frame's z): still turned round the real up passed in, no wrong-way swing.
+            UnityEngine.Vector3 tippedUp = V(0f, 0f, 1f);
+            UnityEngine.Vector3 aim = V(0f, -1f, 0f);
+            UnityEngine.Vector3 t = (UnityEngine.Vector3)swing.Invoke(null, new object[] { aim, V(0f, 0.5f, 0f), V(0.2f, 0.5f, 0f), still, tippedUp });
+            Check(t.x < -0.3f, $"Gun grip: in a tipped frame the swing goes round the vehicle's up (x {t.x:0.00})");
+        }
+
         private static void ExpoTests(System.Reflection.Assembly mod)
         {
             System.Reflection.MethodInfo expo = mod.GetType("RavenfieldVR.Input.VehicleInput")?.GetMethod("Expo",
