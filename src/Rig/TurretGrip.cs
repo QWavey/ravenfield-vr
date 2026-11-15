@@ -126,7 +126,20 @@ namespace RavenfieldVR.Rig
             return gun.transform.parent != null ? gun.transform.parent : gun.transform;
         }
 
-        private Transform Muzzle() => _gun.CurrentMuzzle() != null ? _gun.CurrentMuzzle() : _gun.transform;
+        private Transform Muzzle() => AimReference(_gun);
+
+        /// <summary>
+        /// The transform whose forward the game steers the gun by (TurretAim's reference): a stabilised turret's pitch part, else its
+        /// muzzle. Read from the muzzle alone, a gun whose muzzle part faces another way was swung the wrong way.
+        /// </summary>
+        internal static Transform AimReference(Weapon gun)
+        {
+            if (gun is MountedStabilizedTurret s && s.pitchTransform != null)
+            {
+                return s.pitchTransform;
+            }
+            return gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : gun.transform;
+        }
 
         /// <summary>
         /// The handles: the seat's hand targets near the gun, else two made at the rear of the gun's own model (its renderers under the

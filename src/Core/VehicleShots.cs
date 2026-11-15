@@ -214,18 +214,21 @@ namespace RavenfieldVR.Core
                 {
                     seats.Add(passenger);
                 }
-                foreach (int si in seats)
+                // Out of the last vehicle first, and it taken away (a seat of another vehicle entered from a seat threw in the game:
+                // its camera switched, he stayed in the old seat). He stands by the last one's place, the other side from this one.
+                if (player.IsSeated())
                 {
-                    yield return SitAndLook(v, si, $"vehicle-{tag}-seat{si + 1}", $"{prefab.name} ({from}) seat {si + 1} of {v.seats.Count}", report);
-                    if (previous != null && previous != v && player.IsSeated() && player.seat.vehicle == v)
-                    {
-                        Remove(previous); // (he is in this one now)
-                        previous = null;
-                    }
+                    player.LeaveSeat(false);
+                    yield return new WaitForSecondsRealtime(0.2f);
                 }
                 if (previous != null)
                 {
-                    Remove(previous); // (no seat of this one took him: the last one goes anyway)
+                    Remove(previous);
+                    previous = null;
+                }
+                foreach (int si in seats)
+                {
+                    yield return SitAndLook(v, si, $"vehicle-{tag}-seat{si + 1}", $"{prefab.name} ({from}) seat {si + 1} of {v.seats.Count}", report);
                 }
                 previous = v;
                 if (player.fallenOver)
@@ -376,7 +379,9 @@ namespace RavenfieldVR.Core
             }
             Rig.VRHand hand = rig.Dominant;
             int side = (int)hand.Side;
-            Transform muzzle = gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : gun.transform;
+            Transform muzzle = Rig.TurretGrip.AimReference(gun);
+            Transform realMuzzle = gun.CurrentMuzzle() != null ? gun.CurrentMuzzle() : gun.transform;
+            report($"{what}: grab: the gun's muzzle part {Vector3.Angle(realMuzzle.forward, muzzle.forward):0} deg off the way it is steered");
             Transform frame = seat.vehicle.transform;
             float Yaw()
             {
