@@ -28,6 +28,8 @@ namespace RavenfieldVR.Rig
                 return;
             }
             Hum(rig, v);
+            Burning(rig, v);
+            SaySeat(rig, actor.seat);
             if (v.rigidbody == null || v.rigidbody.isKinematic)
             {
                 _of = null; // (another PC drives it: its speed comes in steps 15 times a second, no jolt to read from them; hits still felt)
@@ -97,6 +99,70 @@ namespace RavenfieldVR.Rig
             _hitAt = Time.unscaledTime;
             _hitStrength = strength;
             Rumble(rig, 0.04f + 0.12f * strength, 90f + 60f * strength, 0.2f + 0.7f * strength);
+        }
+
+        private static float _nextBurnPulse;
+        private static Seat _saidSeat;
+        private static bool? _hoverWas;
+
+        /// <summary>
+        /// A seat changed within the vehicle: which one now (the seat key or the stick's click moved him, and nothing said where); and
+        /// a helicopter's auto-hover turned on or off (it changes the handling: a click in the hands and a word). Vehicles scout, 2026-11-15.
+        /// </summary>
+        private static void SaySeat(VRRig rig, Seat seat)
+        {
+            if (!ReferenceEquals(seat, _saidSeat))
+            {
+                bool sameVehicle = _saidSeat != null && seat != null && _saidSeat.vehicle == seat.vehicle;
+                _saidSeat = seat;
+                if (sameVehicle)
+                {
+                    int i = seat.vehicle.seats.IndexOf(seat);
+                    string kind = seat.IsDriverSeat() ? "Driver" : seat.HasAnyMountedWeapons() ? "Gunner" : "Passenger";
+                    UI.UISystem.Instance?.Notice?.Show($"{kind} seat ({i + 1} of {seat.vehicle.seats.Count})", 1.5f);
+                    foreach (VRHand hand in rig.Hands)
+                    {
+                        if (hand != null && hand.Tracked)
+                        {
+                            hand.Haptic(0.02f, 160f, 0.35f);
+                        }
+                    }
+                }
+            }
+            FpsActorController player = FpsActorController.instance;
+            bool? hover = player != null && seat != null && seat.vehicle is Helicopter && seat.IsDriverSeat() ? player.helicopterAutoHoverEnabled : (bool?)null;
+            if (hover != null && _hoverWas != null && hover != _hoverWas)
+            {
+                UI.UISystem.Instance?.Notice?.Show(hover.Value ? "Auto-hover on" : "Auto-hover off", 1.5f);
+                foreach (VRHand hand in rig.Hands)
+                {
+                    if (hand != null && hand.Tracked)
+                    {
+                        hand.Haptic(0.03f, 120f, 0.5f);
+                    }
+                }
+            }
+            _hoverWas = hover;
+        }
+
+        /// <summary>
+        /// The vehicle burning (it will blow up): a slow pulse in both hands every 1.2 s until it is left or put out. A closed
+        /// vehicle's inside also flashes red; an open one (a car, a helicopter) had nothing to say it (vehicles scout, 2026-11-15).
+        /// </summary>
+        private static void Burning(VRRig rig, Vehicle v)
+        {
+            if (!v.burning || v.dead || Time.unscaledTime < _nextBurnPulse)
+            {
+                return;
+            }
+            _nextBurnPulse = Time.unscaledTime + 1.2f;
+            foreach (VRHand hand in rig.Hands)
+            {
+                if (hand != null && hand.Tracked)
+                {
+                    hand.Haptic(0.12f, 45f, 0.7f);
+                }
+            }
         }
 
         /// <summary>

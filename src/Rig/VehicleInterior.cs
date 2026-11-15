@@ -112,6 +112,35 @@ namespace RavenfieldVR.Rig
         private static bool AimSeat(Seat seat) => seat != null && seat.enclosed && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _);
 
         private Light _alarm;
+        private readonly Transform[] _needles = new Transform[3];
+
+        /// <summary>The gauges read the vehicle: speed (0-25 m/s), engine (its throttle, else its speed), hull (its health).</summary>
+        private void Gauges()
+        {
+            Vehicle v = _seat != null ? _seat.vehicle : null;
+            if (v == null)
+            {
+                return;
+            }
+            float speed = Mathf.Clamp01(v.Velocity().magnitude / 25f);
+            float engine = v.engine != null ? Mathf.Clamp01(Mathf.Max(Mathf.Abs(v.engine.targetThrottle), speed)) : speed;
+            float hull = Mathf.Clamp01(v.GetHealthRatio());
+            float[] read = { speed, engine, hull };
+            for (int g = 0; g < 3; g++)
+            {
+                if (_needles[g] != null)
+                {
+                    // From 120 degrees left (nothing) to 120 right (full), eased so it swings, not jumps.
+                    Quaternion want = Quaternion.Euler(0f, 0f, 120f - 240f * read[g]);
+                    Transform n = _needles[g].childCount > 0 ? _needles[g].GetChild(0) : null;
+                    if (n != null)
+                    {
+                        n.localRotation = Quaternion.Slerp(n.localRotation, want, Mathf.Clamp01(Time.unscaledDeltaTime * 6f));
+                        n.localPosition = n.localRotation * new Vector3(0f, 0.012f, 0f) + new Vector3(0f, 0f, -0.002f);
+                    }
+                }
+            }
+        }
         private Color _wallEmit, _lampColor;
 
         internal static bool Wanted(Seat seat)
@@ -188,6 +217,7 @@ namespace RavenfieldVR.Rig
             if (_root != null)
             {
                 Hands();
+                Gauges();
             }
             Aim();
             PointScope();
@@ -256,7 +286,16 @@ namespace RavenfieldVR.Rig
                 float x = -0.12f + g * 0.12f;
                 Cylinder("gauge-" + g, new Vector3(x, 0.2f, 0.4f), new Vector3(0.075f, 0.012f, 0.075f), Quaternion.Euler(-80f, 0f, 0f), _metal);
                 Cylinder("gauge-face-" + g, new Vector3(x, 0.2f, 0.393f), new Vector3(0.062f, 0.002f, 0.062f), Quaternion.Euler(-80f, 0f, 0f), _button);
-                Box("gauge-needle-" + g, new Vector3(x + 0.008f, 0.204f, 0.39f), new Vector3(0.004f, 0.025f, 0.002f), _red).localRotation = Quaternion.Euler(-10f, 0f, -35f + g * 30f);
+                // (The needle on a pivot at the dial's middle: turned by its gauge's reading in Gauges.)
+                var pivot = new GameObject("gauge-pivot-" + g).transform;
+                pivot.SetParent(_root.transform, false);
+                pivot.localPosition = new Vector3(x, 0.2f, 0.39f);
+                pivot.localRotation = Quaternion.Euler(-80f + 90f, 0f, 0f);
+                Transform needle = Box("gauge-needle-" + g, Vector3.zero, new Vector3(0.004f, 0.026f, 0.002f), _red);
+                needle.SetParent(pivot, false);
+                needle.localPosition = new Vector3(0f, 0.012f, -0.002f);
+                needle.localRotation = Quaternion.identity;
+                _needles[g] = pivot;
             }
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
