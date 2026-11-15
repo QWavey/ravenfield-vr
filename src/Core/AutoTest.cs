@@ -619,7 +619,7 @@ namespace RavenfieldVR.Core
                 {
                 }
             }
-            if (!text.Contains("flat game hosting: yes"))
+            if (!(text.Contains("flat game hosting") && text.Contains(": yes"))) // (the line names the port between)
             {
                 report("vr-flat: the flat game DID NOT HOST in 240 s");
                 yield break;
@@ -894,6 +894,41 @@ namespace RavenfieldVR.Core
                         }
                         Results.Add("copies: " + line);
                         Log.Info("[copies check] " + line);
+                    }
+                    // A copy that closes mid-match is started again and rejoins (its process killed here, as a crash would end it).
+                    if (Local.SplitGames.KillCopyForCheck(1))
+                    {
+                        float killedAt = Time.realtimeSinceStartup;
+                        yield return new WaitForSecondsRealtime(3f);
+                        string again = "";
+                        for (float until = Time.realtimeSinceStartup + 150f; Time.realtimeSinceStartup < until && !again.Contains("in the host's match");)
+                        {
+                            yield return new WaitForSecondsRealtime(1f);
+                            try
+                            {
+                                again = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : "";
+                            }
+                            catch (Exception)
+                            {
+                            }
+                        }
+                        string rejoin = again.Contains("in the host's match")
+                            ? $"copies: player 2's game killed mid-match: started again and back in the match after {Time.realtimeSinceStartup - killedAt:0} s"
+                            : "copies: player 2's game killed mid-match: NOT BACK in 150 s";
+                        if (Failure.IsMatch(rejoin))
+                        {
+                            Problem("[copies] " + rejoin);
+                        }
+                        Results.Add(rejoin);
+                        yield return new WaitForSecondsRealtime(8f);
+                        try
+                        {
+                            again = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : again;
+                        }
+                        catch (Exception)
+                        {
+                        }
+                        Results.Add($"copies: after the rejoin: {(again.Contains("deploying at") ? "deployed again" : "NOT DEPLOYED AGAIN")}");
                     }
                     string shot = Shots.FileFor("split-copies");
                     System.IO.Directory.CreateDirectory(Shots.Dir);

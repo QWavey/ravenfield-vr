@@ -185,6 +185,24 @@ namespace RavenfieldVR.Local
         internal static string Loading => _hosting && !_go ? LoadingLines()
             : StartsSplit && !_hosting && !_everHosted ? "Loading ..." : null;
 
+        /// <summary>The copies check: a copy's process ended as a crash would end it (the host must start it again).</summary>
+        internal static bool KillCopyForCheck(int index)
+        {
+            Copy c = Copies.FirstOrDefault(x => x.Index == index);
+            try
+            {
+                if (c?.Process != null && !c.Process.HasExited)
+                {
+                    c.Process.Kill();
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return false;
+        }
+
         /// <summary>Each player's state on the loading screen (the user sees who is still coming).</summary>
         private static string LoadingLines()
         {
