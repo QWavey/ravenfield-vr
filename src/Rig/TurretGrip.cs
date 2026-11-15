@@ -289,6 +289,7 @@ namespace RavenfieldVR.Rig
                 _toldEmpty = false;
             }
             Markers(held > 0);
+            Counter(held > 0);
             if (held == 0)
             {
                 _aim = null; // let go: the gun stays where it points
@@ -431,8 +432,70 @@ namespace RavenfieldVR.Rig
             return false;
         }
 
+        private TextMesh _counter;
+        private float _nextCount;
+
+        /// <summary>For the vehicle check: the held gun's counter text (null: none shown).</summary>
+        internal string CounterText => _counter != null && _counter.gameObject.activeSelf ? _counter.text : null;
+
+        /// <summary>
+        /// A held gun's rounds over its receiver, as a closed vehicle's readout shows them (the user's tanks' roof guns, the gun nests):
+        /// rounds | spare, RELOAD when it waits for the cocking handle. Only while held; turned to the eyes.
+        /// </summary>
+        private void Counter(bool held)
+        {
+            if (!held || _gun == null || _gun.configuration == null || _pivotT == null || _rig.Head == null)
+            {
+                if (_counter != null && _counter.gameObject.activeSelf)
+                {
+                    _counter.gameObject.SetActive(false);
+                }
+                return;
+            }
+            if (_counter == null)
+            {
+                var go = new GameObject("RavenfieldVR gun counter");
+                _counter = go.AddComponent<TextMesh>();
+                Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _counter.font = font;
+                go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+                _counter.anchor = TextAnchor.MiddleCenter;
+                _counter.alignment = TextAlignment.Center;
+                _counter.fontSize = 48;
+                _counter.characterSize = 0.0022f;
+                _counter.fontStyle = FontStyle.Bold;
+                _counter.color = new Color(1f, 0.55f, 0.15f);
+            }
+            if (!_counter.gameObject.activeSelf)
+            {
+                _counter.gameObject.SetActive(true);
+                _nextCount = 0f;
+            }
+            // (On the gun's right, just over the cocking handle, facing the eyes: over the receiver's middle it stood in the sight line.)
+            Transform m = Muzzle();
+            Vector3 at = CockPoint() + m.up * 0.05f;
+            Vector3 toEyes = _rig.Head.position - at;
+            _counter.transform.SetPositionAndRotation(at, toEyes.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(-toEyes, Vector3.up) : Quaternion.identity);
+            if (Time.unscaledTime < _nextCount)
+            {
+                return;
+            }
+            _nextCount = Time.unscaledTime + 0.15f;
+            string text = _gun.reloading ? "RELOADING"
+                        : _gun.ammo <= 0 && ReloadsByHand(_gun) ? "RELOAD"
+                        : $"{_gun.ammo}  |  {(_gun.HasInfiniteSpareAmmo() ? "\u221E" : _gun.spareAmmo.ToString())}";
+            if (_counter.text != text)
+            {
+                _counter.text = text;
+            }
+        }
+
         private void HideMarkers()
         {
+            if (_counter != null)
+            {
+                _counter.gameObject.SetActive(false);
+            }
             foreach (Transform m in _markers)
             {
                 if (m != null)
@@ -600,6 +663,11 @@ namespace RavenfieldVR.Rig
             if (_markerMat != null)
             {
                 Object.Destroy(_markerMat);
+            }
+            if (_counter != null)
+            {
+                Object.Destroy(_counter.gameObject);
+                _counter = null;
             }
             _seat = null;
             _gun = null;
