@@ -580,6 +580,7 @@ def main():
     ap.add_argument('--autotest', action='store_true', help='the whole autotest (quick: a sample of weapons)')
     ap.add_argument('--grabcheck', action='store_true', help='only the soldier checks: grab, throw, fist, a gun swung into one (a few minutes)')
     ap.add_argument('--sandboxmode', action='store_true', help='with --sandboxcheck: the match is the Sandbox game mode itself (no soldiers of its own)')
+    ap.add_argument('--vehicleshots', action='store_true', help='the VR player in each kind of vehicle on the map (wheel and passenger seat): pictures ahead, side, down and from outside (a minute)')
     ap.add_argument('--sandboxcheck', action='store_true', help='only the sandbox check: soldiers by behaviour, quiet field, vehicle, weapon, panel (two minutes)')
     ap.add_argument('--netcheck', action='store_true', help='only the multiplayer check: a second player in the same game over UDP (a minute)')
     ap.add_argument('--vrflatcheck', action='store_true', help='a VR player hosts (the null headset), a flat copy of the game joins it over LAN and plays by script; both views of the other player reported')
@@ -651,7 +652,7 @@ def main():
             print(f'{w["id"]:4d}  {w["name"]}')
         return
     modes = [m for m, on in (('weapons', a.weapons and not a.weapon), ('weapon', bool(a.weapon)), ('ui', a.ui), ('hands', a.hands), ('bench', a.bench),
-                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck), ('dashcheck', a.dashcheck), ('splitcheck', a.splitcheck), ('splittry', a.splittry), ('splitgamescheck', a.splitgamescheck), ('splitlagcheck', a.splitlagcheck), ('vrflatcheck', a.vrflatcheck), ('vrjoinflatcheck', a.vrjoinflatcheck), ('netcheck-flat', a.netcheck_flat),
+                             ('autotest', a.autotest), ('film', a.film is not None), ('flashcheck', a.flashcheck), ('grabcheck', a.grabcheck), ('sandboxcheck', a.sandboxcheck), ('vehicleshots', a.vehicleshots), ('netcheck', a.netcheck), ('lobbycheck', a.lobbycheck), ('dashcheck', a.dashcheck), ('splitcheck', a.splitcheck), ('splittry', a.splittry), ('splitgamescheck', a.splitgamescheck), ('splitlagcheck', a.splitlagcheck), ('vrflatcheck', a.vrflatcheck), ('vrjoinflatcheck', a.vrjoinflatcheck), ('netcheck-flat', a.netcheck_flat),
                              ('showcase', a.showcase is not None)) if on]
     if not modes:
         ap.print_help()
@@ -725,6 +726,8 @@ def main():
             args, timeout = ['-vr', '-nointro', '-rfvr-lobbycheck'] + [b for b in base if b.startswith('-rfvr-mods=')], a.timeout or 5
         elif mode == 'netcheck':
             args, timeout = base + ['-rfvr-netcheck'], a.timeout or 6
+        elif mode == 'vehicleshots':
+            args, timeout = base + ['-rfvr-vehicleshots'], a.timeout or 5
         elif mode == 'sandboxcheck':
             args, timeout = base + ['-rfvr-sandboxcheck'] + (['-rfvr-sandboxmode'] if a.sandboxmode else []), a.timeout or 8
         elif mode == 'grabcheck':

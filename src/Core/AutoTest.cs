@@ -1023,6 +1023,22 @@ namespace RavenfieldVR.Core
                     Application.Quit();
                     yield break;
                 }
+                if (VRManager.Active && VehicleShots.Requested)
+                {
+                    _context = "vehicle pictures";
+                    yield return VehicleShots.Run(l =>
+                    {
+                        if (Failure.IsMatch(l))
+                        {
+                            Problem("[vehicles] " + l);
+                        }
+                        Log.Info("[vehicle pictures] " + l);
+                        Results.Add(l);
+                    });
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
                 if (VRManager.Active && SandboxCheckOnly)
                 {
                     _context = "sandbox check";
