@@ -613,6 +613,39 @@ namespace RavenfieldVR.Core
                     line += $"; forward button: drive {drive:+0.0;-0.0}{(drive < 0.5f ? " (DID NOT DRIVE)" : "")}";
                 }
             }
+            // The cabin's steering wheel (a wheeled closed vehicle's driver): turned 60 degrees by hand, the steering reads it.
+            Transform sw = Rig.VehicleInterior.Instance.CabinSteeringWheel;
+            if (sw != null && sw.parent != null)
+            {
+                Rig.VRHand hand = rig.Dominant;
+                int side = (int)hand.Side;
+                Vector3 toRaw = hand.Raw.position - hand.PalmCentre;
+                Quaternion rot = hand.Raw.rotation;
+                Vector3 at = sw.parent.InverseTransformPoint(sw.position);
+                Quaternion turn = Quaternion.Inverse(sw.parent.rotation) * sw.rotation;
+                float steer = 0f;
+                for (float t = 0f; t <= 0.9f; t += Time.unscaledDeltaTime)
+                {
+                    if (sw == null || sw.parent == null)
+                    {
+                        break;
+                    }
+                    float a = t < 0.15f ? 0f : Mathf.Clamp01((t - 0.15f) / 0.6f) * 60f;
+                    Vector3 rim = sw.parent.TransformPoint(at + turn * (Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f)));
+                    Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + toRaw, rot);
+                    if (t > 0.08f && !Input.VRInput.SimulatedGrab[side])
+                    {
+                        Input.VRInput.SimulateGrabPress(hand.Side);
+                    }
+                    steer = Input.VehicleInput.WheelSteer ?? steer;
+                    yield return null;
+                }
+                Input.VRInput.SimulatedGrab[side] = false;
+                Rig.VRHand.Scripted[side] = null;
+                yield return new WaitForSecondsRealtime(0.2f);
+                bool back = Input.VehicleInput.WheelSteer == null;
+                line += $"; cabin steering wheel 60 deg: steering {steer:+0.00;-0.00}{(Mathf.Abs(steer) < 0.2f ? " (DID NOT STEER)" : "")}, let go: {(back ? "straight" : "STILL TURNED")}";
+            }
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);
             Shots.Capture(name + "-inside-alarm");

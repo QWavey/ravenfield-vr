@@ -52,6 +52,8 @@ namespace RavenfieldVR.Rig
 
         internal Transform ElevationWheel => _elevate;
 
+        internal Transform CabinSteeringWheel => _steer;
+
         internal Transform ForwardButton => _driveButtons.Count > 0 ? _driveButtons[0].t : null;
 
         /// <summary>For the vehicle check: the alarm shown without setting the vehicle on fire (that burned it, the player with it).</summary>
