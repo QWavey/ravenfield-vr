@@ -273,7 +273,7 @@ namespace RavenfieldVR.Local
                 _lastMouseY = s.TotalY;
                 _lastWheel = s.Wheel;
                 _mouseKnown = true;
-                int binds = Count - 1;
+                int binds = SteelInput.instance != null ? Count - 1 : 0; // (no input system yet, as the game loads: no bind asked, not an exception each per frame; scout)
                 for (int i = 0; i < binds; i++)
                 {
                     var bind = (SteelInput.KeyBinds)i;

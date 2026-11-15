@@ -32,6 +32,57 @@ namespace RavenfieldVR.Local
         {
             _note = note;
             FlatPlayerInput.AfterCompute = Filter;
+            LoadOwn();
+        }
+
+        /// <summary>
+        /// This player's own mouse settings, kept in a file of their own (the copies share player 1's game settings, so the game's own
+        /// store would have changed his): the same sensitivity and invert after a rejoin and in the next splitscreen game.
+        /// </summary>
+        private static string OwnFile => System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, $"RavenfieldVR-split-player{SplitGames.ClientIndex + 1}.cfg");
+
+        private static void LoadOwn()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(OwnFile))
+                {
+                    return;
+                }
+                foreach (string line in System.IO.File.ReadAllLines(OwnFile))
+                {
+                    string[] kv = line.Split('=');
+                    if (kv.Length != 2)
+                    {
+                        continue;
+                    }
+                    if (kv[0] == "mouse" && float.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float m))
+                    {
+                        FlatPlayerInput.MouseAxisPerCount = Mathf.Clamp(m, 0.02f, 0.5f);
+                    }
+                    else if (kv[0] == "invert")
+                    {
+                        FlatPlayerInput.InvertY = kv[1] == "1";
+                    }
+                }
+                _note?.Invoke($"Splitscreen: this player's own mouse settings: {FlatPlayerInput.MouseAxisPerCount / 0.1f:0.00}x, invert {(FlatPlayerInput.InvertY ? "on" : "off")}.");
+            }
+            catch (Exception e)
+            {
+                _note?.Invoke("Splitscreen: this player's mouse settings could not be read: " + e.Message);
+            }
+        }
+
+        private static void SaveOwn()
+        {
+            try
+            {
+                System.IO.File.WriteAllText(OwnFile, "mouse=" + FlatPlayerInput.MouseAxisPerCount.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+                                                     + "\ninvert=" + (FlatPlayerInput.InvertY ? "1" : "0") + "\n");
+            }
+            catch (Exception)
+            {
+            }
         }
 
         /// <summary>After the frame's binds: the pause key opens and closes the menu (never the game's pause); the open menu takes the keys.</summary>
@@ -134,9 +185,11 @@ namespace RavenfieldVR.Local
                     break;
                 case 6:
                     FlatPlayerInput.MouseAxisPerCount = Mathf.Clamp(FlatPlayerInput.MouseAxisPerCount * (step > 0 ? 1.15f : 1f / 1.15f), 0.02f, 0.5f);
+                    SaveOwn();
                     break;
                 case 7:
                     FlatPlayerInput.InvertY = !FlatPlayerInput.InvertY;
+                    SaveOwn();
                     break;
             }
         }

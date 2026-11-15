@@ -2050,7 +2050,9 @@ namespace RavenfieldVR.Net
             {
                 // Twice as often on a LAN or this PC (the splitscreen copies): over Steam 15 a second hides its jitter, side by side on one
                 // screen it showed each player's soldier well behind his own view (the user, 2026-11-15: "very very delayed").
-                _nextSend = Time.unscaledTime + (Multiplayer.OverSteam ? SendEvery : SendEvery * 0.5f);
+                // (A splitscreen copy tells only its own player, over this PC: 60 a second costs nothing, and the others see him a frame
+                // sooner. The host stays at 30: it tells every AI soldier too, on player 1's frames.)
+                _nextSend = Time.unscaledTime + (Multiplayer.OverSteam ? SendEvery : Local.SplitGames.IsClient ? SendEvery * 0.25f : SendEvery * 0.5f);
                 if (session.PlayerCount > 1)
                 {
                     TellMine(session);

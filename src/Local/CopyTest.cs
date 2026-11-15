@@ -17,6 +17,7 @@ namespace RavenfieldVR.Local
 
         private const int Done = 99;
         private static int _step = -1;
+        private static bool _menuNoted;
         private static float _stepAt, _ammoLast, _yawFrom, _lookFrom;
         private static Vector3 _from, _rightFrom;
         private static int _shots, _slotFrom, _teamFrom;
@@ -220,6 +221,7 @@ namespace RavenfieldVR.Local
                         {
                             s.Keys[0x1B] = true;
                             _primaryFrom = before;
+                            _menuNoted = false;
                         }
                         else if (t > 0.3f && t < 0.4f || t > 0.5f && t < 0.6f || t > 0.7f && t < 0.8f)
                         {
@@ -229,8 +231,9 @@ namespace RavenfieldVR.Local
                         {
                             Press(SteelInput.KeyBinds.Horizontal, false); // (right: the next weapon)
                         }
-                        else if (t > 1.2f && t < 1.25f)
+                        else if (t > 1.2f && !_menuNoted)
                         {
+                            _menuNoted = true; // (once: at 144 frames a second the window held seven)
                             note($"copy test: Esc menu {(SplitCopyMenu.Open ? "open" : "NOT OPEN")}, the game {(GameManager.IsPaused() ? "PAUSED" : "not paused")}; primary {_primaryFrom} -> {before}{(before == _primaryFrom ? " (NOT CHANGED)" : "")}");
                         }
                         else if (t > 1.4f && t < 1.5f)
