@@ -460,16 +460,26 @@ namespace RavenfieldVR.Rig
             _aimLocal.Normalize();
         }
 
+        /// <summary>
+        /// A point in the wheel's mount (where it sits, as built: not its turn, which follows the hand). Read against the turning wheel
+        /// itself, each crank's own turn came back as the hand's and the turret swung 90 to 180 degrees for half a turn.
+        /// </summary>
+        private static Vector3 InMount(Transform wheel, Vector3 world)
+        {
+            Quaternion mount = wheel.parent.rotation * Quaternion.Euler(-30f, 0f, 0f);
+            return Quaternion.Inverse(mount) * (world - wheel.position);
+        }
+
         private static bool OnRim(Transform wheel, Vector3 palm)
         {
-            Vector3 local = wheel.InverseTransformPoint(palm);
+            Vector3 local = InMount(wheel, palm);
             float r = new Vector2(local.x, local.y).magnitude;
             return Mathf.Abs(local.z) < WheelReach && r > WheelRadius - WheelReach && r < WheelRadius + WheelReach;
         }
 
         private static float RimAngle(Transform wheel, Vector3 palm)
         {
-            Vector3 local = wheel.InverseTransformPoint(palm);
+            Vector3 local = InMount(wheel, palm);
             return Mathf.Atan2(local.x, local.y) * Mathf.Rad2Deg;
         }
 

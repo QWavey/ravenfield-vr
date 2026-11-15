@@ -507,7 +507,7 @@ namespace RavenfieldVR.Core
             Vector3 arm = Vector3.ProjectOnPlane(frame.InverseTransformPoint(hand.Palm.position) - frame.InverseTransformPoint(pivot.position), Vector3.up);
             Vector3 aimFlat = Vector3.ProjectOnPlane(frame.InverseTransformDirection(muzzle.forward), Vector3.up).normalized;
             bool under = arm.magnitude < 0.2f;
-            float expect = under ? 1f : -Mathf.Sign(Vector3.Dot(arm, aimFlat)); // (behind the pivot: the hand right turns it left)
+            float expect = under ? 1f : Mathf.Sign(Vector3.Dot(arm, aimFlat)); // (behind the pivot (negative): the hand right turns it left)
             Input.VRInput.SimulateGrabPress(hand.Side);
             yield return new WaitForSecondsRealtime(0.4f);
             bool taken = grip.Held;

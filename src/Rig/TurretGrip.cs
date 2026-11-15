@@ -307,7 +307,10 @@ namespace RavenfieldVR.Rig
                 _gripAtGrab = grip - pivot;
                 _turnAtGrab = PalmTurnInFrame(first);
             }
-            _aim = Swing(_aimAtGrab, _gripAtGrab, grip - pivot, PalmTurnInFrame(first) * Quaternion.Inverse(_turnAtGrab));
+            // (Up is the vehicle's up in the frame: a model's turning parent is often tipped (exported Z-up), and its own y as the
+            // upright axis swung some guns the wrong way and others hardly at all; the vehicle check, 2026-11-15.)
+            Vector3 up = (Quaternion.Inverse(_frame.rotation) * _seat.vehicle.transform.up).normalized;
+            _aim = Swing(_aimAtGrab, _gripAtGrab, grip - pivot, PalmTurnInFrame(first) * Quaternion.Inverse(_turnAtGrab), up);
         }
 
         /// <summary>
@@ -315,9 +318,8 @@ namespace RavenfieldVR.Rig
         /// went round the upright axis, then up and down by the angle it went round the gun's own across axis. Where the grip sits
         /// (nearly) on an axis, that axis's turn is the hand's own instead.
         /// </summary>
-        internal static Vector3 Swing(Vector3 aim0, Vector3 grip0, Vector3 grip1, Quaternion handTurn)
+        internal static Vector3 Swing(Vector3 aim0, Vector3 grip0, Vector3 grip1, Quaternion handTurn, Vector3 up)
         {
-            Vector3 up = Vector3.up;
             Vector3 h0 = Vector3.ProjectOnPlane(grip0, up), h1 = Vector3.ProjectOnPlane(grip1, up);
             float yaw;
             if (h0.magnitude >= ShortArm && h1.magnitude >= ShortArm)
@@ -326,8 +328,8 @@ namespace RavenfieldVR.Rig
             }
             else
             {
-                Vector3 f = handTurn * Vector3.forward;
-                yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg; // (the hand's own turn sideways)
+                Vector3 f = Vector3.ProjectOnPlane(handTurn * aim0, up);
+                yaw = f.sqrMagnitude > 1e-6f ? Vector3.SignedAngle(Vector3.ProjectOnPlane(aim0, up), f, up) : 0f; // (the hand's own turn sideways)
             }
             Vector3 aimFlat = Vector3.ProjectOnPlane(aim0, up);
             Vector3 across = Vector3.Cross(up, aimFlat.sqrMagnitude > 1e-4f ? aimFlat.normalized : Vector3.forward); // the gun's right
@@ -341,8 +343,8 @@ namespace RavenfieldVR.Rig
             }
             else
             {
-                Vector3 f = handTurn * Vector3.forward;
-                pitch = -Mathf.Asin(Mathf.Clamp(f.y, -1f, 1f)) * Mathf.Rad2Deg;
+                Vector3 f = Vector3.ProjectOnPlane(handTurn * aim0, across);
+                pitch = f.sqrMagnitude > 1e-6f ? Vector3.SignedAngle(Vector3.ProjectOnPlane(aim0, across), f, across) : 0f;
             }
             return (Quaternion.AngleAxis(yaw, up) * Quaternion.AngleAxis(pitch, across) * aim0).normalized;
         }
