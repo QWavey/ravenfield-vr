@@ -632,6 +632,40 @@ namespace RavenfieldVR.Local
             }
         }
 
+        /// <summary>
+        /// The game's own player's view and display drawn in one part of its window only (the game copies splitscreen: the copies' windows
+        /// sit over the other parts of this one window). Cheap when already so: called once a frame.
+        /// </summary>
+        internal static void OwnViewInto(Rect part)
+        {
+            HudIntoOwnPart(part);
+            foreach (Camera c in OwnCameras())
+            {
+                if (!MainRects.ContainsKey(c))
+                {
+                    MainRects[c] = c.rect;
+                }
+                if (c.rect != part)
+                {
+                    c.rect = part;
+                }
+            }
+        }
+
+        /// <summary>The game's own view over its whole window again.</summary>
+        internal static void OwnViewBack()
+        {
+            foreach (KeyValuePair<Camera, Rect> kv in MainRects)
+            {
+                if (kv.Key != null)
+                {
+                    kv.Key.rect = kv.Value;
+                }
+            }
+            MainRects.Clear();
+            HudBack();
+        }
+
         private static IEnumerable<Camera> OwnCameras()
         {
             FpsActorController f = FpsActorController.instance;

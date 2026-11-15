@@ -39,6 +39,9 @@ namespace RavenfieldVR.Local
 
         public static bool IsClient => ClientIndex > 0;
 
+        /// <summary>This copy's window is inside the host's (Unity's -parentHWND): placed as a child in its part, never restyled.</summary>
+        private static readonly bool Embedded = Args.Any(x => x.Equals("-parentHWND", StringComparison.OrdinalIgnoreCase));
+
         /// <summary>This copy's host plays in a headset: the monitor is the copies' only.</summary>
         private static readonly bool VrHost = Args.Any(x => x.Equals("-rfvr-splitvrhost", StringComparison.OrdinalIgnoreCase));
 
@@ -113,6 +116,67 @@ namespace RavenfieldVR.Local
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
+        private static readonly List<int> Pending = new List<int>();
+        private static float _nextStart;
+        private static bool _embed;
+
+        /// <summary>The next copy started when the one before has its mod up (its log written) or 25 s have passed.</summary>
+        private static void StartNextCopy()
+        {
+            if (Pending.Count == 0 || Time.unscaledTime < _nextStart)
+            {
+                return;
+            }
+            Copy last = Copies.LastOrDefault();
+            if (last != null && !System.IO.File.Exists(CopyLog(last.Index)) && Time.unscaledTime < _nextStart + 25f)
+            {
+                return;
+            }
+            int i = Pending[0];
+            Pending.RemoveAt(0);
+            int n = Splitscreen.Players;
+            try
+            {
+                System.IO.File.Delete(CopyLog(i));
+            }
+            catch (Exception)
+            {
+            }
+            string exe = Process.GetCurrentProcess().MainModule.FileName;
+            string mods = Args.FirstOrDefault(a => a.StartsWith("-rfvr-mods=", StringComparison.OrdinalIgnoreCase));
+            var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
+            Rect part = SplitPlayers.Part(Runtime.OpenVRRuntime.Running ? i - 1 : i, Runtime.OpenVRRuntime.Running ? n - 1 : n);
+            int pw = Mathf.RoundToInt(part.width * GetSystemMetrics(0)), ph = Mathf.RoundToInt(part.height * GetSystemMetrics(1));
+            IntPtr parent = _embed ? RawInput.GameWindow() : IntPtr.Zero;
+            // (Inside this window when embedded, Unity's own -parentHWND; else borderless at its part's size, -popupwindow.)
+            string args = $"-novr -nointro -screen-fullscreen 0 -screen-width {pw} -screen-height {ph}"
+                          + (parent != IntPtr.Zero ? $" -parentHWND {parent.ToInt64()}" : " -popupwindow")
+                          + $" -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
+                          + (Runtime.OpenVRRuntime.Running ? " -rfvr-splitvrhost" : "")
+                          + (TestCopies ? " -rfvr-splittest" : "")
+                          + (mods != null ? " " + mods : "");
+            try
+            {
+                var start = new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe) };
+                // (Without the mod loader's own variables: inherited, its loader in the copy took itself for already run and loaded no
+                // mod, so the copy never joined; 2026-11-14 22:20.)
+                foreach (string key in start.EnvironmentVariables.Keys.Cast<string>().ToList())
+                {
+                    if (key.StartsWith("DOORSTOP", StringComparison.OrdinalIgnoreCase))
+                    {
+                        start.EnvironmentVariables.Remove(key);
+                    }
+                }
+                c.Process = Process.Start(start);
+                Copies.Add(c);
+                Log.Info($"Splitscreen: player {i + 1}'s own copy of the game started ({args}).");
+            }
+            catch (Exception e)
+            {
+                Log.Warn($"Splitscreen: player {i + 1}'s copy of the game could not start: {e.Message}");
+            }
+            _nextStart = Time.unscaledTime + 3f;
+        }
         private static bool _hosting, _weHosted, _f12Was, _hostRanInBackground;
         /// <summary>Try mode: the player the one keyboard and mouse play now (0: player 1; F12 the next).</summary>
         private static int _tryPlayer = 1;
@@ -150,8 +214,13 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            StartNextCopy();
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
-            if (!Runtime.OpenVRRuntime.Running)
+            if (_embed)
+            {
+                SplitPlayers.OwnViewInto(SplitPlayers.Part(0, Splitscreen.Players)); // (the copies' windows over the other parts)
+            }
+            else if (!Runtime.OpenVRRuntime.Running)
             {
                 Window(0, Splitscreen.Players);
             }
@@ -183,39 +252,22 @@ namespace RavenfieldVR.Local
             Application.runInBackground = true;
             _hosting = true;
             int n = Splitscreen.Players;
-            string exe = Process.GetCurrentProcess().MainModule.FileName;
-            string mods = Args.FirstOrDefault(a => a.StartsWith("-rfvr-mods=", StringComparison.OrdinalIgnoreCase));
+            // One window: this game borderless over the whole screen, its own view in its part; each copy's window inside it over its
+            // part (Unity's -parentHWND). Four windows were confusing (the user, 2026-11-15: "can we make it one but its splitten?").
+            // In VR the headset is player 1: the copies share the monitor, each its own window.
+            _embed = !Runtime.OpenVRRuntime.Running;
+            if (_embed)
+            {
+                Screen.SetResolution(GetSystemMetrics(0), GetSystemMetrics(1), FullScreenMode.FullScreenWindow);
+            }
+            // The copies one after another, each once the one before has its mod up: started together, two of three found the mod
+            // loader's files taken ("sharing violation") and stayed in the menu with no mod (2026-11-15).
+            Pending.Clear();
             for (int i = 1; i < n; i++)
             {
-                var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
-                Rect part = SplitPlayers.Part(Runtime.OpenVRRuntime.Running ? i - 1 : i, Runtime.OpenVRRuntime.Running ? n - 1 : n);
-                int pw = Mathf.RoundToInt(part.width * GetSystemMetrics(0)), ph = Mathf.RoundToInt(part.height * GetSystemMetrics(1));
-                // (Borderless from the start at its part's size, Unity's own -popupwindow: only moved into place then, never restyled.)
-                string args = $"-novr -nointro -screen-fullscreen 0 -popupwindow -screen-width {pw} -screen-height {ph} -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
-                              + (Runtime.OpenVRRuntime.Running ? " -rfvr-splitvrhost" : "")
-                              + (TestCopies ? " -rfvr-splittest" : "")
-                              + (mods != null ? " " + mods : "");
-                try
-                {
-                    var start = new ProcessStartInfo(exe, args) { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe) };
-                    // (Without the mod loader's own variables: inherited, its loader in the copy took itself for already run and loaded no
-                    // mod, so the copy never joined; 2026-11-14 22:20.)
-                    foreach (string key in start.EnvironmentVariables.Keys.Cast<string>().ToList())
-                    {
-                        if (key.StartsWith("DOORSTOP", StringComparison.OrdinalIgnoreCase))
-                        {
-                            start.EnvironmentVariables.Remove(key);
-                        }
-                    }
-                    c.Process = Process.Start(start);
-                    Copies.Add(c);
-                    Log.Info($"Splitscreen: player {i + 1}'s own copy of the game started ({args}).");
-                }
-                catch (Exception e)
-                {
-                    Log.Warn($"Splitscreen: player {i + 1}'s copy of the game could not start: {e.Message}");
-                }
+                Pending.Add(i);
             }
+            _nextStart = Time.unscaledTime + (_embed ? 1.5f : 0f); // (the window full screen first: its handle given to the copies)
             try
             {
                 _hostSocket = Quiet(new UdpClient(new IPEndPoint(IPAddress.Loopback, HostInputPort)));
@@ -256,6 +308,12 @@ namespace RavenfieldVR.Local
                 }
             }
             Copies.Clear();
+            Pending.Clear();
+            if (_embed)
+            {
+                SplitPlayers.OwnViewBack();
+                _embed = false;
+            }
             _hostSocket?.Close();
             _hostSocket = null;
             _hosting = false;
@@ -639,7 +697,7 @@ namespace RavenfieldVR.Local
 
         private const int GWL_STYLE = -16;
         private const uint SWP_NOZORDER = 0x0004, SWP_FRAMECHANGED = 0x0020, SWP_SHOWWINDOW = 0x0040;
-        private const long WS_POPUP = 0x80000000L, WS_VISIBLE = 0x10000000L;
+        private const long WS_POPUP = 0x80000000L, WS_VISIBLE = 0x10000000L, WS_CHILD = 0x40000000L;
 
         /// <summary>This game's window borderless over part i of n of the screen (as the soldiers' parts: halves, or quarters for 3-4).</summary>
         /// <summary>
@@ -662,6 +720,14 @@ namespace RavenfieldVR.Local
             if (GetWindowRect(hwnd, out RECT r) && r.Left == x && r.Top == y && r.Right - r.Left == w && r.Bottom - r.Top == h)
             {
                 return true;
+            }
+            if (Embedded)
+            {
+                // A child of the host's window: placed in its part (the host's window is the whole screen, so its client place is the
+                // screen's); the window's own size is the picture's (Unity follows it).
+                SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(WS_CHILD | WS_VISIBLE));
+                SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+                return false;
             }
             if (Screen.fullScreenMode != FullScreenMode.Windowed || Screen.width != w || Screen.height != h)
             {
