@@ -2,6 +2,11 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-15 evening (**1.19.1 INSTALLED** on this PC, Defender clean; Tasks 400-401; vehicles run to 85% going on)
+
+- Vehicles: open mounted guns taken by their handles (`Rig/TurretGrip.cs`, reload by the cocking handle); closed vehicles solid from inside (`Rig/HullInside.cs`) with an inside (`Rig/VehicleInterior.cs`: periscope viewer, handwheels, fire button, drive buttons, radio, gauges, alarm), every enclosed gunner seat aimed by the right stick and the wheels (head aim there spun the turret). Check: `vrshots --vehicleshots [--vehicles a,b]` spawns every vehicle and turret (39 here with the mods).
+- Waiting for the user: OK to download `Flat_Ammunition.zip` (2.5 MB, CC0) for ammo racks (the sci-fi kit was refused). The friend's PC needs 1.19.1 too.
+
 ## State 2026-11-15 13:01 (**1.19.0 INSTALLED** on this PC, Defender clean; Tasks 398-399; run to 65% going on)
 
 - 1.19.0: the copies draw at the screen's rate (144, stepping down to 120/90/60 by themselves), 1 ms timer, above-normal GPU scheduling; 4 players measured: copies 120-144 fps, mouse to turning 7-13 ms, W to walking 75-94 ms, input 4-5 ms late; the scout's review fixed (Tasks 399). The friend's PC needs 1.19.0 too (another version is refused at joining). To confirm with the user: the delay at the new rates.
