@@ -37,6 +37,65 @@ namespace RavenfieldVR.Rig
         /// <summary>Called once per frame by the rig, after the cockpit (a hand on a steering wheel never reaches a door here).</summary>
         public void Update()
         {
+            Step();
+            for (int h = 0; h < 2; h++)
+            {
+                VRHand hand = _rig.Hands[h];
+                float progress = _touching[h] != null && _holdSince[h] >= 0f ? Mathf.Clamp01((Time.unscaledTime - _holdSince[h]) / HoldToEnter) : -1f;
+                EntryHint(h, hand, _touching[h] != null && hand != null && hand.Tracked, progress);
+            }
+        }
+
+        private readonly GameObject[] _hint = new GameObject[2];
+        private Material _hintMaterial;
+        private readonly float[] _tickAt = new float[2];
+
+        /// <summary>
+        /// A hand on a vehicle it can get into: a glow at the palm, growing and turning green through the half-second hold, with light
+        /// ticks as it fills (vehicles scout, 2026-11-15: a single tick said a vehicle was found, nothing showed the hold).
+        /// </summary>
+        private void EntryHint(int h, VRHand hand, bool touching, float progress)
+        {
+            if (!touching)
+            {
+                if (_hint[h] != null && _hint[h].activeSelf)
+                {
+                    _hint[h].SetActive(false);
+                }
+                return;
+            }
+            if (_hint[h] == null)
+            {
+                _hint[h] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                _hint[h].name = "RavenfieldVR Entry Hint";
+                Object.Destroy(_hint[h].GetComponent<Collider>());
+                Object.DontDestroyOnLoad(_hint[h]);
+                if (_hintMaterial == null)
+                {
+                    _hintMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 3100 };
+                }
+                Renderer r = _hint[h].GetComponent<Renderer>();
+                r.sharedMaterial = new Material(_hintMaterial);
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            if (!_hint[h].activeSelf)
+            {
+                _hint[h].SetActive(true);
+            }
+            float k = Mathf.Max(0f, progress);
+            _hint[h].transform.position = hand.PalmCentre;
+            _hint[h].transform.localScale = Vector3.one * (0.03f + 0.04f * k);
+            _hint[h].GetComponent<Renderer>().sharedMaterial.color = Color.Lerp(new Color(0.55f, 0.85f, 1f, 0.3f), new Color(0.4f, 1f, 0.5f, 0.75f), k);
+            if (progress > 0f && progress < 1f && Time.unscaledTime >= _tickAt[h])
+            {
+                _tickAt[h] = Time.unscaledTime + 0.1f;
+                hand.Haptic(0.01f, 200f, 0.15f + 0.3f * k);
+            }
+        }
+
+        /// <summary>The hands' search for a seat in reach and the hold to get in (as before).</summary>
+        private void Step()
+        {
             Actor actor = GameContext.PlayerActor;
             // On foot only: seated, on a ladder, falling or dead the hands do what they did (the wheel, the holsters, the ladder).
             // Not while the game is paused either (the headset off, the dashboard open: no cursor menu, so GameMenuOpen is false):
