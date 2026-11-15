@@ -145,6 +145,7 @@ namespace RavenfieldVR.Rig
         private int _carryHand = -1;
         private static bool _loading;
         private const float ShellReach = 0.12f, BreechReach = 0.17f;
+        private Weapon _cannon; // the gun the breech belongs to (null: no breech)
 
         /// <summary>This seat's cannon is loaded by hand: Manual reload, a breech and a rack of shells in the inside.</summary>
         private bool LoadsByHand => _breech != null && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual;
@@ -157,7 +158,8 @@ namespace RavenfieldVR.Rig
             {
                 return false;
             }
-            Weapon mine = Gun(me._seat);
+            // (The cannon the breech was built for, whichever of the seat's guns is drawn: the coaxial machine gun is not loaded by hand.)
+            Weapon mine = me._cannon;
             return mine != null && (ReferenceEquals(mine, gun) || ReferenceEquals(mine.GetActiveSubWeapon(), gun));
         }
 
@@ -235,7 +237,7 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
-            Weapon gun = Gun(_seat);
+            Weapon gun = _cannon; // (not the drawn gun: a shell into the breech with the coaxial machine gun drawn loaded the machine gun)
             if (!hand.GrabHeld || gun == null)
             {
                 DropShell();
@@ -740,6 +742,7 @@ namespace RavenfieldVR.Rig
                 if (breech)
                 {
                     BuildBreech();
+                    _cannon = gunHere;
                 }
             }
             if (SteersByWheel(_seat))
@@ -883,7 +886,7 @@ namespace RavenfieldVR.Rig
             float since = Time.unscaledTime - _shotAt;
             float back = since < 0f ? 0f : since < 0.05f ? since / 0.05f : Mathf.Clamp01(1f - (since - 0.05f) / 0.5f);
             _breech.localPosition = _breechAt + new Vector3(0f, 0f, -0.14f * back * back * (3f - 2f * back));
-            Weapon gun = Gun(_seat);
+            Weapon gun = _cannon;
             bool open = gun != null && (gun.reloading || gun.ammo <= 0);
             float rammed = Time.unscaledTime - _rammedAt;
             if (rammed >= 0f && rammed < 0.15f)
@@ -1184,7 +1187,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void Rounds()
         {
-            Weapon gun = _seat != null ? Gun(_seat) : null;
+            Weapon gun = _cannon ?? (_seat != null ? Gun(_seat) : null); // (a cannon's rack counts its shells with the machine gun drawn too)
             if (gun == null || _rounds.Count == 0)
             {
                 return;
@@ -1740,6 +1743,7 @@ namespace RavenfieldVR.Rig
             _driveButtons.Clear();
             _traverse = _elevate = _fire = _steer = null;
             _fireReady = _breech = _breechBlock = null;
+            _cannon = null;
             _zoomKnob = null;
             _lightSwitch = _hint = null;
             foreach (Material m in _extra)
