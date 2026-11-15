@@ -843,6 +843,8 @@ namespace RavenfieldVR.Rig
                 float x = g < 3 ? -0.12f + g * 0.12f : g == 3 ? -0.24f : 0.24f;
                 Cylinder("gauge-" + g, new Vector3(x, 0.2f, 0.4f), new Vector3(0.075f, 0.012f, 0.075f), Quaternion.Euler(-80f, 0f, 0f), _metal);
                 Cylinder("gauge-face-" + g, new Vector3(x, 0.2f, 0.393f), new Vector3(0.062f, 0.002f, 0.062f), Quaternion.Euler(-80f, 0f, 0f), _button);
+                // (Its name over it: which dial reads what at a glance.)
+                Label(g == 0 ? "SPEED" : g == 1 ? "ENGINE" : g == 2 ? "HULL" : g == 3 ? "TURRET" : "ELEV", new Vector3(x, 0.248f, 0.392f), Quaternion.Euler(-10f, 0f, 0f), 0.0011f, new Color(1f, 0.85f, 0.3f));
                 // (The needle on a pivot at the dial's middle: turned by its gauge's reading in Gauges.)
                 var pivot = new GameObject("gauge-pivot-" + g).transform;
                 pivot.SetParent(_root.transform, false);
