@@ -20,6 +20,9 @@ namespace RavenfieldVR.Local
     internal static class SplitDeploy
     {
         private static float _deployedAt = -1f;
+
+        /// <summary>Deploy at once without a key (the host's go: every player deployed together).</summary>
+        public static bool DeployNow;
         private static string _line = "";
         private static GUIStyle _style;
 
@@ -54,7 +57,7 @@ namespace RavenfieldVR.Local
                 : _deployedAt > 0f ? $"Deploying at {at.shortName} ...   T: switch team"
                 : $"{FlatPlayerInput.KeyName(SteelInput.KeyBinds.Fire)} / {FlatPlayerInput.KeyName(SteelInput.KeyBinds.Jump)} / A: deploy at {at.shortName}    "
                   + $"{FlatPlayerInput.KeyName(SteelInput.KeyBinds.NextWeapon)} / Y: next flag    T / D-pad right: switch team";
-            if (_deployedAt < 0f && at != null && (FlatPlayerInput.WentDown(SteelInput.KeyBinds.Fire) || FlatPlayerInput.WentDown(SteelInput.KeyBinds.Jump)))
+            if (_deployedAt < 0f && at != null && (DeployNow || FlatPlayerInput.WentDown(SteelInput.KeyBinds.Fire) || FlatPlayerInput.WentDown(SteelInput.KeyBinds.Jump)))
             {
                 if (LoadoutUi.instance != null && !LoadoutUi.IsOpen() && !LoadoutUi.HasBeenOpen())
                 {
@@ -65,6 +68,7 @@ namespace RavenfieldVR.Local
                     LoadoutUi.instance.OnDeployClick();
                 }
                 _deployedAt = Time.unscaledTime;
+                DeployNow = false;
                 note($"Splitscreen: deploying at {at.shortName} (team {me.team}).");
             }
             else if (_deployedAt > 0f && Time.unscaledTime - _deployedAt > 4f && at != null)

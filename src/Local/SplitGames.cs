@@ -39,8 +39,18 @@ namespace RavenfieldVR.Local
 
         public static bool IsClient => ClientIndex > 0;
 
-        /// <summary>This copy's window is inside the host's (Unity's -parentHWND): placed as a child in its part, never restyled.</summary>
-        private static readonly bool Embedded = Args.Any(x => x.Equals("-parentHWND", StringComparison.OrdinalIgnoreCase));
+        /// <summary>
+        /// The host's window this copy's window belongs to (-rfvr-splitowner): kept above it, out of the taskbar and Alt-Tab, so the
+        /// screen reads as one window split in parts. (Inside it as a child, Unity's -parentHWND, the copies crashed as their window was
+        /// torn down: NtUserDestroyWindow into Unity's own window procedure, 2026-11-15.)
+        /// </summary>
+        private static readonly long OwnerWindow = ArgLong("-rfvr-splitowner=");
+
+        private static long ArgLong(string prefix)
+        {
+            string a = Args.FirstOrDefault(x => x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            return a != null && long.TryParse(a.Substring(prefix.Length), out long v) ? v : 0;
+        }
 
         /// <summary>This copy's host plays in a headset: the monitor is the copies' only.</summary>
         private static readonly bool VrHost = Args.Any(x => x.Equals("-rfvr-splitvrhost", StringComparison.OrdinalIgnoreCase));
@@ -117,6 +127,47 @@ namespace RavenfieldVR.Local
 
         private static readonly List<Copy> Copies = new List<Copy>();
         private static readonly List<int> Pending = new List<int>();
+
+        /// <summary>Every player's game is in the match: the host says go, the copies show and deploy together (the user, 2026-11-15: "Loading
+        /// player... at a fullscreen and only if all players loaded it will deploy everyone").</summary>
+        private static bool _go;
+        private static float _startedAt, _goAt;
+        private static int _ready;
+
+        /// <summary>The players in the match so far (player 1 counted), and all of them.</summary>
+        internal static string Loading => _hosting && !_go ? $"Loading players ...   {_ready + 1} of {Splitscreen.Players} in" : null;
+
+        /// <summary>Once a frame on the host: the copies' own logs say when each is in the match.</summary>
+        private static void CheckReady()
+        {
+            if (_go || Time.frameCount % 30 != 0)
+            {
+                return;
+            }
+            int ready = 0;
+            foreach (Copy c in Copies)
+            {
+                try
+                {
+                    string log = CopyLog(c.Index);
+                    if (System.IO.File.Exists(log) && System.IO.File.ReadAllText(log).Contains("in the host's match"))
+                    {
+                        ready++;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            _ready = ready;
+            bool all = Pending.Count == 0 && ready >= Splitscreen.Players - 1;
+            if (all || Time.unscaledTime - _startedAt > 240f)
+            {
+                _go = true;
+                _goAt = Time.unscaledTime;
+                Log.Info(all ? $"Splitscreen: all {Splitscreen.Players} players in: go." : $"Splitscreen: {ready + 1} of {Splitscreen.Players} players in after 4 minutes: go without the rest.");
+            }
+        }
         private static float _nextStart;
         private static bool _embed;
 
@@ -147,10 +198,10 @@ namespace RavenfieldVR.Local
             var c = new Copy { Index = i, Input = new IPEndPoint(IPAddress.Loopback, HostInputPort + i) };
             Rect part = SplitPlayers.Part(Runtime.OpenVRRuntime.Running ? i - 1 : i, Runtime.OpenVRRuntime.Running ? n - 1 : n);
             int pw = Mathf.RoundToInt(part.width * GetSystemMetrics(0)), ph = Mathf.RoundToInt(part.height * GetSystemMetrics(1));
-            IntPtr parent = _embed ? RawInput.GameWindow() : IntPtr.Zero;
-            // (Inside this window when embedded, Unity's own -parentHWND; else borderless at its part's size, -popupwindow.)
-            string args = $"-novr -nointro -screen-fullscreen 0 -screen-width {pw} -screen-height {ph}"
-                          + (parent != IntPtr.Zero ? $" -parentHWND {parent.ToInt64()}" : " -popupwindow")
+            IntPtr owner = _embed ? RawInput.GameWindow() : IntPtr.Zero;
+            // (Borderless at its part's size, Unity's own -popupwindow; owned by this window, so it stays over it as one screen.)
+            string args = $"-novr -nointro -screen-fullscreen 0 -popupwindow -screen-width {pw} -screen-height {ph}"
+                          + (owner != IntPtr.Zero ? $" -rfvr-splitowner={owner.ToInt64()}" : "")
                           + $" -rfvr-splitclient={i} -rfvr-splitn={n} -rfvr-splithost=127.0.0.1:{GamePort}"
                           + (Runtime.OpenVRRuntime.Running ? " -rfvr-splitvrhost" : "")
                           + (TestCopies ? " -rfvr-splittest" : "")
@@ -215,6 +266,7 @@ namespace RavenfieldVR.Local
                 return;
             }
             StartNextCopy();
+            CheckReady();
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
             if (_embed)
             {
@@ -252,8 +304,8 @@ namespace RavenfieldVR.Local
             Application.runInBackground = true;
             _hosting = true;
             int n = Splitscreen.Players;
-            // One window: this game borderless over the whole screen, its own view in its part; each copy's window inside it over its
-            // part (Unity's -parentHWND). Four windows were confusing (the user, 2026-11-15: "can we make it one but its splitten?").
+            // One screen: this game borderless over the whole screen, its own view in its part; each copy's window owned by it, borderless
+            // over its part, out of the taskbar. Four windows were confusing (the user, 2026-11-15: "can we make it one but its splitten?").
             // In VR the headset is player 1: the copies share the monitor, each its own window.
             _embed = !Runtime.OpenVRRuntime.Running;
             if (_embed)
@@ -263,6 +315,9 @@ namespace RavenfieldVR.Local
             // The copies one after another, each once the one before has its mod up: started together, two of three found the mod
             // loader's files taken ("sharing violation") and stayed in the menu with no mod (2026-11-15).
             Pending.Clear();
+            _go = false;
+            _ready = 0;
+            _startedAt = Time.unscaledTime;
             for (int i = 1; i < n; i++)
             {
                 Pending.Add(i);
@@ -486,6 +541,7 @@ namespace RavenfieldVR.Local
             Put(Packet, at, d.Wheel, 4);
             at += 4;
             Packet[at++] = _generation;
+            Packet[at++] = (byte)(_go ? 1 : 0);
             return at;
         }
 
@@ -493,7 +549,7 @@ namespace RavenfieldVR.Local
 
         private static UdpClient _clientSocket;
         private static IPEndPoint _hostInput;
-        private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy;
+        private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy, _goFromHost, _shown;
         private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
         private static readonly FlatPlayerInput.DeviceState Received = new FlatPlayerInput.DeviceState();
@@ -541,13 +597,30 @@ namespace RavenfieldVR.Local
             }
             // The window in its part of the screen, looked at once a second for as long as it plays (the game set its own size again
             // as it loaded and changed maps: the user saw the windows not in their halves, 2026-11-14).
-            if (VrHost)
+            // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go.
+            IntPtr own = RawInput.GameWindow();
+            if (own != IntPtr.Zero && _shown != _goFromHost)
             {
-                Window(ClientIndex - 1, ClientCount - 1); // (the host plays in the headset: the copies share the monitor)
+                _shown = _goFromHost;
+                ShowWindow(own, _shown ? SW_SHOWNOACTIVATE : SW_HIDE);
+                if (_shown)
+                {
+                    _placedScene = null; // (placed again now: Window)
+                    SplitDeploy.DeployNow = true; // (every player deployed together)
+                    Note("Splitscreen: go from the host: shown and deploying.");
+                }
             }
-            else
+            if (_shown)
             {
-                Window(ClientIndex, ClientCount);
+                MakeOwned();
+                if (VrHost)
+                {
+                    Window(ClientIndex - 1, ClientCount - 1); // (the host plays in the headset: the copies share the monitor)
+                }
+                else
+                {
+                    Window(ClientIndex, ClientCount);
+                }
             }
             // No pointer here (the keys work the menus): the cursor hidden and kept in place over this window.
             if (SplitPlayers.InMatch)
@@ -615,7 +688,7 @@ namespace RavenfieldVR.Local
             }
             RawInput.BlockLegacy(playing);
             FlatPlayerInput.Active = playing;
-            if (playing)
+            if (playing && _goFromHost)
             {
                 SplitDeploy.Update(Note);
             }
@@ -625,7 +698,7 @@ namespace RavenfieldVR.Local
             }
         }
 
-        private const int PacketLength = 1 + 32 + 1 + 12 + 1;
+        private const int PacketLength = 1 + 32 + 1 + 12 + 1 + 1;
         private static int _lastGeneration = -1;
 
         private static void Read(byte[] p)
@@ -656,6 +729,8 @@ namespace RavenfieldVR.Local
                 _lastGeneration = p[at];
                 FlatPlayerInput.ResetMouse(); // (the keyboard and mouse changed hands: no turn from the time it was the other player's)
             }
+            at++;
+            _goFromHost = p[at] != 0;
         }
 
         private static readonly byte[] Event = new byte[26];
@@ -697,7 +772,34 @@ namespace RavenfieldVR.Local
 
         private const int GWL_STYLE = -16;
         private const uint SWP_NOZORDER = 0x0004, SWP_FRAMECHANGED = 0x0020, SWP_SHOWWINDOW = 0x0040;
-        private const long WS_POPUP = 0x80000000L, WS_VISIBLE = 0x10000000L, WS_CHILD = 0x40000000L;
+        private const long WS_POPUP = 0x80000000L, WS_VISIBLE = 0x10000000L, WS_EX_TOOLWINDOW = 0x80L, WS_EX_APPWINDOW = 0x40000L;
+        private const int GWL_EXSTYLE = -20, GWLP_HWNDPARENT = -8, SW_HIDE = 0, SW_SHOWNOACTIVATE = 4;
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+        private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int index);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int command);
+
+        private static bool _owned;
+
+        /// <summary>This copy's window owned by the host's: above it always, not in the taskbar or Alt-Tab (once).</summary>
+        private static void MakeOwned()
+        {
+            if (_owned || OwnerWindow == 0)
+            {
+                return;
+            }
+            IntPtr hwnd = RawInput.GameWindow();
+            if (hwnd == IntPtr.Zero)
+            {
+                return;
+            }
+            _owned = true;
+            long ex = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr((ex | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW));
+            SetWindowLongPtr(hwnd, GWLP_HWNDPARENT, new IntPtr(OwnerWindow));
+        }
 
         /// <summary>This game's window borderless over part i of n of the screen (as the soldiers' parts: halves, or quarters for 3-4).</summary>
         /// <summary>
@@ -720,14 +822,6 @@ namespace RavenfieldVR.Local
             if (GetWindowRect(hwnd, out RECT r) && r.Left == x && r.Top == y && r.Right - r.Left == w && r.Bottom - r.Top == h)
             {
                 return true;
-            }
-            if (Embedded)
-            {
-                // A child of the host's window: placed in its part (the host's window is the whole screen, so its client place is the
-                // screen's); the window's own size is the picture's (Unity follows it).
-                SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(WS_CHILD | WS_VISIBLE));
-                SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-                return false;
             }
             if (Screen.fullScreenMode != FullScreenMode.Windowed || Screen.width != w || Screen.height != h)
             {
@@ -782,8 +876,26 @@ namespace RavenfieldVR.Local
     {
         private static GUIStyle _style;
 
+        private static GUIStyle _loading;
+
         private void OnGUI()
         {
+            string loading = SplitGames.Loading;
+            if (loading != null)
+            {
+                // Over the whole screen while the players' games load.
+                if (_loading == null)
+                {
+                    _loading = new GUIStyle(GUI.skin.label) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                    _loading.normal.textColor = Color.white;
+                }
+                GUI.depth = -1000;
+                GUI.color = Color.black;
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = Color.white;
+                GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), loading, _loading);
+                return;
+            }
             SplitDeploy.Draw();
             SplitCopyMenu.Draw();
             string line = SplitGames.TryLine;
