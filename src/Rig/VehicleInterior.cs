@@ -2081,6 +2081,7 @@ namespace RavenfieldVR.Rig
             {
                 drive += new Vector2(0f, _leverValue[1]); // (the throttle: forward and back only, the wheel steers)
             }
+            Pins();
             Fire = fire;
             VehicleInput.DriveButtons = Vector2.ClampMagnitude(drive, 1f);
             Alarm();
@@ -2275,6 +2276,7 @@ namespace RavenfieldVR.Rig
 
         private void ReleaseHands()
         {
+            CockpitPin.ClearAll(this, _rig.Hands); // (a menu or a pause: the hands back on the controllers)
             ReleaseWheel(0);
             ReleaseWheel(1);
             ReleaseLever(0);
@@ -2286,8 +2288,44 @@ namespace RavenfieldVR.Rig
             VehicleInput.DriveButtons = Vector2.zero; // (the wanted aim stays: a pause or a rebuilt cabin left the gun with none)
         }
 
+        /// <summary>
+        /// The hands holding the cabin's controls drawn on them (the user, 2026-11-15: hands that "actually grab"): on a handwheel's or
+        /// the steering wheel's rim where the palm closed, on a lever's knob, on the hatch handle's bar. A carried shell is in the fist
+        /// already. Let go: back to the controller.
+        /// </summary>
+        private void Pins()
+        {
+            for (int h = 0; h < 2; h++)
+            {
+                VRHand hand = _rig.Hands[h];
+                if (hand == null)
+                {
+                    continue;
+                }
+                Vector3? at = null;
+                if (_onWheel[h] >= 0 && WheelOf(_onWheel[h]) != null)
+                {
+                    Transform wheel = WheelOf(_onWheel[h]);
+                    Vector3 axis = wheel.parent.rotation * Quaternion.Euler(-30f, 0f, 0f) * Vector3.forward;
+                    at = CockpitPin.OnRim(wheel.position, axis, WheelRadius, hand.PalmCentre);
+                }
+                else if (_onLever[h] >= 0 && _levers[_onLever[h]] != null)
+                {
+                    at = LeverKnob(_onLever[h]);
+                }
+                else if (_hatchHand == h && _hatch != null)
+                {
+                    // (On the bar, where along it the palm is: 11 cm either side of the middle.)
+                    Vector3 local = _hatch.InverseTransformPoint(hand.PalmCentre);
+                    at = _hatch.TransformPoint(new Vector3(Mathf.Clamp(local.x, -0.11f, 0.11f), 0f, 0f));
+                }
+                CockpitPin.Set(this, hand, at);
+            }
+        }
+
         private void Clear()
         {
+            CockpitPin.ClearAll(this, _rig.Hands);
             ReleaseHands();
             _driveButtons.Clear();
             _traverse = _elevate = _fire = _steer = null;

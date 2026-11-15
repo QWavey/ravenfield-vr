@@ -599,6 +599,33 @@ namespace RavenfieldVR.Rig
         {
             ShowLeverHint();
             ShowControlHints();
+            // The hands on the controls drawn there: on the rim where the palm closed (turning with it), on the stick's grip, on the
+            // lever's knob; let go, back to the controller.
+            Vector3 rimCentre = Vector3.zero, rimAxis = Vector3.forward;
+            float rimRadius = 0f;
+            bool rim = _wheel != null && RimWorld(out rimCentre, out rimAxis, out rimRadius);
+            foreach (VRHand hand in _rig.Hands)
+            {
+                if (hand == null)
+                {
+                    continue;
+                }
+                int i = (int)hand.Side;
+                Vector3? at = null;
+                if (_seat != null && _onWheel[i] && rim)
+                {
+                    at = CockpitPin.OnRim(rimCentre, rimAxis, rimRadius, hand.PalmCentre);
+                }
+                else if (_seat != null && _stickHand == hand.Side && _stick != null)
+                {
+                    at = _stick.position;
+                }
+                else if (_seat != null && _throttleHand == hand.Side && _throttle != null)
+                {
+                    at = _throttle.position;
+                }
+                CockpitPin.Set(this, hand, at);
+            }
             // The palms against the seat as both are now (VRRig poses the hands just before this): read by the next Update.
             if (_seat != null)
             {

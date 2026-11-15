@@ -738,6 +738,20 @@ namespace RavenfieldVR.Tests
             float s20 = S(20f, 40f, 0.2f);
             Check(Math.Abs(s20 - 0.1f) < 1e-4f, $"Fire control: half the view's height down is at the screen's edge ({s20:0.0000})");
             Check(S(2f, 13f, 0.2f) > S(2f, 40f, 0.2f) * 3f, "Fire control: zoomed in, the mark sits further down the screen");
+            System.Reflection.MethodInfo onRim = mod.GetType("RavenfieldVR.Rig.CockpitPin")?.GetMethod("OnRim", any);
+            Check(onRim != null, "Hand on a rim: CockpitPin.OnRim found");
+            if (onRim == null)
+            {
+                return;
+            }
+            UnityEngine.Vector3 R(UnityEngine.Vector3 c, UnityEngine.Vector3 ax, float r, UnityEngine.Vector3 p) => (UnityEngine.Vector3)onRim.Invoke(null, new object[] { c, ax, r, p });
+            UnityEngine.Vector3 o = UnityEngine.Vector3.zero, fwd = new UnityEngine.Vector3(0f, 0f, 1f);
+            UnityEngine.Vector3 top = R(o, fwd, 0.2f, new UnityEngine.Vector3(0f, 0.5f, 0.3f));
+            Check(Math.Abs(top.y - 0.2f) < 1e-5f && Math.Abs(top.x) < 1e-5f && Math.Abs(top.z) < 1e-5f, $"Hand on a rim: a palm over and in front of the wheel closes on its top ({top.x:0.00}, {top.y:0.00}, {top.z:0.00})");
+            UnityEngine.Vector3 side = R(o, fwd, 0.2f, new UnityEngine.Vector3(0.05f, 0f, 0f));
+            Check(Math.Abs(side.x - 0.2f) < 1e-5f, "Hand on a rim: a palm inside the rim closes on the rim, not in the middle");
+            UnityEngine.Vector3 mid = R(o, fwd, 0.2f, o);
+            Check(Math.Abs(mid.magnitude - 0.2f) < 1e-4f, "Hand on a rim: a palm at the very middle still goes onto the rim");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)

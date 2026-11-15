@@ -507,6 +507,7 @@ namespace RavenfieldVR.Rig
 
         public void BeforeRender()
         {
+            Pins();
             if (_frame == null)
             {
                 return;
@@ -517,6 +518,43 @@ namespace RavenfieldVR.Rig
                 _palmTurnInFrame[(int)hand.Side] = Quaternion.Inverse(_frame.rotation) * hand.Palm.rotation;
             }
             _palmFrame = _frame;
+        }
+
+        /// <summary>
+        /// The holding hands drawn on the gun: each on the handle nearest its palm, the cocking hand on the cocking handle (sliding back
+        /// with the pull, 10 cm at most). Let go, or no gun: back to the controller.
+        /// </summary>
+        private void Pins()
+        {
+            List<Vector3> handles = _frame != null && _pivotT != null && _gun != null && (_holding[0] || _holding[1]) ? HandlesWorld() : null;
+            foreach (VRHand hand in _rig.Hands)
+            {
+                if (hand == null)
+                {
+                    continue;
+                }
+                int i = (int)hand.Side;
+                Vector3? at = null;
+                if (handles != null && _holding[i] && handles.Count > 0)
+                {
+                    Vector3 best = handles[0];
+                    foreach (Vector3 h in handles)
+                    {
+                        if ((h - hand.PalmCentre).sqrMagnitude < (best - hand.PalmCentre).sqrMagnitude)
+                        {
+                            best = h;
+                        }
+                    }
+                    at = best;
+                }
+                else if (_cockHand == i && _frame != null && _pivotT != null && _gun != null)
+                {
+                    Vector3 cock = CockPoint();
+                    Vector3 pull = Vector3.Project(hand.PalmCentre - cock, Muzzle().forward);
+                    at = cock + Vector3.ClampMagnitude(pull, 0.1f);
+                }
+                CockpitPin.Set(this, hand, at);
+            }
         }
 
         private Vector3 InFrame(Vector3 world) => Quaternion.Inverse(_frame.rotation) * (world - _frame.position);
@@ -652,6 +690,7 @@ namespace RavenfieldVR.Rig
         public void Destroy()
         {
             ReleaseAll();
+            CockpitPin.ClearAll(this, _rig.Hands);
             foreach (Transform m in _markers)
             {
                 if (m != null)
