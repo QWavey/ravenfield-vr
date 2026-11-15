@@ -41,7 +41,8 @@ namespace RavenfieldVR.Rig
                 _wanted = seat != null && VehicleInterior.Wanted(seat); // (the same rule as the inside: a solid hull with no viewer and no clear view out happened otherwise)
             }
             Vehicle v = _wanted && seat != null ? seat.vehicle : null;
-            if (v == _vehicle)
+            // (By reference: a destroyed vehicle equals null to Unity, and its command buffer stayed on the camera; scout, 2026-11-15.)
+            if (ReferenceEquals(v, _vehicle) && !(v == null && _vehicle is object && (_twins.Count > 0 || _backs != null)))
             {
                 return;
             }
@@ -163,6 +164,7 @@ namespace RavenfieldVR.Rig
                 tr.receiveShadows = false; // (the hull's own shadow lay on every inner face: black)
                 tr.enabled = r.enabled;
                 _twins.Add(twin);
+                _twinMesh[twin] = inward;
                 made++;
             }
             foreach (SkinnedMeshRenderer r in v.GetComponentsInChildren<SkinnedMeshRenderer>(true))
@@ -176,6 +178,7 @@ namespace RavenfieldVR.Rig
             {
                 _camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
             }
+            _allBack.AddRange(_backDrawn);
             Log.InfoOnce("hull-inside:" + v.name, $"Vehicle {v.name} drawn from inside: {made} part(s) given an inward twin, {_drawnBack} drawn back side out, {skipped} left as they are (see-through).");
         }
 
@@ -236,11 +239,43 @@ namespace RavenfieldVR.Rig
         /// Small parts in the way between the eyes and the periscope viewer (a tank's gun breech stood as a pillar before the eyes),
         /// hidden on this PC while seated, with their twins; parts over 1.5 m across (the hull's walls) are never hidden.
         /// </summary>
-        internal int ClearCorridor(Transform frame, Vector3 centre, Vector3 halfSize)
+        internal int ClearCorridor(Transform frame, Vector3 centre, Vector3 halfSize, bool first = true)
         {
             if (_vehicle == null)
             {
                 return 0;
+            }
+            if (first)
+            {
+                // Another seat of the same vehicle: the last seat's hides and cuts undone first (they stacked; scout).
+                foreach (Renderer r in _hidden)
+                {
+                    if (r != null)
+                    {
+                        r.enabled = true;
+                    }
+                }
+                _hidden.Clear();
+                foreach (GameObject twin in _twins)
+                {
+                    MeshFilter tf = twin != null ? twin.GetComponent<MeshFilter>() : null;
+                    if (tf != null && _twinMesh.TryGetValue(twin, out Mesh whole))
+                    {
+                        tf.sharedMesh = whole;
+                    }
+                }
+                foreach (Mesh m in _cut)
+                {
+                    if (m != null)
+                    {
+                        Object.Destroy(m);
+                    }
+                }
+                _cut.Clear();
+                if (_allBack.Count > 0)
+                {
+                    RebuildBacks(_allBack);
+                }
             }
             int n = 0;
             foreach (Renderer r in _vehicle.GetComponentsInChildren<Renderer>())
@@ -271,7 +306,7 @@ namespace RavenfieldVR.Rig
                 var keep = new List<Renderer>();
                 foreach (Renderer r in _backDrawn)
                 {
-                    if (r != null && !r.bounds.Intersects(corridor))
+                    if (r != null && (!r.bounds.Intersects(corridor) || r.bounds.size.magnitude > 3f))
                     {
                         keep.Add(r);
                     }
@@ -280,22 +315,7 @@ namespace RavenfieldVR.Rig
                         n++;
                     }
                 }
-                if (_camera != null)
-                {
-                    _camera.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
-                }
-                _backs.Release();
-                _backs = null;
-                _backDrawn.Clear();
-                _drawnBack = 0;
-                foreach (Renderer r in keep)
-                {
-                    DrawBack(r);
-                }
-                if (_backs != null && _camera != null)
-                {
-                    _camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
-                }
+                RebuildBacks(keep);
             }
             // The big parts' inward twins: the triangles in the corridor cut out (a gunner's eyes sit at his gun's sight, inside the gun's
             // and the turret's own shapes, and their inside stood as a pillar before the eyes in the tank). The vehicle's own mesh is
@@ -353,6 +373,36 @@ namespace RavenfieldVR.Rig
         }
 
         private readonly List<Mesh> _cut = new List<Mesh>();
+        /// <summary>Every back-drawn part as first built, and each twin's whole inward mesh (to undo a seat's corridor).</summary>
+        private readonly List<Renderer> _allBack = new List<Renderer>();
+        private readonly Dictionary<GameObject, Mesh> _twinMesh = new Dictionary<GameObject, Mesh>();
+
+        private void RebuildBacks(List<Renderer> parts)
+        {
+            var list = new List<Renderer>(parts);
+            if (_backs != null)
+            {
+                if (_camera != null)
+                {
+                    _camera.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+                }
+                _backs.Release();
+                _backs = null;
+            }
+            _backDrawn.Clear();
+            _drawnBack = 0;
+            foreach (Renderer r in list)
+            {
+                if (r != null)
+                {
+                    DrawBack(r);
+                }
+            }
+            if (_backs != null && _camera != null)
+            {
+                _camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, _backs);
+            }
+        }
         private readonly List<Renderer> _backDrawn = new List<Renderer>();
 
         /// <summary>No see-through material on it (glass, a sight's lens, a decal): those stay windows.</summary>
@@ -369,8 +419,26 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The mesh turned inside out: every triangle wound the other way, normals reversed (made once per mesh).</summary>
+        private static bool _pruneHooked;
+
         private static Mesh InwardOf(Mesh mesh)
         {
+            if (!_pruneHooked)
+            {
+                _pruneHooked = true;
+                // (Each map's vehicles' copies dropped with it: kept for good, every map added its own; scout.)
+                UnityEngine.SceneManagement.SceneManager.sceneUnloaded += _ =>
+                {
+                    foreach (Mesh m in Inward.Values)
+                    {
+                        if (m != null)
+                        {
+                            Object.Destroy(m);
+                        }
+                    }
+                    Inward.Clear();
+                };
+            }
             if (Inward.TryGetValue(mesh, out Mesh done))
             {
                 return done;
@@ -443,6 +511,8 @@ namespace RavenfieldVR.Rig
             }
             _drawnBack = 0;
             _backDrawn.Clear();
+            _allBack.Clear();
+            _twinMesh.Clear();
             if (_steel != null)
             {
                 Object.Destroy(_steel);

@@ -196,7 +196,9 @@ namespace RavenfieldVR.Rig
             {
                 seat = null;
             }
-            if (seat != _seat || gun != _gun)
+            // (By reference: a destroyed seat or gun equals null to Unity, and a vehicle blown up under the hands never let them go: the
+            // hand stayed on the controls and turning was blocked; scout, 2026-11-15.)
+            if (!ReferenceEquals(seat, _seat) || !ReferenceEquals(gun, _gun) || _gun == null && (_holding[0] || _holding[1] || _cockHand >= 0))
             {
                 ReleaseAll();
                 _seat = seat;
@@ -212,12 +214,14 @@ namespace RavenfieldVR.Rig
                         + $"{(ReloadsByHand(_gun) ? "reloaded by its cocking handle" : "no reload by hand")}.");
                 }
             }
-            if (_gun == null || _frame == null || _pivotT == null || GameContext.GameMenuOpen || GameManager.IsPaused())
+            if (_gun == null || _frame == null || _pivotT == null)
             {
-                if (_gun == null)
-                {
-                    _aim = null;
-                }
+                _aim = null;
+                return;
+            }
+            if (GameContext.GameMenuOpen || GameManager.IsPaused())
+            {
+                ReleaseAll(); // (let go over a menu or a pause: a trigger held through it fired the gun on resume)
                 return;
             }
             int held = 0;
@@ -490,6 +494,20 @@ namespace RavenfieldVR.Rig
                 {
                     hand.Haptic(0.025f, 70f, 0.7f);
                 }
+            }
+        }
+
+        /// <summary>The rig is gone (VR off): nothing held, no gun governed (its flat aim and reload the game's own again).</summary>
+        public void Destroy()
+        {
+            ReleaseAll();
+            _seat = null;
+            _gun = null;
+            _frame = null;
+            _pivotT = null;
+            if (Instance == this)
+            {
+                Instance = null;
             }
         }
 

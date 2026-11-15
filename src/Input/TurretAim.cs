@@ -33,7 +33,7 @@ namespace RavenfieldVR.Input
             // game's mouse aim does not on a free cursor (the game's own input reads no aim in VR then; vehicle hunt, 2026-10-20).
             // Nor while a map's trigger has taken the player's input (a scripted scene): the game's own aim stops then, and the
             // mod's driving with it (VehicleInput.ShouldDrive), but the turret kept following the head (bug hunt, 2026-10-22).
-            if (turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver || VRGameInput.GunInputBlocked
+            if (!VRManager.Active || turret.user == null || turret.user.aiControlled || IngameMenuUi.IsOpen() || GameManager.gameOver || VRGameInput.GunInputBlocked
                 || turret.user.controller is FpsActorController player && !player.inputEnabled)
             {
                 return true;
@@ -49,7 +49,7 @@ namespace RavenfieldVR.Input
                     return false;
                 }
             }
-            else if (Rig.VehicleInterior.AimsGun)
+            else if (Rig.VehicleInterior.AimsThisGun(turret))
             {
                 // A closed vehicle's gun: where its stick and handwheels set it, never the head (looking round inside moves nothing).
                 dir = Rig.VehicleInterior.WheelAim;

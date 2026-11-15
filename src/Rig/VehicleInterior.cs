@@ -92,6 +92,9 @@ namespace RavenfieldVR.Rig
         /// <summary>The seat's gun is aimed from the inside (stick and handwheels), not by the head; snap turning is off there.</summary>
         internal static bool AimsGun => Instance != null && Instance._aimSeat != null;
 
+        /// <summary>This turret is the aim seat's own gun (another player's turret on the same vehicle is not steered from here).</summary>
+        internal static bool AimsThisGun(Weapon turret) => AimsGun && Gun(Instance._aimSeat) == turret;
+
         /// <summary>
         /// The seat whose gun is aimed by stick and handwheels: any enclosed seat with a turret not taken by hand, its cabin drawn or not.
         /// Head aim there chased itself: the view sits on the turret's own camera, turning the turret turned the head's direction, and the
@@ -134,7 +137,7 @@ namespace RavenfieldVR.Rig
                 _wanted = raw != null && Wanted(raw); // (not each frame: it walks the vehicle's parts)
             }
             Seat aim = raw != null && AimSeat(raw) ? raw : null;
-            if (aim != _aimSeat)
+            if (!ReferenceEquals(aim, _aimSeat))
             {
                 _aimSeat = aim;
                 _aimSet = aim != null;
@@ -144,7 +147,9 @@ namespace RavenfieldVR.Rig
                 }
             }
             Seat seat = _wanted ? raw : null;
-            if (seat != _seat)
+            // (By reference: a destroyed seat equals null to Unity, and a cabin whose vehicle was blown up stayed on: its fire button
+            // fired the gun on foot; scout, 2026-11-15.)
+            if (!ReferenceEquals(seat, _seat) || _seat == null && _root != null)
             {
                 Clear();
                 _seat = seat;
@@ -156,7 +161,15 @@ namespace RavenfieldVR.Rig
             if (GameContext.GameMenuOpen || GameManager.IsPaused())
             {
                 ReleaseHands();
+                if (_scope != null)
+                {
+                    _scope.enabled = false; // (not drawn behind a menu)
+                }
                 return;
+            }
+            if (_scope != null && !_scope.enabled)
+            {
+                _scope.enabled = true;
             }
             if (_root != null)
             {
@@ -195,7 +208,7 @@ namespace RavenfieldVR.Rig
             float outOfHull = _scope != null ? Mathf.Max(_scope.nearClipPlane, 1f) : 3f;
             if (_rig.Hull != null)
             {
-                cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f));
+                cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f), first: false);
             }
             // Military fittings: a radio set on the left (two knobs, a dial window, a handset), three gauges over the viewer.
             Box("radio", new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
@@ -723,6 +736,17 @@ namespace RavenfieldVR.Rig
             _wall = _metal = _red = _lamp = _button = _paint = null;
         }
 
-        public void Destroy() => Clear();
+        public void Destroy()
+        {
+            Clear();
+            _aimSeat = null;
+            WheelAim = null;
+            Fire = false;
+            TestAlarm = false;
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
     }
 }

@@ -1809,6 +1809,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
             Log.Guard("Rig.Cockpit.Destroy", () => _cockpit?.Destroy());
             Log.Guard("Rig.Interior.Destroy", () => _interior?.Destroy());
+            Log.Guard("Rig.TurretGrip.Destroy", () => _turretGrip?.Destroy());
             Log.Guard("Rig.HullInside.Destroy", () => _hullInside?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
