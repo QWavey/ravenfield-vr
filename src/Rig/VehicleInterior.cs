@@ -52,7 +52,10 @@ namespace RavenfieldVR.Rig
         /// sure all steering wheels are turneable"); a tank steers by its tracks and keeps the buttons.
         /// </summary>
         private static bool SteersByWheel(Seat seat) =>
-            seat != null && seat.IsDriverSeat() && (seat.vehicle is Car || seat.vehicle is ArcadeCar) && !(seat.vehicle is Tank);
+            seat != null && seat.IsDriverSeat() && (seat.vehicle is Car || seat.vehicle is ArcadeCar) && !Tracked(seat.vehicle);
+
+        /// <summary>A tracked vehicle: the game's Tank, or one with a tank's cannon (the mods' Leopards are cars to the game).</summary>
+        private static bool Tracked(Vehicle v) => v is Tank || v != null && v.GetComponentInChildren<TankTurret>(true) != null;
 
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
         internal Transform TraverseWheel => _traverse;
@@ -739,7 +742,7 @@ namespace RavenfieldVR.Rig
                 // (High enough that the drive panel's forward button is out of its rim's grip: a fist on it took the wheel.)
                 _steer = Wheel("steering", new Vector3(0f, -0.3f, 0.33f));
             }
-            if (_seat.IsDriverSeat() && _seat.vehicle is Tank)
+            if (_seat.IsDriverSeat() && Tracked(_seat.vehicle))
             {
                 // A tank steers by its tracks: a lever for each, either side below the handwheels (the buttons stay too).
                 // (On the floor: from it, 30 cm up to the knob.)
