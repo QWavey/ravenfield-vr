@@ -59,7 +59,23 @@ namespace RavenfieldVR.Rig
             seat != null && seat.IsDriverSeat() && (seat.vehicle is Car || seat.vehicle is ArcadeCar) && !Tracked(seat.vehicle);
 
         /// <summary>A tracked vehicle: the game's Tank, or one with a tank's cannon (the mods' Leopards are cars to the game).</summary>
-        private static bool Tracked(Vehicle v) => v is Tank || v != null && v.GetComponentInChildren<TankTurret>(true) != null;
+        private static bool Tracked(Vehicle v)
+        {
+            if (v == null)
+            {
+                return false;
+            }
+            if (!ReferenceEquals(v, _trackedOf))
+            {
+                // (Once a vehicle: asked every frame for the aim seat, the walk over its parts was not.)
+                _trackedOf = v;
+                _trackedIs = v is Tank || v.GetComponentInChildren<TankTurret>(true) != null;
+            }
+            return _trackedIs;
+        }
+
+        private static Vehicle _trackedOf;
+        private static bool _trackedIs;
 
         /// <summary>For the vehicle check: the traverse handwheel (null: none).</summary>
         internal Transform TraverseWheel => _traverse;
@@ -391,7 +407,10 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private Seat _aimSeat;
 
-        private static bool AimSeat(Seat seat) => seat != null && seat.enclosed && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _);
+        // (Also a tracked vehicle's gun and a gun with its own sight camera, enclosed or not: the mods leave many tank gunners' seats
+        // open, and there the head aimed the gun, the user's "the view still gets preferred", 2026-11-15.)
+        private static bool AimSeat(Seat seat) => seat != null && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _)
+                                                  && (seat.enclosed || Tracked(seat.vehicle) || seat.activeWeapon.overrideCamera != null);
 
         private Light _alarm, _cabin;
         private Transform _lightSwitch, _hint;
