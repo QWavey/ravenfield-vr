@@ -176,6 +176,19 @@ namespace RavenfieldVR.Rig
             {
                 cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f));
             }
+            // Military fittings: a radio set on the left (two knobs, a dial window, a handset), three gauges over the viewer.
+            Box("radio", new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
+            Cylinder("radio-knob-1", new Vector3(-0.395f, -0.06f, 0.18f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+            Cylinder("radio-knob-2", new Vector3(-0.395f, -0.06f, 0.06f), new Vector3(0.035f, 0.01f, 0.035f), Quaternion.Euler(0f, 0f, 90f), _metal);
+            Box("radio-dial", new Vector3(-0.398f, -0.16f, 0.12f), new Vector3(0.005f, 0.05f, 0.16f), _lamp);
+            Box("radio-handset", new Vector3(-0.42f, 0.03f, 0.2f), new Vector3(0.04f, 0.035f, 0.17f), _metal);
+            for (int g = 0; g < 3; g++)
+            {
+                float x = -0.12f + g * 0.12f;
+                Cylinder("gauge-" + g, new Vector3(x, 0.2f, 0.4f), new Vector3(0.075f, 0.012f, 0.075f), Quaternion.Euler(-80f, 0f, 0f), _metal);
+                Cylinder("gauge-face-" + g, new Vector3(x, 0.2f, 0.393f), new Vector3(0.062f, 0.002f, 0.062f), Quaternion.Euler(-80f, 0f, 0f), _button);
+                Box("gauge-needle-" + g, new Vector3(x + 0.008f, 0.204f, 0.39f), new Vector3(0.004f, 0.025f, 0.002f), _red).localRotation = Quaternion.Euler(-10f, 0f, -35f + g * 30f);
+            }
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
