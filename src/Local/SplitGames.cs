@@ -1215,12 +1215,25 @@ namespace RavenfieldVR.Local
                 var info = new PowerThrottling { Version = 1, ControlMask = 0x1 | 0x4, StateMask = 0 }; // (execution speed, timer resolution: never throttled)
                 SetProcessInformation(GetCurrentProcess(), 4, ref info, Marshal.SizeOf(typeof(PowerThrottling))); // (ProcessPowerThrottling)
                 Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+                // (The frame limiter's sleeps at 1 ms, not Windows' 15.6 ms default: a program behind gets the coarse timer, and its 60
+                // frames came unevenly, a stutter felt as delay.)
+                timeBeginPeriod(1);
+                // (Its drawing not queued behind the program in front: Windows gives the foreground game's GPU work priority, and every
+                // copy is behind the host. Above normal needs no administrator.)
+                int gpu = D3DKMTSetProcessSchedulingPriorityClass(GetCurrentProcess(), 3);
+                Note($"Splitscreen: this copy runs at full speed (timer 1 ms, GPU priority above normal: {(gpu == 0 ? "set" : "refused 0x" + gpu.ToString("X"))}).");
             }
             catch (Exception e)
             {
                 Note("Splitscreen: this copy could not be kept at full speed: " + e.Message);
             }
         }
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint period);
+
+        [DllImport("gdi32.dll")]
+        private static extern int D3DKMTSetProcessSchedulingPriorityClass(IntPtr process, int priority);
 
         /// <summary>This copy is in front: its events go to the host, which tells the keyboards and mice apart for every player.</summary>
         private static void ForwardToHost(long device, bool mouse, ushort flags, ushort buttons, short data, int x, int y, ushort vkey)
