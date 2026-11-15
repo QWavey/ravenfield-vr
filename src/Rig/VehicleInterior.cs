@@ -217,7 +217,7 @@ namespace RavenfieldVR.Rig
             _scope.nearClipPlane = near;
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
-            Transform screen = Part(PrimitiveType.Quad, "periscope screen", at, new Vector3(size.x, size.y, 1f), Quaternion.identity, null);
+            Transform screen = Part(PrimitiveType.Cube, "periscope screen", at, new Vector3(size.x, size.y, 0.002f), Quaternion.identity, null); // (a thin box: a quad faced away and the slot stayed dark)
             _scopeScreen = new Material(Shader.Find("Unlit/Texture")) { mainTexture = _scopeTexture };
             screen.GetComponent<Renderer>().sharedMaterial = _scopeScreen;
         }
@@ -305,6 +305,25 @@ namespace RavenfieldVR.Rig
         }
 
         internal float PeriscopeNear => _scope != null ? _scope.nearClipPlane : -1f;
+
+        /// <summary>For the vehicle check: the periscope's picture saved as a PNG, and whether its screen has the picture on it.</summary>
+        internal string SavePeriscope(string file)
+        {
+            if (_scopeTexture == null)
+            {
+                return "none";
+            }
+            RenderTexture prev = RenderTexture.active;
+            RenderTexture.active = _scopeTexture;
+            var t = new Texture2D(_scopeTexture.width, _scopeTexture.height, TextureFormat.RGB24, false);
+            t.ReadPixels(new Rect(0, 0, _scopeTexture.width, _scopeTexture.height), 0, 0);
+            t.Apply();
+            RenderTexture.active = prev;
+            System.IO.File.WriteAllBytes(file, ImageConversion.EncodeToPNG(t));
+            Object.Destroy(t);
+            Renderer screen = _root != null ? _root.transform.Find("periscope screen")?.GetComponent<Renderer>() : null;
+            return screen == null ? "NO SCREEN" : $"screen {(screen.enabled ? "on" : "OFF")}, shader {(screen.sharedMaterial != null && screen.sharedMaterial.shader != null ? screen.sharedMaterial.shader.name : "NONE")}, texture {(screen.sharedMaterial != null && screen.sharedMaterial.mainTexture == _scopeTexture ? "the periscope's" : "OTHER")}, camera {(_scope != null && _scope.enabled ? "on" : "OFF")}";
+        }
 
         private Transform Box(string name, Vector3 at, Vector3 size, Material m) => Part(PrimitiveType.Cube, name, at, size, Quaternion.identity, m);
 
