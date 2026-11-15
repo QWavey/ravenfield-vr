@@ -625,6 +625,38 @@ namespace RavenfieldVR.Core
                     Rig.VRHand.Scripted[side] = null;
                     yield return new WaitForSecondsRealtime(0.3f);
                     line += $"; fire button: {(pressed ? "pressed" : "NOT PRESSED")}, ammo {before} -> {gun.ammo}{(gun.ammo >= before && !gun.reloading ? " (DID NOT FIRE)" : "")}";
+                    // A cannon in Manual reload waits empty for its loader: a shell taken from the rack and pushed into the breech loads it.
+                    Vector3 shellAt = Rig.VehicleInterior.Instance.FirstShell, mouth = Rig.VehicleInterior.Instance.BreechMouth;
+                    if (shellAt != Vector3.zero && mouth != Vector3.zero)
+                    {
+                        Core.ReloadMode? kept = Core.VRConfig.TestReload;
+                        Core.VRConfig.TestReload = Core.ReloadMode.Manual;
+                        yield return new WaitForSecondsRealtime(1f);
+                        bool waited = gun.ammo <= 0 && !gun.reloading;
+                        string readout = Rig.VehicleInterior.Instance.Readout;
+                        bool took = false;
+                        for (float t = 0f; t < 1.4f; t += Time.unscaledDeltaTime)
+                        {
+                            // (At the shell, gripped; then over 0.8 s its nose to the breech's mouth, the hand a shell's half-length behind.)
+                            Vector3 to = Vector3.Lerp(shellAt, mouth - rot * Vector3.forward * 0.3f, Mathf.Clamp01((t - 0.3f) / 0.8f));
+                            Rig.VRHand.Scripted[side] = new Runtime.RigidPose(to + toRaw, rot);
+                            if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
+                            {
+                                Input.VRInput.SimulateGrabPress(hand.Side);
+                            }
+                            took |= Rig.VehicleInterior.Instance.Carrying;
+                            if (t > 0.4f && !Rig.VehicleInterior.Instance.Carrying && gun.ammo > 0)
+                            {
+                                break; // (rammed home)
+                            }
+                            yield return null;
+                        }
+                        Input.VRInput.SimulatedGrab[side] = false;
+                        Rig.VRHand.Scripted[side] = null;
+                        yield return new WaitForSecondsRealtime(0.3f);
+                        Core.VRConfig.TestReload = kept;
+                        line += $"; loaded by hand: {(waited ? "waited empty" : $"DID NOT WAIT (ammo {gun.ammo}, reloading {gun.reloading})")} (readout \"{readout}\"), shell {(took ? "taken" : "NOT TAKEN")}, gun {(gun.ammo > 0 ? "loaded" : "NOT LOADED")}";
+                    }
                 }
                 Transform forward = Rig.VehicleInterior.Instance.ForwardButton;
                 if (forward != null)

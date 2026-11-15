@@ -134,6 +134,155 @@ namespace RavenfieldVR.Rig
         /// <summary>The seat's gun is aimed from the inside (stick and handwheels), not by the head; snap turning is off there.</summary>
         internal static bool AimsGun => Instance != null && Instance._aimSeat != null;
 
+        // ---- loading the cannon by hand ----------------------------------------------------------------------------------------
+        // (Manual reload, a cannon's seat: the gun waits empty for its loader. A shell taken from the rack by a grip and pushed into the
+        // open breech loads it at once; let go anywhere else, it goes back in the rack.)
+        private readonly List<Vector3> _rackCentres = new List<Vector3>(); // each shell's middle (cabin frame)
+        private Transform _carried;
+        private int _carryHand = -1;
+        private static bool _loading;
+        private const float ShellReach = 0.12f, BreechReach = 0.17f;
+
+        /// <summary>This seat's cannon is loaded by hand: Manual reload, a breech and a rack of shells in the inside.</summary>
+        private bool LoadsByHand => _breech != null && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual;
+
+        /// <summary>The game's own reload of the inside's cannon waits for a shell pushed into the breech (not its automatic one).</summary>
+        internal static bool HoldsReload(Weapon gun)
+        {
+            VehicleInterior me = Instance;
+            if (me == null || _loading || !me.LoadsByHand || me._seat == null || gun == null)
+            {
+                return false;
+            }
+            Weapon mine = Gun(me._seat);
+            return mine != null && (ReferenceEquals(mine, gun) || ReferenceEquals(mine.GetActiveSubWeapon(), gun));
+        }
+
+        /// <summary>For the vehicle check: the first shell in the rack and the breech's mouth (world; zero: none).</summary>
+        internal Vector3 FirstShell
+        {
+            get
+            {
+                for (int i = 0; i < _rounds.Count && i < _rackCentres.Count; i++)
+                {
+                    if (_rounds[i] != null && _rounds[i].activeSelf)
+                    {
+                        return _root.transform.TransformPoint(_rackCentres[i]);
+                    }
+                }
+                return Vector3.zero;
+            }
+        }
+
+        internal Vector3 BreechMouth => _breechBlock != null ? _breechBlock.position : Vector3.zero;
+
+        /// <summary>For the vehicle check: a shell is in a hand.</summary>
+        internal bool Carrying => _carried != null;
+
+        /// <summary>A grip on a shell in the rack takes it (a copy in the hand, the rack one less meanwhile).</summary>
+        private bool TakeShell(VRHand hand, int h, Vector3 palm)
+        {
+            if (!LoadsByHand || _carried != null)
+            {
+                return false;
+            }
+            for (int i = 0; i < _rounds.Count && i < _rackCentres.Count; i++)
+            {
+                if (_rounds[i] == null || !_rounds[i].activeSelf || Vector3.Distance(palm, _root.transform.TransformPoint(_rackCentres[i])) > ShellReach)
+                {
+                    continue;
+                }
+                _carried = new GameObject("carried shell").transform;
+                _carried.SetParent(_root.transform, false);
+                // (The rack shell's parts round its middle: case, tip, nose along the shell's axis.)
+                void Piece(string n, float y, Vector3 size, Material m)
+                {
+                    Transform t = Cylinder(n, Vector3.zero, size, Quaternion.identity, m);
+                    t.SetParent(_carried, false);
+                    t.localPosition = new Vector3(0f, y, 0f);
+                }
+                Piece("shell-case", -0.095f, new Vector3(0.09f, 0.2f, 0.09f), _brass);
+                Piece("shell-tip", 0.175f, new Vector3(0.075f, 0.07f, 0.075f), _metal);
+                Piece("shell-nose", 0.265f, new Vector3(0.04f, 0.03f, 0.04f), _metal);
+                _carryHand = h;
+                hand.Role = HandRole.Cockpit;
+                hand.Model.CockpitStick = true;
+                VRInput.Consume(DigitalAction.Grab, hand.Side);
+                hand.Haptic(0.04f, 90f, 0.6f);
+                _roundsShown = -1; // (the rack shows one less while it is carried: Rounds)
+                CarryTo(hand);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>The carried shell in the fist, nose forward along the hand.</summary>
+        private void CarryTo(VRHand hand)
+        {
+            _carried.SetPositionAndRotation(hand.PalmCentre + hand.Raw.rotation * new Vector3(0f, 0f, 0.05f), hand.Raw.rotation * Quaternion.Euler(90f, 0f, 0f));
+        }
+
+        /// <summary>
+        /// The shell in the hand: carried while gripped; at the open breech's mouth with the gun empty, rammed home (the gun loaded at
+        /// once, a heavy thump in the hand, the block shut); let go elsewhere, back in the rack.
+        /// </summary>
+        private void Carry(VRHand hand)
+        {
+            if (_carried == null)
+            {
+                return;
+            }
+            Weapon gun = Gun(_seat);
+            if (!hand.GrabHeld || gun == null)
+            {
+                DropShell();
+                return;
+            }
+            CarryTo(hand);
+            // (Its nose at the mouth: the middle of the shell is a hand's length behind it.)
+            Vector3 nose = _carried.TransformPoint(new Vector3(0f, 0.25f, 0f));
+            if (gun.ammo < gun.configuration.ammo && gun.HasSpareAmmo() && Vector3.Distance(nose, BreechMouth) < BreechReach)
+            {
+                _loading = true;
+                try
+                {
+                    gun.InstantlyReload();
+                }
+                finally
+                {
+                    _loading = false;
+                }
+                hand.Haptic(0.09f, 50f, 1f);
+                _rammedAt = Time.unscaledTime;
+                DropShell();
+            }
+        }
+
+        private float _rammedAt = -10f;
+
+        private void DropShell()
+        {
+            if (_carried != null)
+            {
+                Object.Destroy(_carried.gameObject);
+                _carried = null;
+                _roundsShown = -1;
+            }
+            if (_carryHand >= 0)
+            {
+                VRHand hand = _rig.Hands[_carryHand];
+                if (hand != null)
+                {
+                    if (hand.Role == HandRole.Cockpit)
+                    {
+                        hand.Role = HandRole.Free;
+                    }
+                    hand.Model.CockpitStick = false;
+                }
+                _carryHand = -1;
+            }
+        }
+
         /// <summary>This turret is the aim seat's own gun (another player's turret on the same vehicle is not steered from here).</summary>
         internal static bool AimsThisGun(Weapon turret) => AimsGun && Gun(Instance._aimSeat) == turret;
 
@@ -523,7 +672,12 @@ namespace RavenfieldVR.Rig
             float back = since < 0f ? 0f : since < 0.05f ? since / 0.05f : Mathf.Clamp01(1f - (since - 0.05f) / 0.5f);
             _breech.localPosition = _breechAt + new Vector3(0f, 0f, -0.14f * back * back * (3f - 2f * back));
             Weapon gun = Gun(_seat);
-            bool open = gun != null && gun.reloading;
+            bool open = gun != null && (gun.reloading || gun.ammo <= 0);
+            float rammed = Time.unscaledTime - _rammedAt;
+            if (rammed >= 0f && rammed < 0.15f)
+            {
+                _breech.localPosition += new Vector3(0f, 0f, 0.02f * (1f - rammed / 0.15f)); // (the round rammed home)
+            }
             Vector3 want = _blockAt + new Vector3(0f, open ? -0.06f : 0f, 0f) - _breechAt; // (in the breech's own frame)
             _breechBlock.localPosition = Vector3.MoveTowards(_breechBlock.localPosition, want, Time.unscaledDeltaTime * 0.3f);
         }
@@ -537,7 +691,7 @@ namespace RavenfieldVR.Rig
                 return;
             }
             bool empty = gun.ammo <= 0 && !gun.HasInfiniteSpareAmmo() && gun.spareAmmo <= 0;
-            string state = gun.reloading ? "reloading" : empty ? "empty" : gun.ammo <= 0 ? "reloading" : "ready";
+            string state = gun.reloading ? "reloading" : empty ? "empty" : gun.ammo <= 0 ? (HoldsReload(gun) ? "load" : "reloading") : "ready";
             if (_ready != null)
             {
                 Color c = state == "ready" ? new Color(0.2f, 1.6f, 0.3f)
@@ -553,7 +707,7 @@ namespace RavenfieldVR.Rig
             }
             _nextReadout = Time.unscaledTime + 0.2f;
             string spare = gun.HasInfiniteSpareAmmo() ? "\u221E" : gun.spareAmmo.ToString();
-            string text = state == "reloading" ? "RELOADING" : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
+            string text = state == "reloading" ? "RELOADING" : state == "load" ? "LOAD SHELL" : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
             if (_ammoText.text != text)
             {
                 _ammoText.text = text;
@@ -767,6 +921,10 @@ namespace RavenfieldVR.Rig
                 int full = Mathf.Max(1, gun.configuration.spareAmmo);
                 show = gun.spareAmmo <= 0 ? 0 : gun.spareAmmo * 2 > full ? 2 : 1;
             }
+            if (_carried != null)
+            {
+                show = Mathf.Max(0, show - 1);
+            }
             if (show == _roundsShown)
             {
                 return;
@@ -814,6 +972,7 @@ namespace RavenfieldVR.Rig
                     Cylinder("shell-tip", o + new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal).SetParent(shell, true);
                     Cylinder("shell-nose", o + new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal).SetParent(shell, true);
                     _rounds.Add(shell.gameObject);
+                    _rackCentres.Add(o + new Vector3(0.52f, -0.23f, z));
                 }
                 Box("rack-strap-low", o + new Vector3(0.52f, -0.42f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
                 Box("rack-strap-high", o + new Vector3(0.52f, -0.2f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
@@ -902,6 +1061,10 @@ namespace RavenfieldVR.Rig
                 {
                     ReleaseWheel(h);
                     ReleaseLever(h);
+                    if (_carryHand == h)
+                    {
+                        DropShell();
+                    }
                     continue;
                 }
                 Vector3 palm = hand.PalmCentre;
@@ -941,6 +1104,15 @@ namespace RavenfieldVR.Rig
                 }
                 // A handwheel: taken by a grip at its rim, cranked round its axis (not by a hand on the fire button beside it).
                 bool atFire = _fire != null && Vector3.Distance(palm, _fire.position) < ButtonReach;
+                // A shell taken from the rack, or the one in this hand carried on.
+                if (_carryHand == h)
+                {
+                    Carry(hand);
+                }
+                else if (_onWheel[h] < 0 && _onLever[h] < 0 && !atFire && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
+                {
+                    TakeShell(hand, h, palm);
+                }
                 if (_onWheel[h] < 0 && _onLever[h] < 0 && !atFire && hand.Role == HandRole.Free && VRInput.GetHeldUnclaimed(DigitalAction.Grab, hand.Side))
                 {
                     for (int w = 0; w < 3; w++)
@@ -1236,6 +1408,7 @@ namespace RavenfieldVR.Rig
             ReleaseLever(0);
             ReleaseLever(1);
             _leverValue[0] = _leverValue[1] = 0f;
+            DropShell();
             Fire = false;
             VehicleInput.DriveButtons = Vector2.zero; // (the wanted aim stays: a pause or a rebuilt cabin left the gun with none)
         }
@@ -1254,6 +1427,7 @@ namespace RavenfieldVR.Rig
             }
             ReadyState = "none";
             _rounds.Clear();
+            _rackCentres.Clear();
             _roundsShown = -1;
             _steerTurned = 0f;
             for (int i = 0; i < _pressed.Length; i++)
