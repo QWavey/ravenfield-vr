@@ -150,10 +150,51 @@ namespace RavenfieldVR.Rig
         private int _carryHand = -1;
         private static bool _loading;
         private const float ShellReach = 0.12f, BreechReach = 0.17f;
-        private Weapon _cannon; // the gun the breech belongs to (null: no breech)
+        private Weapon _cannon; // the gun the breech or the feed tray belongs to (null: neither)
+        // A belt- or box-fed gun's feed tray on the left (an APC's gun, the mods' closed machine guns and autocannons): its cover open
+        // while the gun waits for a box, the box set on it loads the gun.
+        private Transform _feedLid;
+        private Vector3 _feedLidAt;
+        private const float FeedReach = 0.15f;
+
+        /// <summary>
+        /// The feed tray left of the handwheels: a tray, its cover hinged at the back (lifted 50 degrees while open), a guide rail into
+        /// the gun.
+        /// </summary>
+        private void BuildFeed()
+        {
+            Vector3 at = new Vector3(-0.47f, -0.14f, 0.3f);
+            Box("feed-tray", at, new Vector3(0.16f, 0.06f, 0.2f), _metal);
+            Box("feed-guide", at + new Vector3(0f, 0.01f, 0.14f), new Vector3(0.06f, 0.03f, 0.1f), _paint);
+            var hinge = new GameObject("feed-cover").transform;
+            hinge.SetParent(_root.transform, false);
+            _feedLidAt = at + new Vector3(0f, 0.035f, 0.1f); // (the cover's hinge: the tray's far top edge)
+            hinge.localPosition = _feedLidAt;
+            Transform cover = Box("feed-cover-plate", Vector3.zero, new Vector3(0.165f, 0.01f, 0.2f), _olive != null ? _olive : _paint);
+            cover.SetParent(hinge, false);
+            cover.localPosition = new Vector3(0f, 0f, -0.1f);
+            _feedLid = hinge;
+            Label("FEED", at + new Vector3(0f, 0.031f, -0.06f), Quaternion.Euler(90f, 0f, 0f), 0.0012f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        /// <summary>Where a box goes: the tray's middle, over it (world; zero: no tray).</summary>
+        private Vector3 FeedMouth => _feedLid != null ? _feedLid.parent.TransformPoint(_feedLidAt + new Vector3(0f, 0.04f, -0.1f)) : Vector3.zero;
+
+        /// <summary>The feed tray's cover: up 50 degrees while the gun reloads or waits for a box, down once it is loaded.</summary>
+        private void Feed()
+        {
+            if (_feedLid == null)
+            {
+                return;
+            }
+            Weapon gun = _cannon;
+            bool open = gun != null && (gun.reloading || gun.ammo <= 0);
+            Quaternion want = Quaternion.Euler(open ? -50f : 0f, 0f, 0f);
+            _feedLid.localRotation = Quaternion.RotateTowards(_feedLid.localRotation, want, Time.unscaledDeltaTime * 300f);
+        }
 
         /// <summary>This seat's cannon is loaded by hand: Manual reload, a breech and a rack of shells in the inside.</summary>
-        private bool LoadsByHand => _breech != null && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual
+        private bool LoadsByHand => (_breech != null || _feedLid != null) && _rounds.Count > 0 && VRConfig.ReloadNow == ReloadMode.Manual
                                     && (VRConfig.LoadCannonByHand == null || VRConfig.LoadCannonByHand.Value || TestLoadByHand);
 
         /// <summary>For the vehicle check: loading by hand checked whatever the setting.</summary>
@@ -188,7 +229,11 @@ namespace RavenfieldVR.Rig
             }
         }
 
-        internal Vector3 BreechMouth => _breechBlock != null ? _breechBlock.position : Vector3.zero;
+        internal Vector3 BreechMouth => _breechBlock != null ? _breechBlock.position : FeedMouth;
+
+        /// <summary>For the vehicle check: how far behind the mouth the carrying palm is when the load goes home (a shell's nose 30 cm
+        /// ahead of the fist, a box's middle 5 cm).</summary>
+        internal float CarryAhead => _breech != null ? 0.3f : 0.05f;
 
         /// <summary>For the vehicle check: a shell is in a hand.</summary>
         internal bool Carrying => _carried != null;
@@ -206,18 +251,28 @@ namespace RavenfieldVR.Rig
                 {
                     continue;
                 }
-                _carried = new GameObject("carried shell").transform;
+                _carried = new GameObject(_breech != null ? "carried shell" : "carried ammo box").transform;
                 _carried.SetParent(_root.transform, false);
-                // (The rack shell's parts round its middle: case, tip, nose along the shell's axis.)
-                void Piece(string n, float y, Vector3 size, Material m)
+                // (The rack shell's parts round its middle: case, tip, nose along the shell's axis; a box with its lid and handle.)
+                void Piece(PrimitiveType type, string n, float y, Vector3 size, Material m)
                 {
-                    Transform t = Cylinder(n, Vector3.zero, size, Quaternion.identity, m);
+                    Transform t = Part(type, n, Vector3.zero, size, Quaternion.identity, m);
                     t.SetParent(_carried, false);
                     t.localPosition = new Vector3(0f, y, 0f);
                 }
-                Piece("shell-case", -0.095f, new Vector3(0.09f, 0.2f, 0.09f), _brass);
-                Piece("shell-tip", 0.175f, new Vector3(0.075f, 0.07f, 0.075f), _metal);
-                Piece("shell-nose", 0.265f, new Vector3(0.04f, 0.03f, 0.04f), _metal);
+                if (_breech != null)
+                {
+                    Piece(PrimitiveType.Cylinder, "shell-case", -0.095f, new Vector3(0.09f, 0.2f, 0.09f), _brass);
+                    Piece(PrimitiveType.Cylinder, "shell-tip", 0.175f, new Vector3(0.075f, 0.07f, 0.075f), _metal);
+                    Piece(PrimitiveType.Cylinder, "shell-nose", 0.265f, new Vector3(0.04f, 0.03f, 0.04f), _metal);
+                }
+                else
+                {
+                    // (Held by its handle: the box hangs under the fist. In the carried frame y runs along the hand: so the box's height
+                    // is across it; as a box swings from a handle, it reads well enough.)
+                    Piece(PrimitiveType.Cube, "ammo-box", 0f, new Vector3(0.12f, 0.17f, 0.16f), _olive);
+                    Piece(PrimitiveType.Cube, "ammo-box-lid", 0f, new Vector3(0.125f, 0.175f, 0.015f), _olive);
+                }
                 // (The rack hides its last shown shell while one is carried and after it is rammed: the taken one is swapped into
                 // that place, or shell 2 taken left shell 2 standing and shell 4 went; scout.)
                 int last = i;
@@ -268,9 +323,10 @@ namespace RavenfieldVR.Rig
                 return;
             }
             CarryTo(hand);
-            // (Its nose at the mouth: the middle of the shell is a hand's length behind it.)
-            Vector3 nose = _carried.TransformPoint(new Vector3(0f, 0.25f, 0f));
-            if (gun.ammo < gun.configuration.ammo && gun.HasSpareAmmo() && Vector3.Distance(nose, BreechMouth) < BreechReach)
+            // (A shell's nose at the breech's mouth, its middle a hand's length behind it; a box's middle over the feed tray.)
+            Vector3 nose = _breech != null ? _carried.TransformPoint(new Vector3(0f, 0.25f, 0f)) : _carried.position;
+            float reach = _breech != null ? BreechReach : FeedReach;
+            if (gun.ammo < gun.configuration.ammo && gun.HasSpareAmmo() && Vector3.Distance(nose, BreechMouth) < reach)
             {
                 _loading = true;
                 try
@@ -731,6 +787,7 @@ namespace RavenfieldVR.Rig
                 LoadHint();
                 HitFlicker();
                 Breech();
+                Feed();
                 AimMark();
             }
             Aim();
@@ -805,10 +862,11 @@ namespace RavenfieldVR.Rig
             float floor = -Room(new Vector3(0f, 0f, 0.3f), Vector3.down);
             bool cannon = gunHere != null && gunHere.configuration != null && gunHere.configuration.ammo <= 1;
             bool breech = cannon && roomLeft >= 0.73f;
+            bool feed = gunHere != null && !cannon && gunHere.configuration != null && gunHere.configuration.ammo > 1 && roomLeft >= 0.58f;
             bool rack = gunHere != null && roomRight >= (SteersByWheel(_seat) ? 0.79f : 0.59f);
             Fit = $"room left {roomLeft:0.00} m, right {roomRight:0.00} m, floor {floor:0.00} m; {(breech ? "breech" : cannon ? "no room for the breech" : "no breech")}, {(rack ? "rack" : gunHere != null ? "no room for the rack" : "no rack")}{(roomLeft >= 0.55f ? ", radio" : ", no room for the radio")}";
             // (Behind the shoulder and up over the recoil guard's rails in a cannon's seat: at their height they ran through it.)
-            Vector3 rz = breech ? new Vector3(0f, 0.24f, -0.3f) : Vector3.zero;
+            Vector3 rz = breech || feed ? new Vector3(0f, 0.24f, -0.3f) : Vector3.zero;
             if (roomLeft >= 0.55f)
             {
                 Box("radio", rz + new Vector3(-0.46f, -0.12f, 0.12f), new Vector3(0.12f, 0.22f, 0.3f), _paint);
@@ -913,6 +971,11 @@ namespace RavenfieldVR.Rig
                 if (breech)
                 {
                     BuildBreech();
+                    _cannon = gunHere;
+                }
+                else if (feed && rack)
+                {
+                    BuildFeed();
                     _cannon = gunHere;
                 }
             }
@@ -1319,7 +1382,7 @@ namespace RavenfieldVR.Rig
             }
             _nextReadout = Time.unscaledTime + 0.2f;
             string spare = gun.HasInfiniteSpareAmmo() ? "\u221E" : gun.spareAmmo.ToString();
-            string text = state == "reloading" ? "RELOADING" : state == "load" ? "LOAD SHELL" : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
+            string text = state == "reloading" ? "RELOADING" : state == "load" ? (_breech != null ? "LOAD SHELL" : "LOAD AMMO") : state == "empty" ? "NO AMMO" : $"{gun.ammo}  |  {spare}";
             if (Time.unscaledTime < _rangeUntil && _rangeText != null && state == "ready")
             {
                 text = _rangeText;
@@ -1688,6 +1751,7 @@ namespace RavenfieldVR.Rig
                     Box("ammo-box-lid", o + new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive).SetParent(box, true);
                     Box("ammo-box-handle", o + new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal).SetParent(box, true);
                     _rounds.Add(box.gameObject);
+                    _rackCentres.Add(o + new Vector3(0.5f, -0.4f, z));
                 }
             }
         }
@@ -2186,6 +2250,7 @@ namespace RavenfieldVR.Rig
             _traverse = _elevate = _fire = _steer = null;
             _fireReady = _breech = _breechBlock = null;
             _cannon = null;
+            _feedLid = null;
             _shotAt = _rammedAt = _hitAt = -10f; // (a seat changed straight after a shot: the new breech twitched)
             _zoomKnob = null;
             _rangeButton = null;

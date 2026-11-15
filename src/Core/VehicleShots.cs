@@ -677,6 +677,11 @@ namespace RavenfieldVR.Core
                         Core.ReloadMode? kept = Core.VRConfig.TestReload;
                         Core.VRConfig.TestReload = Core.ReloadMode.Manual;
                         Rig.VehicleInterior.TestLoadByHand = true;
+                        // (A belt gun's short burst leaves rounds in it: emptied, as a long burst would.)
+                        if (gun.ammo > 0)
+                        {
+                            gun.ammo = 0;
+                        }
                         yield return new WaitForSecondsRealtime(1f);
                         bool waited = gun.ammo <= 0 && !gun.reloading;
                         string readout = Rig.VehicleInterior.Instance.Readout;
@@ -684,7 +689,7 @@ namespace RavenfieldVR.Core
                         for (float t = 0f; t < 1.4f; t += Time.unscaledDeltaTime)
                         {
                             // (At the shell, gripped; then over 0.8 s its nose to the breech's mouth, the hand a shell's half-length behind.)
-                            Vector3 to = Vector3.Lerp(shellAt, mouth - rot * Vector3.forward * 0.3f, Mathf.Clamp01((t - 0.3f) / 0.8f));
+                            Vector3 to = Vector3.Lerp(shellAt, mouth - rot * Vector3.forward * Rig.VehicleInterior.Instance.CarryAhead, Mathf.Clamp01((t - 0.3f) / 0.8f));
                             Rig.VRHand.Scripted[side] = new Runtime.RigidPose(to + toRaw, rot);
                             if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
                             {

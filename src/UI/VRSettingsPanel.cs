@@ -153,7 +153,7 @@ namespace RavenfieldVR.UI
             Choice("Weapon hand", VRConfig.DominantHand, new[] { Handedness.Right, Handedness.Left }, new[] { "Right (restart)", "Left (restart)" });
             Choice("Reloading", VRConfig.Reload, new[] { ReloadMode.Manual, ReloadMode.Assisted }, new[] { "Manual", "Assisted" });
             // (A closed vehicle's cannon with Manual reloading: a shell from the rack into the breech, or the game's own reload.)
-            Choice("Tank cannon", VRConfig.LoadCannonByHand, new[] { true, false }, new[] { "Load by hand", "Reloads itself" });
+            Choice("Vehicle guns", VRConfig.LoadCannonByHand, new[] { true, false }, new[] { "Load by hand", "Reload themselves" });
             Choice("Magazine well", VRConfig.MagazineInsertHelp, new[] { MagazineHelp.Exact, MagazineHelp.Normal, MagazineHelp.Easy }, new[] { "Exact", "Normal", "Easy" });
             // Read when a weapon is drawn: the panel said it applied at once (review, 2026-10-20).
             Choice("Hands (next draw)", VRConfig.Hands, new[] { HandsMode.VRHands, HandsMode.WeaponArms }, new[] { "VR hands", "Weapon's arms" });
