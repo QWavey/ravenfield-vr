@@ -371,6 +371,7 @@ namespace RavenfieldVR.Rig
 
         /// <summary>The palms against the vehicle as both are drawn (VRRig poses the hands just before): read by the next Update.</summary>
         private readonly List<Transform> _markers = new List<Transform>();
+        private readonly List<Vector3> _spots = new List<Vector3>(3);
         private Material _markerMat;
 
         /// <summary>
@@ -379,7 +380,12 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void Markers(bool held)
         {
-            List<Vector3> spots = HandlesWorld();
+            List<Vector3> spots = _spots;
+            spots.Clear();
+            foreach (Vector3 l in _handlesLocal)
+            {
+                spots.Add(_pivotT.TransformPoint(l)); // (a kept list: one made each frame before)
+            }
             bool empty = ReloadsByHand(_gun) && _gun.ammo <= 0 && !_gun.reloading;
             if (empty)
             {

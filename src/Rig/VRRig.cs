@@ -533,8 +533,7 @@ namespace RavenfieldVR.Rig
                         key = _aliveSeat;
                         return;
                     }
-                    _aliveSeat = null;
-                    OpenVR.Compositor?.FadeToColor(0.4f, 0f, 0f, 0f, 0f, false); // (and back in, on the game's own camera)
+                    _aliveSeat = null; // (the change of view fades back in by itself: a fade here was cut by its black blip)
                 }
                 else if (actor == null || !actor.dead)
                 {
@@ -1840,6 +1839,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Interior.Destroy", () => _interior?.Destroy());
             Log.Guard("Rig.TurretGrip.Destroy", () => _turretGrip?.Destroy());
             Log.Guard("Rig.HullInside.Destroy", () => _hullInside?.Destroy());
+            Log.Guard("Rig.TouchEnter.Destroy", () => _touchEnter?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Underwater.Destroy", () => _underwater?.Destroy());

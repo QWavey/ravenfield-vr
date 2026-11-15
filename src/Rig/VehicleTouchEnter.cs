@@ -47,6 +47,25 @@ namespace RavenfieldVR.Rig
         }
 
         private readonly GameObject[] _hint = new GameObject[2];
+
+        /// <summary>The rig is gone: the entry glows with it (they outlive scenes).</summary>
+        public void Destroy()
+        {
+            for (int h = 0; h < 2; h++)
+            {
+                if (_hint[h] != null)
+                {
+                    Object.Destroy(_hint[h].GetComponent<Renderer>().sharedMaterial);
+                    Object.Destroy(_hint[h]);
+                    _hint[h] = null;
+                }
+            }
+            if (_hintMaterial != null)
+            {
+                Object.Destroy(_hintMaterial);
+                _hintMaterial = null;
+            }
+        }
         private Material _hintMaterial;
         private readonly float[] _tickAt = new float[2];
 

@@ -494,7 +494,7 @@ namespace RavenfieldVR.Rig
                     _hintMaterial = new Material(Shader.Find("Sprites/Default")) { renderQueue = 3100 };
                 }
                 Renderer r = hint.GetComponent<Renderer>();
-                r.sharedMaterial = _hintMaterial;
+                r.sharedMaterial = new Material(_hintMaterial); // (its own: shared, the stick's glow took the rim's brightness)
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 hint.transform.localScale = Vector3.one * 0.03f;
             }
@@ -504,7 +504,7 @@ namespace RavenfieldVR.Rig
             }
             hint.transform.position = at;
             float k = Mathf.Clamp01(1f - distance / 0.3f);
-            _hintMaterial.color = new Color(0.55f, 0.85f, 1f, 0.15f + 0.5f * k);
+            hint.GetComponent<Renderer>().sharedMaterial.color = new Color(0.55f, 0.85f, 1f, 0.15f + 0.5f * k);
             bool reached = distance < reach;
             if (reached && !wasNear && hand != null)
             {
@@ -584,6 +584,7 @@ namespace RavenfieldVR.Rig
             {
                 if (g != null)
                 {
+                    Object.Destroy(g.GetComponent<Renderer>().sharedMaterial);
                     Object.Destroy(g);
                 }
             }
@@ -706,7 +707,6 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The palm's place on the rim's plane, from the rim's centre (the seat's frame; the turn is read about <paramref name="axis"/>).</summary>
-        /// <summary>For the vehicle check: the driver's wheel rim (world centre, turning axis, radius), false when the seat has none.</summary>
         /// <summary>For the vehicle check: the plane's throttle or the helicopter's collective lever (null: none).</summary>
         internal Transform ThrottleLever => _throttle;
 
@@ -715,6 +715,7 @@ namespace RavenfieldVR.Rig
 
         internal float SteerNow => _steer;
 
+        /// <summary>For the vehicle check: the driver's wheel rim (world centre, turning axis, radius), false when the seat has none.</summary>
         internal bool RimWorld(out Vector3 centre, out Vector3 axis, out float radius)
         {
             centre = axis = Vector3.zero;

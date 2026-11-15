@@ -25,6 +25,10 @@ namespace RavenfieldVR.Rig
             if (v == null || v.dead || v.isTurret || GameManager.IsPaused() || rig == null)
             {
                 _of = null;
+                if (v == null)
+                {
+                    _saidSeat = null; // (out of it: getting back into the same vehicle is not a seat change)
+                }
                 return;
             }
             Hum(rig, v);

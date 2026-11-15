@@ -135,13 +135,13 @@ namespace RavenfieldVR.Rig
             float speed = Mathf.Clamp01(v.Velocity().magnitude / 25f);
             float engine = v.engine != null ? Mathf.Clamp01(Mathf.Max(Mathf.Abs(v.engine.targetThrottle), speed)) : speed;
             float hull = Mathf.Clamp01(v.GetHealthRatio());
-            float[] read = { speed, engine, hull };
             for (int g = 0; g < 3; g++)
             {
+                float reading = g == 0 ? speed : g == 1 ? engine : hull;
                 if (_needles[g] != null)
                 {
                     // From 120 degrees left (nothing) to 120 right (full), eased so it swings, not jumps.
-                    Quaternion want = Quaternion.Euler(0f, 0f, 120f - 240f * read[g]);
+                    Quaternion want = Quaternion.Euler(0f, 0f, 120f - 240f * reading);
                     Transform n = _needles[g].childCount > 0 ? _needles[g].GetChild(0) : null;
                     if (n != null)
                     {
@@ -340,7 +340,8 @@ namespace RavenfieldVR.Rig
             }
             if (SteersByWheel(_seat))
             {
-                _steer = Wheel("steering", new Vector3(0f, -0.42f, 0.33f));
+                // (High enough that the drive panel's forward button is out of its rim's grip: a fist on it took the wheel.)
+                _steer = Wheel("steering", new Vector3(0f, -0.3f, 0.33f));
             }
             if (_seat.IsDriverSeat())
             {
@@ -609,6 +610,12 @@ namespace RavenfieldVR.Rig
                         float angle = RimAngle(wheel, palm);
                         float turned = Mathf.DeltaAngle(_wheelAngle[h], angle);
                         _wheelAngle[h] = angle;
+                        if (_onWheel[h] == 2)
+                        {
+                            // (The steering wheel turns only as far as the lock: past it the drawn wheel and the steering disagreed.)
+                            float before = _steerTurned;
+                            turned = Mathf.Clamp(before + turned, -120f, 120f) - before;
+                        }
                         wheel.localRotation *= Quaternion.Euler(0f, 0f, turned); // (the wheel turns with the hand)
                         if (Mathf.Abs(turned) > 3f)
                         {
