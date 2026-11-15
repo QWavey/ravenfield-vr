@@ -110,7 +110,7 @@ namespace RavenfieldVR.Local
                     Open = false;
                     break;
                 case 8:
-                    _note?.Invoke("Splitscreen: this player left (its copy closes).");
+                    _note?.Invoke("Splitscreen: this player left (its copy closes)."); // (the host reads "this player left": not started again)
                     Application.Quit();
                     break;
                 default:

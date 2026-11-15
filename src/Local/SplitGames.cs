@@ -123,6 +123,8 @@ namespace RavenfieldVR.Local
             public Process Process;
             public IPEndPoint Input;
             public readonly FlatPlayerInput.DeviceState State = new FlatPlayerInput.DeviceState();
+            /// <summary>In the host's match (its log says so); its player left by its own menu (not started again).</summary>
+            public bool Ready, Left;
         }
 
         private static readonly List<Copy> Copies = new List<Copy>();
@@ -180,8 +182,37 @@ namespace RavenfieldVR.Local
         private static int _ready;
 
         /// <summary>The players in the match so far (player 1 counted), and all of them.</summary>
-        internal static string Loading => _hosting && !_go ? $"Loading players ...   {_ready + 1} of {Splitscreen.Players} in"
+        internal static string Loading => _hosting && !_go ? LoadingLines()
             : StartsSplit && !_hosting && !_everHosted ? "Loading ..." : null;
+
+        /// <summary>Each player's state on the loading screen (the user sees who is still coming).</summary>
+        private static string LoadingLines()
+        {
+            var sb = new System.Text.StringBuilder($"Loading players ...   {_ready + 1} of {Splitscreen.Players} in\n\nPlayer 1: in");
+            for (int i = 1; i < Splitscreen.Players; i++)
+            {
+                Copy c = Copies.FirstOrDefault(x => x.Index == i);
+                sb.Append($"\nPlayer {i + 1}: {(c == null ? "starting ..." : c.Ready ? "in" : "loading ...")}");
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>A player whose game is (re)loading after go: its part of the screen says so (null: none).</summary>
+        internal static IEnumerable<(int index, string text)> Rejoining()
+        {
+            if (!_hosting || !_go)
+            {
+                yield break;
+            }
+            for (int i = 1; i < Splitscreen.Players; i++)
+            {
+                Copy c = Copies.FirstOrDefault(x => x.Index == i);
+                if (c == null || !c.Ready)
+                {
+                    yield return (i, $"Player {i + 1}: {(c == null && !Pending.Contains(i) ? "left" : "rejoining ...")}");
+                }
+            }
+        }
 
         /// <summary>This game starts straight into a splitscreen match (try mode): its loading screen from its first frame, full screen.</summary>
         internal static readonly bool StartsSplit = Args.Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
@@ -216,8 +247,16 @@ namespace RavenfieldVR.Local
                 return;
             }
             var pids = new HashSet<uint>();
+            if (_go && Copies.All(c => c.Ready))
+            {
+                return;
+            }
             foreach (Copy c in Copies)
             {
+                if (_go && c.Ready)
+                {
+                    continue;
+                }
                 try
                 {
                     if (c.Process != null && !c.Process.HasExited)
@@ -248,12 +287,12 @@ namespace RavenfieldVR.Local
             {
                 // Above every window while the players load (a copy's window, shown for a moment as it starts, does not cover it), and the
                 // focus taken back when a copy took it.
-                if (!_topmost)
+                if (!_topmost && !_go)
                 {
                     _topmost = true;
                     SetWindowPos(mine, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
                 }
-                if (stole || front != mine && Time.unscaledTime - _startedAt < 240f && pids.Contains(FrontPid(front)))
+                if (stole || !_go && front != mine && Time.unscaledTime - _startedAt < 240f && pids.Contains(FrontPid(front)))
                 {
                     TakeFocus(mine);
                 }
@@ -323,7 +362,7 @@ namespace RavenfieldVR.Local
         /// <summary>Once a frame on the host: the copies' own logs say when each is in the match.</summary>
         private static void CheckReady()
         {
-            if (_go || Time.frameCount % 30 != 0)
+            if (Time.frameCount % 30 != 0)
             {
                 return;
             }
@@ -333,16 +372,20 @@ namespace RavenfieldVR.Local
                 try
                 {
                     string log = CopyLog(c.Index);
-                    if (System.IO.File.Exists(log) && System.IO.File.ReadAllText(log).Contains("in the host's match"))
-                    {
-                        ready++;
-                    }
+                    string text = System.IO.File.Exists(log) ? System.IO.File.ReadAllText(log) : "";
+                    c.Ready = text.Contains("in the host's match");
+                    c.Left = text.Contains("this player left");
                 }
                 catch (Exception)
                 {
                 }
+                ready += c.Ready ? 1 : 0;
             }
             _ready = ready;
+            if (_go)
+            {
+                return;
+            }
             bool all = Pending.Count == 0 && ready >= Splitscreen.Players - 1;
             if (all || Time.unscaledTime - _startedAt > 240f)
             {
@@ -456,11 +499,17 @@ namespace RavenfieldVR.Local
             }
             StartNextCopy();
             CheckReady();
-            if (!_go)
+            HideCopies(); // (those not in the match yet: all before go, a rejoining one after)
+            foreach (Copy gone in Copies.Where(c => c.Process == null || c.Process.HasExited).ToList())
             {
-                HideCopies();
+                Copies.Remove(gone);
+                if (!gone.Left && !Pending.Contains(gone.Index))
+                {
+                    // Closed or crashed mid-match: started again, rejoins (its part says "rejoining").
+                    Pending.Add(gone.Index);
+                    Log.Info($"Splitscreen: player {gone.Index + 1}'s game closed; started again.");
+                }
             }
-            Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
             ShareTheCard();
             if (_embed)
             {
@@ -828,13 +877,14 @@ namespace RavenfieldVR.Local
             // Hidden while the players load (the host shows "Loading players"), shown and placed when the host says go. Kept hidden: the
             // game shows its window again as it loads.
             IntPtr own = RawInput.GameWindow();
-            if (own != IntPtr.Zero && !_goFromHost && IsWindowVisible(own))
+            bool show = _goFromHost && SplitPlayers.InMatch; // (a copy rejoining after go shows once it is in, not while it loads)
+            if (own != IntPtr.Zero && !show && IsWindowVisible(own))
             {
                 ShowWindow(own, SW_HIDE);
             }
-            if (own != IntPtr.Zero && _shown != _goFromHost)
+            if (own != IntPtr.Zero && _shown != show)
             {
-                _shown = _goFromHost;
+                _shown = show;
                 ShowWindow(own, _shown ? SW_SHOWNOACTIVATE : SW_HIDE);
                 if (_shown)
                 {
@@ -1243,6 +1293,20 @@ namespace RavenfieldVR.Local
                 GUI.color = Color.white;
                 GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), loading, _loading);
                 return;
+            }
+            foreach ((int index, string text) in SplitGames.Rejoining())
+            {
+                Rect part = SplitPlayers.Part(index, Splitscreen.Players);
+                var r = new Rect(part.x * Screen.width, (1f - part.y - part.height) * Screen.height, part.width * Screen.width, part.height * Screen.height);
+                if (_loading == null)
+                {
+                    _loading = new GUIStyle(GUI.skin.label) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+                    _loading.normal.textColor = Color.white;
+                }
+                GUI.color = Color.black;
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = Color.white;
+                GUI.Label(r, text, _loading);
             }
             SplitDeploy.Draw();
             SplitCopyMenu.Draw();
