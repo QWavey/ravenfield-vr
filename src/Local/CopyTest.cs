@@ -231,14 +231,14 @@ namespace RavenfieldVR.Local
                         {
                             Press(SteelInput.KeyBinds.Horizontal, false); // (right: the next weapon)
                         }
-                        else if (t > 1.2f && !_menuNoted)
-                        {
-                            _menuNoted = true; // (once: at 144 frames a second the window held seven)
-                            note($"copy test: Esc menu {(SplitCopyMenu.Open ? "open" : "NOT OPEN")}, the game {(GameManager.IsPaused() ? "PAUSED" : "not paused")}; primary {_primaryFrom} -> {before}{(before == _primaryFrom ? " (NOT CHANGED)" : "")}");
-                        }
                         else if (t > 1.4f && t < 1.5f)
                         {
                             s.Keys[0x1B] = true;
+                        }
+                        if (t > 1.2f && !_menuNoted) // (its own if: a stalled frame past 1.4 s still presses Esc)
+                        {
+                            _menuNoted = true; // (once: at 144 frames a second the window held seven)
+                            note($"copy test: Esc menu {(SplitCopyMenu.Open ? "open" : "NOT OPEN")}, the game {(GameManager.IsPaused() ? "PAUSED" : "not paused")}; primary {_primaryFrom} -> {before}{(before == _primaryFrom ? " (NOT CHANGED)" : "")}");
                         }
                         if (t > 1.8f)
                         {

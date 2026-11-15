@@ -56,7 +56,7 @@ namespace RavenfieldVR.Local
                     {
                         continue;
                     }
-                    if (kv[0] == "mouse" && float.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float m))
+                    if (kv[0] == "mouse" && float.TryParse(kv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float m) && !float.IsNaN(m))
                     {
                         FlatPlayerInput.MouseAxisPerCount = Mathf.Clamp(m, 0.02f, 0.5f);
                     }

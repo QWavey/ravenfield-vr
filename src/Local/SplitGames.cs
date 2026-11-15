@@ -306,6 +306,38 @@ namespace RavenfieldVR.Local
         /// 10 s before its mod is up to hide it (the copies showed one by one over "Loading players"; 2026-11-15).
         /// </summary>
         private static readonly HashSet<uint> Pids = new HashSet<uint>();
+        private static bool _stole;
+        private static IntPtr _hideFront;
+        private static readonly EnumWindowsProc HideOne = (h, _) =>
+        {
+            GetWindowThreadProcessId(h, out uint pid);
+            if (Pids.Contains(pid) && IsWindowVisible(h))
+            {
+                _stole |= h == _hideFront;
+                ShowWindow(h, SW_HIDE);
+            }
+            return true;
+        };
+
+        /// <summary>A running copy's process (a loop, no lambda: asked every frame while the players load).</summary>
+        private static bool IsCopyPid(uint pid)
+        {
+            for (int i = 0; i < Copies.Count; i++)
+            {
+                try
+                {
+                    Process p = Copies[i].Process;
+                    if (p != null && !p.HasExited && (uint)p.Id == pid)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+            return false;
+        }
 
         /// <summary>Milliseconds on the clock every process shares, to the millisecond (Environment.TickCount moves in 15.6 ms steps: input looked 16 ms late when it was not).</summary>
         private static int NowMs() => unchecked((int)(Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency));
@@ -348,18 +380,11 @@ namespace RavenfieldVR.Local
                 {
                 }
             }
-            bool stole = false;
+            _stole = false;
             IntPtr front = GetForegroundWindow();
-            EnumWindows((h, _) =>
-            {
-                GetWindowThreadProcessId(h, out uint pid);
-                if (pids.Contains(pid) && IsWindowVisible(h))
-                {
-                    stole |= h == front;
-                    ShowWindow(h, SW_HIDE);
-                }
-                return true;
-            }, IntPtr.Zero);
+            _hideFront = front;
+            EnumWindows(HideOne, IntPtr.Zero); // (one delegate kept: none made each frame)
+            bool stole = _stole;
             // A copy's window took the focus as it showed: back to this one ("the loading screen gets unfocused when the other copies
             // launch", the user 2026-11-15).
             IntPtr mine = RawInput.GameWindow();
@@ -369,7 +394,7 @@ namespace RavenfieldVR.Local
                 // focus taken back when a copy took it.
                 // (Only while a game's window is in front: switched to another program, the player sees that program, not a loading
                 // screen held over it; scout, 2026-11-15.)
-                bool gameInFront = front == mine || pids.Contains(FrontPid(front)) || Copies.Any(c => c.Process != null && !c.Process.HasExited && FrontPid(front) == (uint)c.Process.Id);
+                bool gameInFront = front == mine || pids.Contains(FrontPid(front)) || IsCopyPid(FrontPid(front));
                 if (!_topmost && !_go && gameInFront)
                 {
                     _topmost = true;
@@ -440,7 +465,7 @@ namespace RavenfieldVR.Local
             _topmost = false;
             SetWindowPos(mine, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             uint front = FrontPid(GetForegroundWindow());
-            if (front == (uint)Process.GetCurrentProcess().Id || Copies.Any(c => c.Process != null && !c.Process.HasExited && front == (uint)c.Process.Id))
+            if (front == (uint)Process.GetCurrentProcess().Id || IsCopyPid(front))
             {
                 TakeFocus(mine); // (in front only if a game's window was: another program the player switched to keeps the focus)
             }
@@ -455,7 +480,8 @@ namespace RavenfieldVR.Local
         /// <summary>Once a frame on the host: the copies' own logs say when each is in the match.</summary>
         private static void CheckReady()
         {
-            if (Time.frameCount % 30 != 0)
+            // (After go a rejoining copy is looked at every 10 frames: hidden by this game until seen in, it shows sooner.)
+            if (Time.frameCount % (_go ? 10 : 30) != 0)
             {
                 return;
             }
@@ -490,6 +516,7 @@ namespace RavenfieldVR.Local
 
         /// <summary>The next copy started when the one before has its mod up (its log written) or 25 s have passed.</summary>
         private static readonly Dictionary<int, int> StartFailures = new Dictionary<int, int>();
+        private static readonly Dictionary<int, int> Exits = new Dictionary<int, int>();
 
         /// <summary>A copy that could not start queued again, three times at most (it was dropped for the session; scout, 2026-11-15).</summary>
         private static void Retry(int i)
@@ -618,9 +645,23 @@ namespace RavenfieldVR.Local
             StartNextCopy();
             CheckReady();
             HideCopies(); // (those not in the match yet: all before go, a rejoining one after)
-            foreach (Copy gone in Copies.Where(c => c.Process == null || c.Process.HasExited).ToList())
+            for (int gi = Copies.Count - 1; gi >= 0; gi--)
             {
-                Copies.Remove(gone);
+                Copy gone = Copies[gi];
+                bool exited;
+                try
+                {
+                    exited = gone.Process == null || gone.Process.HasExited;
+                }
+                catch (Exception)
+                {
+                    exited = true;
+                }
+                if (!exited)
+                {
+                    continue;
+                }
+                Copies.RemoveAt(gi);
                 try
                 {
                     // (Read now: its last words may be newer than the last look, and the next start deletes the log.)
@@ -628,6 +669,14 @@ namespace RavenfieldVR.Local
                 }
                 catch (Exception)
                 {
+                }
+                Exits.TryGetValue(gone.Index, out int exits);
+                Exits[gone.Index] = ++exits;
+                if (exits > 5 && !gone.Left)
+                {
+                    // (A copy that keeps closing by itself is not started for ever; scout, 2026-11-15.)
+                    Log.Warn($"Splitscreen: player {gone.Index + 1}'s game closed {exits} times; not started again this session.");
+                    gone.Left = true;
                 }
                 if (!gone.Left && !Pending.Contains(gone.Index))
                 {
@@ -738,6 +787,7 @@ namespace RavenfieldVR.Local
             Copies.Clear();
             Pending.Clear();
             StartFailures.Clear();
+            Exits.Clear();
             TestCopies = false; // (a later session's copies are players, not the check's script)
             EndTopmost();
             CardBack();
@@ -1025,6 +1075,13 @@ namespace RavenfieldVR.Local
             {
                 _ownWindow = RawInput.GameWindow(); // (once a second: it walks every window on the PC)
                 _ownWindowAt = Time.unscaledTime + 1f;
+                // Shown but hidden: the host hides a rejoining copy until it sees it in, which can come a moment after this copy showed
+                // itself; it stayed hidden for the match (scout, 2026-11-15). Not while player 1's window is minimised (its own windows
+                // go with it).
+                if (_shown && _ownWindow != IntPtr.Zero && !IsWindowVisible(_ownWindow) && !(OwnerWindow != 0 && IsIconic(new IntPtr(OwnerWindow))))
+                {
+                    ShowWindow(_ownWindow, SW_SHOWNOACTIVATE);
+                }
             }
             IntPtr own = _ownWindow;
             // (A copy rejoining after go shows once it is in, not while it loads; once shown it stays so through a map change's moment
@@ -1175,7 +1232,7 @@ namespace RavenfieldVR.Local
         /// </summary>
         private static void AdaptRate()
         {
-            if (_copyRate <= 60 || !SplitPlayers.InMatch || !_shown)
+            if (_copyRate <= 60 || !SplitPlayers.InMatch || !_shown || _ownWindow == IntPtr.Zero || !IsWindowVisible(_ownWindow) || IsIconic(_ownWindow))
             {
                 // (Counted again from the start once back: a map load's long frames not judged with the next match's.)
                 _adaptCount = 0;
@@ -1222,7 +1279,7 @@ namespace RavenfieldVR.Local
         private static int _frameCount, _pacingReports;
 
         /// <summary>
-        /// How evenly this copy's frames come, every 10 s (six times): a frame held long is felt as delay though the input is on time.
+        /// How evenly this copy's frames come, every 600 frames (six times): a frame held long is felt as delay though the input is on time.
         /// </summary>
         private static void Pacing()
         {
@@ -1441,6 +1498,9 @@ namespace RavenfieldVR.Local
 
         [DllImport("user32.dll")]
         private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
 
         private static bool _owned;
 
