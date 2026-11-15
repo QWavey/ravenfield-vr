@@ -295,7 +295,78 @@ namespace RavenfieldVR.Rig
 
         private static bool AimSeat(Seat seat) => seat != null && seat.enclosed && Gun(seat) != null && !TurretGrip.Grabbable(seat, out _);
 
-        private Light _alarm;
+        private Light _alarm, _cabin;
+        private Transform _lightSwitch, _hint;
+        private Material _hintMat;
+        private bool _combatLight;
+        private static readonly Color DayLight = new Color(1f, 0.86f, 0.62f), CombatLight = new Color(1f, 0.12f, 0.06f);
+
+        /// <summary>For the vehicle check: the cabin light's switch (null: none), whether the red combat light is on, the hint's place.</summary>
+        internal Transform LightSwitch => _lightSwitch;
+
+        internal bool CombatLightOn => _combatLight;
+
+        internal Vector3 HintAt => _hint != null && _hint.gameObject.activeSelf ? _hint.position : Vector3.zero;
+
+        /// <summary>The cabin light's toggle on the viewer's left: up for the warm light, down for a dim red one (a night's combat light).</summary>
+        private void LightSwitchAt(Vector3 at)
+        {
+            Box("light-switch-plate", at + new Vector3(0f, 0f, 0.012f), new Vector3(0.05f, 0.07f, 0.01f), _metal);
+            _lightSwitch = Box("light-switch", at, new Vector3(0.012f, 0.03f, 0.012f), _button);
+            Label("LIGHT", at + new Vector3(0f, 0.05f, 0.005f), Quaternion.identity, 0.0014f, new Color(1f, 0.85f, 0.3f));
+            SetCombatLight(false);
+        }
+
+        private void SetCombatLight(bool on)
+        {
+            _combatLight = on;
+            if (_cabin != null)
+            {
+                _cabin.color = on ? CombatLight : DayLight;
+                _cabin.intensity = on ? 0.7f : 1.1f;
+            }
+            if (_lightSwitch != null)
+            {
+                // (Tipped up or down on its plate: which way it is set reads at a glance.)
+                _lightSwitch.localRotation = Quaternion.Euler(on ? -35f : 35f, 0f, 0f);
+            }
+            _lampColor = on ? new Color(0.9f, 0.08f, 0.04f) : new Color(1.2f, 0.95f, 0.6f);
+            if (_lamp != null && (_alarm == null || !_alarm.enabled))
+            {
+                Emit(_lamp, _lampColor);
+            }
+        }
+
+        /// <summary>
+        /// Loading by hand shown where to: a pulsing glow on the next shell in the rack while the gun waits for one, on the breech's
+        /// mouth while a shell is carried. Nothing otherwise.
+        /// </summary>
+        private void LoadHint()
+        {
+            Vector3 at = _carried != null ? BreechMouth : ReadyState == "load" ? FirstShell : Vector3.zero;
+            bool show = at != Vector3.zero;
+            if (_hint == null)
+            {
+                if (!show)
+                {
+                    return;
+                }
+                _hintMat = new Material(Shader.Find("Sprites/Default")) { renderQueue = 3100 };
+                _hint = Part(PrimitiveType.Sphere, "load hint", Vector3.zero, Vector3.one * 0.06f, Quaternion.identity, _hintMat);
+            }
+            if (_hint.gameObject.activeSelf != show)
+            {
+                _hint.gameObject.SetActive(show);
+            }
+            if (show)
+            {
+                float k = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f);
+                // (7 cm toward the eyes: at the shell's or the block's middle it was inside them, hidden.)
+                _hint.position = at + (_root.transform.position - at).normalized * 0.07f;
+                _hint.localScale = Vector3.one * (0.05f + 0.025f * k);
+                _hintMat.color = new Color(0.55f, 0.85f, 1f, 0.15f + 0.35f * k);
+            }
+        }
         private readonly Transform[] _needles = new Transform[5];
 
         /// <summary>
@@ -428,6 +499,7 @@ namespace RavenfieldVR.Rig
                 Gauges();
                 Rounds();
                 GunState();
+                LoadHint();
                 Breech();
             }
             Aim();
@@ -555,11 +627,12 @@ namespace RavenfieldVR.Rig
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
             lamp.transform.localPosition = new Vector3(0f, 0.25f, 0f);
-            Light cabin = lamp.AddComponent<Light>();
+            Light cabin = _cabin = lamp.AddComponent<Light>();
             cabin.type = LightType.Point;
             cabin.color = new Color(1f, 0.86f, 0.62f);
             cabin.range = 3f;
             cabin.intensity = 1.1f;
+            LightSwitchAt(new Vector3(-0.36f, 0.2f, 0.38f));
             cabin.shadows = LightShadows.None;
             var alarm = new GameObject("alarm");
             alarm.transform.SetParent(_root.transform, false);
@@ -613,6 +686,10 @@ namespace RavenfieldVR.Rig
                 _driveButtons.Add((Button("back", c + new Vector3(0f, -0.08f, 0.04f)), new Vector2(0f, -1f)));
                 _driveButtons.Add((Button("left", c + new Vector3(-0.1f, 0f, 0f)), new Vector2(-1f, 0f)));
                 _driveButtons.Add((Button("right", c + new Vector3(0.1f, 0f, 0f)), new Vector2(1f, 0f)));
+                if (Gun(_seat) == null)
+                {
+                    AmmoReadout(); // (a driver with no gun: the readout shows the speed)
+                }
             }
             Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
@@ -742,6 +819,16 @@ namespace RavenfieldVR.Rig
             Weapon gun = _seat != null ? Gun(_seat) : null;
             if (gun == null)
             {
+                // A driver's readout: the speed, five times a second.
+                if (_ammoText != null && _seat != null && _seat.vehicle != null && Time.unscaledTime >= _nextReadout)
+                {
+                    _nextReadout = Time.unscaledTime + 0.2f;
+                    string speed = $"{Mathf.RoundToInt(_seat.vehicle.Velocity().magnitude * 3.6f)} km/h";
+                    if (_ammoText.text != speed)
+                    {
+                        _ammoText.text = speed;
+                    }
+                }
                 return;
             }
             bool empty = gun.ammo <= 0 && !gun.HasInfiniteSpareAmmo() && gun.spareAmmo <= 0;
@@ -1318,6 +1405,28 @@ namespace RavenfieldVR.Rig
                 }
                 Press(5, _zoomKnob, zoomDown);
             }
+            if (_lightSwitch != null)
+            {
+                bool flick = false;
+                for (int h = 0; h < 2; h++)
+                {
+                    VRHand hand = _rig.Hands[h];
+                    flick |= hand != null && hand.Tracked && _onWheel[h] < 0 && _onLever[h] < 0 && _carryHand != h
+                             && Vector3.Distance(hand.PalmCentre, _lightSwitch.position) < ButtonReach * 0.8f;
+                }
+                if (flick && !_pressed[6])
+                {
+                    SetCombatLight(!_combatLight);
+                    foreach (VRHand hand in _rig.Hands)
+                    {
+                        if (hand != null && hand.Tracked && Vector3.Distance(hand.PalmCentre, _lightSwitch.position) < ButtonReach)
+                        {
+                            hand.Haptic(0.012f, 220f, 0.5f); // (the toggle's snap)
+                        }
+                    }
+                }
+                _pressed[6] = flick;
+            }
             for (int i = 0; i < _driveButtons.Count; i++)
             {
                 (Transform t, Vector2 d) = _driveButtons[i];
@@ -1551,6 +1660,8 @@ namespace RavenfieldVR.Rig
             _traverse = _elevate = _fire = _steer = null;
             _fireReady = _breech = _breechBlock = null;
             _zoomKnob = null;
+            _lightSwitch = _hint = null;
+            _cabin = null;
             _zoomText = null;
             _zoomed = false;
             _ammoText = null;
@@ -1586,14 +1697,14 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle, _hintMat })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = _reticle = null;
+            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = _reticle = _hintMat = null;
         }
 
         public void Destroy()

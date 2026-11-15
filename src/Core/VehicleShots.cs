@@ -769,6 +769,31 @@ namespace RavenfieldVR.Core
                 float after = Input.VehicleInput.DriveButtons.magnitude;
                 line += $"; right steering lever 25 deg forward: drive ({most.x:+0.00;-0.00}, {most.y:+0.00;-0.00}){(most.y < 0.3f ? " (DID NOT DRIVE)" : most.x > -0.1f ? " (DID NOT TURN LEFT)" : "")}, let go: {(after < 0.05f ? "back in the middle" : "STILL PUSHED")}";
             }
+            // The cabin light's switch flicked by the gun hand: the red combat light (pictured), flicked again: the warm light.
+            Transform flick = Rig.VehicleInterior.Instance.LightSwitch;
+            if (flick != null)
+            {
+                Rig.VRHand fh = rig.Dominant;
+                int fs = (int)fh.Side;
+                Vector3 fRaw = fh.Raw.position - fh.PalmCentre;
+                bool[] red = new bool[2];
+                for (int f = 0; f < 2 && flick != null; f++)
+                {
+                    for (float t = 0f; t < 0.3f && flick != null; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[fs] = new Runtime.RigidPose(flick.position + fRaw, fh.Raw.rotation);
+                        yield return null;
+                    }
+                    Rig.VRHand.Scripted[fs] = null;
+                    yield return new WaitForSecondsRealtime(0.25f);
+                    red[f] = Rig.VehicleInterior.Instance.CombatLightOn;
+                    if (f == 0)
+                    {
+                        Shots.Capture(name + "-inside-combat-light");
+                    }
+                }
+                line += $"; light switch: {(red[0] ? "red combat light" : "DID NOT SWITCH")}, again: {(!red[1] ? "warm light" : "STAYED RED")}";
+            }
             line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}; fitted: {Rig.VehicleInterior.Instance.Fit}";
             line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;
