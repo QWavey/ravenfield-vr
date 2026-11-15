@@ -515,6 +515,35 @@ namespace RavenfieldVR.Core
                 Rig.VRHand.Scripted[side] = null;
                 float cranked = Mathf.DeltaAngle(y1, Yaw());
                 line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}";
+                // The elevation wheel half a turn: the gun up or down (a turn is 30 degrees, within the gun's own limits).
+                Transform ew = Rig.VehicleInterior.Instance.ElevationWheel;
+                if (ew != null && ew.parent != null)
+                {
+                    float Pitch() => Mathf.Asin(Mathf.Clamp(v.transform.InverseTransformDirection(aim.forward).y, -1f, 1f)) * Mathf.Rad2Deg;
+                    float p1 = Pitch();
+                    Vector3 eAt = ew.parent.InverseTransformPoint(ew.position);
+                    Quaternion eTurn = Quaternion.Inverse(ew.parent.rotation) * ew.rotation;
+                    for (float t = 0f; t <= 1.2f; t += Time.unscaledDeltaTime)
+                    {
+                        if (ew == null || ew.parent == null)
+                        {
+                            break;
+                        }
+                        float a = t < 0.2f ? 0f : Mathf.Clamp01((t - 0.2f) / 1f) * 180f;
+                        Vector3 rim = ew.parent.TransformPoint(eAt + eTurn * (Quaternion.Euler(0f, 0f, a) * new Vector3(0f, 0.11f, 0f)));
+                        Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + palmToRaw, rot);
+                        if (t > 0.1f && !Input.VRInput.SimulatedGrab[side])
+                        {
+                            Input.VRInput.SimulateGrabPress(hand.Side);
+                        }
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(1.2f);
+                    Input.VRInput.SimulatedGrab[side] = false;
+                    Rig.VRHand.Scripted[side] = null;
+                    float raised = Pitch() - p1;
+                    line += $"; the elevation wheel half a turn: the gun {raised:+0;-0} deg{(Mathf.Abs(raised) < 3f ? " (DID NOT MOVE)" : "")}";
+                }
             }
             // The buttons, pressed by the gun hand: fire (rounds go), forward (the drive input goes forward).
             {
