@@ -178,7 +178,7 @@ namespace RavenfieldVR.Local
         /// <summary>Every player's game is in the match: the host says go, the copies show and deploy together (the user, 2026-11-15: "Loading
         /// player... at a fullscreen and only if all players loaded it will deploy everyone").</summary>
         private static bool _go;
-        private static float _startedAt, _goAt;
+        private static float _startedAt;
         private static int _ready;
 
         /// <summary>The players in the match so far (player 1 counted), and all of them.</summary>
@@ -258,17 +258,29 @@ namespace RavenfieldVR.Local
         /// While the players load, every copy's window hidden by this game, each frame: a game shows its window itself as it starts, about
         /// 10 s before its mod is up to hide it (the copies showed one by one over "Loading players"; 2026-11-15).
         /// </summary>
+        private static readonly HashSet<uint> Pids = new HashSet<uint>();
+
         private static void HideCopies()
         {
             if (Copies.Count == 0)
             {
                 return;
             }
-            var pids = new HashSet<uint>();
-            if (_go && Copies.All(c => c.Ready))
+            if (_go)
             {
-                return;
+                // (Every frame of the match: nothing made here, no garbage for the collector to stop the game for.)
+                bool allIn = true;
+                for (int i = 0; i < Copies.Count; i++)
+                {
+                    allIn &= Copies[i].Ready;
+                }
+                if (allIn)
+                {
+                    return;
+                }
             }
+            Pids.Clear();
+            HashSet<uint> pids = Pids;
             foreach (Copy c in Copies)
             {
                 if (_go && c.Ready)
@@ -422,7 +434,6 @@ namespace RavenfieldVR.Local
             if (all || Time.unscaledTime - _startedAt > 240f)
             {
                 _go = true;
-                _goAt = Time.unscaledTime;
                 EndTopmost();
                 Log.Info(all ? $"Splitscreen: all {Splitscreen.Players} players in: go." : $"Splitscreen: {ready + 1} of {Splitscreen.Players} players in after 4 minutes: go without the rest.");
             }
@@ -873,7 +884,7 @@ namespace RavenfieldVR.Local
         private static IPEndPoint _hostInput;
         private static IntPtr _ownWindow;
         private static float _ownWindowAt;
-        private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _saidDeploy, _goFromHost, _shown;
+        private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _goFromHost, _shown;
         private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
         private static readonly FlatPlayerInput.DeviceState Received = new FlatPlayerInput.DeviceState();
@@ -900,7 +911,9 @@ namespace RavenfieldVR.Local
                 QualitySettings.SetQualityLevel(0, true);
                 QualitySettings.shadows = ShadowQuality.Disable;
                 QualitySettings.vSyncCount = 0;
-                Application.targetFrameRate = 60;
+                _copyRate = FirstRate();
+                Application.targetFrameRate = _copyRate;
+                Note($"Splitscreen: this copy draws at up to {_copyRate} frames a second (the screen's rate), lower by itself if the card cannot hold it.");
                 _hostInput = new IPEndPoint(IPAddress.Loopback, HostInputPort);
                 RawInput.Start();
                 RawInput.Forward = ForwardToHost;
@@ -918,13 +931,14 @@ namespace RavenfieldVR.Local
                 Note($"Splitscreen: this is player {ClientIndex + 1}'s copy of the game; joining {HostAddress} once the menu is up.");
             }
             AudioListener.volume = 0f; // (the host plays the match's sound)
-            if (Application.targetFrameRate != 60 || QualitySettings.vSyncCount != 0)
+            if (Application.targetFrameRate != _copyRate || QualitySettings.vSyncCount != 0)
             {
                 // Held each frame (the game sets its own limit as it loads: the copies ran at 100 to 400 frames a second and took the
                 // power player 1's game needs; 2026-11-15).
                 QualitySettings.vSyncCount = 0;
-                Application.targetFrameRate = 60;
+                Application.targetFrameRate = _copyRate;
             }
+            AdaptRate();
             if (QualitySettings.maxQueuedFrames != 1)
             {
                 QualitySettings.maxQueuedFrames = 1; // (a drawn frame shown at once, not queued behind the others' on the shared card)
@@ -1090,6 +1104,70 @@ namespace RavenfieldVR.Local
         /// Once a frame on a copy: how long its own part of the way takes (the user, 2026-11-15: "very very delayed" though the input
         /// packets come within 5 ms): W pressed to the soldier walking, the mouse moved to the camera turning, in ms and frames.
         /// </summary>
+        /// <summary>The steps a copy's frame rate comes down by: the screen's rate first (player 1's game draws at it), never under 60.</summary>
+        private static readonly int[] RateSteps = { 144, 120, 90, 60 };
+        private static int _copyRate = 60, _adaptCount, _adaptSlow, _adaptWindows;
+        private static readonly float[] AdaptTimes = new float[240];
+
+        private static int FirstRate()
+        {
+            int screen = Screen.currentResolution.refreshRate > 0 ? Screen.currentResolution.refreshRate : 60;
+            foreach (int r in RateSteps)
+            {
+                if (r <= screen)
+                {
+                    return r;
+                }
+            }
+            return 60;
+        }
+
+        /// <summary>
+        /// The copy's frame rate one step lower when it cannot hold it (the user, 2026-11-15: "very very delayed" at 60 while player 1's
+        /// game drew at 160: 16.7 ms a frame against 6). Judged in the match over 240 frames: one in ten more than a quarter late, twice
+        /// in a row, is a step down. Never back up (no swinging between two rates).
+        /// </summary>
+        private static void AdaptRate()
+        {
+            if (_copyRate <= 60 || !SplitPlayers.InMatch || !_shown)
+            {
+                return;
+            }
+            AdaptTimes[_adaptCount++] = Time.unscaledDeltaTime;
+            if (_adaptCount < AdaptTimes.Length)
+            {
+                return;
+            }
+            _adaptCount = 0;
+            if (++_adaptWindows <= 2)
+            {
+                return; // (the first seconds after it is shown: spawning, the others still deploying)
+            }
+            float limit = 1.25f / _copyRate;
+            int late = 0;
+            foreach (float f in AdaptTimes)
+            {
+                late += f > limit ? 1 : 0;
+            }
+            _adaptSlow = late > AdaptTimes.Length / 10 ? _adaptSlow + 1 : 0;
+            if (_adaptSlow < 2)
+            {
+                return;
+            }
+            _adaptSlow = 0;
+            int next = 60;
+            foreach (int r in RateSteps)
+            {
+                if (r < _copyRate)
+                {
+                    next = r;
+                    break;
+                }
+            }
+            Note($"Splitscreen: this copy could not hold {_copyRate} frames a second ({late} of {AdaptTimes.Length} frames late): now {next}.");
+            _copyRate = next;
+        }
+
         private static readonly float[] FrameTimes = new float[600];
         private static int _frameCount, _pacingReports;
 
