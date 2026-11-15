@@ -704,6 +704,19 @@ namespace RavenfieldVR.Tests
             Check(Math.Abs(El(0f, 1f, 1f) - 45f) < 1e-3, $"Elevation dial: raised 45 reads 45 ({El(0f, 1f, 1f):0.0})");
             Check(Math.Abs(El(0f, -2f, 2f) + 45f) < 1e-3, "Elevation dial: lowered reads negative, whatever the length");
             Check(Math.Abs(El(0f, 0f, 0f)) < 1e-6, "Elevation dial: no direction reads level");
+            System.Reflection.MethodInfo lever = vi.GetMethod("LeverValue", any);
+            Check(lever != null, "Tank levers: LeverValue found");
+            if (lever == null)
+            {
+                return;
+            }
+            float L(float y, float z) => (float)lever.Invoke(null, new object[] { new UnityEngine.Vector3(0f, y, z) });
+            Check(Math.Abs(L(0.3f, 0f)) < 1e-5, "Tank levers: the palm straight over the pivot reads the middle");
+            float fifteen = L(0.3f * (float)Math.Cos(15 * Math.PI / 180), 0.3f * (float)Math.Sin(15 * Math.PI / 180));
+            Check(Math.Abs(fifteen - 0.5f) < 1e-3, $"Tank levers: 15 degrees forward is half ({fifteen:0.000})");
+            Check(L(0.3f, -0.5f) < -0.99f, "Tank levers: far back is full back");
+            Check(L(-0.2f, 0.1f) > 0.99f, "Tank levers: a palm under the pivot's height in front reads full forward, not back");
+            Check(L(-0.2f, -0.1f) < -0.99f, "Tank levers: a palm under the pivot's height behind reads full back");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)

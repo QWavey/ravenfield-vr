@@ -957,6 +957,14 @@ namespace RavenfieldVR.Rig
 
         private const float LeverLength = 0.3f, LeverThrow = 30f, LeverReach = 0.08f;
 
+        /// <summary>
+        /// A lever's value from the palm relative to its pivot (cabin frame): the palm's angle round the pivot, forward positive, over
+        /// the lever's 30-degree throw, -1..1. A palm at or under the pivot's height reads as just over it (no flip to the other end).
+        /// Pure (offline tests).
+        /// </summary>
+        internal static float LeverValue(Vector3 fromPivot) =>
+            Mathf.Clamp(Mathf.Atan2(fromPivot.z, Mathf.Max(fromPivot.y, 0.05f)) * Mathf.Rad2Deg / LeverThrow, -1f, 1f);
+
         private Vector3 LeverKnob(int l) => _levers[l].TransformPoint(new Vector3(0f, LeverLength, 0f));
 
         private Camera _scope;
@@ -1378,8 +1386,7 @@ namespace RavenfieldVR.Rig
                     else
                     {
                         int l = _onLever[h];
-                        Vector3 local = _root.transform.InverseTransformPoint(palm) - _levers[l].localPosition;
-                        float value = Mathf.Clamp(Mathf.Atan2(local.z, Mathf.Max(local.y, 0.05f)) * Mathf.Rad2Deg / LeverThrow, -1f, 1f);
+                        float value = LeverValue(_root.transform.InverseTransformPoint(palm) - _levers[l].localPosition);
                         if (Mathf.FloorToInt(value * 4f) != Mathf.FloorToInt(_leverValue[l] * 4f))
                         {
                             hand.Haptic(0.008f, 200f, 0.25f); // (the lever's notches)
