@@ -216,21 +216,36 @@ namespace RavenfieldVR.Local
         }
 
         /// <summary>A player whose game is (re)loading after go: its part of the screen says so (null: none).</summary>
-        internal static IEnumerable<(int index, string text)> Rejoining()
+        internal static List<(int index, string text)> Rejoining()
         {
+            // (Asked by the drawer several times a frame all match long: a list kept and texts made once, no garbage for the collector to
+            // stop player 1's game for.)
+            RejoiningNow.Clear();
             if (!_hosting || !_go)
             {
-                yield break;
+                return RejoiningNow;
             }
-            for (int i = 1; i < Splitscreen.Players; i++)
+            for (int i = 1; i < Splitscreen.Players && i < 4; i++)
             {
-                Copy c = Copies.FirstOrDefault(x => x.Index == i);
+                Copy c = null;
+                for (int k = 0; k < Copies.Count; k++)
+                {
+                    if (Copies[k].Index == i)
+                    {
+                        c = Copies[k];
+                    }
+                }
                 if (c == null || !c.Ready)
                 {
-                    yield return (i, $"Player {i + 1}: {(c == null && !Pending.Contains(i) ? "left" : "rejoining ...")}");
+                    RejoiningNow.Add((i, c == null && !Pending.Contains(i) ? LeftText[i] : RejoiningText[i]));
                 }
             }
+            return RejoiningNow;
         }
+
+        private static readonly List<(int index, string text)> RejoiningNow = new List<(int index, string text)>(3);
+        private static readonly string[] LeftText = { "", "Player 2: left", "Player 3: left", "Player 4: left" };
+        private static readonly string[] RejoiningText = { "", "Player 2: rejoining ...", "Player 3: rejoining ...", "Player 4: rejoining ..." };
 
         /// <summary>This game starts straight into a splitscreen match (try mode): its loading screen from its first frame, full screen.</summary>
         internal static readonly bool StartsSplit = Args.Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
@@ -259,6 +274,9 @@ namespace RavenfieldVR.Local
         /// 10 s before its mod is up to hide it (the copies showed one by one over "Loading players"; 2026-11-15).
         /// </summary>
         private static readonly HashSet<uint> Pids = new HashSet<uint>();
+
+        /// <summary>Milliseconds on the clock every process shares, to the millisecond (Environment.TickCount moves in 15.6 ms steps: input looked 16 ms late when it was not).</summary>
+        private static int NowMs() => unchecked((int)(Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency));
 
         private static void HideCopies()
         {
@@ -873,7 +891,7 @@ namespace RavenfieldVR.Local
             at += 4;
             Packet[at++] = _generation;
             Packet[at++] = (byte)(_go ? 1 : 0);
-            Put(Packet, at, Environment.TickCount, 4); // (when it was sent: the copy measures how late its input is)
+            Put(Packet, at, NowMs(), 4); // (when it was sent: the copy measures how late its input is)
             at += 4;
             return at;
         }
@@ -1288,7 +1306,7 @@ namespace RavenfieldVR.Local
             at++;
             _goFromHost = p[at] != 0;
             at++;
-            int lag = Environment.TickCount - BitConverter.ToInt32(p, at);
+            int lag = NowMs() - BitConverter.ToInt32(p, at);
             _lastPacketAge = lag;
             if (lag >= 0 && lag < 10000)
             {
@@ -1507,8 +1525,10 @@ namespace RavenfieldVR.Local
                 GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), loading, _loading);
                 return;
             }
-            foreach ((int index, string text) in SplitGames.Rejoining())
+            List<(int index, string text)> rejoining = SplitGames.Rejoining();
+            for (int ri = 0; ri < rejoining.Count; ri++)
             {
+                (int index, string text) = rejoining[ri];
                 Rect part = SplitPlayers.Part(index, Splitscreen.Players);
                 var r = new Rect(part.x * Screen.width, (1f - part.y - part.height) * Screen.height, part.width * Screen.width, part.height * Screen.height);
                 if (_loading == null)
