@@ -38,7 +38,7 @@ namespace RavenfieldVR.Rig
             {
                 _lastSeat = seat;
                 _nextLook = Time.unscaledTime + 0.5f;
-                _wanted = seat != null && seat.enclosed && VRConfig.Interiors.Value && EyesInside(seat.vehicle);
+                _wanted = seat != null && VehicleInterior.Wanted(seat); // (the same rule as the inside: a solid hull with no viewer and no clear view out happened otherwise)
             }
             Vehicle v = _wanted && seat != null ? seat.vehicle : null;
             if (v == _vehicle)

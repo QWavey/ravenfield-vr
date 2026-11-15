@@ -168,6 +168,14 @@ namespace RavenfieldVR.Rig
             Periscope(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
             // The line from the eyes to the viewer kept clear of the vehicle's small parts (a breech, a sight box).
             int cleared = _rig.Hull != null ? _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, -0.1f, 0.2f), new Vector3(0.34f, 0.7f, 0.32f)) : 0;
+            // And on along the view out of the hull: a gunner's eyes sit at his gun's sight, inside the barrel's and the turret's own
+            // shapes, and solid from inside he saw the inside of the barrel (the user, 2026-11-15: "the view is viewing the insides and
+            // not the outsides of the barrel"). The channel runs to past the hull's front, 50 cm wide and 40 cm high.
+            float outOfHull = _scope != null ? Mathf.Max(_scope.nearClipPlane, 1f) : 3f;
+            if (_rig.Hull != null)
+            {
+                cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f));
+            }
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
