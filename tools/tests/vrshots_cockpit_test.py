@@ -29,7 +29,7 @@ def main():
     try:
         names = ['vehicle-01-car-Tank-seat1-ahead.png', 'vehicle-01-car-Tank-seat1-down.png', 'vehicle-01-car-Tank-seat1-inside-left.png',
                  'vehicle-01-car-Tank-seat1-periscope.png', 'vehicle-01-car-Tank-seat1-periscope-zoom.png',
-                 'vehicle-01-car-Tank-seat1-inside-combat-light.png', 'vehicle-01-car-Tank-seat1-inside-alarm2.png',
+                 'vehicle-01-car-Tank-seat1-inside-combat-light.png', 'vehicle-01-car-Tank-seat1-inside-alarm2.png', 'vehicle-01-car-Tank-seat1-inside-damaged.png',
                  'vehicle-02-car-Jeep-seat1-ahead.png', 'vehicle-02-car-Jeep-seat1-down.png', 'load-00-loading.png']
         for n in names:
             Image.new('RGB', (64, 40), (100, 120, 90)).save(os.path.join(shots, n))
@@ -41,6 +41,7 @@ def main():
         check('periscope' in e['pictures'] and 'periscope-zoom' in e['pictures'], 'both periscope views read apart: ' + str(e['pictures']))
         check('inside-combat-light' in e['pictures'] and 'inside-left' in e['pictures'], 'the combat light read apart from inside-left')
         check('inside-alarm' not in e['pictures'], 'the second alarm picture (alarm2) is not taken for the first')
+        check('inside-damaged' in e['pictures'], 'the damaged look has its tile')
         check(os.path.exists(os.path.join(out, 'cockpits.jpg')), 'the overview made')
         check(os.path.exists(os.path.join(out, 'index.json')) and len(json.load(open(os.path.join(out, 'index.json')))) == 1, 'the index written')
         empty = tempfile.mkdtemp(prefix='vrshots-cockpit-none-')
