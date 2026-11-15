@@ -743,7 +743,8 @@ namespace RavenfieldVR.Net
             float age = Mathf.Min(Time.unscaledTime - r.Heard, 0.3f);
             Vector3 to = r.Position + r.Velocity * age - __instance.actor.Position();
             to.y = 0f;
-            Vector3 v = r.Velocity + to * 5f;
+            float pull = Multiplayer.OverSteam ? 5f : 10f; // (caught up twice as fast where the word comes twice as often and without jitter)
+            Vector3 v = r.Velocity + to * pull;
             v.y = 0f;
             // Standing still where he was told to be: no walk. The stand-in seldom reaches the told place to the centimetre (its own
             // capsule and ground, the told speed's 0.1 m/s steps), and the pull of a few centimetres toward it read as a slow walk, so
@@ -764,7 +765,7 @@ namespace RavenfieldVR.Net
             r.Walking = true;
             if (!r.Moving)
             {
-                v = to * 5f; // (he stands: only back to his place, none of the told speed's noise)
+                v = to * pull; // (he stands: only back to his place, none of the told speed's noise)
             }
             __result = v.sqrMagnitude < 0.01f ? Vector3.zero : Vector3.ClampMagnitude(v, 9f);
             VelocityAsked++;
@@ -2047,7 +2048,9 @@ namespace RavenfieldVR.Net
             }
             if (Time.unscaledTime >= _nextSend)
             {
-                _nextSend = Time.unscaledTime + SendEvery;
+                // Twice as often on a LAN or this PC (the splitscreen copies): over Steam 15 a second hides its jitter, side by side on one
+                // screen it showed each player's soldier well behind his own view (the user, 2026-11-15: "very very delayed").
+                _nextSend = Time.unscaledTime + (Multiplayer.OverSteam ? SendEvery : SendEvery * 0.5f);
                 if (session.PlayerCount > 1)
                 {
                     TellMine(session);

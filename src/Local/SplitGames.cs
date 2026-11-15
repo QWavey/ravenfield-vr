@@ -897,10 +897,9 @@ namespace RavenfieldVR.Local
                         _heardHost = true;
                         Note("Splitscreen: the host's input for this player is coming in.");
                     }
-                    if (!CopyTest.Running)
-                    {
-                        Read(p); // (a copy under test plays from its script instead, through the same binds)
-                    }
+                    // (A copy under test plays its keys from its script, through the same binds; the host's go and timing it reads all
+                    // the same: skipped with the keys, the go came only as the test gave up, "NOT SPAWNED in 25 s", 2026-11-15.)
+                    Read(p, !CopyTest.Running);
                     _lastFromHost = Time.unscaledTime;
                 }
             }
@@ -1002,9 +1001,14 @@ namespace RavenfieldVR.Local
         private static int _lagCount;
         private static int _lastGeneration = -1;
 
-        private static void Read(byte[] p)
+        private static void Read(byte[] p, bool keys)
         {
             int at = 1;
+            if (!keys)
+            {
+                at = 1 + 32 + 1 + 12; // (to the generation, go and time: the keys, buttons and mouse are the test's)
+                goto meta;
+            }
             for (int i = 0; i < 32; i++)
             {
                 byte bits = p[at++];
@@ -1025,6 +1029,7 @@ namespace RavenfieldVR.Local
             at += 4;
             Received.Wheel = BitConverter.ToInt32(p, at);
             at += 4;
+        meta:
             if (p[at] != _lastGeneration)
             {
                 _lastGeneration = p[at];

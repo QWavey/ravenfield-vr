@@ -501,7 +501,8 @@ namespace RavenfieldVR.Core
                 float gunOff = Vector3.Angle(gun, told);
                 lines.Add($"stand-in of {r.Name} {DateTime.Now:HH:mm:ss.f}: told speed {new Vector3(r.Velocity.x, 0f, r.Velocity.z).magnitude:0.0}, moving {(r.Moving ? "yes" : "no")}, walk animation {(anim ? "ON" : "off")}, own speed {Vector3.ProjectOnPlane(sa.Velocity(), Vector3.up).magnitude:0.0}; "
                           + $"told aim yaw {Mathf.Atan2(told.x, told.z) * Mathf.Rad2Deg:0} pitch {Mathf.Asin(Mathf.Clamp(told.y, -1f, 1f)) * Mathf.Rad2Deg:0}, body {bodyOff:0} deg off it, gun {gunOff:0} deg off it"
-                          + $", team {r.Team}" + (r.Pose != null ? ", VR pose told" : "") + $", AI soldiers aiming at him {TargetedBy(sa)}");
+                          + $", team {r.Team}" + (r.Pose != null ? ", VR pose told" : "") + $", AI soldiers aiming at him {TargetedBy(sa)}"
+                          + $"; {Vector3.ProjectOnPlane(r.Position + r.Velocity * Mathf.Min(Time.unscaledTime - r.Heard, 0.3f) - sa.Position(), Vector3.up).magnitude:0.00} m from where he is");
             }
             return lines;
         }
