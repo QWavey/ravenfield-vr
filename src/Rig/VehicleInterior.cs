@@ -476,6 +476,12 @@ namespace RavenfieldVR.Rig
             Box("viewer-back", new Vector3(0f, 0f, 0.475f), new Vector3(0.64f, 0.28f, 0.01f), _metal);
             Box("viewer-brow", new Vector3(0f, 0.15f, 0.36f), new Vector3(0.5f, 0.03f, 0.08f), _paint);
             Periscope(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
+            if (Gun(_seat) != null)
+            {
+                // A gun seat's periscope is its sight: a reticle on it and a zoom knob by it.
+                Reticle(new Vector3(0f, 0f, 0.468f), new Vector2(0.56f, 0.2f));
+                ZoomControl(new Vector3(0.35f, -0.05f, 0.4f));
+            }
             // The line from the eyes to the viewer kept clear of the vehicle's small parts (a breech, a sight box).
             int cleared = _rig.Hull != null ? _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, -0.1f, 0.2f), new Vector3(0.34f, 0.7f, 0.32f)) : 0;
             // And on along the view out of the hull: a gunner's eyes sit at his gun's sight, inside the barrel's and the turret's own
@@ -784,7 +790,67 @@ namespace RavenfieldVR.Rig
 
         private Camera _scope;
         private RenderTexture _scopeTexture;
-        private Material _scopeScreen;
+        private Material _scopeScreen, _reticle;
+        private Transform _zoomKnob;
+        private TextMesh _zoomText;
+        private bool _zoomed;
+        private const float WideView = 40f, ZoomedView = 13f;
+
+        /// <summary>For the vehicle check: the sight's zoom knob (null: none) and whether it is zoomed in.</summary>
+        internal Transform ZoomKnob => _zoomKnob;
+
+        internal bool Zoomed => _zoomed;
+
+        /// <summary>
+        /// A gunner's sight on the periscope's screen: a gap in the middle (the gun's line), stadia lines out to each side with ticks,
+        /// a range post below with its marks. Drawn just in front of the screen, unlit, in a sight's red-orange.
+        /// </summary>
+        private void Reticle(Vector3 screen, Vector2 size)
+        {
+            _reticle = new Material(Shader.Find("Unlit/Color")) { color = new Color(1f, 0.3f, 0.06f) };
+            float z = screen.z - 0.0015f; // (between the eyes and the picture)
+            const float t = 0.0016f;      // (a line's width)
+            void Line(string n, float x, float y, float w, float h) => Part(PrimitiveType.Cube, "reticle-" + n, new Vector3(x, y, z), new Vector3(w, h, 0.0005f), Quaternion.identity, _reticle);
+            float gap = 0.012f, reach = Mathf.Min(0.16f, size.x * 0.3f);
+            Line("left", -(gap + reach / 2f), 0f, reach, t);
+            Line("right", gap + reach / 2f, 0f, reach, t);
+            for (int i = 1; i <= 4; i++)
+            {
+                float x = gap + i * reach / 4f;
+                float h = i % 2 == 0 ? 0.012f : 0.007f;
+                Line("tick-l" + i, -x, 0f, t, h);
+                Line("tick-r" + i, x, 0f, t, h);
+            }
+            float post = Mathf.Min(0.07f, size.y * 0.38f);
+            Line("post", 0f, -(gap + post / 2f), t, post);
+            for (int i = 1; i <= 3; i++)
+            {
+                Line("range" + i, 0f, -(gap + i * post / 3.2f), 0.008f + i * 0.002f, t);
+            }
+            Line("top", 0f, gap + 0.006f, t, 0.012f);
+        }
+
+        /// <summary>The sight's zoom knob on the viewer's right: pressed, x1 to x3 and back (the label beside it shows which).</summary>
+        private void ZoomControl(Vector3 at)
+        {
+            Part(PrimitiveType.Cube, "zoom-mount", at + new Vector3(0f, 0f, 0.02f), new Vector3(0.05f, 0.05f, 0.03f), Quaternion.identity, _metal);
+            _zoomKnob = Part(PrimitiveType.Cylinder, "zoom", at, new Vector3(0.036f, 0.01f, 0.036f), Quaternion.Euler(-90f, 0f, 0f), _button);
+            _zoomText = Label("x1", at + new Vector3(0f, -0.045f, 0f), Quaternion.identity, 0.0018f, new Color(1f, 0.85f, 0.3f));
+            _zoomed = false;
+        }
+
+        private void SetZoom(bool on)
+        {
+            _zoomed = on;
+            if (_scope != null)
+            {
+                _scope.fieldOfView = on ? ZoomedView : WideView;
+            }
+            if (_zoomText != null)
+            {
+                _zoomText.text = on ? "x3" : "x1";
+            }
+        }
 
         /// <summary>
         /// The slot is a periscope's screen: a camera at the eyes looking the cabin's way renders the world past the hull (its near
@@ -802,7 +868,7 @@ namespace RavenfieldVR.Rig
             _scope.CopyFrom(eye);
             _scope.stereoTargetEye = StereoTargetEyeMask.None;
             _scope.targetTexture = _scopeTexture;
-            _scope.fieldOfView = 40f;
+            _scope.fieldOfView = WideView;
             _scope.depth = eye.depth - 1;
             _rig.Suppressor?.Ignore(_scope);
             // Past the hull in front: the vehicle's bounds along the cabin's forward from the eyes, plus a little.
@@ -1237,6 +1303,21 @@ namespace RavenfieldVR.Rig
             }
             // A click as each is pressed, the button sunk in while held (the button pushed only; a trigger fires without it).
             Press(0, _fire, fire && PalmOnFire());
+            if (_zoomKnob != null)
+            {
+                bool zoomDown = false;
+                for (int h = 0; h < 2; h++)
+                {
+                    VRHand hand = _rig.Hands[h];
+                    zoomDown |= hand != null && hand.Tracked && _onWheel[h] < 0 && _onLever[h] < 0 && _carryHand != h
+                                && Vector3.Distance(hand.PalmCentre, _zoomKnob.position) < ButtonReach * 0.8f;
+                }
+                if (zoomDown && !_pressed[5])
+                {
+                    SetZoom(!_zoomed);
+                }
+                Press(5, _zoomKnob, zoomDown);
+            }
             for (int i = 0; i < _driveButtons.Count; i++)
             {
                 (Transform t, Vector2 d) = _driveButtons[i];
@@ -1275,8 +1356,10 @@ namespace RavenfieldVR.Rig
                 float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
                 if (stick.sqrMagnitude > 0f)
                 {
-                    Crank(0, stick.x * 70f * dt * 4f);
-                    Crank(1, stick.y * 35f * dt * 12f); // (pushed up: the gun up)
+                    // (Zoomed in, a third as fast: the sight's picture moves three times as much.)
+                    float fine = _zoomed ? ZoomedView / WideView : 1f;
+                    Crank(0, stick.x * 70f * dt * 4f * fine);
+                    Crank(1, stick.y * 35f * dt * 12f * fine); // (pushed up: the gun up)
                 }
                 // Never far ahead of the gun: at a stop of its turn (or held by the game), the wanted aim waits there (no wind-up
                 // to turn back through).
@@ -1467,6 +1550,9 @@ namespace RavenfieldVR.Rig
             _driveButtons.Clear();
             _traverse = _elevate = _fire = _steer = null;
             _fireReady = _breech = _breechBlock = null;
+            _zoomKnob = null;
+            _zoomText = null;
+            _zoomed = false;
             _ammoText = null;
             _levers[0] = _levers[1] = null;
             for (int g = 0; g < _needles.Length; g++)
@@ -1500,14 +1586,14 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = null;
+            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = _guard = _ready = _reticle = null;
         }
 
         public void Destroy()

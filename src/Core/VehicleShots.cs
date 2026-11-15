@@ -529,7 +529,33 @@ namespace RavenfieldVR.Core
             yield return null;
             Weapon gun = seat.activeWeapon is MountedTurret || seat.activeWeapon is MountedStabilizedTurret || seat.activeWeapon is TankTurret ? seat.activeWeapon : null;
             string scopeState = Rig.VehicleInterior.Instance.SavePeriscope(Shots.FileFor(name + "-periscope"));
-            string line = $"{what}: {scopeState}; periscope picture {Rig.VehicleInterior.Instance.PeriscopeBrightness():0.00} bright{(Rig.VehicleInterior.Instance.PeriscopeBrightness() < 0.05f ? " (BLACK)" : "")}, near plane {Rig.VehicleInterior.Instance.PeriscopeNear:0.0} m; inside shown, hull solid from inside ({(rig.Hull != null ? rig.Hull.Twins : 0)} inward twins, {(rig.Hull != null ? rig.Hull.DrawnBack : 0)} drawn back side out)";
+            // The sight's zoom knob pressed by the gun hand: x3 (the picture saved), pressed again: back to x1.
+            string zoom = "";
+            Transform zoomKnob = Rig.VehicleInterior.Instance.ZoomKnob;
+            if (zoomKnob != null)
+            {
+                Rig.VRHand zh = rig.Dominant;
+                int zs = (int)zh.Side;
+                Vector3 zRaw = zh.Raw.position - zh.PalmCentre;
+                bool[] states = new bool[2];
+                for (int press = 0; press < 2 && zoomKnob != null; press++)
+                {
+                    for (float t = 0f; t < 0.35f && zoomKnob != null; t += Time.unscaledDeltaTime)
+                    {
+                        Rig.VRHand.Scripted[zs] = new Runtime.RigidPose(zoomKnob.position + zRaw, zh.Raw.rotation);
+                        yield return null;
+                    }
+                    Rig.VRHand.Scripted[zs] = null;
+                    yield return new WaitForSecondsRealtime(0.25f);
+                    states[press] = Rig.VehicleInterior.Instance.Zoomed;
+                    if (press == 0)
+                    {
+                        Rig.VehicleInterior.Instance.SavePeriscope(Shots.FileFor(name + "-periscope-zoom"));
+                    }
+                }
+                zoom = $"; sight zoom knob: {(states[0] ? "x3" : "DID NOT ZOOM")}, again: {(!states[1] ? "x1" : "STAYED ZOOMED")}";
+            }
+            string line = $"{what}: {scopeState}; periscope picture {Rig.VehicleInterior.Instance.PeriscopeBrightness():0.00} bright{(Rig.VehicleInterior.Instance.PeriscopeBrightness() < 0.05f ? " (BLACK)" : "")}, near plane {Rig.VehicleInterior.Instance.PeriscopeNear:0.0} m; inside shown, hull solid from inside ({(rig.Hull != null ? rig.Hull.Twins : 0)} inward twins, {(rig.Hull != null ? rig.Hull.DrawnBack : 0)} drawn back side out){zoom}";
             if (gun != null)
             {
                 Transform aim = Rig.TurretGrip.AimReference(gun);
