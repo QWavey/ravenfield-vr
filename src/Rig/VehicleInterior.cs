@@ -317,6 +317,74 @@ namespace RavenfieldVR.Rig
             SetCombatLight(false);
         }
 
+        private float _lastHealth = -1f, _hitAt = -10f, _hitHard;
+
+        /// <summary>For the vehicle check: when the inside last showed a hit (unscaled time).</summary>
+        internal float LastHitShown => _hitAt;
+
+        /// <summary>
+        /// A hit on the hull seen inside: the health dropped since the last frame, the cabin light flickers and dips for a third of a
+        /// second, harder for a bigger hit (no sound of its own: the hit's own is the game's). The alarm, when on, keeps its light.
+        /// </summary>
+        private void HitFlicker()
+        {
+            Vehicle v = _seat != null ? _seat.vehicle : null;
+            if (v == null || _cabin == null)
+            {
+                return;
+            }
+            float health = v.GetHealthRatio();
+            if (_lastHealth >= 0f && health < _lastHealth - 0.005f)
+            {
+                _hitAt = Time.unscaledTime;
+                _hitHard = Mathf.Clamp01((_lastHealth - health) * 8f + 0.3f);
+            }
+            _lastHealth = health;
+            float since = Time.unscaledTime - _hitAt;
+            float baseLight = _combatLight ? 0.7f : 1.1f;
+            if (since >= 0f && since < 0.35f)
+            {
+                // (A flicker: off and on in steps, not a smooth fade; Perlin noise so each hit looks its own.)
+                float n = Mathf.PerlinNoise(Time.unscaledTime * 40f, _hitAt);
+                _cabin.intensity = baseLight * (n > 0.45f ? 1f - 0.85f * _hitHard * (1f - since / 0.35f) : 0.08f);
+            }
+            else if (!Mathf.Approximately(_cabin.intensity, baseLight))
+            {
+                _cabin.intensity = baseLight;
+            }
+        }
+
+        /// <summary>
+        /// Stowage, each where the hull has room for it: a fire extinguisher low on the left behind the hand, a first-aid kit (a white
+        /// box, a red cross) behind the right shoulder.
+        /// </summary>
+        private void Stowage(float roomLeft, float roomRight, float floor)
+        {
+            Shader standard = Shader.Find("Standard");
+            if (roomLeft >= 0.5f)
+            {
+                var red = new Material(standard) { color = new Color(0.7f, 0.06f, 0.04f) };
+                red.SetFloat("_Glossiness", 0.6f);
+                _extra.Add(red);
+                float y = Mathf.Max(floor + 0.17f, -0.45f);
+                Cylinder("extinguisher", new Vector3(-0.4f, y, -0.15f), new Vector3(0.1f, 0.15f, 0.1f), Quaternion.identity, red);
+                Cylinder("extinguisher-head", new Vector3(-0.4f, y + 0.17f, -0.15f), new Vector3(0.04f, 0.025f, 0.04f), Quaternion.identity, _metal);
+                Box("extinguisher-handle", new Vector3(-0.4f, y + 0.2f, -0.13f), new Vector3(0.015f, 0.012f, 0.07f), _metal);
+                Box("extinguisher-strap", new Vector3(-0.4f, y + 0.05f, -0.15f), new Vector3(0.105f, 0.02f, 0.105f), _paint);
+            }
+            if (roomRight >= 0.5f)
+            {
+                var white = new Material(standard) { color = new Color(0.82f, 0.82f, 0.78f) };
+                _extra.Add(white);
+                Vector3 kit = new Vector3(0.38f, 0.05f, -0.3f);
+                Box("first-aid", kit, new Vector3(0.14f, 0.1f, 0.06f), white);
+                Box("first-aid-cross-a", kit + new Vector3(0f, 0f, 0.031f), new Vector3(0.05f, 0.015f, 0.002f), _red);
+                Box("first-aid-cross-b", kit + new Vector3(0f, 0f, 0.031f), new Vector3(0.015f, 0.05f, 0.002f), _red);
+            }
+        }
+
+        private readonly List<Material> _extra = new List<Material>();
+
         private void SetCombatLight(bool on)
         {
             _combatLight = on;
@@ -500,6 +568,7 @@ namespace RavenfieldVR.Rig
                 Rounds();
                 GunState();
                 LoadHint();
+                HitFlicker();
                 Breech();
             }
             Aim();
@@ -634,6 +703,8 @@ namespace RavenfieldVR.Rig
             cabin.range = 3f;
             cabin.intensity = 1.1f;
             LightSwitchAt(new Vector3(-0.36f, 0.2f, 0.38f));
+            Stowage(roomLeft, roomRight, floor);
+            _lastHealth = -1f;
             cabin.shadows = LightShadows.None;
             var alarm = new GameObject("alarm");
             alarm.transform.SetParent(_root.transform, false);
@@ -1663,6 +1734,14 @@ namespace RavenfieldVR.Rig
             _fireReady = _breech = _breechBlock = null;
             _zoomKnob = null;
             _lightSwitch = _hint = null;
+            foreach (Material m in _extra)
+            {
+                if (m != null)
+                {
+                    Object.Destroy(m);
+                }
+            }
+            _extra.Clear();
             _cabin = null;
             _zoomText = null;
             _zoomed = false;
