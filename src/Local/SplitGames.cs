@@ -379,7 +379,25 @@ namespace RavenfieldVR.Local
         }
 
         /// <summary>Milliseconds on the clock every process shares, to the millisecond (Environment.TickCount moves in 15.6 ms steps: input looked 16 ms late when it was not).</summary>
-        private static int NowMs() => unchecked((int)(Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency));
+        // (Windows' own counter, read directly: Mono's Stopwatch counts from each process's start, and a copy started 21 s after the
+        // host read its packets as -20958 ms old.)
+        private static int NowMs()
+        {
+            if (_qpcFrequency == 0)
+            {
+                QueryPerformanceFrequency(out _qpcFrequency);
+            }
+            QueryPerformanceCounter(out long now);
+            return _qpcFrequency > 0 ? unchecked((int)(now / (_qpcFrequency / 1000))) : Environment.TickCount;
+        }
+
+        private static long _qpcFrequency;
+
+        [DllImport("kernel32.dll")]
+        private static extern bool QueryPerformanceCounter(out long count);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool QueryPerformanceFrequency(out long frequency);
 
         private static void HideCopies()
         {
