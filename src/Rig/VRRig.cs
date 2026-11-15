@@ -81,6 +81,8 @@ namespace RavenfieldVR.Rig
         private float _seatYawOffset;
         private object _anchorKey;
         private RigidPose _neutralHead = RigidPose.Identity;
+        private Seat _aliveSeat;
+        private float _diedInSeatAt = -1f;
         /// <summary>The head's neutral pose in the rig's root (where the anchor puts the eyes; its forward is the seat's or the sight's).</summary>
         internal RigidPose NeutralHead => _neutralHead;
         private Vector3 _lastHeadLocal;
@@ -511,6 +513,33 @@ namespace RavenfieldVR.Rig
                     return;
                 }
                 UnshrinkHead(); // (up again, dead, or in a seat: his head as it is drawn)
+                // Killed in a seat: the view stays in it for a moment, fading to dark red, before the game's camera behind takes it (it cut
+                // at once from inside the vehicle to outside; vehicles scout, 2026-11-15).
+                if (actor != null && !actor.dead && actor.IsSeated())
+                {
+                    _aliveSeat = actor.seat;
+                    _diedInSeatAt = -1f;
+                }
+                else if (actor != null && actor.dead && _aliveSeat != null)
+                {
+                    if (_diedInSeatAt < 0f)
+                    {
+                        _diedInSeatAt = Time.unscaledTime;
+                        OpenVR.Compositor?.FadeToColor(1.2f, 0.25f, 0f, 0f, 0.9f, false);
+                    }
+                    if (Time.unscaledTime - _diedInSeatAt < 1.4f && _aliveSeat != null && _aliveSeat.transform != null)
+                    {
+                        mode = RigMode.Anchored;
+                        key = _aliveSeat;
+                        return;
+                    }
+                    _aliveSeat = null;
+                    OpenVR.Compositor?.FadeToColor(0.4f, 0f, 0f, 0f, 0f, false); // (and back in, on the game's own camera)
+                }
+                else if (actor == null || !actor.dead)
+                {
+                    _aliveSeat = null;
+                }
                 Camera active = player.GetActiveCamera();
                 // actor != null here: without a body (a frame between death and respawn) the actor-based checks below would throw;
                 // the camera fallbacks further down take over instead (review 2026-10-21).
