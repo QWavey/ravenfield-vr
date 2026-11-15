@@ -1177,6 +1177,10 @@ namespace RavenfieldVR.Local
         {
             if (_copyRate <= 60 || !SplitPlayers.InMatch || !_shown)
             {
+                // (Counted again from the start once back: a map load's long frames not judged with the next match's.)
+                _adaptCount = 0;
+                _adaptSlow = 0;
+                _adaptWindows = 0; // (and the first seconds after it, spawning, not judged)
                 return;
             }
             AdaptTimes[_adaptCount++] = Time.unscaledDeltaTime;
