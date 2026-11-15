@@ -420,7 +420,7 @@ namespace RavenfieldVR.Core
             Shots.Capture(name + "-inside-back", head.position, Quaternion.LookRotation(-hf, Vector3.up), 100f);
             yield return null;
             Weapon gun = seat.activeWeapon is MountedTurret || seat.activeWeapon is MountedStabilizedTurret || seat.activeWeapon is TankTurret ? seat.activeWeapon : null;
-            string line = $"{what}: inside shown";
+            string line = $"{what}: inside shown, hull solid from inside ({(rig.Hull != null ? rig.Hull.Twins : 0)} inward twins, {(rig.Hull != null ? rig.Hull.DrawnBack : 0)} drawn back side out)";
             if (gun != null)
             {
                 Transform aim = Rig.TurretGrip.AimReference(gun);

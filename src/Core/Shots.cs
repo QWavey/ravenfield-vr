@@ -68,6 +68,11 @@ namespace RavenfieldVR.Core
                 rig?.Suppressor.Ignore(cam);
                 cam.CopyFrom(source);
                 cam.stereoTargetEye = StereoTargetEyeMask.None;
+                // (And what is drawn by the headset's own command buffers: a closed vehicle's walls from inside, Rig.HullInside.)
+                foreach (UnityEngine.Rendering.CommandBuffer cb in source.GetCommandBuffers(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque))
+                {
+                    cam.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterForwardOpaque, cb);
+                }
                 // What the headset shows: the world camera's layers and the UI camera's (the UI, or the loading screen).
                 Camera ui = UI.UISystem.Instance != null ? UI.UISystem.Instance.UiCamera : null;
                 cam.cullingMask = source.cullingMask | (ui != null ? ui.cullingMask : 1 << 5);

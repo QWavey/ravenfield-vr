@@ -51,6 +51,10 @@ namespace RavenfieldVR.Rig
         private readonly CockpitControls _cockpit;
         private readonly TurretGrip _turretGrip;
         private readonly VehicleInterior _interior;
+        private HullInside _hullInside;
+
+        /// <summary>For the vehicle check: the closed vehicle's own body drawn from inside.</summary>
+        internal HullInside Hull => _hullInside;
         private readonly VehicleTouchEnter _touchEnter;
 
         /// <summary>The steering wheel and flight stick the hands grab in a seat.</summary>
@@ -146,6 +150,7 @@ namespace RavenfieldVR.Rig
                 _cockpit = new CockpitControls(this);
                 _turretGrip = new TurretGrip(this);
                 _interior = new VehicleInterior(this);
+                _hullInside = new HullInside(Camera);
                 _touchEnter = new VehicleTouchEnter(this);
             }
             catch
@@ -372,6 +377,7 @@ namespace RavenfieldVR.Rig
             HandleTurning(player);
             _cockpit.Update();
             _turretGrip?.Update(); // (an open mounted gun by its handles)
+            Log.Guard("Rig.HullInside", () => _hullInside?.Update()); // (a closed vehicle's own walls drawn from inside: no see-through hull)
             Log.Guard("Rig.Interior", () => _interior?.Update()); // (a closed vehicle's inside, its handwheels and buttons)
             VehicleFeel.Update(this);
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
@@ -1803,6 +1809,7 @@ namespace RavenfieldVR.Rig
             Log.Guard("Rig.Vignette.Destroy", () => _vignette?.Destroy());
             Log.Guard("Rig.Cockpit.Destroy", () => _cockpit?.Destroy());
             Log.Guard("Rig.Interior.Destroy", () => _interior?.Destroy());
+            Log.Guard("Rig.HullInside.Destroy", () => _hullInside?.Destroy());
             Log.Guard("Rig.Damage.Destroy", () => _damage?.Destroy());
             Log.Guard("Rig.Mud.Destroy", () => _mud?.Destroy());
             Log.Guard("Rig.Underwater.Destroy", () => _underwater?.Destroy());
