@@ -769,6 +769,10 @@ namespace RavenfieldVR.Rig
                 float apart = SteersByWheel(_seat) ? 0.36f : 0.26f;
                 _traverse = Wheel("traverse", new Vector3(-apart, -0.36f, 0.3f));
                 _elevate = Wheel("elevation", new Vector3(apart, -0.36f, 0.3f));
+                // (Named under each, tipped toward the eyes as the wheels are: which turns what reads at a glance.)
+                Quaternion tipped = Quaternion.Euler(30f, 0f, 0f);
+                Label("TRAVERSE", new Vector3(-apart, -0.505f, 0.32f), tipped, 0.0014f, new Color(1f, 0.85f, 0.3f));
+                Label("ELEVATION", new Vector3(apart, -0.505f, 0.32f), tipped, 0.0014f, new Color(1f, 0.85f, 0.3f));
                 // The fire button right by the hands (the user, 2026-11-15: "bring the red button a little bit nearer to the hands"; it sat
                 // 20 cm over the right wheel): at the wheels' height beside the elevation wheel's inner rim, a palm's width from it; with
                 // the steering wheel between the handwheels, outside the elevation wheel instead.
@@ -1127,6 +1131,9 @@ namespace RavenfieldVR.Rig
         private Transform Lever(string name, Vector3 pivot)
         {
             Box(name + "-base", pivot + new Vector3(0f, 0.01f, 0f), new Vector3(0.08f, 0.02f, 0.14f), _paint);
+            // (Its name on the plate, lying flat, read from above: L TRACK, R TRACK, THROTTLE.)
+            string tag = name == "lever-left" ? "L TRACK" : name == "lever-right" ? "R TRACK" : "THROTTLE";
+            Label(tag, pivot + new Vector3(0f, 0.022f, -0.045f), Quaternion.Euler(90f, 0f, 0f), 0.0011f, new Color(1f, 0.85f, 0.3f));
             var p = new GameObject(name).transform;
             p.SetParent(_root.transform, false);
             p.localPosition = pivot;
