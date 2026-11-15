@@ -285,6 +285,7 @@ namespace RavenfieldVR.Rig
             {
                 _toldEmpty = false;
             }
+            Markers(held > 0);
             if (held == 0)
             {
                 _aim = null; // let go: the gun stays where it points
@@ -354,6 +355,72 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>The palms against the vehicle as both are drawn (VRRig poses the hands just before): read by the next Update.</summary>
+        private readonly List<Transform> _markers = new List<Transform>();
+        private Material _markerMat;
+
+        /// <summary>
+        /// Where to take hold: a small glow on each handle while a free hand is within 35 cm and the gun is not held, and on the
+        /// cocking handle while the gun is empty (the handles are not drawn by the game: they were found by feel).
+        /// </summary>
+        private void Markers(bool held)
+        {
+            List<Vector3> spots = HandlesWorld();
+            bool empty = ReloadsByHand(_gun) && _gun.ammo <= 0 && !_gun.reloading;
+            if (empty)
+            {
+                spots.Add(CockPoint());
+            }
+            while (_markers.Count < spots.Count)
+            {
+                if (_markerMat == null)
+                {
+                    _markerMat = new Material(Shader.Find("Standard")) { color = new Color(1f, 0.85f, 0.35f, 1f) };
+                    _markerMat.EnableKeyword("_EMISSION");
+                    _markerMat.SetColor("_EmissionColor", new Color(0.9f, 0.7f, 0.25f));
+                }
+                GameObject g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Object.Destroy(g.GetComponent<Collider>());
+                g.name = "RavenfieldVR handle marker";
+                g.transform.localScale = Vector3.one * 0.025f;
+                Renderer r = g.GetComponent<Renderer>();
+                r.sharedMaterial = _markerMat;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _markers.Add(g.transform);
+            }
+            for (int i = 0; i < _markers.Count; i++)
+            {
+                bool show = i < spots.Count && (!held || empty && i == spots.Count - 1) && NearFreeHand(spots[i], 0.35f);
+                _markers[i].gameObject.SetActive(show);
+                if (show)
+                {
+                    _markers[i].position = spots[i];
+                }
+            }
+        }
+
+        private bool NearFreeHand(Vector3 at, float within)
+        {
+            foreach (VRHand hand in _rig.Hands)
+            {
+                if (hand != null && hand.Tracked && (hand.Role == HandRole.Free || _holding[(int)hand.Side]) && Vector3.Distance(hand.Palm.position, at) < within)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void HideMarkers()
+        {
+            foreach (Transform m in _markers)
+            {
+                if (m != null)
+                {
+                    m.gameObject.SetActive(false);
+                }
+            }
+        }
+
         public void BeforeRender()
         {
             if (_frame == null)
@@ -501,6 +568,18 @@ namespace RavenfieldVR.Rig
         public void Destroy()
         {
             ReleaseAll();
+            foreach (Transform m in _markers)
+            {
+                if (m != null)
+                {
+                    Object.Destroy(m.gameObject);
+                }
+            }
+            _markers.Clear();
+            if (_markerMat != null)
+            {
+                Object.Destroy(_markerMat);
+            }
             _seat = null;
             _gun = null;
             _frame = null;
@@ -513,6 +592,7 @@ namespace RavenfieldVR.Rig
 
         private void ReleaseAll()
         {
+            HideMarkers();
             for (int i = 0; i < 2; i++)
             {
                 VRHand hand = _rig.Hands[i];
