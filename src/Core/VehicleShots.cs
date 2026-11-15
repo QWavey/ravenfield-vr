@@ -569,7 +569,8 @@ namespace RavenfieldVR.Core
                 }
                 Rig.VRHand.Scripted[rs] = null;
                 yield return new WaitForSecondsRealtime(0.3f);
-                string shown = Rig.VehicleInterior.Instance.Readout;
+                // (The range taken, not the readout: with the gun reloading the readout keeps RELOADING; scout.)
+                string shown = Rig.VehicleInterior.Instance.RangeText ?? "nothing";
                 float mark = Rig.VehicleInterior.Instance.AimMarkDrop;
                 zoom += $"; rangefinder: \"{shown}\"{(shown.StartsWith("RANGE") ? "" : " (NO RANGE SHOWN)")}, aim mark {(float.IsNaN(mark) ? "none" : $"{mark * 1000f:0} mm under the centre")}";
             }
@@ -678,6 +679,10 @@ namespace RavenfieldVR.Core
                         Core.VRConfig.TestReload = Core.ReloadMode.Manual;
                         Rig.VehicleInterior.TestLoadByHand = true;
                         // (A belt gun's short burst leaves rounds in it: emptied, as a long burst would.)
+                        if (gun.reloading)
+                        {
+                            gun.CancelReload(); // (a reload already going: it waited for nothing and read as DID NOT WAIT; scout)
+                        }
                         if (gun.ammo > 0)
                         {
                             gun.ammo = 0;

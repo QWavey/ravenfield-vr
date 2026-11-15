@@ -1213,6 +1213,9 @@ namespace RavenfieldVR.Rig
         private string _rangeText;
         private float _rangeUntil = -10f;
 
+        /// <summary>For the vehicle check: the last range taken (null: none), whatever the readout shows meanwhile.</summary>
+        internal string RangeText => _rangeText;
+
         /// <summary>For the vehicle check: the rangefinder's button (null: none).</summary>
         internal Transform RangeButton => _rangeButton;
 
