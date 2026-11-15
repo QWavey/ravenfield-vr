@@ -307,6 +307,7 @@ namespace RavenfieldVR.Rig
                 needle.localRotation = Quaternion.identity;
                 _needles[g] = pivot;
             }
+            AmmoRack();
             // A dim warm light inside: the hull's inner walls face away from the sun and were black.
             var lamp = new GameObject("cabin light");
             lamp.transform.SetParent(_root.transform, false);
@@ -506,6 +507,52 @@ namespace RavenfieldVR.Rig
             Object.Destroy(t);
             Renderer screen = _root != null ? _root.transform.Find("periscope screen")?.GetComponent<Renderer>() : null;
             return screen == null ? "NO SCREEN" : $"screen {(screen.enabled ? "on" : "OFF")}, shader {(screen.sharedMaterial != null && screen.sharedMaterial.shader != null ? screen.sharedMaterial.shader.name : "NONE")}, texture {(screen.sharedMaterial != null && screen.sharedMaterial.mainTexture == _scopeTexture ? "the periscope's" : "OTHER")}, camera {(_scope != null && _scope.enabled ? "on" : "OFF")}";
+        }
+
+        private Material _brass, _olive;
+
+        /// <summary>
+        /// The gun's rounds at the right, in reach: a cannon's (one round a load) as five shells standing in a rack (brass cases, dark
+        /// tips, two straps), a machine gun's as two ammo boxes with handles. Nothing for a seat with no gun.
+        /// </summary>
+        private void AmmoRack()
+        {
+            Weapon gun = Gun(_seat);
+            if (gun == null || gun.configuration == null)
+            {
+                return;
+            }
+            Shader standard = Shader.Find("Standard");
+            if (_brass == null)
+            {
+                _brass = new Material(standard) { color = new Color(0.78f, 0.6f, 0.28f) };
+                _brass.SetFloat("_Metallic", 0.8f);
+                _brass.SetFloat("_Glossiness", 0.55f);
+                _olive = new Material(standard) { color = new Color(0.27f, 0.3f, 0.18f) };
+                _olive.SetFloat("_Glossiness", 0.2f);
+            }
+            if (gun.configuration.ammo <= 1)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    float z = 0.2f - i * 0.11f;
+                    Cylinder("shell-case", new Vector3(0.52f, -0.32f, z), new Vector3(0.09f, 0.2f, 0.09f), Quaternion.identity, _brass);
+                    Cylinder("shell-tip", new Vector3(0.52f, -0.05f, z), new Vector3(0.075f, 0.07f, 0.075f), Quaternion.identity, _metal);
+                    Cylinder("shell-nose", new Vector3(0.52f, 0.04f, z), new Vector3(0.04f, 0.03f, 0.04f), Quaternion.identity, _metal);
+                }
+                Box("rack-strap-low", new Vector3(0.52f, -0.42f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
+                Box("rack-strap-high", new Vector3(0.52f, -0.2f, -0.02f), new Vector3(0.12f, 0.025f, 0.6f), _paint);
+            }
+            else
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    float z = 0.12f - i * 0.2f;
+                    Box("ammo-box", new Vector3(0.5f, -0.42f, z), new Vector3(0.12f, 0.16f, 0.17f), _olive);
+                    Box("ammo-box-lid", new Vector3(0.5f, -0.335f, z), new Vector3(0.125f, 0.015f, 0.175f), _olive);
+                    Box("ammo-box-handle", new Vector3(0.5f, -0.315f, z), new Vector3(0.02f, 0.012f, 0.08f), _metal);
+                }
+            }
         }
 
         private Transform Box(string name, Vector3 at, Vector3 size, Material m) => Part(PrimitiveType.Cube, name, at, size, Quaternion.identity, m);
@@ -851,14 +898,14 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
-            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint })
+            foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive })
             {
                 if (m != null)
                 {
                     Object.Destroy(m);
                 }
             }
-            _wall = _metal = _red = _lamp = _button = _paint = null;
+            _wall = _metal = _red = _lamp = _button = _paint = _brass = _olive = null;
         }
 
         public void Destroy()
