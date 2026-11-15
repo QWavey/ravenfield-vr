@@ -2,6 +2,12 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-15 (splitscreen as whole game copies; Tasks 398; in code, not packaged: 1.18.0 installed is older)
+
+- Splitscreen now runs each extra player in a whole copy of the game (`Local/SplitGames.cs`), one screen, "Loading players", go together; soldiers splitscreen kept as `FullGames = false`. Try it: `python -I tools/vrshots.py --splittry --players 4` (F12 hands the one keyboard to the next player).
+- Checks: `--splitgamescheck` (copy played by script, stand-in sampler: 0.00-0.04 m behind, no moonwalk), `--splitlagcheck --players 4` (mouse to turning 17 ms, W to walking 100 ms = the game's run-up). Not run yet: `--vrflatcheck`, `--vrjoinflatcheck`.
+- Open: the user felt "very very delayed" (before: player 1 uncapped at 142-207 fps on the shared card, stand-ins told 15/s and caught up slowly; now capped, one frame queued, 30/s, twice the catch-up on LAN): to be confirmed by the user. Version not raised yet (raise before packaging: new-version-per-update).
+
 ## State 2026-11-14 late night (**1.18.0 INSTALLED** 21:46, Defender clean; Tasks 395-397; paused at the user's word)
 
 - Packages in `dist/`: `RavenfieldVR-Setup-1.18.0.exe`, `RavenfieldVR-1.18.0.zip`, `RavenfieldMultiplayer-1.18.0.zip` (flat, VR off), notes `dist/notes-1.18.0.md`. **Both PCs need 1.18.0.**

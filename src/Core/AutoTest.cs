@@ -809,8 +809,7 @@ namespace RavenfieldVR.Core
                     Local.Splitscreen.On = true;
                     string text = "";
                     float nextRead = 0f;
-                    bool hitBack = false;
-                    PlayerCanBeHurt = true; // (the damage step: player 2 hits this player)
+                    bool hitBack = false, readied = false;
                     for (float until = Time.realtimeSinceStartup + 170f; Time.realtimeSinceStartup < until && !text.Contains("copy test: done");)
                     {
                         yield return new WaitForSecondsRealtime(0.5f);
@@ -820,7 +819,18 @@ namespace RavenfieldVR.Core
                             Results.Add("copies: " + line);
                             Log.Info("[copies check] " + line);
                         }
-                        // The damage step: the copy has hit this player's soldier and asks to be hit back.
+                        // The damage step: this player on the field and its shield off just before it (lifted from the start, the enemies had
+                        // killed it by then: "NO SOLDIER OF PLAYER 1 to hit", 2026-11-15).
+                        if (!readied && text.Contains("team switch worked"))
+                        {
+                            readied = true;
+                            if (LocalPlayer.actor != null && LocalPlayer.actor.dead)
+                            {
+                                yield return Deploy();
+                            }
+                            PlayerCanBeHurt = true;
+                        }
+                        // The copy has hit this player's soldier and asks to be hit back.
                         if (!hitBack && text.Contains("copy test: hit me now"))
                         {
                             hitBack = true;

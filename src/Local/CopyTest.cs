@@ -23,6 +23,7 @@ namespace RavenfieldVR.Local
         private static bool _saidAim;
         private static string _primaryFrom = "";
         private static float _healthFrom;
+        private static bool _hitDone;
         private static float _turned;
 
         private static void Next(int step)
@@ -233,8 +234,13 @@ namespace RavenfieldVR.Local
                     }
                     break;
                 case 40: // damage both ways, on opposite teams now: this player hits player 1's soldier, then player 1 hits this one
-                    if (t < 0.05f)
+                    if (t < 5f)
                     {
+                        break; // (player 1's game readies its player first: back on the field, its shield off)
+                    }
+                    if (!_hitDone)
+                    {
+                        _hitDone = true;
                         Actor host = null;
                         foreach (Net.NetGame.Remote r in Net.NetGame.AllRemotes)
                         {
@@ -258,7 +264,7 @@ namespace RavenfieldVR.Local
                         _healthFrom = me.health;
                         note($"copy test: hit me now (health {me.health:0})");
                     }
-                    if (t > 6f)
+                    if (t > 11f)
                     {
                         float took = _healthFrom - (me.dead ? 0f : me.health);
                         note($"copy test: player 1's and an enemy AI's hits (25 each): this player's health {_healthFrom:0} -> {(me.dead ? "down" : me.health.ToString("0"))}{(took < 1f ? " (TOOK NO DAMAGE)" : took < 40f ? " (ONE HIT LOST)" : "")}");
