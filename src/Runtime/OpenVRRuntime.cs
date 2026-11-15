@@ -314,7 +314,7 @@ namespace RavenfieldVR.Runtime
                 _startDashboardCheckAt = float.MaxValue;
                 return;
             }
-            if (open && _dashboardHides < 3 && VRConfig.NoSteamVRTheater.Value)
+            if (open && _dashboardHides < 3 && VRConfig.NoSteamVRTheater.Value && !ThroughMetaLink())
             {
                 _dashboardHides++;
                 HideDashboard();
@@ -332,6 +332,37 @@ namespace RavenfieldVR.Runtime
                     Application.Quit();
                 }
             }
+        }
+
+        private static int _metaLink = -1; // -1 not asked yet, 0 no, 1 yes
+
+        /// <summary>
+        /// The headset runs through SteamVR's Oculus driver (a Quest on Meta's Link, a Rift). There the dashboard is not closed with
+        /// vrcmd: at all three starts on the user's Quest 3 (2026-11-15, 19:52, 19:58, 20:00) SteamVR's compositor lost the game's
+        /// frames 0.06 to 3 s after the tool connected ("AcquireSync FAILED with WAIT_TIMEOUT", "ReleaseSync FAILED 0x887a0001") and
+        /// the headset showed one frozen frame for the rest of the session ("it just shows a frozen image"); the test runs on the
+        /// null driver never did. The dashboard there is closed by its own button.
+        /// </summary>
+        private static bool ThroughMetaLink()
+        {
+            if (_metaLink < 0)
+            {
+                string system = "";
+                try
+                {
+                    var sb = new System.Text.StringBuilder(64);
+                    ETrackedPropertyError err = ETrackedPropertyError.TrackedProp_Success;
+                    OpenVR.System?.GetStringTrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_TrackingSystemName_String, sb, 64, ref err);
+                    system = sb.ToString();
+                }
+                catch (System.Exception e)
+                {
+                    Log.Warn("The headset's tracking system not read: " + e.Message);
+                }
+                _metaLink = system.IndexOf("oculus", System.StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0;
+                Log.Info($"Headset tracking system: '{system}'{(_metaLink == 1 ? " (Meta Link: SteamVR's dashboard is not closed by vrcmd at the start, it froze the picture)" : "")}.");
+            }
+            return _metaLink == 1;
         }
 
         private static void HideDashboard()
