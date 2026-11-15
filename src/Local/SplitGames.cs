@@ -127,6 +127,51 @@ namespace RavenfieldVR.Local
 
         private static readonly List<Copy> Copies = new List<Copy>();
         private static readonly List<int> Pending = new List<int>();
+        private static int _savedFrameRate = int.MinValue, _savedQueue, _savedVSync;
+
+        /// <summary>
+        /// While the players share one graphics card: this game at the screen's rate (it ran at 207 frames a second and kept the card from
+        /// the copies, whose finished frames then waited to be shown: "very very delayed", the user 2026-11-15), and every game with one
+        /// frame queued at most, so a frame is shown as soon as it is drawn. Held each frame (the game sets its own as it loads).
+        /// </summary>
+        private static void ShareTheCard()
+        {
+            if (Runtime.OpenVRRuntime.Running)
+            {
+                return; // (the headset sets its own pace)
+            }
+            if (_savedFrameRate == int.MinValue)
+            {
+                _savedFrameRate = Application.targetFrameRate;
+                _savedQueue = QualitySettings.maxQueuedFrames;
+                _savedVSync = QualitySettings.vSyncCount;
+            }
+            int rate = Mathf.Clamp(Screen.currentResolution.refreshRate > 0 ? Screen.currentResolution.refreshRate : 60, 30, 240);
+            if (QualitySettings.vSyncCount != 0)
+            {
+                QualitySettings.vSyncCount = 0;
+            }
+            if (Application.targetFrameRate != rate)
+            {
+                Application.targetFrameRate = rate;
+            }
+            if (QualitySettings.maxQueuedFrames != 1)
+            {
+                QualitySettings.maxQueuedFrames = 1;
+            }
+        }
+
+        private static void CardBack()
+        {
+            if (_savedFrameRate == int.MinValue)
+            {
+                return;
+            }
+            Application.targetFrameRate = _savedFrameRate;
+            QualitySettings.maxQueuedFrames = _savedQueue;
+            QualitySettings.vSyncCount = _savedVSync;
+            _savedFrameRate = int.MinValue;
+        }
 
         /// <summary>Every player's game is in the match: the host says go, the copies show and deploy together (the user, 2026-11-15: "Loading
         /// player... at a fullscreen and only if all players loaded it will deploy everyone").</summary>
@@ -416,6 +461,7 @@ namespace RavenfieldVR.Local
                 HideCopies();
             }
             Copies.RemoveAll(c => c.Process == null || c.Process.HasExited);
+            ShareTheCard();
             if (_embed)
             {
                 SplitPlayers.OwnViewInto(SplitPlayers.Part(0, Splitscreen.Players)); // (the copies' windows over the other parts)
@@ -514,6 +560,7 @@ namespace RavenfieldVR.Local
             Copies.Clear();
             Pending.Clear();
             EndTopmost();
+            CardBack();
             if (_embed)
             {
                 SplitPlayers.OwnViewBack();
@@ -744,6 +791,10 @@ namespace RavenfieldVR.Local
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = 60;
             }
+            if (QualitySettings.maxQueuedFrames != 1)
+            {
+                QualitySettings.maxQueuedFrames = 1; // (a drawn frame shown at once, not queued behind the others' on the shared card)
+            }
             _fpsFrames++;
             if (Time.unscaledTime - _lagAt > 10f)
             {
@@ -879,10 +930,75 @@ namespace RavenfieldVR.Local
             {
                 CopyTest.Update(Received, Note);
             }
+            if (_goFromHost && SplitPlayers.InMatch)
+            {
+                Probe();
+            }
         }
 
         private const int PacketLength = 1 + 32 + 1 + 12 + 1 + 1 + 4;
         private static float _lagSum, _lagMax, _fpsFrames, _lagAt;
+        private static int _lastPacketAge;
+
+        // The delay probes: from the host's key or mouse reaching this copy to its player moving or its camera turning.
+        private static bool _probeW;
+        private static float _probeWAt = -1f, _probeMAt = -1f, _probeMouseX, _probeMouseStill, _probeYaw;
+        private static int _probeWFrame, _probeMFrame, _probeWAge, _probeMAge, _probes;
+
+        /// <summary>
+        /// Once a frame on a copy: how long its own part of the way takes (the user, 2026-11-15: "very very delayed" though the input
+        /// packets come within 5 ms): W pressed to the soldier walking, the mouse moved to the camera turning, in ms and frames.
+        /// </summary>
+        private static void Probe()
+        {
+            Actor me = LocalPlayer.actor;
+            Camera cam = FpsActorController.instance != null ? FpsActorController.instance.fpCamera : null;
+            if (me == null || me.dead || cam == null || _probes > 24)
+            {
+                return;
+            }
+            float now = Time.realtimeSinceStartup;
+            bool w = Received.Keys[0x57];
+            if (w && !_probeW)
+            {
+                _probeWAt = now;
+                _probeWFrame = Time.frameCount;
+                _probeWAge = _lastPacketAge;
+            }
+            _probeW = w;
+            float speed = Vector3.ProjectOnPlane(me.Velocity(), Vector3.up).magnitude;
+            if (_probeWAt > 0f && speed > 1f)
+            {
+                _probes++;
+                Note($"probe: W to walking {(now - _probeWAt) * 1000f + _probeWAge:0} ms ({(now - _probeWAt) * 1000f:0} ms and {Time.frameCount - _probeWFrame} frames here after the packet, which was {_probeWAge} ms old); {1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f):0} frames a second");
+                _probeWAt = -1f;
+            }
+            float mx = Received.TotalX;
+            if (mx != _probeMouseX)
+            {
+                if (now - _probeMouseStill > 0.3f && _probeMAt < 0f)
+                {
+                    _probeMAt = now;
+                    _probeMFrame = Time.frameCount;
+                    _probeMAge = _lastPacketAge;
+                    _probeYaw = cam.transform.eulerAngles.y;
+                }
+                _probeMouseStill = now;
+                _probeMouseX = mx;
+            }
+            if (_probeMAt > 0f && Mathf.Abs(Mathf.DeltaAngle(_probeYaw, cam.transform.eulerAngles.y)) > 0.3f)
+            {
+                _probes++;
+                Note($"probe: mouse to turning {(now - _probeMAt) * 1000f + _probeMAge:0} ms ({(now - _probeMAt) * 1000f:0} ms and {Time.frameCount - _probeMFrame} frames here after the packet, which was {_probeMAge} ms old)");
+                _probeMAt = -1f;
+            }
+            if (_probeMAt > 0f && now - _probeMAt > 2f)
+            {
+                _probes++;
+                Note("probe: mouse moved, the camera DID NOT TURN in 2 s");
+                _probeMAt = -1f;
+            }
+        }
         private static int _lagCount;
         private static int _lastGeneration = -1;
 
@@ -918,6 +1034,7 @@ namespace RavenfieldVR.Local
             _goFromHost = p[at] != 0;
             at++;
             int lag = Environment.TickCount - BitConverter.ToInt32(p, at);
+            _lastPacketAge = lag;
             if (lag >= 0 && lag < 10000)
             {
                 _lagSum += lag;

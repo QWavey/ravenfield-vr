@@ -135,6 +135,74 @@ namespace RavenfieldVR.Core
         /// <summary>-rfvr-splittry (with -rfvr-autotest -novr): a match with splitscreen for 2 in try mode, left to the user to play (no checks, no quitting).</summary>
         private static readonly bool SplitTry = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>-rfvr-splitlagcheck (with -rfvr-autotest -novr): splitscreen with a copy for player 2 driven through Raw Input as a real keyboard and mouse; the copy measures its delay.</summary>
+        private static readonly bool SplitLagCheck = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitlagcheck", StringComparison.OrdinalIgnoreCase));
+
+        private static IEnumerator SplitLagRun()
+        {
+            const long Keyboard = 0x7E57, Mouse = 0x7E58; // (made-up device handles: the first keyboard and mouse heard)
+            Local.RawInput.Inject(Keyboard, false, 1, 0, 0, 0, 0, 0x10); // (both heard first: player 2's in try mode)
+            Local.RawInput.Inject(Mouse, true, 0, 0, 0, 0, 0, 0);
+            string copyLog = Local.SplitGames.CopyLog(1);
+            try
+            {
+                System.IO.File.Delete(copyLog);
+            }
+            catch (Exception)
+            {
+            }
+            Local.Splitscreen.FullGames = true;
+            string count = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("-rfvr-splitplayers=", StringComparison.OrdinalIgnoreCase));
+            Local.Splitscreen.Players = count != null && int.TryParse(count.Substring("-rfvr-splitplayers=".Length), out int n) ? n : 2;
+            Local.SplitGames.TryMode = true;
+            Local.Splitscreen.On = true;
+            string text = "";
+            for (float until = Time.realtimeSinceStartup + 240f; Time.realtimeSinceStartup < until && !text.Contains("deploying at");)
+            {
+                yield return new WaitForSecondsRealtime(1f);
+                try
+                {
+                    text = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : "";
+                }
+                catch (Exception)
+                {
+                }
+            }
+            yield return new WaitForSecondsRealtime(6f);
+            for (int i = 0; i < 6; i++)
+            {
+                Local.RawInput.Inject(Keyboard, false, 0, 0, 0, 0, 0, 0x57); // W down
+                yield return new WaitForSecondsRealtime(0.8f);
+                Local.RawInput.Inject(Keyboard, false, 1, 0, 0, 0, 0, 0x57); // W up
+                yield return new WaitForSecondsRealtime(0.8f);
+                for (int k = 0; k < 4; k++)
+                {
+                    Local.RawInput.Inject(Mouse, true, 0, 0, 0, 12, 0, 0); // the mouse to the right
+                    yield return null;
+                }
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
+            yield return new WaitForSecondsRealtime(2f);
+            try
+            {
+                text = System.IO.File.Exists(copyLog) ? System.IO.File.ReadAllText(copyLog) : "";
+            }
+            catch (Exception)
+            {
+            }
+            Results.Add($"lag: this game (player 1) at {1f / Mathf.Max(Time.smoothDeltaTime, 1e-4f):0} frames a second");
+            foreach (string line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Contains("probe:") || l.Contains("ms late")))
+            {
+                Results.Add("lag: " + line);
+                if (line.Contains("DID NOT"))
+                {
+                    Problem("[lag] " + line);
+                }
+            }
+            Local.Splitscreen.On = false;
+            yield return new WaitForSecondsRealtime(2f);
+        }
+
         /// <summary>-rfvr-splitgamescheck (with -rfvr-autotest -novr): splitscreen with a copy of the game for player 2, the copy played by its script (Local.CopyTest).</summary>
         private static readonly bool SplitGamesCheck = Environment.GetCommandLineArgs().Any(a => a.Equals("-rfvr-splitgamescheck", StringComparison.OrdinalIgnoreCase));
         /// <summary>-rfvr-walkcheck (with -rfvr-grabcheck): only the soldier check's walks with a soldier held (a minute).</summary>
@@ -687,6 +755,14 @@ namespace RavenfieldVR.Core
                     yield return SettingsPagesCheck();
                     yield return WristViewCheck();
                     yield return BodyShots();
+                    Write();
+                    Application.Quit();
+                    yield break;
+                }
+                if (SplitLagCheck)
+                {
+                    _context = "splitscreen delay check";
+                    yield return SplitLagRun();
                     Write();
                     Application.Quit();
                     yield break;
