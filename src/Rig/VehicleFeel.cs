@@ -25,7 +25,8 @@ namespace RavenfieldVR.Rig
         /// The vehicle sat in drawn smoothly: physics steps 60 times a second (GameManager), the headset draws 90, and a vehicle whose
         /// bodies are not interpolated moved its seat, the view and the cabin only at each step, a judder against the headset's frames
         /// (the user, 2026-11-17: "its still very weird in the vehicle"). Every body of it (a tank's turret is its own, on a joint)
-        /// interpolated while sat in, each as it was once out or the vehicle changed. Only the drawn pose: physics is the same. Not
+        /// interpolated while sat in, each as it was once out or the vehicle changed. (The game interpolates a vehicle's main body
+        /// itself, GameManager.SetupVehiclePrefab: what this adds is the other bodies, a turret on its own joint, a mod's parts.) Only the drawn pose: physics is the same. Not
         /// another PC's vehicle (kinematic, moved by the network).
         /// </summary>
         /// <summary>The bodies given back as the game had them (the rig going: VR off in a seat left them interpolated; scout).</summary>
