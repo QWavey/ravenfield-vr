@@ -606,6 +606,7 @@ namespace RavenfieldVR.Rig
         /// <summary>The hint's object, with the rig.</summary>
         public void Destroy()
         {
+            CockpitPin.ClearAll(this, _rig.Hands); // (its pins let go: a pin left owned by a dead system kept the hand from later ones; scout)
             if (_leverHint != null)
             {
                 Object.Destroy(_leverHint);

@@ -572,7 +572,8 @@ namespace RavenfieldVR.Rig
             Vector3 theirs = other.PalmCentre;
             float straight = (handles[0] - mine).magnitude + (handles[1] - theirs).magnitude;
             float crossed = (handles[1] - mine).magnitude + (handles[0] - theirs).magnitude;
-            return straight <= crossed ? 0 : 1;
+            // (An exact tie: each hand by its side, left on the first. Both took the first handle there; scout.)
+            return Mathf.Abs(straight - crossed) < 1e-5f ? Mathf.Min(i, 1) : straight < crossed ? 0 : 1;
         }
 
         private Vector3 InFrame(Vector3 world) => Quaternion.Inverse(_frame.rotation) * (world - _frame.position);

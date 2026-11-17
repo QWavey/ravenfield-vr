@@ -13,6 +13,14 @@ namespace RavenfieldVR.Rig
     internal static class CockpitPin
     {
         private static readonly object[] Owner = new object[2];
+        private static readonly float[] Way = { 1f, 1f }; // per hand: which way along its bar the fist lies (kept: see Set)
+
+        /// <summary>Every pin's owner forgotten (the rig taken down: a dead owner kept every later pin of that hand off; scout).</summary>
+        internal static void Reset()
+        {
+            Owner[0] = Owner[1] = null;
+            Way[0] = Way[1] = 1f;
+        }
 
         /// <summary>Pins <paramref name="hand"/>'s glove at <paramref name="point"/> (world) for <paramref name="owner"/>, or with null lets
         /// go of a pin that owner set.</summary>
@@ -42,7 +50,23 @@ namespace RavenfieldVR.Rig
                     return; // (held by another system's control this frame: it keeps the hand)
                 }
                 RigidPose glove = hand.Model.TrackedGlovePose;
-                Quaternion turn = bar.HasValue ? AlongBar(hand.Palm.rotation * Vector3.up, bar.Value) : Quaternion.identity;
+                Quaternion turn = Quaternion.identity;
+                if (bar.HasValue)
+                {
+                    // Which way along the bar: the nearer, but only changed past a margin (with the palm's up square across the bar
+                    // the nearer way swapped with each tremor of the hand and the fist spun half a turn; scout).
+                    Vector3 up = hand.Palm.rotation * Vector3.up;
+                    float dot = Vector3.Dot(up.normalized, bar.Value.normalized);
+                    if (dot > 0.2f)
+                    {
+                        Way[i] = 1f;
+                    }
+                    else if (dot < -0.2f)
+                    {
+                        Way[i] = -1f;
+                    }
+                    turn = Onto(up, bar.Value * Way[i]);
+                }
                 // (Turned about the palm's middle, which goes onto the grip point.)
                 hand.Model.SnapPose = new RigidPose(point.Value + turn * (glove.position - hand.PalmCentre), turn * glove.rotation);
                 Owner[i] = owner;
@@ -81,6 +105,17 @@ namespace RavenfieldVR.Rig
             {
                 b = -b;
             }
+            return Onto(up, b);
+        }
+
+        /// <summary>The least turn laying <paramref name="up"/> onto <paramref name="b"/> (this way along it). Written out, axis and half angle.</summary>
+        private static Quaternion Onto(Vector3 up, Vector3 bar)
+        {
+            if (up.sqrMagnitude < 1e-8f || bar.sqrMagnitude < 1e-8f)
+            {
+                return Quaternion.identity;
+            }
+            Vector3 b = bar.normalized;
             // (Written out, axis and half angle: Unity's FromToRotation is native, and the offline tests run without the engine.
             // The dot is never negative here, so the turn is at most 90 degrees and never the undefined half turn.)
             Vector3 u = up.normalized;
@@ -88,7 +123,13 @@ namespace RavenfieldVR.Rig
             float sin = axis.magnitude;
             if (sin < 1e-6f)
             {
-                return Quaternion.identity;
+                if (Vector3.Dot(u, b) > 0f)
+                {
+                    return Quaternion.identity;
+                }
+                // (Exactly opposite: half a turn about any axis square to it.)
+                Vector3 square = Vector3.Cross(u, Mathf.Abs(u.x) < 0.9f ? Vector3.right : Vector3.up).normalized;
+                return new Quaternion(square.x, square.y, square.z, 0f);
             }
             float angle = Mathf.Atan2(sin, Vector3.Dot(u, b));
             Vector3 n = axis / sin * Mathf.Sin(angle * 0.5f);
