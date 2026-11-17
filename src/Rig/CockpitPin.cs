@@ -108,7 +108,7 @@ namespace RavenfieldVR.Rig
             return Onto(up, b);
         }
 
-        /// <summary>The least turn laying <paramref name="up"/> onto <paramref name="b"/> (this way along it). Written out, axis and half angle.</summary>
+        /// <summary>The least turn laying <paramref name="up"/> onto <paramref name="bar"/> (this way along it). Written out, axis and half angle.</summary>
         private static Quaternion Onto(Vector3 up, Vector3 bar)
         {
             if (up.sqrMagnitude < 1e-8f || bar.sqrMagnitude < 1e-8f)

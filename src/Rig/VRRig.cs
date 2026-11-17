@@ -1059,7 +1059,10 @@ namespace RavenfieldVR.Rig
         private float SeatTurnMotion(FpsActorController player)
         {
             Seat seat = Mode == RigMode.Anchored && player != null && player.actor != null ? player.actor.seat : null;
-            if (seat == null || !VRConfig.VehicleVignette.Value || GameContext.GameMenuOpen || GameManager.IsPaused() || Time.deltaTime <= 0f)
+            // (Not in a closed cabin: its walls turn with the rider, nothing streams past the eyes but two small screens, and the tunnel
+            // only darkened the cabin's edges at every turn of the tank: "its still very weird in the vehicle", 2026-11-17.)
+            bool closed = _interior != null && _interior.Shown;
+            if (seat == null || closed || !VRConfig.VehicleVignette.Value || GameContext.GameMenuOpen || GameManager.IsPaused() || Time.deltaTime <= 0f)
             {
                 _hasSeatTurn = false;
                 return 0f;
