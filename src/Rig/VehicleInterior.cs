@@ -859,6 +859,10 @@ namespace RavenfieldVR.Rig
                 {
                     _scope.enabled = false; // (not drawn behind a menu)
                 }
+                if (_block != null)
+                {
+                    _block.enabled = false; // (nor the driver's block)
+                }
                 return;
             }
             if (_scope != null && !_scope.enabled)
@@ -886,8 +890,76 @@ namespace RavenfieldVR.Rig
         /// turret turned: the user, 2026-11-15, "the view doesnt move but the turret does"), the world's up kept up (its picture came out
         /// upside down there). With no gun, along the cabin's forward.
         /// </summary>
+        private Camera _block;
+        private RenderTexture _blockTexture;
+        private Material _blockScreen;
+
+        /// <summary>For the vehicle check: the driver's vision block is there.</summary>
+        internal bool HasDriverBlock => _block != null;
+
+        /// <summary>
+        /// A seat that both drives and aims (the RHINO's one seat) gets a driver's vision block left of the readout: a small screen
+        /// looking along the hull's forward, its picture starting past the hull's front (the periscope follows the gun: with the
+        /// turret turned the driver drove blind). 384 px, a quarter of the periscope's cost.
+        /// </summary>
+        private void DriverBlock(Vector3 at, Vector2 size)
+        {
+            _blockTexture = new RenderTexture(384, Mathf.RoundToInt(384 * size.y / size.x), 16) { name = "RavenfieldVR driver block", filterMode = FilterMode.Bilinear };
+            var go = new GameObject("driver block camera");
+            go.transform.SetParent(_root.transform, false);
+            _block = go.AddComponent<Camera>();
+            Camera eye = _rig.Camera;
+            _block.CopyFrom(eye);
+            _block.stereoTargetEye = StereoTargetEyeMask.None;
+            _block.targetTexture = _blockTexture;
+            _block.fieldOfView = 30f;
+            _block.depth = eye.depth - 1;
+            _rig.Suppressor?.Ignore(_block);
+            // (Its near plane past the hull's box along the hull's forward from the eyes, as the periscope's was.)
+            Bounds b = new Bounds(_seat.vehicle.transform.position, Vector3.zero);
+            foreach (Renderer r in _seat.vehicle.GetComponentsInChildren<Renderer>())
+            {
+                if (r != null && r.GetComponentInParent<Actor>() == null)
+                {
+                    b.Encapsulate(r.bounds);
+                }
+            }
+            Vector3 eyeAt = _root.transform.position, fwd = _seat.vehicle.transform.forward;
+            float near = 1.2f;
+            for (float d = 0.3f; d < 12f; d += 0.1f)
+            {
+                if (!b.Contains(eyeAt + fwd * d))
+                {
+                    near = Mathf.Max(d + 0.15f, 1.2f);
+                    break;
+                }
+            }
+            _block.nearClipPlane = near;
+            Part(PrimitiveType.Cube, "driver-block-frame", at + new Vector3(0f, 0f, 0.006f), new Vector3(size.x + 0.02f, size.y + 0.02f, 0.01f), Quaternion.identity, _metal);
+            Transform screen = Part(PrimitiveType.Cube, "driver block screen", at, new Vector3(size.x, size.y, 0.002f), Quaternion.identity, null);
+            _blockScreen = new Material(Shader.Find("Unlit/Texture")) { mainTexture = _blockTexture };
+            screen.GetComponent<Renderer>().sharedMaterial = _blockScreen;
+            Label("DRIVER", at + new Vector3(0f, size.y * 0.5f + 0.014f, -0.002f), Quaternion.identity, 0.0011f, new Color(1f, 0.85f, 0.3f));
+        }
+
+        /// <summary>The vision block along the hull's forward, its up (it rides with the hull: a driver's block is fixed in it).</summary>
+        private void PointBlock()
+        {
+            if (_block == null || _seat == null || _seat.vehicle == null)
+            {
+                return;
+            }
+            Transform v = _seat.vehicle.transform;
+            _block.transform.SetPositionAndRotation(_root.transform.position, Quaternion.LookRotation(v.forward, v.up));
+            if (_block.enabled == (GameContext.GameMenuOpen || GameManager.IsPaused()))
+            {
+                _block.enabled = !_block.enabled; // (not drawn behind a menu)
+            }
+        }
+
         private void PointScope()
         {
+            PointBlock();
             if (_scope == null || _root == null)
             {
                 return;
@@ -1092,6 +1164,10 @@ namespace RavenfieldVR.Rig
                 FireControl(SteersByWheel(_seat) ? new Vector3(apart + 0.21f, -0.3f, 0.31f) : new Vector3(apart - 0.21f, -0.3f, 0.31f));
                 AmmoReadout();
                 RangeControl(new Vector3(0.15f, -0.205f, 0.405f));
+                if (_seat.IsDriverSeat())
+                {
+                    DriverBlock(new Vector3(-0.2f, -0.205f, 0.41f), new Vector2(0.16f, 0.07f));
+                }
                 if (breech)
                 {
                     BuildBreech();
@@ -2483,6 +2559,18 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
+            if (_blockTexture != null)
+            {
+                _blockTexture.Release();
+                Object.Destroy(_blockTexture);
+                _blockTexture = null;
+            }
+            if (_blockScreen != null)
+            {
+                Object.Destroy(_blockScreen);
+                _blockScreen = null;
+            }
+            _block = null;
             foreach (Material m in new[] { _wall, _metal, _red, _lamp, _button, _paint, _brass, _olive, _guard, _ready, _reticle, _hintMat, _markMat })
             {
                 if (m != null)
