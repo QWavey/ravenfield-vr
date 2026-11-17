@@ -2389,12 +2389,13 @@ namespace RavenfieldVR.Rig
                 {
                     continue;
                 }
-                Vector3? at = null;
+                Vector3? at = null, along = null;
                 if (_onWheel[h] >= 0 && WheelOf(_onWheel[h]) != null)
                 {
                     Transform wheel = WheelOf(_onWheel[h]);
                     Vector3 axis = wheel.parent.rotation * Quaternion.Euler(-30f, 0f, 0f) * Vector3.forward;
                     at = CockpitPin.OnRim(wheel.position, axis, WheelRadius, hand.PalmCentre);
+                    along = CockpitPin.RimTangent(wheel.position, axis, at.Value);
                 }
                 else if (_onLever[h] >= 0 && _levers[_onLever[h]] != null)
                 {
@@ -2405,8 +2406,9 @@ namespace RavenfieldVR.Rig
                     // (On the bar, where along it the palm is: 11 cm either side of the middle.)
                     Vector3 local = _hatch.InverseTransformPoint(hand.PalmCentre);
                     at = _hatch.TransformPoint(new Vector3(Mathf.Clamp(local.x, -0.11f, 0.11f), 0f, 0f));
+                    along = _hatch.right;
                 }
-                CockpitPin.Set(this, hand, at);
+                CockpitPin.Set(this, hand, at, along);
             }
         }
 

@@ -612,9 +612,11 @@ namespace RavenfieldVR.Rig
                 }
                 int i = (int)hand.Side;
                 Vector3? at = null;
+                Vector3? along = null;
                 if (_seat != null && _onWheel[i] && rim)
                 {
                     at = CockpitPin.OnRim(rimCentre, rimAxis, rimRadius, hand.PalmCentre);
+                    along = CockpitPin.RimTangent(rimCentre, rimAxis, at.Value); // (the fist round the rim)
                 }
                 else if (_seat != null && _stickHand == hand.Side && _stick != null)
                 {
@@ -624,7 +626,7 @@ namespace RavenfieldVR.Rig
                 {
                     at = _throttle.position;
                 }
-                CockpitPin.Set(this, hand, at);
+                CockpitPin.Set(this, hand, at, along);
             }
             // The palms against the seat as both are now (VRRig poses the hands just before this): read by the next Update.
             if (_seat != null)

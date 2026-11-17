@@ -752,6 +752,21 @@ namespace RavenfieldVR.Tests
             Check(Math.Abs(side.x - 0.2f) < 1e-5f, "Hand on a rim: a palm inside the rim closes on the rim, not in the middle");
             UnityEngine.Vector3 mid = R(o, fwd, 0.2f, o);
             Check(Math.Abs(mid.magnitude - 0.2f) < 1e-4f, "Hand on a rim: a palm at the very middle still goes onto the rim");
+            System.Type pin = mod.GetType("RavenfieldVR.Rig.CockpitPin");
+            System.Reflection.MethodInfo along = pin?.GetMethod("AlongBar", any), tangent = pin?.GetMethod("RimTangent", any);
+            Check(along != null && tangent != null, "Fist on a bar: AlongBar and RimTangent found");
+            if (along == null || tangent == null)
+            {
+                return;
+            }
+            UnityEngine.Quaternion A(UnityEngine.Vector3 u, UnityEngine.Vector3 b) => (UnityEngine.Quaternion)along.Invoke(null, new object[] { u, b });
+            UnityEngine.Vector3 upNow = new UnityEngine.Vector3(0.3f, 1f, 0.2f).normalized, barX = new UnityEngine.Vector3(1f, 0f, 0f);
+            UnityEngine.Vector3 laid = A(upNow, barX) * upNow;
+            Check(Math.Abs(laid.x - 1f) < 1e-4f, $"Fist on a bar: the fist's line laid along the bar ({laid.x:0.000}, {laid.y:0.000}, {laid.z:0.000})");
+            UnityEngine.Vector3 laidBack = A(new UnityEngine.Vector3(-0.9f, 0.1f, 0f), barX) * new UnityEngine.Vector3(-0.9f, 0.1f, 0f).normalized;
+            Check(laidBack.x < -0.999f, "Fist on a bar: pointing the other way along it, it stays that way (no flip)");
+            UnityEngine.Vector3 tan = (UnityEngine.Vector3)tangent.Invoke(null, new object[] { o, fwd, new UnityEngine.Vector3(0f, 0.2f, 0f) });
+            Check(Math.Abs(Math.Abs(tan.x) - 1f) < 1e-4f && Math.Abs(tan.y) < 1e-4f, "Fist on a bar: at the rim's top its line runs across");
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)
