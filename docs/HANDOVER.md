@@ -2,9 +2,9 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-17 (vehicle run to 45%, Tasks 405; 1.19.6 INSTALLED; the user tests at the end, no game runs before)
+## State 2026-11-17 (vehicle run to 45%, Tasks 405; **1.19.7 INSTALLED**, Defender clean; the user tests at the end, no game runs before)
 
-- The user played 1.19.5 on 11-15/16 (1.19.6 was only packaged then); 1.19.6 installed 2026-11-17. Since (1.19.7 when packaged):
+- The user played 1.19.5 on 11-15/16 (1.19.6 was only packaged then); 1.19.6 installed 2026-11-17. In 1.19.7:
   walls fitted out (WallGear), tread-plate floor, turret ring; fists closed round rims and the hatch bar; each hand on its own
   turret handle; a driver's vision block for one-seat tanks; vehicle bodies interpolated while sat in (60 Hz physics against 90);
   the own seated body kept out of a cabin's view; cabin cameras lighter on the CPU.
