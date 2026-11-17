@@ -25,6 +25,35 @@ namespace RavenfieldVR.Rig
         private Seat _seat;
         private SteeringWheel _wheel;
         private Transform _stick;
+        private bool _stickIsJoystick;
+        private Vector3 _stickGripLocal;
+
+        /// <summary>
+        /// Where a hand closes on the stick (world): a game Joystick turns about its base, so its grip is up its shaft (measured from
+        /// its own meshes, GripOnShaft); a seat's hand target is where the hand goes already. The base was taken before: the hand
+        /// was drawn at the stick's foot, and its glow and reach were measured there.
+        /// </summary>
+        private Vector3 StickGrip => _stick == null ? Vector3.zero : _stick.TransformPoint(_stickGripLocal);
+
+        /// <summary>The grip's place up a Joystick's shaft (its local up): 85 % of the way to the top of its meshes; its base with none.</summary>
+        private static Vector3 GripOnShaft(Transform stick)
+        {
+            float top = 0f;
+            foreach (Renderer r in stick.GetComponentsInChildren<Renderer>())
+            {
+                if (r == null || r is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+                Bounds b = r.bounds;
+                for (int k = 0; k < 8; k++)
+                {
+                    Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((k & 1) == 0 ? -1f : 1f, (k & 2) == 0 ? -1f : 1f, (k & 4) == 0 ? -1f : 1f));
+                    top = Mathf.Max(top, stick.InverseTransformPoint(corner).y);
+                }
+            }
+            return new Vector3(0f, Mathf.Min(top, 0.6f) * 0.85f, 0f); // (at most 0.6 m: a stick's mesh, not a cockpit's)
+        }
 
         private readonly bool[] _onWheel = new bool[2];
         private readonly Vector3[] _wheelStart = new Vector3[2];
@@ -177,6 +206,8 @@ namespace RavenfieldVR.Rig
             _wheel = null;
             _stick = null;
             _throttle = null;
+            _stickIsJoystick = false;
+            _stickGripLocal = Vector3.zero;
             if (_seat == null)
             {
                 return;
@@ -218,6 +249,8 @@ namespace RavenfieldVR.Rig
                 if (j.driverSeat == _seat)
                 {
                     _stick = j.transform;
+                    _stickIsJoystick = true;
+                    _stickGripLocal = GripOnShaft(j.transform);
                     break;
                 }
             }
@@ -275,9 +308,9 @@ namespace RavenfieldVR.Rig
                     VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.03f, 120f, 0.4f);
                 }
-                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, InSeat(_stick.position)) < 0.16f
+                else if (_stick != null && _stickHand == null && Vector3.Distance(palm, InSeat(StickGrip)) < 0.16f
                          && !(_throttle != null && _throttleHand == null
-                              && Vector3.Distance(palm, InSeat(_throttle.position)) < Vector3.Distance(palm, InSeat(_stick.position))))
+                              && Vector3.Distance(palm, InSeat(_throttle.position)) < Vector3.Distance(palm, InSeat(StickGrip))))
                 {
                     _stickHand = hand.Side;
                     _stickStartLocal = palm;
@@ -448,11 +481,11 @@ namespace RavenfieldVR.Rig
                     }
                     if (_stick != null && _stickHand == null)
                     {
-                        float d = Vector3.Distance(hand.PalmCentre, _stick.position);
+                        float d = Vector3.Distance(hand.PalmCentre, StickGrip);
                         if (d < stickD)
                         {
                             stickD = d;
-                            stickAt = _stick.position;
+                            stickAt = StickGrip;
                             stickHand = hand;
                         }
                     }
@@ -620,7 +653,11 @@ namespace RavenfieldVR.Rig
                 }
                 else if (_seat != null && _stickHand == hand.Side && _stick != null)
                 {
-                    at = _stick.position;
+                    at = StickGrip;
+                    if (_stickIsJoystick)
+                    {
+                        along = _stick.up; // (the fist round the shaft)
+                    }
                 }
                 else if (_seat != null && _throttleHand == hand.Side && _throttle != null)
                 {
