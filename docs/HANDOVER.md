@@ -12,6 +12,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
   tread plate; the hands should sit on wheels and handles (Razorback gun, car and boat wheels) with the fist round the rim; driving
   should be smooth (the log says "drawn interpolated while sat in" once per vehicle if it was not); no own legs in the cabin.
 - The usage meter was unreadable (the CLI logged out: `claude auth login`); the run gated on transcript spend (~$1.72 a percent).
+- Offline tests 553 pass. The installed DLL is the 1.19.7 package (hash checked); only docs and tests were committed after it.
 
 ## State 2026-11-15 night (1.19.6 PACKAGED, not installed: the user playing 1.19.5; Tasks 404) (**1.19.5 INSTALLED** 20:03 (Tasks 403: the Quest 3 frozen picture fixed: no vrcmd dashboard close on Meta Link), Defender clean; earlier 1.19.4 19:57; 1.19.3 on this PC with the tank cockpit, Defender clean; Tasks 402; the user playing it: treat the game as open, no game runs, no installs)
 
