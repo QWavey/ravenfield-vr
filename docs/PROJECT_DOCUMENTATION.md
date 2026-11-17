@@ -1504,3 +1504,33 @@ The user called the first inside "kinda beta": the fire button too far from the 
 **Fire control.** After a range R is taken, the angle over the line of sight for the gun's own round is `AimDrop(R, v, g)` = half asin(g R / v^2) (exact for a round with no drag on the level, which the game's `Projectile` is: `velocity += gravity * gravityMultiplier * dt`, no drag), with v and g from `Weapon.projectileSpeed` and `projectileGravity` (set by `OnProjectilePrefabChanged`). NaN when g R / v^2 > 1 (past the round's reach). `ScreenDrop(angle, fov, h)` = tan(angle) / tan(fov / 2) * h / 2 puts it on the periscope screen (h 0.2 m) at the camera's field of view, so the mark moves with the zoom. The target put on the mark leaves the gun the angle above it. The mark shows 10 s. Parallax between the eyes (the periscope camera) and the muzzle is left out (under a metre against hundreds).
 
 **Feed trays.** A closed gun with a magazine over one round gets a feed tray at (-0.47, -0.14, 0.3) when the left room is 0.58 m and the rack fits; it and the breech are the two ways `LoadsByHand` can hold (`_cannon` is the gun of either). The rack's boxes now have centres (`_rackCentres`, index-aligned with `_rounds`), a box is carried by its middle (`CarryAhead` 0.05 m against a shell's 0.3) and loads within 15 cm of the tray's middle (`FeedMouth`). The cover is a hinge at the tray's far top edge, up 50 degrees while open.
+
+## 21. Vehicles feel held (2026-11-15 night to 11-17, Tasks 404-405; 1.19.6 and after)
+
+**Hands on controls (`Rig/CockpitPin.cs`).** A hand holding a control is drawn on it through `HandModel.SnapPose` (the glove's root
+pose; the weapon's arm follows through `WithSnap`): the tracked glove pose moved by (grip point - palm centre). With a bar (a rim's
+tangent `RimTangent`, the hatch bar) the glove is first turned by `AlongBar`: the palm frame's up (the back of the fist's top, the
+line a held handle runs along; `VRHand.Palm` uses the pointer's rotation) laid on the bar the nearer way, about the palm centre.
+Written as axis and half angle because `Quaternion.FromToRotation` is native and the offline tests run without the engine. A pin
+has an owner (the setting object): a system clears only its own, and does not take a hand another system pinned this frame.
+Callers: `TurretGrip.Pins` (each holding hand on its own handle, `HandleFor` pairs two hands with two handles by least total
+reach; the cocking hand on the cocking handle, sliding with the pull up to 10 cm), the top of `CockpitControls.BeforeRender` (the
+steering rim of cars and boats, the flight stick, the throttle or collective), `VehicleInterior.Pins` (handwheel and cabin
+steering rims, lever knobs, the hatch bar). Cleared on letting go, `ReleaseHands` (menus, pauses), `Clear`, `Destroy`.
+
+**Sights and aim.** `UI/SeatSights` keeps the game's 3D gun sights in the frame of the gun's aim reference (`TurretGrip.AimReference`),
+not the seat camera (on the hull for the APC and many tanks) or the head; inside a cabin they are hidden (renderers' own enabled
+states kept and put back). `VehicleInterior.AimSeat` (stick and handwheel aim, never the head) now also takes a tracked vehicle's
+gun and a gun with its own sight camera when the seat is not `enclosed` (mods leave many tank gunners open). `Tracked` is cached
+per vehicle (asked every frame).
+
+**The periscope** renders 1024 px, 2x MSAA; for a gun seat its camera stands 30 cm past the muzzle along the gun (near plane
+0.1 m): no own barrel, mantlet or turret in the picture, no parallax for the aim mark. A seat that drives and aims gets a 384 px
+driver's vision block (`DriverBlock`) along the hull's forward, its near plane past the hull's box.
+
+**The inside's look (`Rig/InteriorLook.cs`).** A 256 px tiling grime texture made once in code (Perlin blotches, mottling, down
+streaks) and a paint material (pale grey-green, a fifth of the vehicle's colour, matt, lit a little from within). `HullInside`
+draws its inward twins and back-drawn parts with it instead of the hull's outside materials. `WallGear` fits each side wall at its
+measured distance (0.7-1.6 m; past the breech and the rack): cable trunk, two electrical boxes with lamps, pipe run; a tread-plate
+floor on the measured floor; the turret ring over a tracked vehicle's gunner. Brow pad, rivets, wall handles (where the wall is
+within 1.2 m).
