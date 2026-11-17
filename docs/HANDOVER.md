@@ -2,6 +2,17 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-17 (vehicle run to 45%, Tasks 405; 1.19.6 INSTALLED; the user tests at the end, no game runs before)
+
+- The user played 1.19.5 on 11-15/16 (1.19.6 was only packaged then); 1.19.6 installed 2026-11-17. Since (1.19.7 when packaged):
+  walls fitted out (WallGear), tread-plate floor, turret ring; fists closed round rims and the hatch bar; each hand on its own
+  turret handle; a driver's vision block for one-seat tanks; vehicle bodies interpolated while sat in (60 Hz physics against 90);
+  the own seated body kept out of a cabin's view; cabin cameras lighter on the CPU.
+- What to look at in the user's test: in the RHINO (tank) and the MUDSKIPPER (APC) the walls should carry gear and the floor a
+  tread plate; the hands should sit on wheels and handles (Razorback gun, car and boat wheels) with the fist round the rim; driving
+  should be smooth (the log says "drawn interpolated while sat in" once per vehicle if it was not); no own legs in the cabin.
+- The usage meter was unreadable (the CLI logged out: `claude auth login`); the run gated on transcript spend (~$1.72 a percent).
+
 ## State 2026-11-15 night (1.19.6 PACKAGED, not installed: the user playing 1.19.5; Tasks 404) (**1.19.5 INSTALLED** 20:03 (Tasks 403: the Quest 3 frozen picture fixed: no vrcmd dashboard close on Meta Link), Defender clean; earlier 1.19.4 19:57; 1.19.3 on this PC with the tank cockpit, Defender clean; Tasks 402; the user playing it: treat the game as open, no game runs, no installs)
 
 - The cockpit, for every tank (`Rig/VehicleInterior.cs`): fire button by the hands on a fire box (guard, FIRE, ready lamp), readout (rounds | spare, LOAD SHELL, km/h for a driver), turret and elevation dials, a cannon's breech with recoil and hand-loading from the rack (Manual reload), tank drivers' two steering levers, sight reticle and x3 zoom knob, LIGHT toggle (red combat light), hit flicker, stowage; everything fitted to the hull's measured room. Offline 527 pass.
