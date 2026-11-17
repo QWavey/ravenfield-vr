@@ -17,11 +17,63 @@ namespace RavenfieldVR.Rig
         private static float _nextBump, _nextHum;
         private static Vector3 _accelAverage;
 
+        private static Vehicle _smoothedOf;
+        private static readonly System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Rigidbody, RigidbodyInterpolation>> Smoothed =
+            new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Rigidbody, RigidbodyInterpolation>>();
+
+        /// <summary>
+        /// The vehicle sat in drawn smoothly: physics steps 60 times a second (GameManager), the headset draws 90, and a vehicle whose
+        /// bodies are not interpolated moved its seat, the view and the cabin only at each step, a judder against the headset's frames
+        /// (the user, 2026-11-17: "its still very weird in the vehicle"). Every body of it (a tank's turret is its own, on a joint)
+        /// interpolated while sat in, each as it was once out or the vehicle changed. Only the drawn pose: physics is the same. Not
+        /// another PC's vehicle (kinematic, moved by the network).
+        /// </summary>
+        private static void Smooth(Vehicle v)
+        {
+            Vehicle want = v != null && !v.dead && v.rigidbody != null && !v.rigidbody.isKinematic ? v : null;
+            if (ReferenceEquals(want, _smoothedOf))
+            {
+                return;
+            }
+            foreach (System.Collections.Generic.KeyValuePair<Rigidbody, RigidbodyInterpolation> was in Smoothed)
+            {
+                if (was.Key != null)
+                {
+                    was.Key.interpolation = was.Value; // (as the game had it)
+                }
+            }
+            Smoothed.Clear();
+            _smoothedOf = want;
+            if (want == null)
+            {
+                return;
+            }
+            int made = 0;
+            foreach (Rigidbody rb in want.GetComponentsInChildren<Rigidbody>())
+            {
+                if (rb == null || rb.isKinematic || rb.GetComponentInParent<Actor>() != null)
+                {
+                    continue; // (not the soldiers' ragdoll bones)
+                }
+                Smoothed.Add(new System.Collections.Generic.KeyValuePair<Rigidbody, RigidbodyInterpolation>(rb, rb.interpolation));
+                if (rb.interpolation == RigidbodyInterpolation.None)
+                {
+                    rb.interpolation = RigidbodyInterpolation.Interpolate;
+                    made++;
+                }
+            }
+            if (made > 0)
+            {
+                Log.InfoOnce("vehicle-smooth:" + want.name, $"Vehicle {want.name}: {made} of its {Smoothed.Count} bodies moved only at the physics steps (60 a second, not interpolated): drawn interpolated while sat in, for the headset's frames.");
+            }
+        }
+
         /// <summary>Once a frame from the rig (any seat of a vehicle, not only the driver's).</summary>
         internal static void Update(VRRig rig)
         {
             Actor actor = GameContext.PlayerActor;
             Vehicle v = actor != null && !actor.dead && actor.IsSeated() && actor.seat != null ? actor.seat.vehicle : null;
+            Smooth(v);
             Readout(rig, actor, v);
             if (v == null || v.dead || v.isTurret || GameManager.IsPaused() || rig == null)
             {
