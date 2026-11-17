@@ -585,11 +585,11 @@ namespace RavenfieldVR.Rig
             }
             if (turretRing)
             {
-                float r = Mathf.Clamp(Mathf.Min(roomLeft, roomRight) - 0.12f, 0.6f, 1.0f);
+                float r = Mathf.Clamp(Mathf.Min(roomLeft, roomRight) - 0.18f, 0.6f, 1.0f); // (in from the wall gear: at 0.12 it ran through the wall pipes)
                 for (int k = 0; k < 16; k++)
                 {
                     float a = k * 22.5f;
-                    Vector3 at = Quaternion.Euler(0f, a, 0f) * new Vector3(0f, 0.32f, r);
+                    Vector3 at = Quaternion.Euler(0f, a, 0f) * new Vector3(0f, 0.4f, r); // (over the pipes at 0.3)
                     Transform seg = Box("turret-ring", at, new Vector3(2f * r * Mathf.Tan(11.25f * Mathf.Deg2Rad) + 0.01f, 0.05f, 0.06f), _metal);
                     seg.localRotation = Quaternion.Euler(0f, a, 0f);
                 }
