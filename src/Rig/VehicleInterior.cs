@@ -914,6 +914,7 @@ namespace RavenfieldVR.Rig
             _block.targetTexture = _blockTexture;
             _block.fieldOfView = 30f;
             _block.depth = eye.depth - 1;
+            Lighter(_block, 800f);
             _rig.Suppressor?.Ignore(_block);
             // (Its near plane past the hull's box along the hull's forward from the eyes, as the periscope's was.)
             Bounds b = new Bounds(_seat.vehicle.transform.position, Vector3.zero);
@@ -951,10 +952,24 @@ namespace RavenfieldVR.Rig
             }
             Transform v = _seat.vehicle.transform;
             _block.transform.SetPositionAndRotation(_root.transform.position, Quaternion.LookRotation(v.forward, v.up));
-            if (_block.enabled == (GameContext.GameMenuOpen || GameManager.IsPaused()))
+            // (Every third frame, and not behind a menu: a glance view, and each extra camera draws the whole scene again on the
+            // CPU, which the user's play already spends most of a frame on: median 11.8 ms against the GPU's 3.5.)
+            bool draw = !(GameContext.GameMenuOpen || GameManager.IsPaused()) && Time.frameCount % 3 == 0;
+            if (_block.enabled != draw)
             {
-                _block.enabled = !_block.enabled; // (not drawn behind a menu)
+                _block.enabled = draw;
             }
+        }
+
+        /// <summary>
+        /// An extra camera of the cabin made cheaper on the CPU: no UI or first-person layers (they are the headset's), a nearer far
+        /// plane, occlusion culling on. Each draws the whole scene again: the user's frames are CPU-bound.
+        /// </summary>
+        private static void Lighter(Camera c, float far)
+        {
+            c.cullingMask &= ~((1 << 5) | (1 << VRRig.FirstPersonLayer));
+            c.farClipPlane = Mathf.Min(c.farClipPlane, far);
+            c.useOcclusionCulling = true;
         }
 
         private void PointScope()
@@ -1723,6 +1738,7 @@ namespace RavenfieldVR.Rig
             _scope.targetTexture = _scopeTexture;
             _scope.fieldOfView = WideView;
             _scope.depth = eye.depth - 1;
+            Lighter(_scope, 2000f);
             _rig.Suppressor?.Ignore(_scope);
             // Past the hull in front: the vehicle's bounds along the cabin's forward from the eyes, plus a little.
             Bounds b = new Bounds(_seat.vehicle.transform.position, Vector3.zero);

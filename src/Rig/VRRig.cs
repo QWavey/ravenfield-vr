@@ -35,7 +35,7 @@ namespace RavenfieldVR.Rig
         public static VRRig Instance { get; private set; }
 
         private const int UiLayer = 5;
-        private const int FirstPersonLayer = 18;
+        internal const int FirstPersonLayer = 18;
         private const int BackgroundLayer = 19;
         private const float GameStandEyeHeight = 1.53f;
 
