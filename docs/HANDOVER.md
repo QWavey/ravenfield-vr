@@ -2,7 +2,7 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-17 (vehicle run to 45%, Tasks 405; **1.19.9 INSTALLED** (1.19.7 plus: no turn tunnel in a closed cabin; a scout's fixes: no wall gear in open air, no turret ring through narrow hulls, bodies given back when VR ends), Defender clean; the user tests at the end, no game runs before)
+## State 2026-11-17 (vehicle run to 45%, Tasks 405; **1.19.10 INSTALLED** (1.19.7 plus: the driver block's near plane without the guns; no turn tunnel in a closed cabin; a scout's fixes: no wall gear in open air, no turret ring through narrow hulls, bodies given back when VR ends), Defender clean; the user tests at the end, no game runs before)
 
 - The user played 1.19.5 on 11-15/16 (1.19.6 was only packaged then); 1.19.6 installed 2026-11-17. In 1.19.7:
   walls fitted out (WallGear), tread-plate floor, turret ring; fists closed round rims and the hatch bar; each hand on its own

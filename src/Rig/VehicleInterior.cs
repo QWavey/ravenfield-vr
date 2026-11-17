@@ -921,11 +921,12 @@ namespace RavenfieldVR.Rig
             Bounds b = new Bounds(_seat.vehicle.transform.position, Vector3.zero);
             foreach (Renderer r in _seat.vehicle.GetComponentsInChildren<Renderer>())
             {
-                if (r != null && r.GetComponentInParent<Actor>() == null)
+                if (r != null && r.GetComponentInParent<Actor>() == null && r.GetComponentInParent<Weapon>() == null)
                 {
                     b.Encapsulate(r.bounds);
                 }
             }
+            // (Not the guns: a barrel laid forward stretched the box past its muzzle, and the block showed nothing nearer; scout.)
             Vector3 eyeAt = _root.transform.position, fwd = _seat.vehicle.transform.forward;
             float near = 1.2f;
             for (float d = 0.3f; d < 12f; d += 0.1f)
