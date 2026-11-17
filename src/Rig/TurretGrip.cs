@@ -537,15 +537,7 @@ namespace RavenfieldVR.Rig
                 Vector3? at = null;
                 if (handles != null && _holding[i] && handles.Count > 0)
                 {
-                    Vector3 best = handles[0];
-                    foreach (Vector3 h in handles)
-                    {
-                        if ((h - hand.PalmCentre).sqrMagnitude < (best - hand.PalmCentre).sqrMagnitude)
-                        {
-                            best = h;
-                        }
-                    }
-                    at = best;
+                    at = handles[HandleFor(i, handles)];
                 }
                 else if (_cockHand == i && _frame != null && _pivotT != null && _gun != null)
                 {
@@ -555,6 +547,32 @@ namespace RavenfieldVR.Rig
                 }
                 CockpitPin.Set(this, hand, at);
             }
+        }
+
+        /// <summary>
+        /// The handle a holding hand is drawn on: its nearest, but with both hands on a gun of two handles each its own (both drawn in
+        /// one fist on the nearer handle otherwise): the pair of handles to hands with the shorter reach in all.
+        /// </summary>
+        private int HandleFor(int i, List<Vector3> handles)
+        {
+            Vector3 mine = _rig.Hands[i].PalmCentre;
+            int nearest = 0;
+            for (int k = 1; k < handles.Count; k++)
+            {
+                if ((handles[k] - mine).sqrMagnitude < (handles[nearest] - mine).sqrMagnitude)
+                {
+                    nearest = k;
+                }
+            }
+            VRHand other = _rig.Hands[1 - i];
+            if (handles.Count != 2 || !_holding[1 - i] || other == null)
+            {
+                return nearest;
+            }
+            Vector3 theirs = other.PalmCentre;
+            float straight = (handles[0] - mine).magnitude + (handles[1] - theirs).magnitude;
+            float crossed = (handles[1] - mine).magnitude + (handles[0] - theirs).magnitude;
+            return straight <= crossed ? 0 : 1;
         }
 
         private Vector3 InFrame(Vector3 world) => Quaternion.Inverse(_frame.rotation) * (world - _frame.position);
