@@ -535,6 +535,66 @@ namespace RavenfieldVR.Rig
         }
 
         private readonly List<Material> _extra = new List<Material>();
+
+        /// <summary>
+        /// The hull's walls fitted out where they are (the user, 2026-11-17: "its still very weird in the vehicle"; the RHINO's walls
+        /// stand 1.2 m from the eyes, the APC's 1.45, and the cabin's own parts all sit within half a metre: a small set of controls
+        /// floating in an empty painted shell). On each side wall within 0.7-1.6 m: a cable trunk down it, two electrical boxes with
+        /// a lamp each, a pipe run along it; under the feet a dark tread-plate floor; over a tracked vehicle's gunner the turret ring.
+        /// Each where the measured hull has it, none where it would stand in the air or in the cabin's own parts.
+        /// </summary>
+        private void WallGear(float roomLeft, float roomRight, float floor, bool breech, bool rack, bool turretRing)
+        {
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float room = side < 0f ? roomLeft : roomRight;
+                // (The breech reaches 0.70 m to the left: the wall gear only beyond it.)
+                // (And the rack to 0.57 m on the right, 0.77 beside a steering wheel: the boxes ran into its shells.)
+                float least = side < 0f ? (breech ? 0.85f : 0.7f) : rack ? (SteersByWheel(_seat) ? 1.0f : 0.8f) : 0.7f;
+                if (room < least || room > 1.6f)
+                {
+                    continue;
+                }
+                float x = side * (room - 0.08f);
+                Box("wall-trunk", new Vector3(x, -0.25f, 0.35f), new Vector3(0.06f, 0.9f, 0.06f), _metal);
+                for (int k = 0; k < 2; k++)
+                {
+                    float z = -0.05f - k * 0.3f;
+                    Box("wall-box", new Vector3(x - side * 0.04f, 0.02f, z), new Vector3(0.1f, 0.18f, 0.24f), _olive != null ? _olive : _paint);
+                    Box("wall-box-lid", new Vector3(x - side * 0.095f, 0.02f, z), new Vector3(0.01f, 0.15f, 0.2f), _metal);
+                    Part(PrimitiveType.Sphere, "wall-box-lamp", new Vector3(x - side * 0.1f, 0.08f, z + 0.07f), Vector3.one * 0.014f, Quaternion.identity, k == 0 ? _ready : _lamp);
+                }
+                Cylinder("wall-pipe", new Vector3(x - side * 0.03f, 0.3f, -0.1f), new Vector3(0.035f, 0.55f, 0.035f), Quaternion.Euler(90f, 0f, 0f), _metal);
+                Cylinder("wall-pipe-clamp", new Vector3(x - side * 0.03f, 0.3f, 0.25f), new Vector3(0.05f, 0.015f, 0.05f), Quaternion.Euler(90f, 0f, 0f), _paint);
+                Cylinder("wall-pipe-clamp", new Vector3(x - side * 0.03f, 0.3f, -0.45f), new Vector3(0.05f, 0.015f, 0.05f), Quaternion.Euler(90f, 0f, 0f), _paint);
+            }
+            if (floor > -1.6f && floor < -0.4f)
+            {
+                var tread = new Material(Shader.Find("Standard")) { color = new Color(0.16f, 0.16f, 0.15f), mainTexture = InteriorLook.Grime() };
+                tread.mainTextureScale = new Vector2(4f, 4f);
+                tread.SetFloat("_Metallic", 0.55f);
+                tread.SetFloat("_Glossiness", 0.3f);
+                _extra.Add(tread);
+                float w = Mathf.Clamp(Mathf.Min(roomLeft, roomRight) * 2f - 0.1f, 0.6f, 1.6f);
+                Box("floor-plate", new Vector3(0f, floor + 0.01f, 0.05f), new Vector3(w, 0.02f, 1.1f), tread);
+                // (Its tread: raised bars across the plate.)
+                for (int k = 0; k < 7; k++)
+                {
+                    Box("floor-tread", new Vector3(0f, floor + 0.025f, -0.45f + k * 0.16f), new Vector3(w - 0.06f, 0.008f, 0.025f), tread);
+                }
+            }
+            if (turretRing)
+            {
+                float r = Mathf.Clamp(Mathf.Min(roomLeft, roomRight) - 0.12f, 0.6f, 1.0f);
+                for (int k = 0; k < 16; k++)
+                {
+                    float a = k * 22.5f;
+                    Vector3 at = Quaternion.Euler(0f, a, 0f) * new Vector3(0f, 0.32f, r);
+                    Transform seg = Box("turret-ring", at, new Vector3(2f * r * Mathf.Tan(11.25f * Mathf.Deg2Rad) + 0.01f, 0.05f, 0.06f), _metal);
+                    seg.localRotation = Quaternion.Euler(0f, a, 0f);
+                }
+            }
+        }
         private ParticleSystem _smoke, _sparks;
 
         /// <summary>For the vehicle check: the smoke shown at full health (its vehicles cannot be hurt), and a hit's sparks.</summary>
@@ -988,6 +1048,7 @@ namespace RavenfieldVR.Rig
             cabin.intensity = 1.1f;
             LightSwitchAt(new Vector3(-0.36f, 0.2f, 0.38f));
             Stowage(roomLeft, roomRight, floor);
+            WallGear(roomLeft, roomRight, floor, breech, rack, gunHere != null && Tracked(_seat.vehicle));
             // Grab handles on the side walls at eye height (over the rack and the radio, which ran through them lower), where the hull leaves room (to hold on to over rough ground).
             foreach (float side in new[] { -1f, 1f })
             {
