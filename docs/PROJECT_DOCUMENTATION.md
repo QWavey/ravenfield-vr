@@ -1534,3 +1534,13 @@ draws its inward twins and back-drawn parts with it instead of the hull's outsid
 measured distance (0.7-1.6 m; past the breech and the rack): cable trunk, two electrical boxes with lamps, pipe run; a tread-plate
 floor on the measured floor; the turret ring over a tracked vehicle's gunner. Brow pad, rivets, wall handles (where the wall is
 within 1.2 m).
+
+**Later on 11-17 (1.19.7).** `VehicleFeel.Smooth`: physics steps at 60 Hz (`GameManager` sets `fixedDeltaTime = timeScale / 60`), the
+headset draws 90; every non-kinematic body of the vehicle sat in (a tank's turret is its own, `Tank.towerRigidbody`) gets
+`RigidbodyInterpolation.Interpolate` while seated and its own setting back after (logged once a vehicle when one had none).
+`VRRig` keeps the own seated body out of view inside a cabin too (`inCabin`; a vehicle seat camera at its place has the game draw
+the soldier). `CockpitControls.StickGrip`: a game `Joystick` turns about its base, so its grip is taken 85 % up its shaft from its
+meshes (at most 0.6 m); reach, glow and the pin use it, the fist turned onto the shaft. `CockpitPin` keeps per hand which way
+along a bar the fist lies, changed only past 0.2 of the dot (no half-turn flips), and is reset with the rig. The cabin's extra
+cameras (`Lighter`): no UI or first-person layers, far plane 2 km (periscope) or 800 m (driver's block, every third frame),
+occlusion culling: the user's play is CPU-bound (median 11.8 ms a frame against the GPU's 3.5).
