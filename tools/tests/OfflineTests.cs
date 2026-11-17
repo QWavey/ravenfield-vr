@@ -767,6 +767,16 @@ namespace RavenfieldVR.Tests
             Check(laidBack.x < -0.999f, "Fist on a bar: pointing the other way along it, it stays that way (no flip)");
             UnityEngine.Vector3 tan = (UnityEngine.Vector3)tangent.Invoke(null, new object[] { o, fwd, new UnityEngine.Vector3(0f, 0.2f, 0f) });
             Check(Math.Abs(Math.Abs(tan.x) - 1f) < 1e-4f && Math.Abs(tan.y) < 1e-4f, "Fist on a bar: at the rim's top its line runs across");
+            System.Reflection.MethodInfo onto = pin.GetMethod("Onto", any);
+            Check(onto != null, "Fist on a bar: Onto found");
+            if (onto != null)
+            {
+                UnityEngine.Vector3 u0 = new UnityEngine.Vector3(0.2f, 0.9f, 0.1f).normalized;
+                UnityEngine.Vector3 flipped = (UnityEngine.Quaternion)onto.Invoke(null, new object[] { u0, -u0 }) * u0;
+                Check((flipped + u0).magnitude < 1e-3f, $"Fist on a bar: exactly the other way, a half turn ({flipped.x:0.00}, {flipped.y:0.00}, {flipped.z:0.00})");
+                UnityEngine.Vector3 same = (UnityEngine.Quaternion)onto.Invoke(null, new object[] { u0, u0 * 2f }) * u0;
+                Check((same - u0).magnitude < 1e-4f, "Fist on a bar: already along it, no turn");
+            }
         }
 
         private static void ExpoTests(System.Reflection.Assembly mod)
