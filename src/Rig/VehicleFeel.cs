@@ -28,6 +28,9 @@ namespace RavenfieldVR.Rig
         /// interpolated while sat in, each as it was once out or the vehicle changed. Only the drawn pose: physics is the same. Not
         /// another PC's vehicle (kinematic, moved by the network).
         /// </summary>
+        /// <summary>The bodies given back as the game had them (the rig going: VR off in a seat left them interpolated; scout).</summary>
+        internal static void Release() => Smooth(null);
+
         private static void Smooth(Vehicle v)
         {
             Vehicle want = v != null && !v.dead && v.rigidbody != null && !v.rigidbody.isKinematic ? v : null;

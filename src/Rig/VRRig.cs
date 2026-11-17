@@ -1874,6 +1874,7 @@ namespace RavenfieldVR.Rig
         public void Dispose()
         {
             CockpitPin.Reset();
+            VehicleFeel.Release();
             UnshrinkHead(); // (the rig going while he lay: his head drawn again)
             // Null-safe: also the teardown of a rig whose construction threw part-way. Each step on its own, as VRManager's: one
             // that threw left the rest, the rig's root with its eye cameras too, alive in flat play.

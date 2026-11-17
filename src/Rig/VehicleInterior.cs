@@ -551,7 +551,8 @@ namespace RavenfieldVR.Rig
                 // (The breech reaches 0.70 m to the left: the wall gear only beyond it.)
                 // (And the rack to 0.57 m on the right, 0.77 beside a steering wheel: the boxes ran into its shells.)
                 float least = side < 0f ? (breech ? 0.85f : 0.7f) : rack ? (SteersByWheel(_seat) ? 1.0f : 0.8f) : 0.7f;
-                if (room < least || room > 1.6f)
+                // (1.5 is Room's "nothing met": no wall there, and the gear stood in open air; scout.)
+                if (room < least || room > 1.49f)
                 {
                     continue;
                 }
@@ -568,7 +569,7 @@ namespace RavenfieldVR.Rig
                 Cylinder("wall-pipe-clamp", new Vector3(x - side * 0.03f, 0.3f, 0.25f), new Vector3(0.05f, 0.015f, 0.05f), Quaternion.Euler(90f, 0f, 0f), _paint);
                 Cylinder("wall-pipe-clamp", new Vector3(x - side * 0.03f, 0.3f, -0.45f), new Vector3(0.05f, 0.015f, 0.05f), Quaternion.Euler(90f, 0f, 0f), _paint);
             }
-            if (floor > -1.6f && floor < -0.4f)
+            if (floor > -1.49f && floor < -0.4f) // (-1.5: no floor met)
             {
                 var tread = new Material(Shader.Find("Standard")) { color = new Color(0.16f, 0.16f, 0.15f), mainTexture = InteriorLook.Grime() };
                 tread.mainTextureScale = new Vector2(4f, 4f);
@@ -583,7 +584,7 @@ namespace RavenfieldVR.Rig
                     Box("floor-tread", new Vector3(0f, floor + 0.025f, -0.45f + k * 0.16f), new Vector3(w - 0.06f, 0.008f, 0.025f), tread);
                 }
             }
-            if (turretRing)
+            if (turretRing && Mathf.Min(roomLeft, roomRight) >= 0.78f) // (a narrower hull: the ring at its least 0.6 m ran through the wall; scout)
             {
                 float r = Mathf.Clamp(Mathf.Min(roomLeft, roomRight) - 0.18f, 0.6f, 1.0f); // (in from the wall gear: at 0.12 it ran through the wall pipes)
                 for (int k = 0; k < 16; k++)
