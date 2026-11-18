@@ -114,7 +114,23 @@ namespace RavenfieldVR.Weapons
         }
 
         /// <summary>After the weapon is placed and its parts posed, before rendering.</summary>
+        private RigidPose _solvedRight, _solvedLeft;
+        private int _solvedFrame = -10;
+
         public void Solve()
+        {
+            SolveArms();
+            // The hands as solved, kept for a copy taken before the next solve (a release at the top of the next BeforeRender read the
+            // animator's own pose there, and the empty hands' off arm swept from the authored grip, up to 30 cm away; hands scout).
+            if (_right.Valid && _left.Valid)
+            {
+                _solvedRight = RigidPose.Of(_right.Hand);
+                _solvedLeft = RigidPose.Of(_left.Hand);
+                _solvedFrame = Time.frameCount;
+            }
+        }
+
+        private void SolveArms()
         {
             BodyZones zones = _sys.Zones;
             Vector3 neck = _sys.Rig.Head.position - Vector3.up * 0.12f - zones.TorsoForward * 0.08f;
@@ -504,6 +520,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>Where the two hands of the gun's arms are drawn now (the gun hand's, the off hand's), for the empty-hand arms to start from.</summary>
         internal bool HandsNow(out RigidPose gunHand, out RigidPose offHand)
         {
+            if (Time.frameCount - _solvedFrame <= 1)
+            {
+                gunHand = _solvedRight;
+                offHand = _solvedLeft;
+                return true;
+            }
             gunHand = _right.Valid ? RigidPose.Of(_right.Hand) : default;
             offHand = _left.Valid ? RigidPose.Of(_left.Hand) : default;
             return _right.Valid && _left.Valid;
