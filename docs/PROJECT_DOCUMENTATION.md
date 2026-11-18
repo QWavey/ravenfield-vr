@@ -1544,3 +1544,16 @@ meshes (at most 0.6 m); reach, glow and the pin use it, the fist turned onto the
 along a bar the fist lies, changed only past 0.2 of the dot (no half-turn flips), and is reset with the rig. The cabin's extra
 cameras (`Lighter`): no UI or first-person layers, far plane 2 km (periscope) or 800 m (driver's block, every third frame),
 occlusion culling: the user's play is CPU-bound (median 11.8 ms a frame against the GPU's 3.5).
+
+**11-17 late and 11-18 (1.19.8 on).** No turn tunnel in a closed cabin (`VRRig.SeatTurnMotion`: its walls turn with the rider). The
+game interpolates a vehicle's main body itself (`GameManager.SetupVehiclePrefab`); `Smooth` adds the other bodies, and
+`VehicleFeel.Release` (from `VRRig.Dispose`) gives them back when VR ends. `Room` returns its 1.5 m reach when it meets nothing:
+`WallGear` takes 1.49+ as no wall and -1.49 as no floor; the turret ring needs 0.78 m each side. The driver's block measures the
+hull without its guns. Frame cost in vehicles (the user's 1.19.5 minutes: 63-66 % of frames on time in the RHINO and the RAPTOR,
+89 % on foot; GPU 3.5 ms; the render-thread waits PlayerSendFrameStarted + FinishFrameRendering 7.4 ms against 5.6; the mod's own
+work 0.6-0.7 ms): `VehicleInterior.MergeFixed` draws the cabin's fixed parts (every direct child of the root that no field holds,
+with no children, active, one submesh, not a screen or label) as one mesh a material at the end of `Build` (the materials stay, so
+light switches and flashes still show; the meshes are destroyed in `Clear`); `HullInside.InwardOf` gives each inward twin one
+submesh (one paint). `FrameBudget.SeatTally` logs each stay in a seat ("In RHINO (driver) for 95 s: ..% of .. frames ..; cabin ..
+renderer(s) (.. fixed parts in .. mesh(es)), periscope .. px, driver block ..; hull drawn from inside: .. twin(s)"), the cabin's
+figures taken 300 frames in.
