@@ -1556,4 +1556,6 @@ with no children, active, one submesh, not a screen or label) as one mesh a mate
 light switches and flashes still show; the meshes are destroyed in `Clear`); `HullInside.InwardOf` gives each inward twin one
 submesh (one paint). `FrameBudget.SeatTally` logs each stay in a seat ("In RHINO (driver) for 95 s: ..% of .. frames ..; cabin ..
 renderer(s) (.. fixed parts in .. mesh(es)), periscope .. px, driver block ..; hull drawn from inside: .. twin(s)"), the cabin's
-figures taken 300 frames in.
+figures taken 300 frames in. `MergeIn` does the same inside what turns as one (each handwheel's rim bars and spokes, the breech, the hatch handle).
+`VRRig.BodyHeadAtEyes`: a seat camera that draws the soldier (a `CameraOverrideRenderOptions` with renderPlayerActor) with his head
+within 35 cm of the eyes counts as the body's eyes, so his body (head, arms on the controls by the game's IK) is kept out of view.
