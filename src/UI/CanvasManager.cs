@@ -349,6 +349,10 @@ namespace RavenfieldVR.UI
         /// list vanished (the options' pages showed nothing under their tabs). Each becomes a rectangle clip, which needs
         /// no stencil; the mask's own image, drawn only as the stencil before, stays unseen (it still takes the laser).
         /// </summary>
+        /// <summary>The game's masks this turned into rect clips, given back in <see cref="Dispose"/> (a reload of the mod (F6) left them
+        /// off for the session; UI scout).</summary>
+        private static readonly List<(Mask mask, RectMask2D added, Graphic graphic, float alpha)> ChangedMasks = new List<(Mask, RectMask2D, Graphic, float)>();
+
         private static void ClipWithoutStencil(Transform root)
         {
             foreach (Mask m in root.GetComponentsInChildren<Mask>(true))
@@ -357,18 +361,25 @@ namespace RavenfieldVR.UI
                 {
                     continue;
                 }
+                RectMask2D added = null;
                 if (m.GetComponent<RectMask2D>() == null)
                 {
-                    m.gameObject.AddComponent<RectMask2D>();
+                    added = m.gameObject.AddComponent<RectMask2D>();
                 }
                 Graphic g = m.graphic;
                 bool showGraphic = m.showMaskGraphic;
                 m.enabled = false;
+                float alpha = g != null ? g.color.a : 1f;
                 if (g != null && !showGraphic)
                 {
                     Color c = g.color;
                     g.color = new Color(c.r, c.g, c.b, 0f);
                 }
+                if (ChangedMasks.Count > 256)
+                {
+                    ChangedMasks.RemoveAll(x => x.mask == null); // (gone with their scenes)
+                }
+                ChangedMasks.Add((m, added, g, alpha));
             }
         }
 
@@ -724,6 +735,23 @@ namespace RavenfieldVR.UI
 
         public void Dispose()
         {
+            foreach ((Mask mask, RectMask2D added, Graphic graphic, float alpha) in ChangedMasks)
+            {
+                if (added != null)
+                {
+                    UnityEngine.Object.Destroy(added);
+                }
+                if (graphic != null)
+                {
+                    Color c = graphic.color;
+                    graphic.color = new Color(c.r, c.g, c.b, alpha);
+                }
+                if (mask != null)
+                {
+                    mask.enabled = true;
+                }
+            }
+            ChangedMasks.Clear();
             if (_matchBar != null)
             {
                 // (Ours: added for the wrist look. Left, a reload of the mod (F6) took it for the game's and the bar kept its last
