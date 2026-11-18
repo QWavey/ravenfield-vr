@@ -1565,4 +1565,9 @@ clipped cable run. `SeatPad`: cushion 0.83 m under the eyes, pan, post to the fl
 `Crossing` lists parts of different fittings (first word of the name) whose cabin-frame boxes overlap by over a third of the
 smaller (both at least a 4 cm cube), before the merge; in the log line and the vehicle check. `GraphicsPresets.InCabin`: the eye
 resolution a fifth higher (at most 1.6) in a closed cabin when the GPU used under half the frame (FrameBudget's last seconds), set
-at the cabin's build and given back at its clear; never with the hold's scale step taken.
+at the cabin's build and given back at its clear; never with the hold's scale step taken. `VehicleInterior.CabinFar`: while a closed cabin is shown the eye
+cameras' far plane is the vehicle's farthest drawn corner from the eyes plus 1.5 m (at least 6 m; `VRRig.CopyCameraSettings` takes
+the least of it, the game's and `FarClipCap` every frame): inside the solid hull the world is seen only through the periscope and
+the driver's block (their own cameras), yet both eyes drew all of it. Not when a see-through part over 20 cm lies within 4 m of
+the eyes (`Window`: queue 2450-3999, not a particle or additive shader: a mod's windscreen). The view channel cut out of the hull
+behind the viewer is closed by a plate (`viewer-back`, 0.6 x 0.44 m at z 0.49), so no strip of it looks out past the near hull.
