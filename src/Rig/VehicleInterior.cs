@@ -1319,6 +1319,7 @@ namespace RavenfieldVR.Rig
                 }
             }
             Crossings = Crossing();
+            GraphicsPresets.InCabin(true);
             int merged = _mergedParts = MergeFixed();
             Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); parts crossing: {Crossings}; {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
@@ -2783,6 +2784,7 @@ namespace RavenfieldVR.Rig
 
         private void Clear()
         {
+            GraphicsPresets.InCabin(false);
             CockpitPin.ClearAll(this, _rig.Hands);
             ReleaseHands();
             _driveButtons.Clear();

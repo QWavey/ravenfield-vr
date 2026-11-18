@@ -110,6 +110,10 @@ namespace RavenfieldVR.Core
             {
                 scale = Mathf.Max(Mathf.Min(scale, 0.6f), scale * 0.85f);
             }
+            else if (_cabinBoost)
+            {
+                scale = Mathf.Min(scale * 1.2f, Mathf.Max(scale, 1.6f)); // (a closed cabin, the GPU with room: see InCabin)
+            }
             return Mathf.Clamp(scale, 0.5f, 2f);
         }
         private static int _missedWindows, _roomyWindows, _upWait = 10;
@@ -258,6 +262,30 @@ namespace RavenfieldVR.Core
                 Log.Info($"Frame rate: room again, the preset back up to step {HoldLevel} of {HoldSteps}.");
                 Apply();
             }
+        }
+
+        private static bool _cabinBoost;
+
+        /// <summary>
+        /// A closed vehicle's cabin taken or left. Inside, the eyes draw at a fifth more resolution (at most 1.6) when the GPU has used
+        /// under half the frame over the last seconds: the user (2026-11-15) found it "kinda low res in the tank", where the cabin's
+        /// controls, labels and periscope picture are all within arm's reach, and their play in vehicles had the GPU at 3.5 of 11.1 ms
+        /// (the frames late for the CPU, which the resolution hardly touches). Set as the cabin is built and given back as it goes:
+        /// both happen behind the seat change's fade, which hides the eye targets' reallocation. Not while the hold has the scale down.
+        /// </summary>
+        internal static void InCabin(bool inside)
+        {
+            bool room = FrameBudget.RecentGpuTenths >= 0 && FrameBudget.RecentHz > 0 && FrameBudget.RecentGpuTenths / 10f < 0.5f * 1000f / FrameBudget.RecentHz;
+            bool want = inside && room && HoldLevel < HoldSteps;
+            if (want == _cabinBoost)
+            {
+                return;
+            }
+            _cabinBoost = want;
+            ApplyRenderScaleIfHeld();
+            Log.InfoOnce("cabin-boost:" + want, want
+                ? $"Closed cabin: the eyes draw at {EffectiveRenderScale():0.0#} (the setting's {VRConfig.RenderScale.Value:0.0#}): the GPU had room ({FrameBudget.RecentGpuTenths / 10f:0.0} ms)."
+                : "Out of the cabin: the eyes draw at the setting's resolution again.");
         }
 
         /// <summary>The eyes' resolution as the hold leaves it (only a change: a new scale reallocates the eye targets).</summary>
