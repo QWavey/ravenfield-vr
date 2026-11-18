@@ -1338,6 +1338,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal void LetGoForNewLife(bool spawning)
         {
+            if (spawning)
+            {
+                _throwables.Release(); // (a grenade in hand with its pin out, respawned with no dead frame: the new life's threw it live; scout)
+            }
             _throwables.ForgetPulledPins();
             Held?.Reload?.DropPalmed(Rig.Off); // (a palmed magazine too: it stayed the dead hand's; scout)
             foreach (VRHand h in Rig.Hands)
