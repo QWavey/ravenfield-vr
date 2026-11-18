@@ -1042,26 +1042,36 @@ namespace RavenfieldVR.Rig
             }
             float moved = Vector3.Distance(hl, _neutralHead.position);
             float turned = Mathf.Abs(Mathf.DeltaAngle(yaw, _neutralHead.rotation.eulerAngles.y));
-            if (moved < 0.1f && turned < 20f)
-            {
-                return; // (settled where it was taken: kept, and looked at on while the window lasts)
-            }
-            // Not a still look aside (at the hand on the door, out of a side window): sat in a seat, the hands rest before the body,
-            // so the way taken must be within 45 degrees of the hands' middle seen from the head, when both are tracked.
+            float? handsYaw = null;
             if (Hands[0] != null && Hands[1] != null && Hands[0].Tracked && Hands[1].Tracked)
             {
                 Vector3 toHands = Root.InverseTransformDirection((Hands[0].Raw.position + Hands[1].Raw.position) * 0.5f - Camera.transform.position);
                 toHands.y = 0f;
-                if (toHands.magnitude > 0.12f && Mathf.Abs(Mathf.DeltaAngle(yaw, Mathf.Atan2(toHands.x, toHands.z) * Mathf.Rad2Deg)) > 45f)
-                {
-                    return;
-                }
+                handsYaw = toHands.magnitude > 0.12f ? Mathf.Atan2(toHands.x, toHands.z) * Mathf.Rad2Deg : (float?)null;
+            }
+            if (!SettleTakes(moved, turned, yaw, handsYaw))
+            {
+                return;
             }
             _settleUntil = -1f;
             FadeCut();
             Recenter();
             NeutralVersion++;
             Log.Info($"Seat: settled {moved * 100f:0} cm and {turned:0} deg from where the seat was taken: that is the seat's neutral pose now (the vehicle's forward ahead of the eyes).");
+        }
+
+        /// <summary>
+        /// Whether a still pose is taken as the seat's neutral one: 10 cm or 20 degrees from the one taken, and not a still look aside
+        /// (sat in a seat the hands rest before the body: the way must be within 45 degrees of the hands' middle seen from the head,
+        /// when that is known). Pure (offline tests).
+        /// </summary>
+        internal static bool SettleTakes(float moved, float turned, float yaw, float? handsYaw)
+        {
+            if (moved < 0.1f && turned < 20f)
+            {
+                return false;
+            }
+            return !handsYaw.HasValue || Mathf.Abs(Mathf.DeltaAngle(yaw, handsYaw.Value)) <= 45f;
         }
 
         /// <summary>Re-centres seated/follow views on the current head pose.</summary>

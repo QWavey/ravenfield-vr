@@ -1550,6 +1550,19 @@ namespace RavenfieldVR.Tests
             Check(Math.Abs(S(1.5f) - 1.6f) < 1e-4f && Math.Abs(S(1.8f) - 1.8f) < 1e-4f, "Sharper cabin: at most 1.6, and never under the setting's own (1.8 stays 1.8)");
             Check(R(3.5f, 11.1f) && !R(6f, 11.1f), "Sharper cabin: the user's 3.5 of 11.1 ms has room, 6 of 11.1 has not");
             Check(!R(-1f, 11.1f) && !R(2f, 0f), "Sharper cabin: an untimed GPU or no budget yet: no boost");
+            Type rig = mod.GetType("RavenfieldVR.Rig.VRRig");
+            System.Reflection.MethodInfo settle = rig?.GetMethod("SettleTakes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(settle != null, "Seat settle: SettleTakes found");
+            if (settle == null)
+            {
+                return;
+            }
+            bool T(float moved, float turned, float yaw, float? hands) => (bool)settle.Invoke(null, new object[] { moved, turned, yaw, hands });
+            Check(!T(0.05f, 10f, 0f, 0f), "Seat settle: 5 cm and 10 deg from the taken pose: kept");
+            Check(T(0.02f, 60f, 0f, 5f), "Seat settle: looked at the door (60 deg) as the seat was taken, now ahead toward the hands: taken");
+            Check(!T(0.02f, 60f, 70f, 0f), "Seat settle: a still look 70 deg aside of the hands: not taken");
+            Check(T(0.15f, 5f, 350f, 10f), "Seat settle: 15 cm back, facing the hands across north (350 vs 10 deg): taken");
+            Check(T(0.02f, 40f, 30f, null), "Seat settle: no hands known: taken by the distance alone");
         }
 
         /// <summary>

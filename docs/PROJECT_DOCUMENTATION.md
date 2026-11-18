@@ -1570,4 +1570,7 @@ cameras' far plane is the vehicle's farthest drawn corner from the eyes plus 1.5
 the least of it, the game's and `FarClipCap` every frame): inside the solid hull the world is seen only through the periscope and
 the driver's block (their own cameras), yet both eyes drew all of it. Not when a see-through part over 20 cm lies within 4 m of
 the eyes (`Window`: queue 2450-3999, not a particle or additive shader: a mod's windscreen). The view channel cut out of the hull
-behind the viewer is closed by a plate (`viewer-back`, 0.6 x 0.44 m at z 0.49), so no strip of it looks out past the near hull.
+behind the viewer is closed by a plate (`viewer-back`, 0.6 x 0.44 m at z 0.49), so no strip of it looks out past the near hull. `VRRig.SettleInSeat`: in a seat's
+first 2.5 s, once the head has stayed still 0.4 s (under 4 mm and 0.6 deg a frame), `SettleTakes` (10 cm or 20 deg from the taken
+pose, within 45 deg of the tracked hands' middle when they are over 12 cm away flat) re-takes the neutral pose through `FadeCut`
+and `Recenter`, once a seat; `NeutralVersion` rises and `VehicleInterior.Update` rebuilds the cabin round it.
