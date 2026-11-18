@@ -1574,3 +1574,12 @@ behind the viewer is closed by a plate (`viewer-back`, 0.6 x 0.44 m at z 0.49), 
 first 2.5 s, once the head has stayed still 0.4 s (under 4 mm and 0.6 deg a frame), `SettleTakes` (10 cm or 20 deg from the taken
 pose, within 45 deg of the tracked hands' middle when they are over 12 cm away flat) re-takes the neutral pose through `FadeCut`
 and `Recenter`, once a seat; `NeutralVersion` rises and `VehicleInterior.Update` rebuilds the cabin round it.
+
+**Scouts across the mod (11-18, Tasks 406; 1.19.12-1.19.14).** Multiplayer vehicles (`Net/NetVehicles.cs`): `ReviveHere` (owner repaired
+it: `Vehicle.Ressurect` by reflection, the copy's `Cleanup` invoke cancelled), `OnVehicleDie` prefix (a burn-out with a remote
+source tells his PC `VehicleKilled`), `AfterFixedUpdate` sets `Vehicle.acceleration` to the told average, a joined PC retakes a
+vehicle only a second after the host took it, a wreck handed to this PC is made non-kinematic once. Reloading: `DropPalmed` at a
+life's end, `ForgetHeldShapes` on drop/attach/destroy. Throws: a held pulled pin released on a silent respawn. UI: our match-bar
+CanvasGroup destroyed in `CanvasManager.Dispose`, hidden menus listed once. Hands: `EmptyArms.Copy` drops another gun's copy before
+any early return; `HeldWeapon` restores only the arm meshes it hid (`_armsOff`); `ArmIK` keeps its last solved hands for
+`HandsNow`. Per-frame allocations removed: camera names (`CameraSuppressor.SplitCamera`), two rig lambdas, a flat-MP delegate.
