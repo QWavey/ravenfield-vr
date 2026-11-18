@@ -1724,6 +1724,9 @@ namespace RavenfieldVR.Rig
             // (In a closed vehicle's cabin too: a seat camera of the vehicle's at its place (the APC's gunner) has the game draw the
             // seated soldier, and his legs and body stood in the cabin among the controls; 2026-11-17, "still very weird in the vehicle".)
             bool inCabin = Mode == RigMode.Anchored && VehicleInterior.Instance != null && VehicleInterior.Instance.Shown;
+            // (And where a seat camera that draws the soldier sits at his own head: his head and arms, on the controls by the game's
+            // animation, stood in the view beside the hands holding them.)
+            inCabin |= Mode == RigMode.Anchored && drawn && !_eyesAtSeat && player != null && BodyHeadAtEyes(player.actor);
             bool atEyes = Mode == RigMode.OnFoot || Mode == RigMode.Anchored && (!drawn || _eyesAtSeat) || inCabin; // (an outside camera's body is not drawn at the seat's eyes)
             if (atEyes && player != null && ((Mode == RigMode.OnFoot || _eyesAtSeat || inCabin) && drawn || !shadow)) // (also at an outside camera's seat eyes with BodyShadow on: the body drawn from inside it; scout)
             {
@@ -1746,6 +1749,43 @@ namespace RavenfieldVR.Rig
                 return;
             }
             RestoreBody();
+        }
+
+        private float _headNearAt = -10f;
+        private bool _headNear;
+
+        /// <summary>
+        /// The seated body's head within 35 cm of the eyes (looked at twice a second): the view is his, and his body drawn there sat in
+        /// it. A seat camera elsewhere (a chase view, the APC's gunner sight over the hull) keeps the body drawn as the game wants.
+        /// </summary>
+        private bool BodyHeadAtEyes(Actor actor)
+        {
+            if (actor == null || !actor.IsSeated() || actor.dead)
+            {
+                return false;
+            }
+            if (Time.unscaledTime < _headNearAt)
+            {
+                return _headNear;
+            }
+            _headNearAt = Time.unscaledTime + 0.5f;
+            Transform bone = null;
+            try
+            {
+                bone = actor.ragdoll != null ? actor.ragdoll.HumanBoneTransformActive(HumanBodyBones.Head) : null;
+            }
+            catch (Exception)
+            {
+                bone = null;
+            }
+            bool near = bone != null && Head != null && (bone.position - Head.position).sqrMagnitude < 0.35f * 0.35f;
+            if (near && !_headNear)
+            {
+                Log.InfoOnce("body-head-at-eyes:" + (actor.seat != null && actor.seat.vehicle != null ? actor.seat.vehicle.name : "seat"),
+                    $"Seat view at the soldier's own head{(actor.seat != null && actor.seat.vehicle != null ? " in " + actor.seat.vehicle.name : "")}: his body is kept out of the view (the game draws it for this seat's camera).");
+            }
+            _headNear = near;
+            return near;
         }
 
         /// <summary>The body drawn again and the game's own rule put back (off the body's eyes, BodyShadow on, the rig gone).</summary>
