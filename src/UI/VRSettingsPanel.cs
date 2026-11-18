@@ -126,7 +126,7 @@ namespace RavenfieldVR.UI
             Choice("Turning", VRConfig.Turn, new[] { TurnMode.Snap, TurnMode.Smooth, TurnMode.Off }, new[] { "Snap", "Smooth", "Off" });
             // One row for the one that is in use.
             Stepper("Turn amount",
-                () => VRConfig.Turn.Value == TurnMode.Snap ? $"{VRConfig.SnapTurnAngle.Value:0}°" : VRConfig.Turn.Value == TurnMode.Smooth ? $"{VRConfig.SmoothTurnSpeed.Value:0}°/s" : "off",
+                () => VRConfig.Turn.Value == TurnMode.Snap ? $"{VRConfig.SnapTurnAngle.Value:0}°" : VRConfig.Turn.Value == TurnMode.Smooth ? $"{VRConfig.SmoothTurnSpeed.Value:0}°/s" : "off (Turning above)",
                 d =>
                 {
                     if (VRConfig.Turn.Value == TurnMode.Snap)

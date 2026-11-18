@@ -116,7 +116,10 @@ namespace RavenfieldVR.UI
                     if (c != null && kv.Value.Role == CanvasRole.Menu && c.enabled && !_own.Contains(c))
                     {
                         c.enabled = false;
-                        _hiddenMenus.Add(c);
+                        if (!_hiddenMenus.Contains(c))
+                        {
+                            _hiddenMenus.Add(c); // (once: the game switching one on again added it again each time; scout)
+                        }
                     }
                 }
             }
@@ -721,6 +724,13 @@ namespace RavenfieldVR.UI
 
         public void Dispose()
         {
+            if (_matchBar != null)
+            {
+                // (Ours: added for the wrist look. Left, a reload of the mod (F6) took it for the game's and the bar kept its last
+                // alpha, hidden or shown, for the session; scout.)
+                UnityEngine.Object.Destroy(_matchBar);
+                _matchBar = null;
+            }
             // The game's menus hidden for a joined player are the game's again: left off, a reload of the mod (F6) began with an
             // empty list and nothing ever switched them back on for the rest of the session (scout, 2026-11-11).
             foreach (Canvas hidden in _hiddenMenus)
