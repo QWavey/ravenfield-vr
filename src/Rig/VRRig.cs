@@ -1025,7 +1025,7 @@ namespace RavenfieldVR.Rig
                 return;
             }
             if (Mode != RigMode.Anchored || Time.unscaledTime > _settleUntil || !HeadTracked || player == null || player.actor == null || !player.actor.IsSeated()
-                || GameContext.GameMenuOpen || GameManager.IsPaused())
+                || GameContext.GameMenuOpen || GameManager.IsPaused() || Core.AutoTest.Requested) // (not in a check: its scripted head turns for pictures)
             {
                 _settleUntil = -1f;
                 return;
