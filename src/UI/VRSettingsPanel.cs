@@ -172,6 +172,7 @@ namespace RavenfieldVR.UI
                 new[] { "Low", "Medium", "High", "Ultra", "Game" });
             Stepper("Render scale", () => $"{VRConfig.RenderScale.Value * 100f:0}%", d => VRConfig.RenderScale.Value = Mathf.Clamp(Mathf.Round((VRConfig.RenderScale.Value + d * 0.1f) * 100f) / 100f, 0.5f, 2f)); // (rounded: added up, 1.2000001 went into the config)
             Choice("Hold the frame rate (not with Game)", VRConfig.HoldFrameRate, new[] { false, true }, new[] { "Off", "Lower if slow" });
+            Choice("Sharper tank cabin", VRConfig.SharperCabin, new[] { true, false }, new[] { "When there is room", "Off" });
             // (A safety setting: on this page whatever else is hidden.)
             Choice("Reduce flashing", VRConfig.ReduceFlashing, new[] { false, true }, new[] { "Off", "On" });
             // Voice between the players of a shared match (off by default: the user and his friend talk on Discord), and the microphone.
