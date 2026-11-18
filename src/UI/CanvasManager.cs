@@ -101,6 +101,7 @@ namespace RavenfieldVR.UI
         public bool HideMenus;
 
         private readonly List<Canvas> _hiddenMenus = new List<Canvas>();
+        private static readonly System.Predicate<Canvas> IsGoneCanvas = c => c == null;
 
         /// <summary>How many of the game's menus are hidden now (the check's).</summary>
         internal int HiddenMenuCount => _hiddenMenus.Count;
@@ -110,6 +111,10 @@ namespace RavenfieldVR.UI
         {
             if (HideMenus)
             {
+                if (_hiddenMenus.Count > 32)
+                {
+                    _hiddenMenus.RemoveAll(IsGoneCanvas); // (gone with their scenes while hidden)
+                }
                 foreach (KeyValuePair<Canvas, Tracked> kv in _tracked)
                 {
                     Canvas c = kv.Key;
