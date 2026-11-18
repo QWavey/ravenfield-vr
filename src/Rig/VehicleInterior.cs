@@ -1233,11 +1233,104 @@ namespace RavenfieldVR.Rig
                     AmmoReadout(); // (a driver with no gun: the readout shows the speed)
                 }
             }
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
+            int merged = MergeFixed();
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
 
         /// <summary>For the vehicle check and the log: the hull's room round the seat and what was fitted in it.</summary>
         internal string Fit { get; private set; } = "none";
+
+        private readonly List<Mesh> _merged = new List<Mesh>();
+
+        /// <summary>
+        /// The cabin's fixed parts (rivets, wall gear, the tread plate, stowage, frames: a hundred and more small boxes, each its own
+        /// draw, twice for the two eyes and again for the cabin's light) drawn as one mesh a material. The user's 1.19.5 minutes in the
+        /// RHINO and the RAPTOR kept to the headset's rate in 63-66% of frames (on foot 89%), the GPU idle at 3.5 ms and the frame's
+        /// render-thread waits 7.4 ms against 5.6 on foot: the draws are the cost ("its still very weird in the vehicle", 2026-11-17).
+        /// Left as they are: every part that moves, sinks, lights or is taken (the fields hold them), the screens, the labels, parts
+        /// under a pivot, hidden parts. The materials stay the same, so a light switched or a flash shows on the merged ones too.
+        /// Returns how many parts went into the meshes.
+        /// </summary>
+        private int MergeFixed()
+        {
+            if (_root == null)
+            {
+                return 0;
+            }
+            var keep = new HashSet<Transform> { _fire, _fireReady, _breech, _breechBlock, _carried, _feedLid, _lightSwitch, _hint, _hatch, _aimMark, _rangeButton, _zoomKnob };
+            foreach (Transform t in _levers)
+            {
+                keep.Add(t);
+            }
+            foreach (Transform t in _needles)
+            {
+                keep.Add(t);
+            }
+            foreach ((Transform t, Vector2 _) in _driveButtons)
+            {
+                keep.Add(t);
+            }
+            foreach (GameObject g in _rounds)
+            {
+                if (g != null)
+                {
+                    keep.Add(g.transform);
+                }
+            }
+            Transform root = _root.transform;
+            Matrix4x4 toRoot = root.worldToLocalMatrix;
+            var groups = new Dictionary<Material, List<MeshFilter>>();
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform t = root.GetChild(i);
+                if (keep.Contains(t) || t.childCount > 0 || !t.gameObject.activeSelf || t.name.EndsWith(" screen") || t.GetComponent<TextMesh>() != null)
+                {
+                    continue;
+                }
+                MeshRenderer r = t.GetComponent<MeshRenderer>();
+                MeshFilter f = t.GetComponent<MeshFilter>();
+                Material m = r != null ? r.sharedMaterial : null;
+                if (r == null || !r.enabled || f == null || f.sharedMesh == null || f.sharedMesh.subMeshCount != 1 || m == null)
+                {
+                    continue;
+                }
+                if (!groups.TryGetValue(m, out List<MeshFilter> list))
+                {
+                    groups[m] = list = new List<MeshFilter>();
+                }
+                list.Add(f);
+            }
+            int parts = 0;
+            foreach (KeyValuePair<Material, List<MeshFilter>> g in groups)
+            {
+                if (g.Value.Count < 2)
+                {
+                    continue; // (one part: nothing saved)
+                }
+                var combine = new CombineInstance[g.Value.Count];
+                for (int k = 0; k < combine.Length; k++)
+                {
+                    combine[k] = new CombineInstance { mesh = g.Value[k].sharedMesh, transform = toRoot * g.Value[k].transform.localToWorldMatrix };
+                }
+                var mesh = new Mesh { name = "RavenfieldVR cabin " + g.Key.name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                mesh.CombineMeshes(combine, true, true);
+                _merged.Add(mesh);
+                var go = new GameObject("cabin fixed (" + g.Key.name + ")");
+                go.transform.SetParent(root, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                MeshRenderer mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = g.Key;
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+                foreach (MeshFilter f in g.Value)
+                {
+                    f.gameObject.SetActive(false); // (this frame already: Destroy waits for its end)
+                    Object.Destroy(f.gameObject);
+                }
+                parts += g.Value.Count;
+            }
+            return parts;
+        }
 
         /// <summary>
         /// How far the hull reaches from a point in the cabin along a direction (metres, up to 1.5): its own colliders' outer surface,
@@ -2534,6 +2627,14 @@ namespace RavenfieldVR.Rig
                 }
             }
             _extra.Clear();
+            foreach (Mesh m in _merged)
+            {
+                if (m != null)
+                {
+                    Object.Destroy(m);
+                }
+            }
+            _merged.Clear();
             _smoke = _sparks = null; // (their objects go with the root)
             if (_puffMat != null)
             {
