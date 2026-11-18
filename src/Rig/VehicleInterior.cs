@@ -1136,6 +1136,9 @@ namespace RavenfieldVR.Rig
             {
                 cleared += _rig.Hull.ClearCorridor(_root.transform, new Vector3(0f, 0f, outOfHull / 2f), new Vector3(0.25f, 0.2f, outOfHull / 2f + 0.3f), first: false);
             }
+            // The channel closed behind the viewer: a plate wider and taller than it (every line from the eyes into it crosses the
+            // plate), so no strip of it looks out past the hull (the eyes draw only to the hull's reach in here: CabinFar).
+            Box("viewer-back", new Vector3(0f, 0f, 0.49f), new Vector3(0.6f, 0.44f, 0.02f), _metal);
             // Military fittings: a radio set on the left (two knobs, a dial window, a handset), the gauges over the viewer. (In a
             // cannon's seat the breech stands on the left, the radio behind the shoulder.)
             Weapon gunHere = Gun(_seat);
@@ -1324,6 +1327,7 @@ namespace RavenfieldVR.Rig
             }
             Crossings = Crossing();
             GraphicsPresets.InCabin(true);
+            CabinFar = FarthestOfHull();
             int merged = _mergedParts = MergeFixed();
             Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); parts crossing: {Crossings}; {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
@@ -1332,6 +1336,69 @@ namespace RavenfieldVR.Rig
         internal string Fit { get; private set; } = "none";
 
         private readonly List<Mesh> _merged = new List<Mesh>();
+
+        /// <summary>
+        /// The eyes' far plane while a closed cabin is shown (infinity otherwise): just past the vehicle's farthest point. Inside the
+        /// solid hull nothing of the world outside is seen (the periscope's and the driver's block's own cameras draw it), yet both eyes
+        /// drew all of it, every tree, house and soldier twice over: the user's vehicle minutes were bound by the draws (63-66% of
+        /// frames on time, GPU idle). VRRig.CopyCameraSettings takes the least of this and its other limits each frame.
+        /// </summary>
+        internal static float CabinFar = float.PositiveInfinity;
+
+        /// <summary>
+        /// A see-through part of the hull within 4 m of the eyes and over 20 cm across (glass: drawn after the opaque queue), not a
+        /// particle or additive glow (muzzle flashes, dust quads).
+        /// </summary>
+        private static bool Window(Renderer r, Vector3 eyes)
+        {
+            if (r.bounds.size.magnitude < 0.2f || r.bounds.SqrDistance(eyes) > 16f)
+            {
+                return false;
+            }
+            foreach (Material m in r.sharedMaterials)
+            {
+                string sh = m != null && m.shader != null ? m.shader.name : "";
+                if (m != null && m.renderQueue >= 2450 && m.renderQueue < 4000 && sh.IndexOf("Particle", System.StringComparison.OrdinalIgnoreCase) < 0
+                    && sh.IndexOf("Additive", System.StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The farthest corner of the vehicle's drawn parts from the eyes, and 1.5 m more (at least 6 m).</summary>
+        private float FarthestOfHull()
+        {
+            Vector3 eyes = _root.transform.position;
+            float far = 0f;
+            foreach (Renderer r in _seat.vehicle.GetComponentsInChildren<Renderer>())
+            {
+                if (r == null || r is ParticleSystemRenderer || r.GetComponentInParent<Actor>() != null)
+                {
+                    continue;
+                }
+                if (r.enabled && r.gameObject.activeInHierarchy && Window(r, eyes))
+                {
+                    // (A window near the eyes, a mod armoured car's windscreen: the world is seen through it, drawn as before.)
+                    Log.InfoOnce("cabin-far-window:" + _seat.vehicle.name, $"Closed cabin in {_seat.vehicle.name}: a window ({r.name}) near the eyes, the world drawn as far as before.");
+                    return float.PositiveInfinity;
+                }
+                Bounds b = r.bounds;
+                if (b.size.magnitude > 60f)
+                {
+                    continue; // (a decal drawer or a stray manager parented in: not the hull)
+                }
+                for (int c = 0; c < 8; c++)
+                {
+                    Vector3 corner = b.center + Vector3.Scale(b.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1));
+                    far = Mathf.Max(far, (corner - eyes).magnitude);
+                }
+            }
+            float cabinFar = Mathf.Max(6f, far + 1.5f);
+            Log.InfoOnce("cabin-far:" + _seat.vehicle.name, $"Closed cabin in {_seat.vehicle.name}: the eyes draw out to {cabinFar:0.0} m (the hull's farthest point {far:0.0} m); the world outside is seen through the periscope.");
+            return cabinFar;
+        }
 
         /// <summary>For the log and the vehicle check: cabin parts of different fittings running into each other ("none" when clear).</summary>
         internal string Crossings { get; private set; } = "none";
@@ -1411,7 +1478,7 @@ namespace RavenfieldVR.Rig
                 }
                 int parts = _root.GetComponentsInChildren<Renderer>().Length;
                 return $"cabin {parts} renderer(s) ({_mergedParts} fixed parts in {_merged.Count} mesh(es)), periscope {(_scope != null ? (_scopeTexture != null ? _scopeTexture.width + " px" : "on") : "none")}, "
-                       + $"driver block {(_block != null ? "on" : "none")}";
+                       + $"driver block {(_block != null ? "on" : "none")}, eyes drawn out to {(float.IsInfinity(CabinFar) ? "the game's distance" : CabinFar.ToString("0.0") + " m")}";
             }
         }
 
@@ -2792,6 +2859,7 @@ namespace RavenfieldVR.Rig
         private void Clear()
         {
             GraphicsPresets.InCabin(false);
+            CabinFar = float.PositiveInfinity;
             CockpitPin.ClearAll(this, _rig.Hands);
             ReleaseHands();
             _driveButtons.Clear();
