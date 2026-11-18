@@ -998,7 +998,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void DriverBlock(Vector3 at, Vector2 size)
         {
-            _blockTexture = new RenderTexture(384, Mathf.RoundToInt(384 * size.y / size.x), 16) { name = "RavenfieldVR driver block", filterMode = FilterMode.Bilinear };
+            _blockTexture = new RenderTexture(384, Mathf.RoundToInt(384 * size.y / size.x), 16) { name = "RavenfieldVR driver block", filterMode = FilterMode.Trilinear, useMipMap = true, autoGenerateMips = true, anisoLevel = 4 };
             var go = new GameObject("driver block camera");
             go.transform.SetParent(_root.transform, false);
             _block = go.AddComponent<Camera>();
@@ -2098,7 +2098,7 @@ namespace RavenfieldVR.Rig
         {
             // (1024 wide, 2x anti-aliased: at 384 the user found the tank's view "kinda low res", worse zoomed. A third of a megapixel
             // against the headset's five: cheap.)
-            _scopeTexture = new RenderTexture(1024, Mathf.RoundToInt(1024 * size.y / size.x), 24) { name = "RavenfieldVR periscope", antiAliasing = 2, filterMode = FilterMode.Bilinear };
+            _scopeTexture = new RenderTexture(1024, Mathf.RoundToInt(1024 * size.y / size.x), 24) { name = "RavenfieldVR periscope", antiAliasing = 2, filterMode = FilterMode.Trilinear, useMipMap = true, autoGenerateMips = true, anisoLevel = 4 }; // (mips and anisotropy: seen at an angle and from arm's length the picture shimmered)
             var go = new GameObject("periscope camera");
             go.transform.SetParent(_root.transform, false);
             _scope = go.AddComponent<Camera>();
