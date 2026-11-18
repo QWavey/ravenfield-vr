@@ -1293,7 +1293,21 @@ namespace RavenfieldVR.Rig
                     keep.Add(g.transform);
                 }
             }
-            Transform root = _root.transform;
+            // (Also inside what turns as one: a handwheel's rim bars and spokes, the breech's body, the hatch's handle.)
+            int parts = MergeIn(_root.transform, keep);
+            foreach (Transform whole in new[] { _traverse, _elevate, _steer, _breech, _hatch })
+            {
+                if (whole != null)
+                {
+                    parts += MergeIn(whole, keep);
+                }
+            }
+            return parts;
+        }
+
+        /// <summary>The fixed leaf parts directly under <paramref name="root"/> as one mesh a material (see <see cref="MergeFixed"/>).</summary>
+        private int MergeIn(Transform root, HashSet<Transform> keep)
+        {
             Matrix4x4 toRoot = root.worldToLocalMatrix;
             var groups = new Dictionary<Material, List<MeshFilter>>();
             for (int i = 0; i < root.childCount; i++)
