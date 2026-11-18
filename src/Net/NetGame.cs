@@ -642,11 +642,13 @@ namespace RavenfieldVR.Net
         /// That ran only in the VR eyes' pass, so a flat player saw the VR player's hands reach for the grip of a gun that stayed in the
         /// soldier's own animated hand (scout, 2026-11-11). In VR the UI's pass does it.
         /// </summary>
+        private static readonly Action FlatPoses = NetAvatar.BeforeRender; // (a method group is a new delegate at each call; allocation scout)
+
         private static void FlatBeforeRender()
         {
             if (!VRManager.Active)
             {
-                Log.Guard("Multiplayer: flat VR poses", NetAvatar.BeforeRender);
+                Log.Guard("Multiplayer: flat VR poses", FlatPoses);
             }
         }
 

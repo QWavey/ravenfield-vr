@@ -392,8 +392,8 @@ namespace RavenfieldVR.Rig
             HandleTurning(player);
             _cockpit.Update();
             _turretGrip?.Update(); // (an open mounted gun by its handles)
-            Log.Guard("Rig.HullInside", () => _hullInside?.Update()); // (a closed vehicle's own walls drawn from inside: no see-through hull)
-            Log.Guard("Rig.Interior", () => _interior?.Update()); // (a closed vehicle's inside, its handwheels and buttons)
+            Log.Guard("Rig.HullInside", _hullTick ?? (_hullTick = () => _hullInside?.Update())); // (a closed vehicle's own walls drawn from inside: no see-through hull)
+            Log.Guard("Rig.Interior", _interiorTick ?? (_interiorTick = () => _interior?.Update())); // (a closed vehicle's inside, its handwheels and buttons)
             VehicleFeel.Update(this);
             _touchEnter.Update(); // after the cockpit: a hand on the rim is not also a hand at a door (and on foot only, so never both)
             if (Mode == RigMode.OnFoot && player != null && player.actor != null && player.actor.IsSeated())
@@ -1003,6 +1003,9 @@ namespace RavenfieldVR.Rig
                 Log.Guard("Eye height notice", () => VRManager.Instance?.UI?.Notice?.Show(why, 6f));
             }
         }
+
+        // (Made once: a lambda that captures the rig is a new delegate at each pass, two a frame; allocation scout.)
+        private System.Action _hullTick, _interiorTick;
 
         private float _settleUntil = -1f, _settleStill, _settleLastYaw;
         private Vector3 _settleLast;

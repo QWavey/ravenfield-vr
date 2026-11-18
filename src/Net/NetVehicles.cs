@@ -90,6 +90,7 @@ namespace RavenfieldVR.Net
             harmony.Patch(AccessTools.Method(typeof(Vehicle), "FixedUpdate"), postfix: new HarmonyMethod(typeof(NetVehicles), nameof(AfterFixedUpdate)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.SwitchSeat)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnSwitchSeat)));
             harmony.Patch(AccessTools.Method(typeof(Actor), nameof(Actor.OnGotVehicleKill)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnGotVehicleKill)));
+            harmony.Patch(AccessTools.Method(typeof(Vehicle), nameof(Vehicle.Die)), prefix: new HarmonyMethod(typeof(NetVehicles), nameof(OnVehicleDie)));
         }
 
         /// <summary>
@@ -126,6 +127,9 @@ namespace RavenfieldVR.Net
             }
             CachedVelocity(__instance) = s.Vel;
             CachedLocalVelocity(__instance) = __instance.transform.InverseTransformDirection(s.Vel);
+            // (Its acceleration as told: the game took it from a kinematic body's zero speed against the told one, about -speed/dt, a
+            // thousand m/s2 at 20 m/s, which the seat cameras' springs read; multiplayer scout.)
+            __instance.acceleration = s.AccelAverage;
         }
 
         /// <summary>A stand-in takes a seat only by its owner's word: its own AI walked it into a vehicle nobody else saw it in.</summary>
@@ -174,7 +178,7 @@ namespace RavenfieldVR.Net
             {
                 return true;
             }
-            UI.UISystem.Instance?.Notice?.Show("That seat is taken by another player.", 2f);
+            UI.UISystem.Instance?.Notice?.Show(NetGame.RemoteOfActor(target.occupant)?.Id == 0 ? "That seat is taken by another player." : "That seat is taken.", 2f);
             __result = false;
             return false;
         }
@@ -412,7 +416,10 @@ namespace RavenfieldVR.Net
             Vehicle driven = seat != null && seat.IsDriverSeat() ? seat.vehicle : null;
             // (A joined PC takes it only from the host: two joined PCs' players each in the driver's seat of their own copy took it
             // from each other every frame. The host takes it from anyone: his word holds.)
-            if (driven != null && !driven.dead && ByVehicle.TryGetValue(driven, out Shared take) && take.Owner != me && (session.IsHost || take.Owner == 0))
+            // (Not within a second of the host's taking it back: both players in the one driver's seat at once, the two took it from each
+            // other at every word until the refusal arrived; multiplayer scout.)
+            if (driven != null && !driven.dead && ByVehicle.TryGetValue(driven, out Shared take) && take.Owner != me
+                && (session.IsHost || take.Owner == 0 && Time.unscaledTime - take.OwnerSince > 1f))
             {
                 SetOwner(session, take, me, tell: true);
                 OwnersTaken++;
@@ -751,6 +758,10 @@ namespace RavenfieldVR.Net
                             s.ToldDead = true;
                             DieHere(s);
                         }
+                        else if ((flags & 1) == 0 && s.V.dead)
+                        {
+                            ReviveHere(s); // (repaired on its owner's PC: a wrench, a squad's repair; it stayed dead here, its seats off)
+                        }
                         else if (!s.V.dead)
                         {
                             // Its smoke below half health and its fire while it burns, as on the owner's (the damage that starts them is
@@ -844,6 +855,11 @@ namespace RavenfieldVR.Net
                         s.HasState = true;
                         s.Owner = owner;
                         s.OwnerSince = Time.unscaledTime;
+                        if (owner == session.LocalId && s.V.dead && s.V.rigidbody != null && s.V.rigidbody.isKinematic != s.WasKinematic)
+                        {
+                            // (A wreck handed to this PC falls as its own: the per-frame switch skips the dead, and it hung where it was; scout.)
+                            s.V.rigidbody.isKinematic = s.WasKinematic;
+                        }
                     }
                     break;
                 }
@@ -1129,6 +1145,60 @@ namespace RavenfieldVR.Net
         }
 
         /// <summary>Its owner told it destroyed: so here too (the fire, the explosion, its riders out; the wreck follows the owner's).</summary>
+        private static readonly System.Reflection.MethodInfo Ressurect = AccessTools.Method(typeof(Vehicle), "Ressurect");
+
+        /// <summary>
+        /// Its owner says it lives again (repaired after its death there, Vehicle.Repair): so here too, its seats back, and not the wreck's
+        /// own clean-up 24 s after its death (that took the copy away while the owner's drove on; multiplayer scout, 2026-11-18).
+        /// </summary>
+        private static void ReviveHere(Shared s)
+        {
+            if (Ressurect == null)
+            {
+                return;
+            }
+            _applyingHit = true;
+            try
+            {
+                s.ToldDead = false;
+                s.V.health = Mathf.Max(s.V.health, 0.5f * s.V.maxHealth);
+                Ressurect.Invoke(s.V, null);
+                s.V.CancelInvoke("Cleanup");
+                Log.InfoOnce("net-vehicle-revive:" + s.V.name, $"Multiplayer: {s.V.name} repaired on its owner's PC: alive here again.");
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("net-vehicle-revive", "Multiplayer: a vehicle told repaired could not be brought back here: " + e);
+            }
+            finally
+            {
+                _applyingHit = false;
+            }
+        }
+
+        /// <summary>
+        /// A vehicle this PC owns dying not by a hit (its fire burning out) whose fire another PC's player started: his kill, told to his
+        /// PC (only a killing hit told it, and a burn-out was nobody's; multiplayer scout, 2026-11-18).
+        /// </summary>
+        private static void OnVehicleDie(Vehicle __instance, DamageInfo info)
+        {
+            if (!Enabled || _applyingHit || __instance == null || __instance.dead || !ByVehicle.TryGetValue(__instance, out Shared s))
+            {
+                return;
+            }
+            NetSession session = NetGame.SessionNow;
+            NetGame.Remote by = NetGame.RemoteOfActor(info.sourceActor);
+            if (session == null || s.Owner != session.LocalId || by == null)
+            {
+                return;
+            }
+            Out.Reset();
+            Out.UShort(s.Id);
+            Out.UShort(by.Id);
+            Out.Bool(false);
+            session.SendTo(by.Owner, NetGame.VehicleKilled, Out, true);
+        }
+
         private static void DieHere(Shared s)
         {
             _applyingHit = true;

@@ -57,6 +57,19 @@ namespace RavenfieldVR.Rig
         /// <summary>Cameras created by the mod (scope lenses, UI event cameras) that must keep rendering.</summary>
         public void Ignore(Camera c) => _ignored.Add(c);
 
+        // A camera's name read once (Camera.name makes a new string at each read: one a camera a frame; allocation scout).
+        private readonly Dictionary<Camera, bool> _splitCamera = new Dictionary<Camera, bool>();
+
+        private bool SplitCamera(Camera c)
+        {
+            if (!_splitCamera.TryGetValue(c, out bool split))
+            {
+                split = c.name.StartsWith("RavenfieldVR Split Camera", System.StringComparison.Ordinal);
+                _splitCamera[c] = split;
+            }
+            return split;
+        }
+
         private static readonly System.Predicate<Camera> IsGone = c => c == null;
         private static readonly List<Camera> GoneCameras = new List<Camera>();
         private static readonly List<PostProcessLayer> GoneLayers = new List<PostProcessLayer>();
@@ -77,8 +90,7 @@ namespace RavenfieldVR.Rig
             {
                 Camera c = _buffer[i];
                 // (Nor a splitscreen player's camera: in VR the other players at this PC play on the monitor.)
-                if (c == null || c == _vrCamera || c.targetTexture != null || _ignored.Contains(c)
-                    || c.name.StartsWith("RavenfieldVR Split Camera", System.StringComparison.Ordinal))
+                if (c == null || c == _vrCamera || c.targetTexture != null || _ignored.Contains(c) || SplitCamera(c))
                 {
                     continue;
                 }
@@ -131,9 +143,17 @@ namespace RavenfieldVR.Rig
                     GoneCameras.Add(c);
                 }
             }
+            foreach (Camera c in _splitCamera.Keys)
+            {
+                if (c == null && !GoneCameras.Contains(c))
+                {
+                    GoneCameras.Add(c);
+                }
+            }
             foreach (Camera c in GoneCameras)
             {
                 _originalEye.Remove(c);
+                _splitCamera.Remove(c);
             }
             GoneLayers.Clear();
             foreach (PostProcessLayer p in _ppLayers.Keys)
