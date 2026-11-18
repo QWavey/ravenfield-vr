@@ -206,6 +206,7 @@ namespace RavenfieldVR.Rig
                 ReleaseAll();
                 _seat = seat;
                 _gun = gun;
+                _toldEmpty = false;
                 _frame = gun != null ? Frame(gun) : null;
                 _pivotT = gun != null ? Pivot(gun) : null;
                 _palmFrame = null;
@@ -526,7 +527,7 @@ namespace RavenfieldVR.Rig
         /// </summary>
         private void Pins()
         {
-            List<Vector3> handles = _frame != null && _pivotT != null && _gun != null && (_holding[0] || _holding[1]) ? HandlesWorld() : null;
+            List<Vector3> handles = _frame != null && _pivotT != null && _gun != null && (_holding[0] || _holding[1]) ? HandlesNow() : null;
             foreach (VRHand hand in _rig.Hands)
             {
                 if (hand == null)
@@ -599,6 +600,23 @@ namespace RavenfieldVR.Rig
             return list;
         }
 
+        private readonly List<Vector3> _handlesNow = new List<Vector3>(2);
+
+        /// <summary>As <see cref="HandlesWorld"/>, into one list kept for it (asked every frame by the pins and the cocking handle: two new
+        /// lists a frame; scout). Read before the next call.</summary>
+        private List<Vector3> HandlesNow()
+        {
+            _handlesNow.Clear();
+            if (_pivotT != null)
+            {
+                foreach (Vector3 l in _handlesLocal)
+                {
+                    _handlesNow.Add(_pivotT.TransformPoint(l));
+                }
+            }
+            return _handlesNow;
+        }
+
         internal bool MadeHandles => _madeHandles;
 
         /// <summary>For the vehicle check: where the hands want the gun (world), null when not held.</summary>
@@ -654,7 +672,7 @@ namespace RavenfieldVR.Rig
         {
             Transform m = Muzzle();
             Vector3 handles = Vector3.zero;
-            List<Vector3> hs = HandlesWorld();
+            List<Vector3> hs = HandlesNow();
             foreach (Vector3 h in hs)
             {
                 handles += h;
@@ -740,6 +758,7 @@ namespace RavenfieldVR.Rig
         private void ReleaseAll()
         {
             HideMarkers();
+            _toldEmpty = false; // (the next gun's empty notice its own: an empty one left kept the next empty one quiet; scout)
             for (int i = 0; i < 2; i++)
             {
                 VRHand hand = _rig.Hands[i];

@@ -22,6 +22,26 @@ namespace RavenfieldVR.Rig
             new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Rigidbody, RigidbodyInterpolation>>();
 
         /// <summary>
+        /// The rig going: the bodies given back as the game had them (VR off in a seat left them interpolated), the readout taken
+        /// down (it stayed in the flat game, frozen where it was) and the ride's last speed forgotten (VR on again in the same moving
+        /// vehicle took the speed from before as a crash: a full buzz). Scouts.
+        /// </summary>
+        internal static void Release()
+        {
+            Smooth(null);
+            _of = null;
+            _lastVelocity = _accelAverage = Vector3.zero;
+            _saidSeat = null;
+            _hoverWas = null;
+            if (_readout != null)
+            {
+                Object.Destroy(_readout.gameObject);
+            }
+            _readout = null;
+            _shownSpeed = _shownHeight = -1;
+        }
+
+        /// <summary>
         /// The vehicle sat in drawn smoothly: physics steps 60 times a second (GameManager), the headset draws 90, and a vehicle whose
         /// bodies are not interpolated moved its seat, the view and the cabin only at each step, a judder against the headset's frames
         /// (the user, 2026-11-17: "its still very weird in the vehicle"). Every body of it (a tank's turret is its own, on a joint)
@@ -29,9 +49,6 @@ namespace RavenfieldVR.Rig
         /// itself, GameManager.SetupVehiclePrefab: what this adds is the other bodies, a turret on its own joint, a mod's parts.) Only the drawn pose: physics is the same. Not
         /// another PC's vehicle (kinematic, moved by the network).
         /// </summary>
-        /// <summary>The bodies given back as the game had them (the rig going: VR off in a seat left them interpolated; scout).</summary>
-        internal static void Release() => Smooth(null);
-
         private static void Smooth(Vehicle v)
         {
             Vehicle want = v != null && !v.dead && v.rigidbody != null && !v.rigidbody.isKinematic ? v : null;
@@ -169,7 +186,7 @@ namespace RavenfieldVR.Rig
 
         private static float _nextBurnPulse;
         private static TextMesh _readout;
-        private static readonly RaycastHit[] Hits = new RaycastHit[16];
+        private static readonly RaycastHit[] Hits = new RaycastHit[64]; // (unsorted and cut at its size: over trees 16 could leave the ground out; scout)
 
         /// <summary>For the vehicle check: the pilot's readout as shown (null: not shown).</summary>
         internal static string ReadoutText => _readout != null && _readout.gameObject.activeSelf ? _readout.text : null;
@@ -308,7 +325,8 @@ namespace RavenfieldVR.Rig
         }
 
         /// <summary>
-        /// The engine, faintly, in a hand on the wheel or the flight stick only: a tenth of a second ten times a second, its strength by
+        /// The engine, faintly, in a hand on one of the vehicle's controls (the wheel, the flight stick, a lever, a handwheel, a mounted
+        /// gun's handles: all of the vehicle the engine shakes): a tenth of a second ten times a second, its strength by
         /// the engine's power (idle almost nothing). Not in a hand that is free, nor with nothing running.
         /// </summary>
         private static void Hum(VRRig rig, Vehicle v)
