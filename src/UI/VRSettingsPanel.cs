@@ -194,7 +194,10 @@ namespace RavenfieldVR.UI
             {
                 return "default";
             }
-            return name.Length > 22 ? name.Substring(0, 21) + "..." : name;
+            // (A device chosen once and since unplugged: said, the stepper going on from "default"; UI scout.)
+            bool here = System.Array.IndexOf(Net.NetVoice.Devices(fresh: false), name) >= 0;
+            string shown = name.Length > (here ? 22 : 12) ? name.Substring(0, here ? 21 : 11) + "..." : name;
+            return here ? shown : shown + " (not connected)";
         }
 
         // ---- the tabs shown with ShowAdvanced on ---------------------------------------------------
