@@ -927,6 +927,14 @@ namespace RavenfieldVR.Rig
                 }
             }
             Seat seat = _wanted ? raw : null;
+            if (_root != null && _builtNeutral != VRRig.NeutralVersion && ReferenceEquals(seat, _seat) && _seat != null)
+            {
+                // The seat's neutral pose taken again (the player settled, VRRig.SettleInSeat): the cabin built again round it.
+                Seat same = _seat;
+                Clear();
+                _seat = same;
+                Build();
+            }
             // (By reference: a destroyed seat equals null to Unity, and a cabin whose vehicle was blown up stayed on: its fire button
             // fired the gun on foot; scout, 2026-11-15.)
             if (!ReferenceEquals(seat, _seat) || _seat == null && _root != null)
@@ -1092,6 +1100,7 @@ namespace RavenfieldVR.Rig
         private void Build()
         {
             Transform head = _rig.Head;
+            _builtNeutral = VRRig.NeutralVersion;
             _root = new GameObject("RavenfieldVR Vehicle Interior");
             _root.transform.SetParent(_rig.Root, false);
             // At the head's neutral place and heading in the rig (the seat's or the sight's way), whatever way he looked as he sat.
@@ -1344,6 +1353,9 @@ namespace RavenfieldVR.Rig
         /// frames on time, GPU idle). VRRig.CopyCameraSettings takes the least of this and its other limits each frame.
         /// </summary>
         internal static float CabinFar = float.PositiveInfinity;
+
+        /// <summary>The rig's neutral pose version the cabin was built round (VRRig.NeutralVersion).</summary>
+        private int _builtNeutral = -1;
 
         /// <summary>
         /// A see-through part of the hull within 4 m of the eyes and over 20 cm across (glass: drawn after the opaque queue), not a

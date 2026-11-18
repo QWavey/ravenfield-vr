@@ -388,6 +388,7 @@ namespace RavenfieldVR.Rig
                 OnModeChanged(Mode, mode, key, player);
             }
 
+            SettleInSeat(player);
             HandleTurning(player);
             _cockpit.Update();
             _turretGrip?.Update(); // (an open mounted gun by its handles)
@@ -731,6 +732,12 @@ namespace RavenfieldVR.Rig
             _neutralHead = new RigidPose(hl, headYaw);
             _neutralPending = !HeadTracked;
             _seatYawOffset = 0f;
+            // (Into a vehicle's seat: settled for the first seconds, see SettleInSeat.)
+            _settleUntil = to == RigMode.Anchored && key is Seat || to == RigMode.Anchored && key is Camera && player != null && player.actor != null && player.actor.IsSeated()
+                ? Time.unscaledTime + 2.5f : -1f;
+            _settleStill = 0f;
+            _settleLast = hl;
+            _settleLastYaw = headYaw.eulerAngles.y;
             _hasLastHeadLocal = false;
 
             if (to == RigMode.OnFoot && player != null)
@@ -995,6 +1002,66 @@ namespace RavenfieldVR.Rig
                 Log.Info(why);
                 Log.Guard("Eye height notice", () => VRManager.Instance?.UI?.Notice?.Show(why, 6f));
             }
+        }
+
+        private float _settleUntil = -1f, _settleStill, _settleLastYaw;
+        private Vector3 _settleLast;
+
+        /// <summary>Raised each time a seat's neutral pose is taken again (VehicleInterior rebuilds its cabin round the new one).</summary>
+        internal static int NeutralVersion { get; private set; }
+
+        /// <summary>
+        /// A seat's neutral pose (the eyes' place and the way that is the vehicle's forward) taken again once the player has settled.
+        /// It was taken in the frame the seat was, wherever the head was then: getting in by a hand at the door, the head looked at the
+        /// door, and sat back facing the front the whole vehicle stayed turned by that much, its cabin and controls with it (the user,
+        /// 2026-11-15: "sometimes even some things are in the wrong direction or turned"; 2026-11-17: "still very weird in the vehicle").
+        /// For the first 2.5 s in a seat: when the head has stayed still for 0.4 s more than 10 cm or 20 degrees from the pose taken,
+        /// that still pose is the neutral one (once a seat, through a quick fade).
+        /// </summary>
+        private void SettleInSeat(FpsActorController player)
+        {
+            if (_settleUntil < 0f)
+            {
+                return;
+            }
+            if (Mode != RigMode.Anchored || Time.unscaledTime > _settleUntil || !HeadTracked || player == null || player.actor == null || !player.actor.IsSeated()
+                || GameContext.GameMenuOpen || GameManager.IsPaused())
+            {
+                _settleUntil = -1f;
+                return;
+            }
+            Vector3 hl = HeadLocal;
+            float yaw = Camera.transform.localEulerAngles.y;
+            bool still = (hl - _settleLast).magnitude < 0.004f && Mathf.Abs(Mathf.DeltaAngle(yaw, _settleLastYaw)) < 0.6f;
+            _settleLast = hl;
+            _settleLastYaw = yaw;
+            _settleStill = still ? _settleStill + Time.unscaledDeltaTime : 0f;
+            if (_settleStill < 0.4f)
+            {
+                return;
+            }
+            float moved = Vector3.Distance(hl, _neutralHead.position);
+            float turned = Mathf.Abs(Mathf.DeltaAngle(yaw, _neutralHead.rotation.eulerAngles.y));
+            if (moved < 0.1f && turned < 20f)
+            {
+                return; // (settled where it was taken: kept, and looked at on while the window lasts)
+            }
+            // Not a still look aside (at the hand on the door, out of a side window): sat in a seat, the hands rest before the body,
+            // so the way taken must be within 45 degrees of the hands' middle seen from the head, when both are tracked.
+            if (Hands[0] != null && Hands[1] != null && Hands[0].Tracked && Hands[1].Tracked)
+            {
+                Vector3 toHands = Root.InverseTransformDirection((Hands[0].Raw.position + Hands[1].Raw.position) * 0.5f - Camera.transform.position);
+                toHands.y = 0f;
+                if (toHands.magnitude > 0.12f && Mathf.Abs(Mathf.DeltaAngle(yaw, Mathf.Atan2(toHands.x, toHands.z) * Mathf.Rad2Deg)) > 45f)
+                {
+                    return;
+                }
+            }
+            _settleUntil = -1f;
+            FadeCut();
+            Recenter();
+            NeutralVersion++;
+            Log.Info($"Seat: settled {moved * 100f:0} cm and {turned:0} deg from where the seat was taken: that is the seat's neutral pose now (the vehicle's forward ahead of the eyes).");
         }
 
         /// <summary>Re-centres seated/follow views on the current head pose.</summary>
