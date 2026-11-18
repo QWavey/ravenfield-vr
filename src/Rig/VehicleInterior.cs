@@ -537,6 +537,61 @@ namespace RavenfieldVR.Rig
         private readonly List<Material> _extra = new List<Material>();
 
         /// <summary>
+        /// The hull's roof over the head fitted out where it is (the user, 2026-11-15/17: "the interiors are still bad", "still very
+        /// weird in the vehicle"): the hatch handle hung at a fixed 35 cm over the eyes in the air under a roof that may be 0.8 m up.
+        /// With a roof met 0.5-1.4 m over the eyes: the hatch's lid and rim overhead, two struts from the handle up to it (moving with
+        /// the handle as it is pulled), quilted spall-liner pads either side of the hatch and a cable run along it. Nothing where no
+        /// roof was met (1.5: Room's "nothing") or where it is too low for the hatch handle under it.
+        /// </summary>
+        private void RoofGear(float ceiling, float roomLeft, float roomRight)
+        {
+            if (ceiling < 0.5f || ceiling > 1.4f || _hatch == null)
+            {
+                return;
+            }
+            float top = ceiling - 0.012f;
+            Vector3 lid = new Vector3(_hatchAt.x, top, _hatchAt.z);
+            Cylinder("hatch-lid", lid, new Vector3(0.5f, 0.012f, 0.5f), Quaternion.identity, _metal);
+            Cylinder("hatch-rim", lid + new Vector3(0f, -0.014f, 0f), new Vector3(0.56f, 0.008f, 0.56f), Quaternion.identity, _paint);
+            // (The struts are the handle's: children of the hatch, so they come down with it when it is pulled.)
+            float strut = top - 0.02f - (_hatchAt.y + 0.06f);
+            if (strut > 0.04f)
+            {
+                foreach (float x in new[] { -0.1f, 0.1f })
+                {
+                    Transform t = Box("hatch-strut", new Vector3(_hatchAt.x + x, _hatchAt.y + 0.06f + strut * 0.5f, _hatchAt.z), new Vector3(0.016f, strut, 0.016f), _metal);
+                    t.SetParent(_hatch, true);
+                }
+            }
+            // Spall-liner pads: dark quilted panels in rows either side of the hatch, within the side walls.
+            float half = Mathf.Min(Mathf.Min(roomLeft, roomRight), 1.2f) - 0.12f;
+            if (half > 0.35f)
+            {
+                var liner = new Material(Shader.Find("Standard")) { color = new Color(0.2f, 0.21f, 0.18f), mainTexture = InteriorLook.Grime() };
+                liner.SetFloat("_Glossiness", 0.08f);
+                _extra.Add(liner);
+                for (float x = -half + 0.12f; x <= half - 0.11f; x += 0.24f)
+                {
+                    for (float z = -0.55f; z <= 0.55f; z += 0.24f)
+                    {
+                        if (Mathf.Abs(x - lid.x) < 0.36f && Mathf.Abs(z - lid.z) < 0.36f)
+                        {
+                            continue; // (the hatch's opening)
+                        }
+                        Box("roof-liner", new Vector3(x, top - 0.012f, z), new Vector3(0.22f, 0.024f, 0.22f), liner);
+                    }
+                }
+                // A cable run along the roof, on the right of the hatch, clipped every 30 cm.
+                float cx = Mathf.Min(0.42f, half - 0.05f);
+                Cylinder("roof-cable", new Vector3(cx, top - 0.035f, 0f), new Vector3(0.025f, 0.6f, 0.025f), Quaternion.Euler(90f, 0f, 0f), _metal);
+                for (float z = -0.45f; z <= 0.46f; z += 0.3f)
+                {
+                    Box("roof-cable-clip", new Vector3(cx, top - 0.03f, z), new Vector3(0.04f, 0.02f, 0.015f), _paint);
+                }
+            }
+        }
+
+        /// <summary>
         /// The hull's walls fitted out where they are (the user, 2026-11-17: "its still very weird in the vehicle"; the RHINO's walls
         /// stand 1.2 m from the eyes, the APC's 1.45, and the cabin's own parts all sit within half a metre: a small set of controls
         /// floating in an empty painted shell). On each side wall within 0.7-1.6 m: a cable trunk down it, two electrical boxes with
@@ -1138,6 +1193,9 @@ namespace RavenfieldVR.Rig
             LightSwitchAt(new Vector3(-0.36f, 0.2f, 0.38f));
             Stowage(roomLeft, roomRight, floor);
             WallGear(roomLeft, roomRight, floor, breech, rack, gunHere != null && Tracked(_seat.vehicle));
+            float ceiling = Room(new Vector3(0f, 0f, 0.05f), Vector3.up);
+            RoofGear(ceiling, roomLeft, roomRight);
+            Fit += $", roof {(ceiling > 1.49f ? "none met" : ceiling.ToString("0.00") + " m")}";
             // Grab handles on the side walls at eye height (over the rack and the radio, which ran through them lower), where the hull leaves room (to hold on to over rough ground).
             foreach (float side in new[] { -1f, 1f })
             {
