@@ -75,6 +75,28 @@ namespace RavenfieldVR.Weapons
 
         private float _refusedAt = -10f;
         private RigidPose _palmedFrom;
+
+        /// <summary>
+        /// A palmed magazine let go of as a life ends (WeaponSystem.LetGoForNewLife dropped only what each hand holds: the palmed one
+        /// stayed the dead hand's and was taken up again the next frame, riding the hand through the death screen; scout).
+        /// </summary>
+        internal void DropPalmed(VRHand off)
+        {
+            MagazineProp palmed = _palmed;
+            _palmed = null;
+            if (palmed == null)
+            {
+                return;
+            }
+            if (palmed.Go == null)
+            {
+                palmed.Destroy();
+            }
+            else
+            {
+                palmed.Drop(off != null ? off.Velocity : Vector3.zero, Vector3.zero);
+            }
+        }
         private float _palmedAt = -1f;
 
         /// <summary>The fresh magazine is gone from the hand (seated or dropped): the palmed one becomes the one it holds.</summary>

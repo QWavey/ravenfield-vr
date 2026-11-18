@@ -51,7 +51,7 @@ namespace RavenfieldVR.Weapons
         public int Rounds;
         /// <summary>
         /// The ammo the rounds came from. A dropped magazine keeps its rounds (pick it up and seat it to use them);
-        /// if it despawns first they go back to this reserve, so leaving a half-full magazine behind costs nothing.
+        /// if it despawns first they go back to this reserve with ReturnRoundsOnMagDrop on (the default), so leaving a half-full magazine behind costs nothing; off, they are lost with it.
         /// </summary>
         public AmmoState Owner;
         /// <summary>Moving hulls it passes through, let go inside them (see <see cref="OutOfTheLevel"/>).</summary>
@@ -961,6 +961,13 @@ namespace RavenfieldVR.Weapons
 
         public void Drop(Vector3 velocity, Vector3 angularVelocity, [System.Runtime.CompilerServices.CallerMemberName] string by = "")
         {
+            // A hand's held shapes measured this frame forgotten (they closed the fingers on the dropped magazine for the rest of it).
+            ForgetHeldShapes();
+            if (Go == null)
+            {
+                Destroy(); // (its object already gone: the hand freed, nothing to drop; every caller checks first, this is the guard)
+                return;
+            }
             if (Core.AutoTest.Requested && HeldBy != null && Rounds > 0)
             {
                 // Autotest: which branch takes a loaded magazine out of a hand (RECON LRR's fresh magazine left the hand
@@ -1199,6 +1206,7 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy([System.Runtime.CompilerServices.CallerMemberName] string by = "")
         {
+            ForgetHeldShapes();
             if (Core.AutoTest.Requested && HeldBy != null && Rounds > 0)
             {
                 Log.Info($"Magazine ({Rounds} rounds) in the {HeldBy.Side} hand removed by {by}.");

@@ -38,6 +38,7 @@ namespace RavenfieldVR.Weapons
 
         public void Attach(VRHand hand)
         {
+            ForgetHeldShapes();
             // A prop made for this grab (from the pouch, pulled from the well) starts where it belongs; one picked up,
             // caught or moved from the other fingers eases in from where it was.
             if (Go != null && !_fresh)
@@ -234,6 +235,10 @@ namespace RavenfieldVR.Weapons
                 HandSolidOwners[side] = hand;
                 HandSolids[side] = p => HeldSolid(hand, p);
             }
+            if (Go == null)
+            {
+                return; // (its object gone outside Destroy(): the off hand's cleanup may not have run yet; scout)
+            }
             hand.Model.Solid = HandSolids[side];
             hand.Model.SolidAnchor = Go.transform;
             // The shapes' count and where each sits against the anchor (to the millimetre): a palmed magazine easing from the well
@@ -260,6 +265,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>Per hand: the measured magazines it holds this frame, gathered once per frame (not per tested point).</summary>
         private static readonly List<HeldShape>[] HeldShapes = { new List<HeldShape>(2), new List<HeldShape>(2) };
         private static readonly int[] HeldShapesFrame = { -1, -1 };
+
+        /// <summary>Both hands' held shapes measured again at their next look (a magazine dropped, destroyed or taken this frame).</summary>
+        private static void ForgetHeldShapes()
+        {
+            HeldShapesFrame[0] = HeldShapesFrame[1] = -1;
+        }
 
         private static List<HeldShape> HeldShapesOf(VRHand hand)
         {

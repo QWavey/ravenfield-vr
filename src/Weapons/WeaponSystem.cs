@@ -1339,6 +1339,7 @@ namespace RavenfieldVR.Weapons
         internal void LetGoForNewLife(bool spawning)
         {
             _throwables.ForgetPulledPins();
+            Held?.Reload?.DropPalmed(Rig.Off); // (a palmed magazine too: it stayed the dead hand's; scout)
             foreach (VRHand h in Rig.Hands)
             {
                 if (h.Held is MagazineProp prop && prop.Go != null)
