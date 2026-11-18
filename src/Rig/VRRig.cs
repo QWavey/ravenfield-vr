@@ -1059,7 +1059,6 @@ namespace RavenfieldVR.Rig
             _settleUntil = -1f;
             FadeCut();
             Recenter();
-            NeutralVersion++;
             Log.Info($"Seat: settled {moved * 100f:0} cm and {turned:0} deg from where the seat was taken: that is the seat's neutral pose now (the vehicle's forward ahead of the eyes).");
         }
 
@@ -1082,6 +1081,7 @@ namespace RavenfieldVR.Rig
         {
             _neutralHead = new RigidPose(HeadLocal, Quaternion.Euler(0f, Camera.transform.localEulerAngles.y, 0f));
             _seatYawOffset = 0f;
+            NeutralVersion++; // (a closed cabin built round the old pose is built again round this one: the panel's recenter too)
             // On foot the heading stays: the body's yaw it was set from is turned only at spawn and on leaving a seat or a ladder,
             // so after turning by stick the view swung back by the whole turn (review, 2026-10-20). OnModeChanged sets it then.
         }
