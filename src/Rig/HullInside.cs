@@ -195,7 +195,7 @@ namespace RavenfieldVR.Rig
                 {
                     _paint = InteriorLook.Paint(_tint);
                 }
-                var paints = new Material[r.sharedMaterials.Length];
+                var paints = new Material[inward.subMeshCount];
                 for (int k = 0; k < paints.Length; k++)
                 {
                     paints[k] = _paint;
@@ -527,6 +527,23 @@ namespace RavenfieldVR.Rig
                         n[i] = -n[i];
                     }
                     inward.normals = n;
+                }
+                // One submesh: the twin is painted one material all over, and each submesh was a draw of its own (twice, for the two
+                // eyes, and again for the cabin's light). Only when every submesh is triangles.
+                bool triangles = inward.subMeshCount > 1;
+                for (int s = 0; s < inward.subMeshCount && triangles; s++)
+                {
+                    triangles = inward.GetTopology(s) == MeshTopology.Triangles;
+                }
+                if (triangles)
+                {
+                    var all = new List<int>();
+                    for (int s = 0; s < inward.subMeshCount; s++)
+                    {
+                        all.AddRange(inward.GetTriangles(s));
+                    }
+                    inward.subMeshCount = 1;
+                    inward.SetTriangles(all, 0);
                 }
             }
             Inward[mesh] = inward;
