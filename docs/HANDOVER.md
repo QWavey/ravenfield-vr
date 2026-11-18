@@ -2,9 +2,9 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-18 (vehicle run to 65%, Tasks 405-406; **1.19.13 INSTALLED** 2026-11-18, hash checked, Defender clean; no game runs: the user tests at the end)
+## State 2026-11-18 (vehicle run to 65%, Tasks 405-406; **1.19.14 INSTALLED** 2026-11-18 (1.19.13 plus the ArmIK last-solve and microphone fixes), hash checked, Defender clean; no game runs: the user tests at the end)
 
-- 1.19.13 = 1.19.11 plus everything listed under "Since 1.19.11" below, the seat settle (VRRig.SettleInSeat), the periscope's own far plane, scouts' fixes in multiplayer vehicles, reloading, throws, UI and hands (Tasks 406). Offline 564 pass, net 5065 pass. The friend needs 1.19.13 too (other versions are refused at joining).
+- 1.19.13 = 1.19.11 plus everything listed under "Since 1.19.11" below, the seat settle (VRRig.SettleInSeat), the periscope's own far plane, scouts' fixes in multiplayer vehicles, reloading, throws, UI and hands (Tasks 406). Offline 564 pass, net 5065 pass. The friend needs 1.19.14 too (other versions are refused at joining).
 
 - In 1.19.11 (not run in the game): the cabin's handwheels and steering wheel drawn turning WITH the hand (they spun the other way:
   a "wrong direction" the user saw); the cabin's fixed parts merged into one mesh a material (the user's vehicle minutes were
