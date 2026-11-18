@@ -1558,4 +1558,11 @@ submesh (one paint). `FrameBudget.SeatTally` logs each stay in a seat ("In RHINO
 renderer(s) (.. fixed parts in .. mesh(es)), periscope .. px, driver block ..; hull drawn from inside: .. twin(s)"), the cabin's
 figures taken 300 frames in. `MergeIn` does the same inside what turns as one (each handwheel's rim bars and spokes, the breech, the hatch handle).
 `VRRig.BodyHeadAtEyes`: a seat camera that draws the soldier (a `CameraOverrideRenderOptions` with renderPlayerActor) with his head
-within 35 cm of the eyes counts as the body's eyes, so his body (head, arms on the controls by the game's IK) is kept out of view.
+within 35 cm of the eyes counts as the body's eyes, so his body (head, arms on the controls by the game's IK) is kept out of view. The cabin's handwheels turn by -RimAngle's change about the hub's z
+(RimAngle is clockwise from the seat; they spun against the hand until 11-18). `RoofGear` fits a roof met 0.5-1.4 m over the eyes
+(`Room` up): hatch lid and rim, two struts from the handle (children of `_hatch`), liner pads (24 cm grid, not over the hatch), a
+clipped cable run. `SeatPad`: cushion 0.83 m under the eyes, pan, post to the floor, backrest, where the floor is lower than 0.95 m.
+`Crossing` lists parts of different fittings (first word of the name) whose cabin-frame boxes overlap by over a third of the
+smaller (both at least a 4 cm cube), before the merge; in the log line and the vehicle check. `GraphicsPresets.InCabin`: the eye
+resolution a fifth higher (at most 1.6) in a closed cabin when the GPU used under half the frame (FrameBudget's last seconds), set
+at the cabin's build and given back at its clear; never with the hold's scale step taken.
