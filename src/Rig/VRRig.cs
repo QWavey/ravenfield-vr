@@ -1753,6 +1753,7 @@ namespace RavenfieldVR.Rig
 
         private float _headNearAt = -10f;
         private bool _headNear;
+        private Seat _headNearSeat;
 
         /// <summary>
         /// The seated body's head within 35 cm of the eyes (looked at twice a second): the view is his, and his body drawn there sat in
@@ -1762,7 +1763,14 @@ namespace RavenfieldVR.Rig
         {
             if (actor == null || !actor.IsSeated() || actor.dead)
             {
+                _headNear = false;
+                _headNearAt = -10f; // (out of the seat: the next seat looked at afresh; scout)
                 return false;
+            }
+            if (!ReferenceEquals(actor.seat, _headNearSeat))
+            {
+                _headNearSeat = actor.seat;
+                _headNearAt = -10f;
             }
             if (Time.unscaledTime < _headNearAt)
             {

@@ -602,12 +602,19 @@ namespace RavenfieldVR.Core
                 }
                 Vector3 hubAt = wheel.parent.InverseTransformPoint(wheel.position);
                 Quaternion hubTurn = Quaternion.Inverse(wheel.parent.rotation) * wheel.rotation; // (fixed now: the wheel itself turns as cranked)
+                float drawnAtQuarter = float.NaN;
                 for (float t = 0f; t <= 1.2f; t += Time.unscaledDeltaTime)
                 {
                     float a = (t < 0.2f ? 0f : Mathf.Clamp01((t - 0.2f) / 1f) * 180f);
                     if (wheel == null || wheel.parent == null)
                     {
                         break; // (the inside was taken down meanwhile)
+                    }
+                    if (float.IsNaN(drawnAtQuarter) && a >= 90f)
+                    {
+                        // Where the drawn wheel's top went with the hand a quarter round to the right: right too (+), not left.
+                        Vector3 top = Quaternion.Inverse(hubTurn) * (Quaternion.Inverse(wheel.parent.rotation) * wheel.rotation) * Vector3.up;
+                        drawnAtQuarter = Mathf.Atan2(top.x, top.y) * Mathf.Rad2Deg;
                     }
                     Vector3 rim = wheel.parent.TransformPoint(hubAt + hubTurn * (Quaternion.Euler(0f, 0f, -a) * new Vector3(0f, 0.11f, 0f)));
                     Rig.VRHand.Scripted[side] = new Runtime.RigidPose(rim + palmToRaw, rot);
@@ -621,7 +628,8 @@ namespace RavenfieldVR.Core
                 Input.VRInput.SimulatedGrab[side] = false;
                 Rig.VRHand.Scripted[side] = null;
                 float cranked = Mathf.DeltaAngle(y1, Yaw());
-                line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}";
+                line += $"; nothing touched: the gun {(Mathf.Abs(headMoved) < 3f ? "stayed" : $"MOVED {headMoved:+0;-0} deg")}; the traverse wheel half a turn: the turret turned {cranked:+0;-0} deg{(Mathf.Abs(cranked) < 10f ? " (DID NOT TURN)" : "")}"
+                    + $", the wheel drawn {(float.IsNaN(drawnAtQuarter) ? "not read" : drawnAtQuarter > 20f ? $"turning with the hand ({drawnAtQuarter:+0;-0} deg at its quarter)" : drawnAtQuarter < -20f ? $"TURNING AGAINST THE HAND ({drawnAtQuarter:+0;-0} deg at its quarter)" : $"STILL ({drawnAtQuarter:+0;-0} deg at its quarter)")}";
                 // The elevation wheel half a turn: the gun up or down (a turn is 30 degrees, within the gun's own limits).
                 Transform ew = Rig.VehicleInterior.Instance.ElevationWheel;
                 if (ew != null && ew.parent != null)

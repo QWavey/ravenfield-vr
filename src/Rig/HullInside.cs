@@ -242,7 +242,9 @@ namespace RavenfieldVR.Rig
                 _steel = InteriorLook.Paint(_tint);
                 _steel.SetColor("_EmissionColor", _steel.color * 0.55f);
             }
-            int subs = r.sharedMaterials.Length;
+            // (The mesh's own submeshes, not the material slots: a renderer may list more materials than its mesh has parts; scout.)
+            Mesh drawn = r is SkinnedMeshRenderer skin ? skin.sharedMesh : r.GetComponent<MeshFilter>() != null ? r.GetComponent<MeshFilter>().sharedMesh : null;
+            int subs = drawn != null ? Mathf.Min(drawn.subMeshCount, r.sharedMaterials.Length) : 0;
             for (int i = 0; i < subs; i++)
             {
                 _backs.DrawRenderer(r, _steel, i, 0);

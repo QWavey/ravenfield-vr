@@ -194,7 +194,15 @@ namespace RavenfieldVR.Core
             Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
             if (!ReferenceEquals(seat, _tallySeat) || _seatSeconds >= 120f)
             {
+                bool same = ReferenceEquals(seat, _tallySeat);
+                string cabin = _tallyCabin;
+                int twins = _tallyTwins;
                 ReportSeat();
+                if (same)
+                {
+                    _tallyCabin = cabin; // (the same seat's two minutes on: its cabin as taken; scout)
+                    _tallyTwins = twins;
+                }
                 _tallySeat = seat;
                 _tallyName = seat != null && seat.vehicle != null ? $"{seat.vehicle.name} ({(seat.IsDriverSeat() ? "driver" : seat.name)})" : null;
             }
@@ -206,7 +214,7 @@ namespace RavenfieldVR.Core
             _seatFrames++;
             _seatWithin += onTime ? 1 : 0;
             _seatSeconds += ms / 1000f;
-            if (_seatFrames == 300)
+            if (_seatFrames == 300 && _tallyCabin == null)
             {
                 // (Taken a few seconds in, the cabin built: on leaving it is already gone.)
                 _tallyCabin = Rig.VehicleInterior.Instance != null ? Rig.VehicleInterior.Instance.DrawSummary : "no cabin";
