@@ -2419,7 +2419,10 @@ namespace RavenfieldVR.Rig
                         {
                             turned *= 0.5f; // (both hands on one wheel: each its half, or the wheel turned twice as far as either hand)
                         }
-                        wheel.localRotation *= Quaternion.Euler(0f, 0f, turned); // (the wheel turns with the hand)
+                        // (Against the angle's sign: RimAngle grows clockwise as the gunner sees it, from the hub's -z side, and a turn
+                        // about the hub's z by +a is counterclockwise from there. With +a the wheel, its knob and spokes ran the other way
+                        // round from the hand on it: "some things are in the wrong direction or turned", the user, 2026-11-15; scout.)
+                        wheel.localRotation *= Quaternion.Euler(0f, 0f, -turned); // (the wheel turns with the hand)
                         if (Mathf.Abs(turned) > 3f)
                         {
                             hand.Haptic(0.008f, 200f, 0.2f); // (the gear's ticks)
