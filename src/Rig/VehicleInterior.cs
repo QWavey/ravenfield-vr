@@ -1006,6 +1006,7 @@ namespace RavenfieldVR.Rig
             _block.CopyFrom(eye);
             _block.stereoTargetEye = StereoTargetEyeMask.None;
             _block.targetTexture = _blockTexture;
+            _block.ResetAspect(); // (its picture's own shape: CopyFrom may carry the eyes' aspect, and a stretched picture's aim mark lies)
             _block.fieldOfView = 30f;
             _block.depth = eye.depth - 1;
             Lighter(_block, 800f);
@@ -2099,6 +2100,7 @@ namespace RavenfieldVR.Rig
             _scope.CopyFrom(eye);
             _scope.stereoTargetEye = StereoTargetEyeMask.None;
             _scope.targetTexture = _scopeTexture;
+            _scope.ResetAspect(); // (its picture's own shape: CopyFrom may carry the eyes' aspect, and a stretched picture's aim mark lies)
             _scope.fieldOfView = WideView;
             _scope.depth = eye.depth - 1;
             Lighter(_scope, 2000f);
