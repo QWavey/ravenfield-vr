@@ -1233,7 +1233,7 @@ namespace RavenfieldVR.Rig
                     AmmoReadout(); // (a driver with no gun: the readout shows the speed)
                 }
             }
-            int merged = MergeFixed();
+            int merged = _mergedParts = MergeFixed();
             Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
 
@@ -1241,6 +1241,22 @@ namespace RavenfieldVR.Rig
         internal string Fit { get; private set; } = "none";
 
         private readonly List<Mesh> _merged = new List<Mesh>();
+        private int _mergedParts;
+
+        /// <summary>For the seat's frame line: what the cabin draws (its parts, the merged ones, the extra cameras).</summary>
+        internal string DrawSummary
+        {
+            get
+            {
+                if (_root == null)
+                {
+                    return "no cabin";
+                }
+                int parts = _root.GetComponentsInChildren<Renderer>().Length;
+                return $"cabin {parts} renderer(s) ({_mergedParts} fixed parts in {_merged.Count} mesh(es)), periscope {(_scope != null ? (_scopeTexture != null ? _scopeTexture.width + " px" : "on") : "none")}, "
+                       + $"driver block {(_block != null ? "on" : "none")}";
+            }
+        }
 
         /// <summary>
         /// The cabin's fixed parts (rivets, wall gear, the tread plate, stowage, frames: a hundred and more small boxes, each its own

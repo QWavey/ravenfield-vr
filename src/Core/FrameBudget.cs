@@ -76,6 +76,7 @@ namespace RavenfieldVR.Core
                 _within++;
             }
             SampleGpu();
+            SeatTally(ms, onTime);
             _shortFrames++;
             _shortWithin += onTime ? 1 : 0;
             _shortSeconds += dt;
@@ -175,6 +176,57 @@ namespace RavenfieldVR.Core
             System.Array.Clear(GpuBuckets, 0, GpuBuckets.Length);
             _frames = _within = _gpuFrames = 0;
             _seconds = _budgetMs = 0f;
+        }
+
+        // The same count for each stay in a vehicle's seat, said as the seat is left (or every two minutes in it): the minute's line
+        // mixed a seat's frames with those on foot, and the user's vehicle minutes (63-66% on time against 89% on foot, 1.19.5) could
+        // not be put on one seat or on what its cabin draws.
+        private static readonly int[] SeatBuckets = new int[400];
+        private static int _seatFrames, _seatWithin;
+        private static float _seatSeconds;
+        private static Seat _tallySeat;
+        private static string _tallyName, _tallyCabin;
+        private static int _tallyTwins;
+
+        private static void SeatTally(float ms, bool onTime)
+        {
+            Actor actor = GameContext.PlayerActor;
+            Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
+            if (!ReferenceEquals(seat, _tallySeat) || _seatSeconds >= 120f)
+            {
+                ReportSeat();
+                _tallySeat = seat;
+                _tallyName = seat != null && seat.vehicle != null ? $"{seat.vehicle.name} ({(seat.IsDriverSeat() ? "driver" : seat.name)})" : null;
+            }
+            if (seat == null)
+            {
+                return;
+            }
+            SeatBuckets[Mathf.Min((int)(ms / BucketMs), SeatBuckets.Length - 1)]++;
+            _seatFrames++;
+            _seatWithin += onTime ? 1 : 0;
+            _seatSeconds += ms / 1000f;
+            if (_seatFrames == 300)
+            {
+                // (Taken a few seconds in, the cabin built: on leaving it is already gone.)
+                _tallyCabin = Rig.VehicleInterior.Instance != null ? Rig.VehicleInterior.Instance.DrawSummary : "no cabin";
+                _tallyTwins = Rig.VRRig.Instance != null && Rig.VRRig.Instance.Hull != null ? Rig.VRRig.Instance.Hull.Twins : 0;
+            }
+        }
+
+        private static void ReportSeat()
+        {
+            if (_seatFrames >= 270 && _tallyName != null && _budgetMs > 0f)
+            {
+                Log.Info($"In {_tallyName} for {_seatSeconds:0} s: {100f * _seatWithin / _seatFrames:0}% of {_seatFrames} frames at the headset's "
+                         + $"{1000f / _budgetMs:0} Hz, median {Percentile(SeatBuckets, _seatFrames, 0.5f):0.0} ms, 95th {Percentile(SeatBuckets, _seatFrames, 0.95f):0.0} ms; "
+                         + $"{_tallyCabin ?? "no cabin"}; hull drawn from inside: {_tallyTwins} twin(s).");
+            }
+            System.Array.Clear(SeatBuckets, 0, SeatBuckets.Length);
+            _seatFrames = _seatWithin = 0;
+            _seatSeconds = 0f;
+            _tallyCabin = null;
+            _tallyTwins = 0;
         }
 
         private static double _firstCpuMs = -1;
