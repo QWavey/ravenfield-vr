@@ -721,7 +721,8 @@ namespace RavenfieldVR.Rig
                 float turned = 0f, steer = 0f;
                 for (int a = 10; a <= 270; a += 10)
                 {
-                    // Clockwise seen from the driver (the wheel faces down -forward): about -forward.
+                    // Turned by -a about +forward (counterclockwise as the driver behind it sees it, steering to the left lock): the lock's
+                    // size is what is checked here; the live wheel's way round comes from its own axis (OnWheelPlaneInSeat). Scout.
                     Vector3 from = Quaternion.AngleAxis(-(a - 10), Vector3.forward) * Vector3.up;
                     Vector3 to = Quaternion.AngleAxis(-a, Vector3.forward) * Vector3.up;
                     turned = AddTurn(turned, from, to, Vector3.forward, 0f, 120f);
