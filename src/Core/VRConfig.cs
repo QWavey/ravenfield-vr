@@ -92,6 +92,7 @@ namespace RavenfieldVR.Core
         public static ConfigEntry<bool> GrabMountedGuns;
         public static ConfigEntry<bool> Interiors;
         public static ConfigEntry<bool> LoadCannonByHand;
+        public static ConfigEntry<bool> SharperCabin;
 
         // Weapons
         public static ConfigEntry<ReloadMode> Reload;
@@ -296,6 +297,8 @@ namespace RavenfieldVR.Core
                 "Closed ground vehicles (tanks, APCs) get an inside round your seat, coloured like the vehicle: a slot to look out, handwheels to turn the turret and its gun, a fire button, drive buttons for the driver.");
             LoadCannonByHand = cfg.Bind("Vehicles", "LoadCannonByHand", true,
                 "With manual reloading, a closed vehicle's gun waits for you to load it: a tank's shell from the rack pushed into the breech, an APC's ammo box set on its feed tray. Off: those guns reload themselves (your own guns stay manual).");
+            SharperCabin = cfg.Bind("Vehicles", "SharperCabin", true,
+                "In a closed vehicle's cabin the view is drawn at a fifth more resolution (at most 1.6) when the graphics card has room: the controls, labels and periscope picture are all within arm's reach. Off: the render scale stays as set.");
             GrabMountedGuns = cfg.Bind("Controls", "GrabMountedGuns", true,
                 "Open mounted guns (gun nests, a jeep's MG): take their handles with your grip and swing them; let go and they stay where they are. Off: they follow TurretAim.");
 

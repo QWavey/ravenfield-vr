@@ -276,7 +276,7 @@ namespace RavenfieldVR.Core
         internal static void InCabin(bool inside)
         {
             bool room = FrameBudget.RecentGpuTenths >= 0 && FrameBudget.RecentHz > 0 && FrameBudget.RecentGpuTenths / 10f < 0.5f * 1000f / FrameBudget.RecentHz;
-            bool want = inside && room && HoldLevel < HoldSteps;
+            bool want = inside && room && HoldLevel < HoldSteps && VRConfig.SharperCabin.Value;
             if (want == _cabinBoost)
             {
                 return;
