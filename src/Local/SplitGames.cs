@@ -1032,7 +1032,6 @@ namespace RavenfieldVR.Local
         private static float _ownWindowAt;
         private static int _reshown;
         private static bool _joined, _clientSetUp, _heardHost, _saidMatch, _goFromHost, _shown;
-        private static float _nextPlace;
         private static float _joinAt = -1f, _lastFromHost, _placedUntil;
         private static readonly FlatPlayerInput.DeviceState Received = new FlatPlayerInput.DeviceState();
 
