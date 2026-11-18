@@ -2,6 +2,18 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-18 (vehicle run to 65%, Tasks 405; **1.19.11 INSTALLED**, Defender clean; no game runs: the user tests at the end)
+
+- In 1.19.11 (not run in the game): the cabin's handwheels and steering wheel drawn turning WITH the hand (they spun the other way:
+  a "wrong direction" the user saw); the cabin's fixed parts merged into one mesh a material (the user's vehicle minutes were
+  draw-bound: 63-66% on time against 89% on foot, GPU idle); each hull twin one submesh; a measured roof (hatch lid, the handle's
+  struts, liner pads, cable run); a seat under the player; a closed cabin at a fifth more eye resolution when the GPU has room;
+  the soldier's body hidden where a seat camera sits at his head; scout fixes.
+- To read in the user's next log: "In <vehicle> (<seat>) for N s: ..% of frames ..; cabin .. renderer(s) (.. fixed parts in ..
+  mesh(es)) ..", "Vehicle inside for ...: parts crossing: ..." (a fitting through another), "Closed cabin: the eyes draw at ...".
+- In the next vehicle check (`vrshots --vehicleshots`): "the wheel drawn turning with the hand" on each closed gun seat, "parts
+  crossing", "draws:".
+
 ## State 2026-11-17 (vehicle run to 45%, Tasks 405; **1.19.10 INSTALLED** (1.19.7 plus: the driver block's near plane without the guns; no turn tunnel in a closed cabin; a scout's fixes: no wall gear in open air, no turret ring through narrow hulls, bodies given back when VR ends), Defender clean; the user tests at the end, no game runs before)
 
 - The user played 1.19.5 on 11-15/16 (1.19.6 was only packaged then); 1.19.6 installed 2026-11-17. In 1.19.7:
