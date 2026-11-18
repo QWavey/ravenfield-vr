@@ -537,6 +537,32 @@ namespace RavenfieldVR.Rig
         private readonly List<Material> _extra = new List<Material>();
 
         /// <summary>
+        /// The seat itself under the player: a cushion where the game seats the soldier (0.85 m under the eyes) on a pedestal to the
+        /// floor, and a backrest behind. The own body is not drawn in a cabin, and looking down showed the tread plate far below with
+        /// nothing sat on. Only where the floor is under the cushion (a floor met lower than 0.95 m under the eyes).
+        /// </summary>
+        private void SeatPad(float floor)
+        {
+            if (floor > -0.95f || floor < -1.49f)
+            {
+                return;
+            }
+            var cushion = new Material(Shader.Find("Standard")) { color = new Color(0.13f, 0.12f, 0.1f), mainTexture = InteriorLook.Grime() };
+            cushion.SetFloat("_Glossiness", 0.15f);
+            _extra.Add(cushion);
+            const float top = -0.83f;
+            Box("seat-cushion", new Vector3(0f, top - 0.04f, -0.06f), new Vector3(0.4f, 0.08f, 0.38f), cushion);
+            Box("seat-pan", new Vector3(0f, top - 0.095f, -0.06f), new Vector3(0.42f, 0.03f, 0.4f), _metal);
+            float post = top - 0.11f - floor;
+            if (post > 0.03f)
+            {
+                Cylinder("seat-post", new Vector3(0f, floor + post * 0.5f, -0.08f), new Vector3(0.07f, post * 0.5f, 0.07f), Quaternion.identity, _metal);
+            }
+            Box("seat-back", new Vector3(0f, top + 0.24f, -0.29f), new Vector3(0.38f, 0.42f, 0.06f), cushion);
+            Box("seat-back-frame", new Vector3(0f, top + 0.24f, -0.325f), new Vector3(0.4f, 0.44f, 0.02f), _metal);
+        }
+
+        /// <summary>
         /// The hull's roof over the head fitted out where it is (the user, 2026-11-15/17: "the interiors are still bad", "still very
         /// weird in the vehicle"): the hatch handle hung at a fixed 35 cm over the eyes in the air under a roof that may be 0.8 m up.
         /// With a roof met 0.5-1.4 m over the eyes: the hatch's lid and rim overhead, two struts from the handle up to it (moving with
@@ -1195,6 +1221,7 @@ namespace RavenfieldVR.Rig
             WallGear(roomLeft, roomRight, floor, breech, rack, gunHere != null && Tracked(_seat.vehicle));
             float ceiling = Room(new Vector3(0f, 0f, 0.05f), Vector3.up);
             RoofGear(ceiling, roomLeft, roomRight);
+            SeatPad(floor);
             Fit += $", roof {(ceiling > 1.49f ? "none met" : ceiling.ToString("0.00") + " m")}";
             // Grab handles on the side walls at eye height (over the rack and the radio, which ran through them lower), where the hull leaves room (to hold on to over rough ground).
             foreach (float side in new[] { -1f, 1f })
