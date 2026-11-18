@@ -13,6 +13,11 @@ Where the work stands, for whoever picks it up next, a compacted session include
   mesh(es)) ..", "Vehicle inside for ...: parts crossing: ..." (a fitting through another), "Closed cabin: the eyes draw at ...".
 - In the next vehicle check (`vrshots --vehicleshots`): "the wheel drawn turning with the hand" on each closed gun seat, "parts
   crossing", "draws:".
+- Since 1.19.11 (committed, offline 558 pass, packaged at the run's end): a closed cabin's eyes draw only to the hull's reach
+  (CabinFar; the log says "Closed cabin in X: the eyes draw out to N m" or "a window ... near the eyes"); setting SharperCabin;
+  scouts' fixes in open vehicles (VR off/on buzz, the pilot readout left floating, ...) and in reloading (a palmed magazine at
+  death, held-shape cache). To watch in the user's test: nothing missing outside through gaps in a closed hull (sky where terrain
+  should be would mean a hole: the window rule or CabinFar to revisit).
 
 ## State 2026-11-17 (vehicle run to 45%, Tasks 405; **1.19.10 INSTALLED** (1.19.7 plus: the driver block's near plane without the guns; no turn tunnel in a closed cabin; a scout's fixes: no wall gear in open air, no turret ring through narrow hulls, bodies given back when VR ends), Defender clean; the user tests at the end, no game runs before)
 
