@@ -891,6 +891,10 @@ namespace RavenfieldVR.Rig
 
         public void Update()
         {
+            if (_root != null && !VRConfig.SharperCabin.Value)
+            {
+                GraphicsPresets.InCabin(false); // (switched off in the cabin: at once; on again: the next cabin)
+            }
             Actor actor = GameContext.PlayerActor;
             Seat raw = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
             // (Once a seat has its inside it keeps it until the seat changes: looked at again, the eyes crossing a part's box edge as the
