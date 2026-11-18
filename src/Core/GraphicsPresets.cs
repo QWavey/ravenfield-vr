@@ -112,7 +112,7 @@ namespace RavenfieldVR.Core
             }
             else if (_cabinBoost)
             {
-                scale = Mathf.Min(scale * 1.2f, Mathf.Max(scale, 1.6f)); // (a closed cabin, the GPU with room: see InCabin)
+                scale = CabinScale(scale); // (a closed cabin, the GPU with room: see InCabin)
             }
             return Mathf.Clamp(scale, 0.5f, 2f);
         }
@@ -266,6 +266,12 @@ namespace RavenfieldVR.Core
 
         private static bool _cabinBoost;
 
+        /// <summary>A cabin's eye resolution: a fifth more than the setting's, at most 1.6 (never below the setting). Pure (offline tests).</summary>
+        internal static float CabinScale(float scale) => Mathf.Max(scale, Mathf.Min(scale * 1.2f, 1.6f));
+
+        /// <summary>The GPU has room for a sharper cabin: timed (not -1) and under half the frame. Pure (offline tests).</summary>
+        internal static bool CabinRoom(float gpuMs, float budgetMs) => gpuMs >= 0f && budgetMs > 0f && gpuMs < 0.5f * budgetMs;
+
         /// <summary>
         /// A closed vehicle's cabin taken or left. Inside, the eyes draw at a fifth more resolution (at most 1.6) when the GPU has used
         /// under half the frame over the last seconds: the user (2026-11-15) found it "kinda low res in the tank", where the cabin's
@@ -275,7 +281,7 @@ namespace RavenfieldVR.Core
         /// </summary>
         internal static void InCabin(bool inside)
         {
-            bool room = FrameBudget.RecentGpuTenths >= 0 && FrameBudget.RecentHz > 0 && FrameBudget.RecentGpuTenths / 10f < 0.5f * 1000f / FrameBudget.RecentHz;
+            bool room = FrameBudget.RecentHz > 0 && CabinRoom(FrameBudget.RecentGpuTenths / 10f, 1000f / FrameBudget.RecentHz);
             bool want = inside && room && HoldLevel < HoldSteps && VRConfig.SharperCabin.Value;
             if (want == _cabinBoost)
             {

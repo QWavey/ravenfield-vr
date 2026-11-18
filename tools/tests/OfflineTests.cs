@@ -1537,6 +1537,19 @@ namespace RavenfieldVR.Tests
             Check(H(6f, 11.1f, true) && !H(6f, 11.1f, false), "Render scale hold: 6 of 11.1 ms keeps a lowered scale but does not lower it (hysteresis)");
             Check(!H(4.5f, 11.1f, true), "Render scale hold: 4.5 of 11.1 ms gives a lowered scale back");
             Check(H(-1f, 11.1f, false) && H(3f, 0f, false), "Render scale hold: the GPU not timed (or no budget yet) lowers it as before");
+            System.Reflection.MethodInfo scale = presets.GetMethod("CabinScale", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            System.Reflection.MethodInfo room = presets.GetMethod("CabinRoom", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Check(scale != null && room != null, "Sharper cabin: CabinScale and CabinRoom found");
+            if (scale == null || room == null)
+            {
+                return;
+            }
+            float S(float s) => (float)scale.Invoke(null, new object[] { s });
+            bool R(float g, float b) => (bool)room.Invoke(null, new object[] { g, b });
+            Check(Math.Abs(S(1.2f) - 1.44f) < 1e-4f, "Sharper cabin: Ultra's 1.2 drawn at 1.44 in a cabin");
+            Check(Math.Abs(S(1.5f) - 1.6f) < 1e-4f && Math.Abs(S(1.8f) - 1.8f) < 1e-4f, "Sharper cabin: at most 1.6, and never under the setting's own (1.8 stays 1.8)");
+            Check(R(3.5f, 11.1f) && !R(6f, 11.1f), "Sharper cabin: the user's 3.5 of 11.1 ms has room, 6 of 11.1 has not");
+            Check(!R(-1f, 11.1f) && !R(2f, 0f), "Sharper cabin: an untimed GPU or no budget yet: no boost");
         }
 
         /// <summary>
