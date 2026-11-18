@@ -1424,6 +1424,8 @@ namespace RavenfieldVR.Rig
         /// before the merge, once a cabin; the five largest are said. The fittings are placed by measured room, and no game run checks
         /// each hull's layout: this does, in every seat taken.
         /// </summary>
+        private static readonly char[] Dashes = { '-', ' ' };
+
         private string Crossing()
         {
             var boxes = new List<(string family, string name, Bounds box)>();
@@ -1444,8 +1446,12 @@ namespace RavenfieldVR.Rig
                     b.Encapsulate(m.MultiplyPoint3x4(corner));
                 }
                 string n = r.name;
-                int dash = n.IndexOfAny(new[] { '-', ' ' });
-                boxes.Add((dash > 0 ? n.Substring(0, dash) : n, n, b));
+                int dash = n.IndexOfAny(Dashes);
+                string family = dash > 0 ? n.Substring(0, dash) : n;
+                // (Fittings made of parts that touch by design though named apart: the brow pad on the viewer, the rack's straps round
+                // its shells and boxes.)
+                family = family == "brow" ? "viewer" : family == "shell" || family == "ammo" ? "rack" : family;
+                boxes.Add((family, n, b));
             }
             var found = new List<(float share, string text)>();
             for (int i = 0; i < boxes.Count; i++)
