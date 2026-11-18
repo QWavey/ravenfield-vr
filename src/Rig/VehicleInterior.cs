@@ -1063,7 +1063,9 @@ namespace RavenfieldVR.Rig
         private static void Lighter(Camera c, float far)
         {
             c.cullingMask &= ~((1 << 5) | (1 << VRRig.FirstPersonLayer));
-            c.farClipPlane = Mathf.Min(c.farClipPlane, far);
+            // (Its own reach, under the preset's cap only: copied from the eyes it took their cabin reach, CabinFar, when built in a cabin
+            // just left or rebuilt (a seat change, a settle), and the periscope saw nothing past the hull's 9 m.)
+            c.farClipPlane = Mathf.Min(far, GraphicsPresets.FarClipCap);
             c.useOcclusionCulling = true;
         }
 
