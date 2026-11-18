@@ -828,7 +828,7 @@ namespace RavenfieldVR.Core
                 }
                 line += $"; light switch: {(red[0] ? "red combat light" : "DID NOT SWITCH")}, again: {(!red[1] ? "warm light" : "STAYED RED")}";
             }
-            line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}; fitted: {Rig.VehicleInterior.Instance.Fit}{(Rig.VehicleInterior.Instance.HasDriverBlock ? ", driver's vision block" : "")}; draws: {Rig.VehicleInterior.Instance.DrawSummary}";
+            line += $"; ammo readout \"{Rig.VehicleInterior.Instance.Readout}\", ready lamp {Rig.VehicleInterior.Instance.ReadyState}; fitted: {Rig.VehicleInterior.Instance.Fit}{(Rig.VehicleInterior.Instance.HasDriverBlock ? ", driver's vision block" : "")}; draws: {Rig.VehicleInterior.Instance.DrawSummary}; parts crossing: {Rig.VehicleInterior.Instance.Crossings}";
             line += $"; ammo rack: {Rig.VehicleInterior.Instance.RackState}";
             Rig.VehicleInterior.TestAlarm = true;
             yield return new WaitForSecondsRealtime(0.2f);

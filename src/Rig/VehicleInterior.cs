@@ -1318,14 +1318,81 @@ namespace RavenfieldVR.Rig
                     AmmoReadout(); // (a driver with no gun: the readout shows the speed)
                 }
             }
+            Crossings = Crossing();
             int merged = _mergedParts = MergeFixed();
-            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
+            Log.InfoOnce("vehicle-interior:" + _seat.vehicle.name, $"Vehicle inside for {_seat.vehicle.name} ({merged} fixed part(s) drawn as {_merged.Count} mesh(es); parts crossing: {Crossings}; {(Gun(_seat) != null ? "handwheels, fire control, ammunition readout" : "no gun")}{(_seat.IsDriverSeat() ? ", drive buttons" : "")}{(_levers[0] != null ? ", steering levers" : _throttleOnly ? ", throttle lever" : "")}; {Fit}; {cleared} small part(s) cleared from before the eyes).");
         }
 
         /// <summary>For the vehicle check and the log: the hull's room round the seat and what was fitted in it.</summary>
         internal string Fit { get; private set; } = "none";
 
         private readonly List<Mesh> _merged = new List<Mesh>();
+
+        /// <summary>For the log and the vehicle check: cabin parts of different fittings running into each other ("none" when clear).</summary>
+        internal string Crossings { get; private set; } = "none";
+
+        /// <summary>
+        /// Cabin parts of different fittings (their names' first word: "wall", "seat", "radio"...) whose boxes in the cabin's frame
+        /// overlap by more than a third of the smaller one: a fitting through another, which read as broken from the seat. Taken
+        /// before the merge, once a cabin; the five largest are said. The fittings are placed by measured room, and no game run checks
+        /// each hull's layout: this does, in every seat taken.
+        /// </summary>
+        private string Crossing()
+        {
+            var boxes = new List<(string family, string name, Bounds box)>();
+            Matrix4x4 toRoot = _root.transform.worldToLocalMatrix;
+            foreach (MeshRenderer r in _root.GetComponentsInChildren<MeshRenderer>())
+            {
+                MeshFilter f = r.GetComponent<MeshFilter>();
+                if (f == null || f.sharedMesh == null || r.GetComponent<TextMesh>() != null)
+                {
+                    continue;
+                }
+                Bounds local = f.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * r.transform.localToWorldMatrix;
+                var b = new Bounds(m.MultiplyPoint3x4(local.center), Vector3.zero);
+                for (int c = 0; c < 8; c++)
+                {
+                    Vector3 corner = local.center + Vector3.Scale(local.extents, new Vector3((c & 1) == 0 ? -1 : 1, (c & 2) == 0 ? -1 : 1, (c & 4) == 0 ? -1 : 1));
+                    b.Encapsulate(m.MultiplyPoint3x4(corner));
+                }
+                string n = r.name;
+                int dash = n.IndexOfAny(new[] { '-', ' ' });
+                boxes.Add((dash > 0 ? n.Substring(0, dash) : n, n, b));
+            }
+            var found = new List<(float share, string text)>();
+            for (int i = 0; i < boxes.Count; i++)
+            {
+                for (int j = i + 1; j < boxes.Count; j++)
+                {
+                    if (boxes[i].family == boxes[j].family || !boxes[i].box.Intersects(boxes[j].box))
+                    {
+                        continue;
+                    }
+                    Vector3 lo = Vector3.Max(boxes[i].box.min, boxes[j].box.min), hi = Vector3.Min(boxes[i].box.max, boxes[j].box.max);
+                    Vector3 d = hi - lo;
+                    float shared = Mathf.Max(d.x, 0f) * Mathf.Max(d.y, 0f) * Mathf.Max(d.z, 0f);
+                    Vector3 si = boxes[i].box.size, sj = boxes[j].box.size;
+                    float smaller = Mathf.Min(si.x * si.y * si.z, sj.x * sj.y * sj.z);
+                    // (Both at least a 4 cm cube's size: rivets, buttons, dials and lamps sit in their frames by design.)
+                    if (smaller > 6.4e-5f && shared / smaller > 0.33f)
+                    {
+                        found.Add((shared / smaller, $"{boxes[i].name} x {boxes[j].name} {100f * shared / smaller:0}%"));
+                    }
+                }
+            }
+            if (found.Count == 0)
+            {
+                return "none";
+            }
+            found.Sort((a, b) => b.share.CompareTo(a.share));
+            var said = new List<string>();
+            for (int k = 0; k < found.Count && k < 5; k++)
+            {
+                said.Add(found[k].text);
+            }
+            return $"{found.Count} ({string.Join("; ", said)})";
+        }
         private int _mergedParts;
 
         /// <summary>For the seat's frame line: what the cabin draws (its parts, the merged ones, the extra cameras).</summary>
