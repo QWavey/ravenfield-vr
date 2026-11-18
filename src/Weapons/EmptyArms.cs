@@ -117,7 +117,17 @@ namespace RavenfieldVR.Weapons
         private void Copy(Weapon weapon, WeaponRig rig)
         {
             WeaponRigData d = rig.Data;
-            if (d.ArmRight == null || d.ArmLeft == null || _root != null && _key == d.Key && AllMeshes())
+            if (_root != null && _key == d.Key && AllMeshes())
+            {
+                return;
+            }
+            if (_root != null && _key != d.Key)
+            {
+                // Another gun's arms gone first: each way below out of the copy (no arms, a shared root, nothing drawn) left the gun
+                // before's on the empty hands, and with a copy kept none was taken from the loadout either (hands scout, 2026-11-18).
+                Destroy();
+            }
+            if (d.ArmRight == null || d.ArmLeft == null)
             {
                 return;
             }

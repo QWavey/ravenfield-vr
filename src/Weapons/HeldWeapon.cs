@@ -2166,6 +2166,7 @@ namespace RavenfieldVR.Weapons
                     if (r != null && r.enabled)
                     {
                         r.enabled = false;
+                        _armsOff.Add(r);
                     }
                 }
                 _armIK.Solve();
@@ -2715,6 +2716,10 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>The arm meshes this hold switched off, the only ones its end switches on again (it switched on every arm mesh, a piece
+        /// the model keeps off and an ammunition-named arm too; hands scout, 2026-11-18).</summary>
+        private readonly HashSet<Renderer> _armsOff = new HashSet<Renderer>();
+
         private void HideArms()
         {
             foreach (Renderer r in Rig.ArmRenderers)
@@ -2722,6 +2727,7 @@ namespace RavenfieldVR.Weapons
                 if (r != null && r.enabled)
                 {
                     r.enabled = false;
+                    _armsOff.Add(r);
                 }
             }
         }
@@ -2874,13 +2880,14 @@ namespace RavenfieldVR.Weapons
                     _system.Rig.Off.Model.Solid = null;
                 }
             }
-            foreach (Renderer r in Rig.ArmRenderers)
+            foreach (Renderer r in _armsOff)
             {
                 if (r != null && !Weapon.isHidden)
                 {
                     r.enabled = true;
                 }
             }
+            _armsOff.Clear();
             DestroyDebug();
             TwoHanded = false;
             VRHand main = _system.Rig.Dominant;
