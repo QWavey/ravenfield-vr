@@ -2485,9 +2485,11 @@ namespace RavenfieldVR.Weapons
                 float gripLine = _gripPinned ? 0.08f : 0.06f;
                 bool onGrip = posed && (grip.position - Rig.ToWorld(Rig.Data.GripPoint)).sqrMagnitude < gripLine * gripLine;
                 _gripPinned = onGrip;
+                // (A gun passed to this hand and held where it took it: the glove stays where it held the handguard, WeaponSystem.PassGloveInGun.)
+                RigidPose? keptGlove = Rig.GunBody != null ? _system.PassGloveInGun(Weapon) : null;
                 main.Model.SnapPose = onGrip
                     ? main.Side == Hand.Right ? grip : MirrorAcrossGun(grip) // the rig's gun hand is a right hand
-                    : (RigidPose?)null;
+                    : keptGlove.HasValue ? Rig.GunBodyPose.Multiply(keptGlove.Value) : (RigidPose?)null;
                 if (!_saidGripSnapOff && posed && !onGrip)
                 {
                     _saidGripSnapOff = true; // once a hold: this runs every frame, and the strings and the pose were made every frame

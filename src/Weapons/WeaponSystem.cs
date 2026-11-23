@@ -1399,6 +1399,12 @@ namespace RavenfieldVR.Weapons
             // its still held there and doesnt snap to the trigger ... when you switch hands or release or anything to bring out a
             // pistol"). Taken over by the grip, it jumped by the hands' spacing along the gun.
             RigidPose kept = HeldWeapon.HoldFrame(to, Held.Rig.Data).Inverse().Multiply(HandPose(Held).Multiply(HeldWeapon.GripFrame(Held.Rig.Data)));
+            // Where the support glove was drawn on the gun (pinned on the handguard, SnapPose), in the gun's frame: it stays there.
+            // Released, the pin went and the glove fell back onto the tracked hand plus its old offset, so the hand slid along or off the
+            // handguard as the trigger hand let go (the user, 2026-11-23: "the grab position changes when the triggerhand lets go").
+            RigidPose? gloveInGun = to.Model != null && to.Model.SnapPose.HasValue && Held.Rig.GunBody != null
+                ? Held.Rig.GunBodyPose.Inverse().Multiply(to.Model.SnapPose.Value)
+                : (RigidPose?)null;
             Weapon passed = Held.Weapon;
             ReleaseHeld(); // the support grip and reload state go with it; the weapon is taken up again next frame
             from.Role = HandRole.Free;
@@ -1407,6 +1413,7 @@ namespace RavenfieldVR.Weapons
             VRInput.SetGunHand(to.Side);
             _passHold = kept;
             _passWeapon = passed;
+            _passGloveInGun = gloveInGun;
             if (to.Model != null)
             {
                 to.Model.KeepGraspOffset = true; // (the glove stays where it held the gun, not back onto the tracked hand) 
@@ -1424,6 +1431,14 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private RigidPose? _passHold;
         private Weapon _passWeapon;
+        /// <summary>The keeping hand's glove on the gun at the pass (gun body frame), or null when it was not pinned on it.</summary>
+        private RigidPose? _passGloveInGun;
+
+        /// <summary>
+        /// Where the hand that keeps a passed gun is drawn on it (gun body frame) while it is held where that hand took it, or null: the
+        /// glove stays where it held the handguard instead of sliding back onto the tracked hand.
+        /// </summary>
+        internal RigidPose? PassGloveInGun(Weapon weapon) => HeldWhereTaken(weapon) ? _passGloveInGun : null;
         /// <summary>The hand that held the gun where it took it, until the gun is taken up again by its grip (it keeps the handguard then).</summary>
         private VRHand _regripSupport;
         private float _passEaseAt = -1f;
@@ -1497,6 +1512,7 @@ namespace RavenfieldVR.Weapons
             VRInput.SetGunHand(free.Side);
             _passHold = kept;
             _passWeapon = weapon;
+            _passGloveInGun = null;
             _passEaseAt = Time.unscaledTime;
             _regripSupport = holding;
             free.Haptic(0.04f, 140f, 0.5f);
