@@ -334,7 +334,10 @@ namespace RavenfieldVR.Sandbox
                     a = TakeFromPool(team) ?? ActorManager.instance.CreateAIActor(team);
                     Vector3 spot = at + side * ((i - (count - 1) * 0.5f) * 1.5f);
                     const int mask = ~Hitbox.ALL_HITBOX_LAYER_MASK & ~(1 << 2);
-                    if (i > 0 && Physics.Raycast(spot + Vector3.up * 2f, Vector3.down, out RaycastHit g, 6f, mask, QueryTriggerInteraction.Ignore))
+                    // (Every soldier set off the pointed spot, the first too, from 6 m up: with i > 0 only, the first of a group of 2, 4 or 8
+                    // stood 0.75 m aside unchecked, in a wall or over a drop; and from 2 m up a side point on a step higher than that missed.)
+                    bool offset = Mathf.Abs(i - (count - 1) * 0.5f) > 1e-3f;
+                    if (offset && Physics.Raycast(spot + Vector3.up * 6f, Vector3.down, out RaycastHit g, 12f, mask, QueryTriggerInteraction.Ignore))
                     {
                         spot = g.point;
                     }

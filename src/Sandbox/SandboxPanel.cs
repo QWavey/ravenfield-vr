@@ -78,6 +78,7 @@ namespace RavenfieldVR.Sandbox
                 h = h * 31 + (GameContext.InGame ? 1 : 0);
                 h = h * 31 + (Time.unscaledTime < _statusUntil && _status.Length > 0 ? 1 : 0);
                 h = h * 31 + Sandbox.SpawnedCount;
+                h = h * 31 + Sandbox.VehiclePictureCount; // (pictures taken after the page was built: shown; scout)
                 h = h * 31 + Sandbox.PlacedCount;
                 h = h * 31 + (Sandbox.Paused ? 1 : 0);
                 h = h * 31 + (Sandbox.Fly ? 1 : 0);
