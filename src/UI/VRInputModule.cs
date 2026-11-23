@@ -178,7 +178,7 @@ namespace RavenfieldVR.UI
             ProcessScroll(over);
         }
 
-        private GameObject _hoveredTarget;
+        private GameObject _hoveredTarget, _hoverOver, _hoverTarget;
         private float _tickAt = -1f;
 
         /// <summary>
@@ -187,7 +187,13 @@ namespace RavenfieldVR.UI
         /// </summary>
         private void HoverTick(GameObject over)
         {
-            GameObject target = over != null ? ExecuteEvents.GetEventHandler<IPointerClickHandler>(over) : null;
+            // (The handler looked up only when the laser is over something new: it walked up the hierarchy every frame; scout.)
+            if (over != _hoverOver)
+            {
+                _hoverOver = over;
+                _hoverTarget = over != null ? ExecuteEvents.GetEventHandler<IPointerClickHandler>(over) : null;
+            }
+            GameObject target = _hoverTarget;
             if (target == _hoveredTarget)
             {
                 return;

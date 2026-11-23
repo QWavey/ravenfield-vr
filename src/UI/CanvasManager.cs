@@ -366,6 +366,13 @@ namespace RavenfieldVR.UI
                 {
                     continue;
                 }
+                if (ChangedMasks.Exists(x => ReferenceEquals(x.mask, m)))
+                {
+                    // (A mask the game turned on again: off once more, its first record kept. Recorded again, its graphic's alpha
+                    // was ours by then (0) and the restore left it transparent; scout.)
+                    m.enabled = false;
+                    continue;
+                }
                 RectMask2D added = null;
                 if (m.GetComponent<RectMask2D>() == null)
                 {

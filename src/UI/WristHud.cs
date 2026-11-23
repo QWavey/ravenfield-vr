@@ -214,6 +214,9 @@ namespace RavenfieldVR.UI
         private string _vehicleLine;
 
         /// <summary>The vehicle line's numbers packed into one int (-1: not in a vehicle) and its text (made again only when they change).</summary>
+        private int _height;
+        private float _heightAt;
+
         private int VehicleInfo(Actor actor, out string line)
         {
             line = null;
@@ -224,11 +227,18 @@ namespace RavenfieldVR.UI
             }
             int speed = Mathf.RoundToInt(v.Velocity().magnitude * 3.6f / 5f) * 5;
             bool air = Util.GameContext.SeatKind == Util.VehicleKind.Airplane || Util.GameContext.SeatKind == Util.VehicleKind.Helicopter;
-            int height = 0;
-            if (air && Physics.Raycast(v.transform.position, Vector3.down, out RaycastHit ground, 3000f, 1, QueryTriggerInteraction.Ignore))
+            // (The ground below cast five times a second, not every frame: shown in 5 m steps; scout.)
+            if (!air)
             {
-                height = Mathf.RoundToInt(ground.distance / 5f) * 5;
+                _height = 0;
             }
+            else if (Time.unscaledTime >= _heightAt)
+            {
+                _heightAt = Time.unscaledTime + 0.2f;
+                _height = Physics.Raycast(v.transform.position, Vector3.down, out RaycastHit ground, 3000f, 1, QueryTriggerInteraction.Ignore)
+                    ? Mathf.RoundToInt(ground.distance / 5f) * 5 : 0;
+            }
+            int height = _height;
             int health = v.maxHealth > 0f ? Mathf.Clamp(Mathf.RoundToInt(v.health / v.maxHealth * 100f), 0, 100) : 100;
             int packed = Mathf.Min(speed, 9995) / 5 * 1000000 + Mathf.Min(height, 4995) / 5 * 1000 + health;
             if (packed != _shownVehicle || _vehicleLine == null)
