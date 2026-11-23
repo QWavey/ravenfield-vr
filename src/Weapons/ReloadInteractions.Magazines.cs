@@ -921,6 +921,8 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>How deep the gun's well in its grip is from the side (its seated magazine inside the gun), -1 until measured.</summary>
         private float _gripWellDepth = -1f;
+        /// <summary>No new measure before this (unscaled): the side view not ready, it was walked every frame of the hold; scout.</summary>
+        private float _gripWellRetryAt;
 
         /// <summary>
         /// A magazine going into a well in the grip runs on its rail from the grip's bottom: its rail was at most 9 cm, and on
@@ -931,7 +933,7 @@ namespace RavenfieldVR.Weapons
         private void GripWellRail(MagazineProp prop)
         {
             float length = Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal);
-            if (_gripWellDepth < 0f && _held.HandsSolid != null)
+            if (_gripWellDepth < 0f && _held.HandsSolid != null && Time.unscaledTime >= _gripWellRetryAt)
             {
                 RigidPose seated = SeatPose;
                 float depth = 0f;
@@ -943,7 +945,8 @@ namespace RavenfieldVR.Weapons
                     }
                     depth = s;
                 }
-                if (depth > 0.01f) // else the gun's side view is not ready yet: measured again next frame
+                _gripWellRetryAt = Time.unscaledTime + 0.25f;
+                if (depth > 0.01f) // else the gun's side view is not ready yet: measured again in a moment
                 {
                     _gripWellDepth = depth;
                     Log.InfoOnce("gripwell:" + Data.Key, $"{Data.Key}: the well in the grip is {depth * 100f:0.0} cm deep from the side; a magazine's rail starts at its bottom ({prop.RailLength * 100f:0.0} cm before).");

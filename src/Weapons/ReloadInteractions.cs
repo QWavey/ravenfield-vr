@@ -1066,7 +1066,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal void StepParts()
         {
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            float dt = GameManager.IsPaused() ? 0f : Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             if (!_returning)
             {
                 _returnSpeed = 0f; // (each return from a standing start)
@@ -1141,7 +1141,8 @@ namespace RavenfieldVR.Weapons
 
         public void BeforeRender()
         {
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            // (Held still in a pause: a magazine ejected or a slide let go just before it fell out or slammed home in the paused match; scout.)
+            float dt = GameManager.IsPaused() ? 0f : Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             UpdateEject(dt);
             DrawAlmostSeated();
             // Press check: eased back part way (not far enough to throw it out), the chambered round shows in the port.
