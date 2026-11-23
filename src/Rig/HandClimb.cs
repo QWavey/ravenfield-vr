@@ -107,7 +107,9 @@ namespace RavenfieldVR.Rig
             // The body moved so each holding hand is back where it took hold: the mean of their pulls.
             Vector3 pull = Vector3.zero, handSpeed = Vector3.zero;
             int n = 0;
-            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+            // (Real time: the hands move in it, in slow motion too. On game time the easing lagged 1/scale too long, a held-still hand
+            // still swung the body on letting go, and the speed was in game units; slow-motion scout, 2026-11-23.)
+            float dt = Mathf.Clamp(Time.unscaledDeltaTime, 1e-4f, 0.05f);
             for (int i = 0; i < 2; i++)
             {
                 if (!Holding[i])
@@ -152,8 +154,14 @@ namespace RavenfieldVR.Rig
             CockpitPin.Set(Owner, hand, null);
             if (!Climbing && fling && player != null && player.controller != null)
             {
-                Vector3 v = Vector3.ClampMagnitude(_pullVelocity, MaxFling);
-                MoveVelocity(player.controller) = v;
+                // The swing in real m/s (at most MaxFling), into the game's units: it moves by its velocity times its own step, which
+                // slow motion shortens.
+                float scale = Mathf.Max(Time.timeScale, 0.05f);
+                Vector3 v = Vector3.ClampMagnitude(_pullVelocity, MaxFling) / scale;
+                // Up and down in the controller's own velocity (gravity takes it from there); sideways it is overwritten by the stick
+                // at the controller's next step, so carried on by ClimbHoldsMovementPatch's postfix, fading (scout).
+                MoveVelocity(player.controller) = new Vector3(0f, v.y, 0f);
+                Carry = new Vector3(v.x, 0f, v.z);
                 hand.Haptic(0.03f, 90f, 0.3f);
             }
             if (!Climbing)
@@ -161,6 +169,9 @@ namespace RavenfieldVR.Rig
                 _pullVelocity = Vector3.zero;
             }
         }
+
+        /// <summary>The sideways part of a let-go swing (game m/s), moved each physics step and fading (<see cref="ClimbHoldsMovementPatch"/>).</summary>
+        internal static Vector3 Carry;
 
         /// <summary>Everything let go of (the rig going, a death, a seat): the pins too.</summary>
         internal static void Reset(VRRig rig)
@@ -176,6 +187,7 @@ namespace RavenfieldVR.Rig
             }
             _pullVelocity = Vector3.zero;
             _holder = null;
+            Carry = Vector3.zero;
         }
 
         private static readonly AccessTools.FieldRef<FirstPersonController, Vector3> MoveVelocity =
@@ -245,6 +257,24 @@ namespace RavenfieldVR.Rig
             }
             FpsActorController player = GameContext.Player;
             return player == null || !ReferenceEquals(player.controller, __instance);
+        }
+
+        /// <summary>A let-go swing's sideways part, carried on each physics step and fading (fast once on the ground, slowly in the air).</summary>
+        private static void Postfix(FirstPersonController __instance)
+        {
+            if (HandClimb.Climbing || HandClimb.Carry.sqrMagnitude < 1e-4f || !VRManager.Active)
+            {
+                return;
+            }
+            FpsActorController player = GameContext.Player;
+            if (player == null || !ReferenceEquals(player.controller, __instance) || !__instance.movementEnabled)
+            {
+                HandClimb.Carry = Vector3.zero;
+                return;
+            }
+            float dt = Time.fixedDeltaTime;
+            __instance.Move(HandClimb.Carry * dt);
+            HandClimb.Carry *= Mathf.Exp(-(__instance.OnGround() ? 12f : 1.5f) * dt / Mathf.Max(Time.timeScale, 0.05f));
         }
     }
 }

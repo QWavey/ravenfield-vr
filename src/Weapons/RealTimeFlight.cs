@@ -76,7 +76,8 @@ namespace RavenfieldVR.Weapons
             Vector3 step = v * dt;
             if (s >= 0.999f || f.Flown > 3f || step.sqrMagnitude > 1e-10f && Physics.SphereCast(new Ray(g.transform.position, step), g.radius, out _, step.magnitude * 2f, GameMask))
             {
-                g.velocity *= s; // at the world's pace from here: the game's step bounces it
+                // (Its velocity left as it is: the game's step moves it by velocity times its own slowed step, so it goes on at the world's
+                // pace by itself. Scaled down here too, a bounce in slow motion went on at the scale squared: 0.4 m/s for 2; scout.)
                 Flying.Remove(g);
                 return true;
             }
@@ -184,8 +185,7 @@ namespace RavenfieldVR.Weapons
             f.Flown += dt;
             if (s >= 0.999f || f.Flown > 3f)
             {
-                p.velocity *= s;
-                Flying.Remove(p);
+                Flying.Remove(p); // (velocity left as it is: the game's slowed step gives the world's pace)
                 return true;
             }
             p.velocity += Physics.gravity * p.configuration.gravityMultiplier * dt;
@@ -203,7 +203,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!on || !p.enabled)
             {
-                p.velocity *= s; // (stopped on something: the world's pace from here)
+                // (Stopped on something: the world's pace from here, by the game's own slowed step; scaled too, it went at the scale squared.)
                 Flying.Remove(p);
             }
             return false;
