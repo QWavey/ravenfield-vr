@@ -1361,7 +1361,7 @@ namespace RavenfieldVR.Weapons
             }
             if (spawning)
             {
-                Log.Guard("New life: body grab", () => _bodyGrab?.ReleaseAll());
+                Log.Guard("New life: body grab", () => _bodyGrab?.ReleaseAll(sceneChange: false));
             }
         }
 

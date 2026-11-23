@@ -370,6 +370,13 @@ namespace RavenfieldVR.Weapons
             catch (System.Exception e)
             {
                 Log.ExceptionOnce("grenade strap", e);
+                // (Thrown as let go instead: a strap added before the throw kept snapping the flying grenade back onto the bone; scout.)
+                StrappedGrenade half = p != null ? p.GetComponent<StrappedGrenade>() : null;
+                if (half != null)
+                {
+                    half.enabled = false; // (Destroy waits for the frame's end; its LateUpdate would snap it once more)
+                    Object.Destroy(half);
+                }
                 return false;
             }
         }

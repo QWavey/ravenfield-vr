@@ -883,6 +883,13 @@ namespace RavenfieldVR.Weapons
             catch (System.Exception e)
             {
                 Log.WarnOnce("bodygrab-neck-attach", "Body grab: the neck hold could not become a body hold: " + e.Message);
+                // (As TryTake's: a joint made and not kept, or a hold kept before the throw, pinned the soldier's bone where he was; scout.)
+                if (_settingUp != null)
+                {
+                    Object.Destroy(_settingUp);
+                    _settingUp = null;
+                }
+                Release(i, hand, thrown: false);
                 _holds[i] = null;
             }
         }
@@ -1214,9 +1221,13 @@ namespace RavenfieldVR.Weapons
         private static readonly Dictionary<Actor, RigidbodyInterpolation[]> DrawnAs = new Dictionary<Actor, RigidbodyInterpolation[]>();
 
         /// <summary>Lets go of everything (scene change, VR stopping).</summary>
-        public void ReleaseAll()
+        public void ReleaseAll(bool sceneChange = true)
         {
-            _selfPairs.Clear(); // (a scene change: their soldiers went with it)
+            if (sceneChange)
+            {
+                _selfPairs.Clear(); // (a scene change: their soldiers went with it. Not at a new life: a body let go lies on, its limbs
+                                    // passing through its own trunk for good; scout. RestoreSelfPairs drops gone soldiers anyway.)
+            }
             for (int i = 0; i < 2; i++)
             {
                 Release(i, _rig.Hands[i], thrown: false);
