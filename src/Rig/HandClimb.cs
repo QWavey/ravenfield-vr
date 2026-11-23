@@ -32,6 +32,12 @@ namespace RavenfieldVR.Rig
         private static readonly Vector3[] LastRel = new Vector3[2];    // the hand against the body last frame, for the let-go speed
         private static Vector3 _pullVelocity;
         private static readonly Collider[] Hits = new Collider[16];
+        /// <summary>The soldier the hands hold on for: another one (a takeover, a new life with no dead frame) ends the hold.</summary>
+        private static Actor _holder;
+        /// <summary>When each hand's squeeze on the level began (-1: none): it holds on only after <see cref="TakeHoldAfter"/>, if nothing
+        /// else took the hand meanwhile (a gun or magazine in reach, a holster, getting into a vehicle; scout).</summary>
+        private static readonly float[] SqueezeAt = { -1f, -1f };
+        private const float TakeHoldAfter = 0.2f;
 
         /// <summary>Whether a hand holds on to the level now: the game's movement step is held off (<see cref="ClimbHoldsMovementPatch"/>).</summary>
         internal static bool Climbing => Holding[0] || Holding[1];
@@ -50,18 +56,42 @@ namespace RavenfieldVR.Rig
                 {
                     continue;
                 }
-                if (Holding[i] && (!can || !hand.Tracked || !hand.GrabHeld || hand.Role != HandRole.Free))
+                bool sameSoldier = player != null && ReferenceEquals(player.actor, _holder);
+                if (Holding[i] && (!can || !sameSoldier || !hand.Tracked || !hand.GrabHeld || hand.Role != HandRole.Free))
                 {
-                    LetGo(i, hand, player, can);
+                    // (A swing only on a real let-go: tracked and the grip opened. A controller lost behind the body mid-pull, a death or a
+                    // takeover flung the body at the last pull's speed; scout.)
+                    LetGo(i, hand, player, can && sameSoldier && hand.Tracked && !hand.GrabHeld);
+                    continue;
                 }
-                else if (!Holding[i] && can && hand.Tracked && hand.GrabPressed && hand.Role == HandRole.Free && hand.Held == null
-                         && TouchesLevel(hand.Palm.position, out Vector3 onSurface))
+                if (Holding[i])
                 {
+                    continue;
+                }
+                if (!can || !hand.Tracked || !hand.GrabHeld || hand.Role != HandRole.Free || hand.Held != null)
+                {
+                    SqueezeAt[i] = -1f;
+                    continue;
+                }
+                if (hand.GrabPressed)
+                {
+                    SqueezeAt[i] = Time.unscaledTime; // (not consumed: a pickup in reach may still take this squeeze)
+                }
+                if (SqueezeAt[i] < 0f || Time.unscaledTime - SqueezeAt[i] < TakeHoldAfter)
+                {
+                    continue;
+                }
+                SqueezeAt[i] = -1f;
+                if (TouchesLevel(hand.Palm.position, out Vector3 onSurface))
+                {
+                    if (!Climbing)
+                    {
+                        _holder = player.actor;
+                    }
                     Holding[i] = true;
                     Anchor[i] = hand.Raw.position;
                     Grip[i] = onSurface;
                     LastRel[i] = hand.Raw.position - player.transform.position;
-                    VRInput.Consume(DigitalAction.Grab, hand.Side);
                     hand.Haptic(0.05f, 120f, 0.5f);
                     if (!Climbing || !Holding[1 - i])
                     {
@@ -75,8 +105,9 @@ namespace RavenfieldVR.Rig
                 return;
             }
             // The body moved so each holding hand is back where it took hold: the mean of their pulls.
-            Vector3 pull = Vector3.zero;
+            Vector3 pull = Vector3.zero, handSpeed = Vector3.zero;
             int n = 0;
+            float dt = Mathf.Max(Time.deltaTime, 1e-4f);
             for (int i = 0; i < 2; i++)
             {
                 if (!Holding[i])
@@ -86,9 +117,7 @@ namespace RavenfieldVR.Rig
                 VRHand hand = rig.Hands[i];
                 pull += Anchor[i] - hand.Raw.position;
                 Vector3 rel = hand.Raw.position - player.transform.position;
-                float dt = Mathf.Max(Time.deltaTime, 1e-4f);
-                // (The body's speed is the opposite of the hand's against the body; eased, a single frame's jitter is not a fling.)
-                _pullVelocity = Vector3.Lerp(_pullVelocity, -(rel - LastRel[i]) / dt, 1f - Mathf.Exp(-12f * dt));
+                handSpeed += (rel - LastRel[i]) / dt;
                 LastRel[i] = rel;
                 CockpitPin.Set(Owner, hand, Grip[i]);
                 n++;
@@ -98,6 +127,8 @@ namespace RavenfieldVR.Rig
                 return;
             }
             pull /= n;
+            // (The body's speed is the opposite of the hands' against it, their mean, eased once a frame: a frame's jitter is not a swing.)
+            _pullVelocity = Vector3.Lerp(_pullVelocity, -handSpeed / n, 1f - Mathf.Exp(-12f * dt));
             if (pull.sqrMagnitude > MaxStep * MaxStep)
             {
                 pull = pull.normalized * MaxStep;
@@ -141,8 +172,10 @@ namespace RavenfieldVR.Rig
                     CockpitPin.Set(Owner, rig.Hands[i], null);
                 }
                 Holding[i] = false;
+                SqueezeAt[i] = -1f;
             }
             _pullVelocity = Vector3.zero;
+            _holder = null;
         }
 
         private static readonly AccessTools.FieldRef<FirstPersonController, Vector3> MoveVelocity =
@@ -165,6 +198,13 @@ namespace RavenfieldVR.Rig
         {
             onSurface = palm;
             int n = Physics.OverlapSphereNonAlloc(palm, Reach, Hits, ~0, QueryTriggerInteraction.Ignore);
+            for (int k = 0; k < n; k++)
+            {
+                if (Hits[k] != null && Hits[k].GetComponentInParent<Vehicle>() != null)
+                {
+                    return false; // (a hand on a vehicle is getting in or holding on to it, never a climb up the wall beside it; scout)
+                }
+            }
             float best = float.MaxValue;
             bool found = false;
             for (int k = 0; k < n; k++)
