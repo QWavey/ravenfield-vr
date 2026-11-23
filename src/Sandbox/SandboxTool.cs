@@ -288,6 +288,11 @@ namespace RavenfieldVR.Sandbox
             {
                 return box.parent == player;
             }
+            // (The held gun's physics stand-in sits on the beam's start when pointing past the gun: a soldier was made at the muzzle; scout.)
+            if (c.attachedRigidbody != null && c.attachedRigidbody.GetComponent<global::RavenfieldVR.Weapons.GunProxyBody>() != null)
+            {
+                return true;
+            }
             return player != null && c.transform.IsChildOf(player.transform);
         }
 
@@ -347,9 +352,23 @@ namespace RavenfieldVR.Sandbox
                 // may be among those left out, the soldier made on a wall behind or "Point at the ground." said (scout,
                 // 2026-11-11; the user: "spawning enemys on a modded map for example doesnt spawn them"). Then the beam only as
                 // far as the nearest thing of all, where nothing is left out.
-                if (Physics.Raycast(_from, direction, out RaycastHit first, Reach, ~(1 << 2), QueryTriggerInteraction.Ignore) && !Own(first.collider, player))
+                // (Stepped past the player's own colliders and the held gun's: the first of those ended the search, and the full,
+                // unordered list was used after all; scout.)
+                Vector3 at = _from;
+                float gone = 0f;
+                for (int step = 0; step < 6; step++)
                 {
-                    n = Physics.RaycastNonAlloc(_from, direction, Hits, first.distance + 0.05f, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                    if (!Physics.Raycast(at, direction, out RaycastHit first, Reach - gone, ~(1 << 2), QueryTriggerInteraction.Ignore))
+                    {
+                        break;
+                    }
+                    if (!Own(first.collider, player))
+                    {
+                        n = Physics.RaycastNonAlloc(_from, direction, Hits, gone + first.distance + 0.05f, ~(1 << 2), QueryTriggerInteraction.Ignore);
+                        break;
+                    }
+                    gone += first.distance + 0.01f;
+                    at = _from + direction * gone;
                 }
                 Log.InfoOnce("sandbox-beam-full", $"Sandbox tool: more than {Hits.Length} things along the beam on this map; the nearest is asked for by itself.");
             }
