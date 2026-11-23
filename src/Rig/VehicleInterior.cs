@@ -2947,6 +2947,13 @@ namespace RavenfieldVR.Rig
                 Object.Destroy(_root);
                 _root = null;
             }
+            if (_scope != null)
+            {
+                // (Off and untargeted before its texture goes: the root and so the camera are destroyed only at the frame's end, and it
+                // rendered into the released texture meanwhile; as VRScope.Destroy does. Scope scout.)
+                _scope.enabled = false;
+                _scope.targetTexture = null;
+            }
             if (_scopeTexture != null)
             {
                 _scopeTexture.Release();

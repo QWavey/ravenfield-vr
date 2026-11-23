@@ -184,6 +184,10 @@ namespace RavenfieldVR.Weapons
                 _magOriginalScales = rig.MagazinePartScales;
                 Step("draw: scope");
                 AdoptOwnScopeCamera(weapon, rig);
+                if (!VRConfig.VRScopes.Value)
+                {
+                    VRScope.ReleaseSpares(); // (lenses turned off in the config: the kept textures, up to ~200 MB at 2048, go too; scope scout)
+                }
                 if (VRConfig.VRScopes.Value && VRScope.Wanted(weapon, rig))
                 {
                     _scopeMode = weapon.GetSightModeIndex();
@@ -1968,6 +1972,7 @@ namespace RavenfieldVR.Weapons
                 Reload.BeforeRender();
                 Sounds.Update(); // a mechanical sound's slice still fades out at its end (it stopped there at full level: a click)
                 _counter?.BeforeRender(ActiveAmmo); // (its number and its flash's time go on: they froze until tracking came back; HUD scout)
+                _scope?.BeforeRender(false); // (the lens's camera off with no hand to aim: it kept rendering a second scene; scope scout)
                 return;
             }
             // A support hand that loses tracking (hidden behind the gun from the headset's cameras) still holds: the two-hand aim eases
