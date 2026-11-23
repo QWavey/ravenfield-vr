@@ -468,6 +468,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Autotest: shells a reach for its two-shell step (0: one, as the test's hand loads).</summary>
         internal static int TestShellsPerReach;
+        private float _shellNearAt = -100f;
 
         private bool AcceptsNow(MagazineProp prop)
         {
@@ -655,8 +656,18 @@ namespace RavenfieldVR.Weapons
                 float drawnLateral = lateral;
                 float drawnAlong = magazine && prop.Go != null ? PoseAlongRail(prop, RigidPose.Of(prop.Go.transform), out drawnLateral) : along;
                 bool atMouth = !magazine || drawnAlong < MouthReach + 0.005f;
-                float lateralMax = rocket ? 0.06f : enBloc ? 0.06f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
-                float angleMax = enBloc ? 181f : !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
+                // A shell into a tube's port: taken more loosely, and also nose forward along the bore (the way a hand loads a tube,
+                // pushed up into the port and on forward). The way in comes from the reload's first shell motion, about 45 degrees off
+                // the bore on the BRYSON 800, and a shell held along the gun and pushed up into the port was never taken; the test,
+                // which pushes it along that line, loaded 8/8 (the user, 2026-11-23: "still cant reload shells").
+                bool tube = prop.Kind == PropKind.Shell && Data.Action == ActionType.ShellFed && !Breaks;
+                if (tube)
+                {
+                    float alongBore = Vector3.Angle(hold.TransformDirection(prop.InsertDirLocal), Rig.AimWorld);
+                    angle = Mathf.Min(angle, alongBore);
+                }
+                float lateralMax = rocket ? 0.06f : enBloc ? 0.06f : tube ? 0.05f : !atMouth ? MagazineProp.WellPlay * 0.75f : grip ? 0.045f : 0.035f;
+                float angleMax = enBloc ? 181f : tube ? 60f : !atMouth ? MagazineProp.InWellTurn : grip || rocket ? 40f : 35f;
                 if (magazine && atMouth)
                 {
                     // How forgiving the well's mouth is (MagazineInsertHelp: other VR shooters' "easy magazine loading"). Only at
@@ -703,6 +714,18 @@ namespace RavenfieldVR.Weapons
                     else
                     {
                         lined = false;
+                    }
+                }
+                if (prop.Kind == PropKind.Shell && !lined && lateral < 0.1f && along > -0.1f && along < prop.RailLength + 0.05f)
+                {
+                    // (Once per gun, then every 20 s: what a shell near the port missed by.)
+                    string nearKey = "shellnear:" + Data.Key;
+                    if (!Log.Logged(nearKey) || Time.unscaledTime > _shellNearAt + 20f)
+                    {
+                        _shellNearAt = Time.unscaledTime;
+                        Log.Info($"{Data.Key}: a shell near the port, not taken: {along * 100f:0.0} cm along its {prop.RailLength * 100f:0.0} cm way, "
+                                 + $"{lateral * 100f:0.0} cm aside ({lateralMax * 100f:0.0} at most), turned {angle:0} deg ({angleMax:0} at most), back-out {prop.BackOutFirst}, room {Ammo.TubeRoom}.");
+                        Log.InfoOnce(nearKey, "(shell near-miss logged)");
                     }
                 }
                 if (enBloc && !lined && lateral < 0.15f && along > -0.12f && along < prop.RailLength + 0.05f && Log.DebugOn)

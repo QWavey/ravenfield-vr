@@ -1129,7 +1129,25 @@ namespace RavenfieldVR.Weapons
                     size = s;
                 }
             }
-            return best > 0f && WeaponAnalyzer.ShellSized(new Bounds(Vector3.zero, size));
+            foreach (SkinnedMeshRenderer sk in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (sk.sharedMesh == null)
+                {
+                    continue;
+                }
+                Vector3 scale = sk.transform.lossyScale;
+                Vector3 s = Vector3.Scale(sk.sharedMesh.bounds.size, new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+                float volume = s.x * s.y * s.z;
+                if (volume > best)
+                {
+                    best = volume;
+                    size = s;
+                }
+            }
+            bool ok = best > 0f && WeaponAnalyzer.ShellSized(new Bounds(Vector3.zero, size));
+            Log.InfoOnce("shellownframe:" + root.name, $"Shell part '{root.name}' in its own frame: {size.x * 100f:0.0} x {size.y * 100f:0.0} x {size.z * 100f:0.0} cm "
+                + $"({root.GetComponentsInChildren<MeshFilter>(true).Length} mesh(es), {root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length} skinned): {(ok ? "a shell" : "not a shell's size")}.");
+            return ok;
         }
 
         /// <summary>
