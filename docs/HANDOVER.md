@@ -2,7 +2,7 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-23 (bug-hunt + improve run, work-until-limit 85 / weekly 99, Tasks 407; **1.19.19 INSTALLED** (1.19.16 plus: wrecks leave the sandbox's saved set; a holster squeeze is never taken by the far magazine pull; sandbox group spawns on the ground, vehicle pictures refresh), hash checked, Defender clean; not run in the game)
+## State 2026-11-23 (bug-hunt + improve run, work-until-limit 85 / weekly 99, Tasks 407; **1.19.20 INSTALLED** (1.19.16 plus: slow-motion bounces and the climb swing fixed; wrecks leave the sandbox's saved set; a holster squeeze is never taken by the far magazine pull; sandbox group spawns on the ground, vehicle pictures refresh), hash checked, Defender clean; not run in the game)
 
 - 1.19.16 = 1.19.15 plus: a passed gun's keeping hand stays drawn where it held the handguard (WeaponSystem.PassGloveInGun); climbing by hand (Rig/HandClimb.cs, setting ClimbByHand, panel Controls) with a scout's fixes. To look at in the user's test: let the trigger hand go while the other holds the handguard (the hand must not slide); squeeze an empty hand on a wall or ledge for a moment and pull (the body rises, let go to swing over).
 
