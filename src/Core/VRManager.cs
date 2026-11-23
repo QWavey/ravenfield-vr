@@ -396,6 +396,7 @@ namespace RavenfieldVR.Core
             Log.Guard("Rig.Update", _rigUpdate);
             Log.Guard("UI.Update", _uiUpdate);
             Log.Guard("Weapons.Update", _weaponsUpdate);
+            Log.Guard("Climb", _climbUpdate ?? (_climbUpdate = () => global::RavenfieldVR.Rig.HandClimb.Update(global::RavenfieldVR.Rig.VRRig.Instance))); // (after the weapons: a squeeze they took is not a climb)
             ModTime.Stop();
         }
 
@@ -422,7 +423,7 @@ namespace RavenfieldVR.Core
 
         // Per-frame work goes to Log.Guard as delegates made once: passing a method group allocates a new delegate
         // (garbage) on every call, ten times a frame.
-        private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
+        private Action _inputUpdate, _rigUpdate, _uiUpdate, _weaponsUpdate, _climbUpdate, _suppressor, _weaponsLate, _rigRender, _weaponsRender, _uiRender, _lensRender;
         private Action[] _handApply;
         private static readonly Action PumpVREvents = OpenVRRuntime.PumpEvents, PaceFrames = OpenVRRuntime.EnforceFramePacing, FrameBudgetTick = FrameBudget.Frame,
             SmallShadowsTick = SmallShadows.Frame, TinyObjectsTick = TinyObjects.Frame, InstancedObjectsTick = InstancedObjects.Frame,

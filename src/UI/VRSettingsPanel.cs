@@ -205,6 +205,7 @@ namespace RavenfieldVR.UI
         private void BuildControls()
         {
             Choice("Sprint button", VRConfig.Sprint, new[] { SprintMode.Toggle, SprintMode.Hold }, new[] { "Toggle", "Hold" });
+            Choice("Climb by hand", VRConfig.ClimbByHand, new[] { true, false }, new[] { "On", "Off" });
             Choice("Mounted guns aim with", VRConfig.TurretAim, new[] { TurretAimMode.Head, TurretAimMode.Hand }, new[] { "Head", "Weapon hand" });
             Choice("Hands in slow motion", VRConfig.SlowHands, new[] { SlowMotionHands.Normal, SlowMotionHands.Slowed }, new[] { "Normal", "Slowed" },
                    () => Net.Multiplayer.Active); // (no slow motion in a shared match)
