@@ -414,7 +414,8 @@ namespace RavenfieldVR.Weapons
             {
                 kind = PropKind.Shell;
                 // (A tube-fed shotgun: ShellsPerReach in the hand, pushed in one by one. Not in a test run: its hand loads one a reach.)
-                int reach = Data.Action == ActionType.ShellFed && !Breaks && !Core.AutoTest.Requested ? Mathf.Clamp(VRConfig.ShellsPerReach.Value, 1, 4) : 1;
+                int reach = Data.Action == ActionType.ShellFed && !Breaks && (!Core.AutoTest.Requested || TestShellsPerReach > 1)
+                    ? Mathf.Clamp(Core.AutoTest.Requested ? TestShellsPerReach : VRConfig.ShellsPerReach.Value, 1, 4) : 1;
                 rounds = Data.Action == ActionType.ShellFed || Breaks
                     ? Mathf.Min(reach, Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? reach : Ammo.SpareAmmo)) * (Ammo.ShellChunk() > 0 ? 1 : 0)
                     : Mathf.Min(Ammo.TubeRoom, Ammo.InfiniteSpare ? int.MaxValue : Ammo.SpareAmmo);
@@ -464,6 +465,9 @@ namespace RavenfieldVR.Weapons
         }
 
         // ---- held props: free, then on the rail --------------------------------------------------------
+
+        /// <summary>Autotest: shells a reach for its two-shell step (0: one, as the test's hand loads).</summary>
+        internal static int TestShellsPerReach;
 
         private bool AcceptsNow(MagazineProp prop)
         {

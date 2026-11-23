@@ -1559,6 +1559,17 @@ namespace RavenfieldVR.Weapons
                 report($"loaded by hand, one shell at a time, to {Ammo.MagRounds}/{Ammo.Capacity}{(refused ? " (A SHELL PUSHED IN ALONG ITS LINE WAS NOT TAKEN)" : "")}; "
                        + $"shells go in {Vector3.Dot(port - Data.GripPoint, Data.AimAxis) * 100f:0} cm ahead of the grip, {-Vector3.Dot(port - Data.MuzzlePoint, Data.Up) * 100f:0.0} cm under the bore"
                        + $"{(Vector3.ProjectOnPlane(port - Data.MuzzlePoint, Data.AimAxis).magnitude > 0.12f ? " (SHELL SEAT NOT ON THE GUN)" : "")}");
+                // Two a reach, as a player loads (ShellsPerReach; the user, 2026-11-23: "when i grab ammo rn i grab 2 shells ... i cant
+                // put them in the gun"): both pushed in, one after the other, the hand backing out between them.
+                Ammo.ReturnSpare(Ammo.MagRounds);
+                Ammo.MagRounds = 0;
+                Ammo.Sync();
+                string two = null;
+                foreach (object step in LoadTwoShellsByHand(off, said => two = said))
+                {
+                    yield return step;
+                }
+                report(two);
             }
             else if (Data.Action == ActionType.SingleShot)
             {
@@ -2328,6 +2339,69 @@ namespace RavenfieldVR.Weapons
             }
             yield return null;
             done(seated);
+        }
+
+        /// <summary>
+        /// Autotest: two shells from one reach into the pouch, pushed in from 4 cm out, the hand drawn back out after the first
+        /// and in again for the second; what went in, said.
+        /// </summary>
+        private IEnumerable LoadTwoShellsByHand(VRHand off, System.Action<string> said)
+        {
+            if (!Ammo.InfiniteSpare)
+            {
+                Ammo.SpareAmmo = Mathf.Max(Ammo.SpareAmmo, Ammo.Capacity);
+            }
+            TestShellsPerReach = 2;
+            try
+            {
+                TakeFromPouch(off);
+            }
+            finally
+            {
+                TestShellsPerReach = 0;
+            }
+            if (!(off.Held is MagazineProp shell) || shell.Kind != PropKind.Shell)
+            {
+                said("two shells a reach: NO SHELL IN THE HAND");
+                yield break;
+            }
+            int inHand = shell.Rounds;
+            yield return null;
+            _seatChamber = NearestEmptyChamber(SeatPose.position);
+            RigidPose holdInRaw = off.Raw.Inverse().Multiply(shell.HoldPose(off));
+            float length = Vector3.Dot(shell.TipLocal - shell.BaseLocal, shell.InsertDirLocal);
+            int start = Ammo.MagRounds;
+            for (int k = 0; k < 2 && off.Held == shell; k++)
+            {
+                int before = Ammo.MagRounds;
+                for (float below = 0.04f; below > -(length + 0.02f) && Ammo.MagRounds == before && off.Held == shell;
+                     below -= 0.25f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+                {
+                    PlaceFreshMag(off, shell, holdInRaw, below, 0f, 0.25f);
+                    yield return null;
+                }
+                if (Ammo.MagRounds == before || off.Held != shell)
+                {
+                    break;
+                }
+                // Back out to 4 cm before the port for the next one.
+                for (float below = -length; below < 0.04f && off.Held == shell; below += 0.25f * Mathf.Clamp(Time.unscaledDeltaTime, 0.005f, 0.02f))
+                {
+                    PlaceFreshMag(off, shell, holdInRaw, below, 0f, -0.25f);
+                    yield return null;
+                }
+            }
+            VRHand.ScriptedVelocity[(int)off.Side] = Vector3.zero;
+            VRHand.Scripted[(int)off.Side] = null;
+            int went = Ammo.MagRounds - start;
+            if (off.Held is MagazineProp left)
+            {
+                Ammo.ReturnSpare(left.Rounds);
+                left.Rounds = 0;
+                left.Destroy();
+            }
+            yield return null;
+            said($"two shells a reach: {inHand} in the hand, {went} pushed in{(inHand != 2 ? " (NOT TWO IN THE HAND)" : went < 2 ? " (NOT BOTH TAKEN)" : "")}");
         }
 
         /// <summary>Autotest: a break action's chamber shells, drawn where their chambers are (open, carried with the barrels).</summary>

@@ -267,7 +267,7 @@ namespace RavenfieldVR.Weapons
                 return null;
             }
             bounds = RenderedBounds(go, d.MagBounds, d.Key);
-            if (kind == PropKind.Rocket && Longest(bounds) < 0.12f || kind == PropKind.Shell && !WeaponAnalyzer.ShellSized(bounds))
+            if (kind == PropKind.Rocket && Longest(bounds) < 0.12f || kind == PropKind.Shell && !WeaponAnalyzer.ShellSized(bounds) && !ShellSizedInOwnFrame(go.transform))
             {
                 Object.Destroy(go); // not a rocket (a fuse, a cap), not a shell: the made one instead
                 Log.InfoOnce("copytoosmall:" + kind + ":" + d.Key, $"{d.Key}: its own {kind.ToString().ToLowerInvariant()} copy measures {Longest(bounds) * 100f:0} cm, "
@@ -1090,7 +1090,7 @@ namespace RavenfieldVR.Weapons
             {
                 // The gun's own shell (its reload's), when its part is a shell's size: the hand held the mod's made 12-gauge
                 // shell on every shotgun (user, 2026-10-22: "shotguns are not displayed with their real shells").
-                return WeaponAnalyzer.ShellSized(rig.Data.MagBounds);
+                return WeaponAnalyzer.ShellSized(rig.Data.MagBounds) || ShellSizedInOwnFrame(rig.Magazine);
             }
             // A rocket whose analysed box came out empty (the scoped RPG-7V's sits under a material-less container) is copied
             // too: the copy measures itself, and one that is not rocket-sized still falls back to the made one.
@@ -1100,6 +1100,37 @@ namespace RavenfieldVR.Weapons
         }
 
         private static float Longest(Bounds b) => Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+
+        /// <summary>
+        /// A shell's size measured in its largest mesh's own frame (its world scale), not in a box along the gun's seat: a shell part
+        /// lying turned in the gun (the BRYSON 800's, 6 cm long, at about 45 degrees) measured 5 x 5 x 2 cm there, was taken for no
+        /// shell and the hand held the made 12-gauge one, two of them a reach, not the gun's own (the user, 2026-11-23).
+        /// </summary>
+        private static bool ShellSizedInOwnFrame(Transform root)
+        {
+            if (root == null)
+            {
+                return false;
+            }
+            float best = 0f;
+            Vector3 size = Vector3.zero;
+            foreach (MeshFilter mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null)
+                {
+                    continue;
+                }
+                Vector3 scale = mf.transform.lossyScale;
+                Vector3 s = Vector3.Scale(mf.sharedMesh.bounds.size, new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+                float volume = s.x * s.y * s.z;
+                if (volume > best)
+                {
+                    best = volume;
+                    size = s;
+                }
+            }
+            return best > 0f && WeaponAnalyzer.ShellSized(new Bounds(Vector3.zero, size));
+        }
 
         /// <summary>
         /// How far forward (gun-body space, along <paramref name="aim"/>) the launcher's own meshes reach: its tube's front
