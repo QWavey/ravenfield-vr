@@ -812,6 +812,30 @@ namespace RavenfieldVR.Sandbox
         /// <summary>The dead leave the sandbox's lists: a soldier the game respawns is the match's own again.</summary>
         private static void Sweep()
         {
+            // A placed vehicle the game destroyed or wrecked leaves the set: kept, Save wrote it and Load brought the wreck back
+            // (sandbox scout, 2026-11-23). Soldier pulls ("S;") stay: soldiers dying is the test going on, and a set saved after a
+            // fight still brings them back.
+            for (int i = PlacedThings.Count - 1; i >= 0; i--)
+            {
+                if (i < Placed.Count && Placed[i].StartsWith("S;", System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                bool alive = false;
+                foreach (UnityEngine.Object o in PlacedThings[i])
+                {
+                    if (o != null && !(o is Vehicle v && v.dead) && !(o is Actor a && a.dead))
+                    {
+                        alive = true;
+                        break;
+                    }
+                }
+                if (!alive && i < Placed.Count)
+                {
+                    PlacedThings.RemoveAt(i);
+                    Placed.RemoveAt(i);
+                }
+            }
             Scratch.Clear();
             foreach (KeyValuePair<Actor, SoldierBehaviour> kv in Behaviours)
             {
