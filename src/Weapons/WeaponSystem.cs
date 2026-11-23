@@ -1177,11 +1177,14 @@ namespace RavenfieldVR.Weapons
             VRHand before = Rig.Dominant;
             TakeIntoHand(hand); // the free hand takes it: the drawn weapon goes to its holster
             actor.SwitchWeapon(slot);
-            if (actor.activeWeapon != wanted && before != hand)
+            if (actor.activeWeapon != wanted)
             {
                 // The game did not draw it: the gun stays in the hand that held it (it was attached to the grabbing hand instead;
-                // holster hunt, 2026-10-21).
-                TakeIntoHand(before);
+                // holster hunt, 2026-10-21). Felt as nothing there, never the holster's sound (the gun hand's own swap played it; scout).
+                if (before != hand)
+                {
+                    TakeIntoHand(before);
+                }
                 hand.Haptic(0.05f, 40f, 0.3f);
                 return;
             }
