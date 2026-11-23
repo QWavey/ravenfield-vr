@@ -930,7 +930,10 @@ namespace RavenfieldVR.Weapons
                          + $"manual {Manual}, cover {(Ammo.HasCover ? Ammo.CoverOpen ? "open" : "shut" : "none")}, openness {_held.HingeOpenness:0.00}");
             }
 
-            if (choice == 0 && off.GrabPressed && !Core.AutoTest.Requested && VRConfig.MagazineReach.Value > 0.2f && Manual && Ammo.UsesDetachableMag)
+            // (Not a squeeze at a holster: the draw runs after this, and the far magazine took its press first, so the draw silently did
+            // nothing whenever a dropped magazine lay in the hand's pointing cone; holster scout, 2026-11-23.)
+            if (choice == 0 && off.GrabPressed && !Core.AutoTest.Requested && VRConfig.MagazineReach.Value > 0.2f && Manual && Ammo.UsesDetachableMag
+                && _sys.Zones.HolsterAt(off.Palm.position, true, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1) < 0)
             {
                 // Nothing in reach: a dropped magazine of this gun the hand points at comes to it (MagazineReach; other VR
                 // shooters' force grab, asked for on 2026-11-11: "look what other vr games have what we dont have").
