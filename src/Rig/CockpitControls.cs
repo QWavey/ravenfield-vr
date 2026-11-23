@@ -18,6 +18,8 @@ namespace RavenfieldVR.Rig
         /// <summary>The hand's tilt for a full throw of the stick: sin(25 degrees).</summary>
         private const float StickTiltFull = 0.4226f;
         private Quaternion _stickStartTurn = Quaternion.identity;
+        /// <summary>The hand's turn on the stick at the last held frame (re-based on a resume: the wrist's turn in a pause landed at once; scout).</summary>
+        private Quaternion _stickLastTurn = Quaternion.identity;
         /// <summary>The stick's centre zone, as a share of its throw (6 mm of 8 cm).</summary>
         private const float StickDeadzone = 0.075f;
 
@@ -166,6 +168,7 @@ namespace RavenfieldVR.Rig
                     if (_stickHand == hand.Side)
                     {
                         _stickStartLocal = PalmInSeat(hand) - _stickLocal;
+                        _stickStartTurn = Quaternion.Inverse(_stickLastTurn) * PalmTurnInSeat(hand);
                     }
                     if (_throttleHand == hand.Side)
                     {
@@ -317,6 +320,7 @@ namespace RavenfieldVR.Rig
                     _stickTrimAtGrab = VehicleInput.Trim ?? Vector2.zero; // (taken again from where it was let go: no jump to the middle)
                     VehicleInput.Trim = null;
                     _stickStartTurn = PalmTurnInSeat(hand);
+                    _stickLastTurn = Quaternion.identity;
                     _stickLocal = Vector3.zero; // (a pause before the first move keeps the stick centred, not the last grab's throw)
                     hand.Role = HandRole.Cockpit;
                     hand.Model.CockpitStick = true;
@@ -434,6 +438,7 @@ namespace RavenfieldVR.Rig
                     // need better controlls"): its up leaning forward is nose down, to the right is roll right, 25 degrees a full throw.
                     // Per axis the larger of the two counts (a push forward tilts the hand too: not added twice).
                     Quaternion turn = PalmTurnInSeat(hand) * Quaternion.Inverse(_stickStartTurn);
+                    _stickLastTurn = turn;
                     Vector3 up = turn * Vector3.up;
                     var tilt01 = new Vector2(Mathf.Clamp(up.x / StickTiltFull, -1f, 1f), Mathf.Clamp(up.z / StickTiltFull, -1f, 1f));
                     throw01 = new Vector2(Mathf.Abs(tilt01.x) > Mathf.Abs(throw01.x) ? tilt01.x : throw01.x,
@@ -606,6 +611,13 @@ namespace RavenfieldVR.Rig
         /// <summary>The hint's object, with the rig.</summary>
         public void Destroy()
         {
+            // (VR torn down in a seat: the wheel, stick and lever input left set, as TurretGrip's own Destroy lets go; scout.)
+            Log.Guard("Cockpit: let go", () =>
+            {
+                ReleaseAll();
+                VehicleInput.Throttle = null;
+                VehicleInput.Trim = null;
+            });
             CockpitPin.ClearAll(this, _rig.Hands); // (its pins let go: a pin left owned by a dead system kept the hand from later ones; scout)
             if (_leverHint != null)
             {

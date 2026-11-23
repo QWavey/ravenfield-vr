@@ -204,7 +204,7 @@ namespace RavenfieldVR.Input
                 _useHeldThroughSwap = false;
             }
             // (A mounted gun held by its handles fires from the trigger of either hand on them: held by the other hand alone it did not.)
-            bool gripFire = !GameManager.IsPaused() && Rig.TurretGrip.HoldsWith(off) && (VRInput.GetHeld(DigitalAction.Fire, off) || VRInput.GetHeld(DigitalAction.Use, off))
+            bool gripFire = !GameManager.IsPaused() && !GameContext.GameMenuOpen && Rig.TurretGrip.HoldsWith(off) && (VRInput.GetHeld(DigitalAction.Fire, off) || VRInput.GetHeld(DigitalAction.Use, off))
                             || Rig.VehicleInterior.Fire; // (or a closed vehicle's fire button pressed)
             Set(KeyBinds.Fire, (VRInput.GetHeld(DigitalAction.Fire, dom) && !_fireHeldThroughSwap || SupportFire || gripFire) && !SuppressFire
                                && !((menu || PanelOpen) && PointerOverUI) && !GameManager.IsPaused());
