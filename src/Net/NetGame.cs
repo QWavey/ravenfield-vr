@@ -50,6 +50,8 @@ namespace RavenfieldVR.Net
             public string[] Loadout;
             public int Slot = -1;
             public float NextSlotCheck, NextCarriedCheck;
+            /// <summary>No respawn before this (a spawn the map refused left him dead, and it was tried again every frame; scout).</summary>
+            public float NextRespawnAt;
             public int Flags;
             public Vector3 Position, Velocity;
             /// <summary>The stand-in is walking toward its told place (it stands within 12 cm then, not 25: see RemoteVelocity).</summary>
@@ -2943,8 +2945,9 @@ namespace RavenfieldVR.Net
                         continue;
                     }
                 }
-                if (alive && a.dead)
+                if (alive && a.dead && now >= r.NextRespawnAt)
                 {
+                    r.NextRespawnAt = now + 0.5f;
                     if (a.team != r.Team)
                     {
                         SetTeamAndHitboxes(a, r.Team);
@@ -3017,6 +3020,20 @@ namespace RavenfieldVR.Net
                                 if (want != null && want != has)
                                 {
                                     a.EquipNewWeaponEntry(want, i, false);
+                                }
+                                else if (want == null && has != null && string.IsNullOrEmpty(r.Loadout[i]))
+                                {
+                                    // (His owner dropped it: the slot goes empty here too. The stand-in kept the gun on his back or in his
+                                    // hands until his next life; scout.)
+                                    _switching = true;
+                                    try
+                                    {
+                                        a.DropWeapon(i);
+                                    }
+                                    finally
+                                    {
+                                        _switching = false;
+                                    }
                                 }
                             }
                         }

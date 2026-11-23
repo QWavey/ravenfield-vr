@@ -109,6 +109,11 @@ namespace RavenfieldVR.Net
         {
             if (standIn != null && standIn.ik != null)
             {
+                // (One key per remote: a re-made stand-in left its old key, and Fingers curled his hands once per key; scout.)
+                foreach (ActorIk old in ByIk.Where(kv => ReferenceEquals(kv.Value, remote) && kv.Key != standIn.ik).Select(kv => kv.Key).ToList())
+                {
+                    ByIk.Remove(old);
+                }
                 ByIk[standIn.ik] = remote;
             }
         }
@@ -156,6 +161,7 @@ namespace RavenfieldVR.Net
         internal static void Clear()
         {
             ByIk.Clear();
+            Heads.Clear(); // (keyed by remote, each holding a bone of the old scene; scout)
             Inventories.Clear(); // (the copies went with the scene, or with their soldiers)
         }
 
