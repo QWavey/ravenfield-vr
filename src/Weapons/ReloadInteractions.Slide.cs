@@ -528,6 +528,12 @@ namespace RavenfieldVR.Weapons
 
         private AudioSource _pingSource;
         private bool _pingLooked;
+        /// <summary>
+        /// Each gun's ping clip, kept as the clip itself: its source is a sound bank whose clip changes with what it plays next, so
+        /// from the second clip on (and on a gun drawn again) the ping was another sound or none (the user, 2026-11-24: "the garret
+        /// m1 has no ping sound after the first ping sound").
+        /// </summary>
+        private static readonly System.Collections.Generic.Dictionary<string, AudioClip> PingClips = new System.Collections.Generic.Dictionary<string, AudioClip>();
 
         /// <summary>
         /// The last round of an en-bloc clip fired: the empty clip flies up out of the open action with the gun's own ping
@@ -564,10 +570,19 @@ namespace RavenfieldVR.Weapons
                         break;
                     }
                 }
+                if (_pingSource != null)
+                {
+                    PingClips[Data.Key] = _pingSource.clip;
+                }
+                else if (_held.Weapon.GetComponentsInChildren<AudioSource>(true).Length > 0)
+                {
+                    _pingSource = _held.Weapon.GetComponentsInChildren<AudioSource>(true)[0]; // (its routing, for a ping kept from before)
+                }
                 Log.Info($"{Data.Key}: the empty clip's ping is {(_pingSource != null ? $"the gun's own '{_pingSource.clip.name}'" : "not found (a plain eject sound)")}.");
             }
             // (Through the mod's own source: on the gun's own it came only sometimes, see WeaponSounds.PlayOwn.)
-            if (!_held.Sounds.PlayOwn(_pingSource))
+            PingClips.TryGetValue(Data.Key, out AudioClip ping);
+            if (ping == null || !_held.Sounds.PlayOwnClip(ping, _pingSource))
             {
                 _held.Sounds.Play(MechSound.MagOut, SeatPose.position);
             }

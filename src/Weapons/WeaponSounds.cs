@@ -823,6 +823,18 @@ namespace RavenfieldVR.Weapons
         /// source's routing. Played on the gun's own source it came "sometimes" (the user, 2026-11-11): that object is switched
         /// off until the game's animation switches it on, and the game stops and restarts the source for its own sounds.
         /// </summary>
+        /// <summary>A clip of the gun's own, through the private one-shot source routed as <paramref name="template"/>.</summary>
+        internal bool PlayOwnClip(AudioClip clip, AudioSource template, float volume = 1f)
+        {
+            if (clip == null)
+            {
+                return false;
+            }
+            AudioSource player = OneShotSource(template);
+            player.PlayOneShot(clip, Audible(template != null ? template.volume : 1f) * volume);
+            return true;
+        }
+
         internal bool PlayOwn(AudioSource own, float volume = 1f)
         {
             if (own == null || own.clip == null)
