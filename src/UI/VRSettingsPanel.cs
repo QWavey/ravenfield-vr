@@ -38,7 +38,10 @@ namespace RavenfieldVR.UI
         /// <summary>The tabs' pages, and the one rows are built into.</summary>
         private readonly List<RectTransform> _pages = new List<RectTransform>();
         private RectTransform _page;
-        private readonly List<Action> _refreshers = new List<Action>();
+        private readonly List<KeyValuePair<RectTransform, Action>> _refreshers = new List<KeyValuePair<RectTransform, Action>>();
+
+        /// <summary>A value shown on the page being built (or, with no page, on the tab bar), brought up to date by <see cref="Refresh"/>.</summary>
+        private void AddRefresher(Action refresh) => _refreshers.Add(new KeyValuePair<RectTransform, Action>(_page, refresh));
         private RigidPose _localPose;
         private float _height;
 
@@ -104,11 +107,12 @@ namespace RavenfieldVR.UI
             // From the left, as wide as they fit; each lit while its page is shown.
             const float margin = 34f, gap = 8f;
             float width = Mathf.Min(210f, (CanvasWidth - 2f * margin - gap * (tabs.Count - 1)) / tabs.Count);
+            _page = null; // (the tabs' own lights: refreshed whichever page shows)
             for (int i = 0; i < tabs.Count; i++)
             {
                 int page = i;
                 Button button = MakeButton(tabBar, tabs[i].Key, CanvasWidth - margin - (i + 1) * width - i * gap, width, () => ShowPage(page), out Text text);
-                _refreshers.Add(() => Paint(button, text, ShownPage == page));
+                AddRefresher(() => Paint(button, text, ShownPage == page));
             }
 
             // One height for all of them, the footer under the tallest page: it stays where it is from tab to tab, under the laser.
@@ -358,7 +362,7 @@ namespace RavenfieldVR.UI
             RectTransform row = _lastRow;
             // (The row's buttons taken once: looked up at every refresh, an array each, every 2 s and after each click; settings scout.)
             Button[] buttons = row != null ? row.GetComponentsInChildren<Button>(true) : new Button[0];
-            _refreshers.Add(() =>
+            AddRefresher(() =>
             {
                 bool dim = greyed();
                 if (row == null)
@@ -400,7 +404,7 @@ namespace RavenfieldVR.UI
                 buttons[i] = MakeButton(row, names[i], 34f + slot * (width + 8f), width, () => entry.Value = value, out Text text);
                 texts[i] = text;
             }
-            _refreshers.Add(() =>
+            AddRefresher(() =>
             {
                 for (int i = 0; i < values.Length; i++)
                 {
@@ -429,7 +433,7 @@ namespace RavenfieldVR.UI
             var texts = new Text[2];
             buttons[0] = MakeButton(row, "On", onX, button, () => entry.Value = true, out texts[0]);
             buttons[1] = MakeButton(row, "Off", offX, button, () => entry.Value = false, out texts[1]);
-            _refreshers.Add(() =>
+            AddRefresher(() =>
             {
                 for (int i = 0; i < 2; i++)
                 {
@@ -449,7 +453,7 @@ namespace RavenfieldVR.UI
             vr.anchoredPosition = new Vector2(-98f, 0f);
             vr.sizeDelta = new Vector2(130f, RowHeight);
             MakeButton(row, "−", 236f, 56f, () => step(-1), out _);
-            _refreshers.Add(() => v.text = value());
+            AddRefresher(() => v.text = value());
         }
 
         private void ActionRow(string label, Func<string> value, string buttonLabel, Action onClick)
@@ -462,7 +466,7 @@ namespace RavenfieldVR.UI
             vr.pivot = new Vector2(1f, 0.5f);
             vr.anchoredPosition = new Vector2(-250f, 0f);
             vr.sizeDelta = new Vector2(150f, RowHeight);
-            _refreshers.Add(() => v.text = value());
+            AddRefresher(() => v.text = value());
         }
 
         private void Footer()
@@ -586,9 +590,14 @@ namespace RavenfieldVR.UI
         public void Refresh()
         {
             Changed = false;
-            foreach (Action r in _refreshers)
+            // Only the page shown, the tabs and the header and footer: every one of seven pages was refreshed every 2 s and at each
+            // click (settings scout, 2026-11-24). A page shown again is refreshed then (ShowPage sets Changed).
+            foreach (KeyValuePair<RectTransform, Action> r in _refreshers)
             {
-                r();
+                if (r.Key == null || !_pages.Contains(r.Key) || r.Key.gameObject.activeSelf)
+                {
+                    r.Value();
+                }
             }
         }
 

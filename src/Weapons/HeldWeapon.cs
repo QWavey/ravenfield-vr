@@ -2794,7 +2794,7 @@ namespace RavenfieldVR.Weapons
                 _system.Rig.Off.Model.Solid = null;
                 _system.Rig.Off.Model.SnapPose = null;
             }
-            _magnifierFlip.Release();
+            Log.Guard("Release: magnifier", _magnifierFlip.Release); // (unguarded, a throw here skipped the hands' and renderers' clean-up below; scout)
             try
             {
                 Reload.Release();
@@ -2807,9 +2807,9 @@ namespace RavenfieldVR.Weapons
             Sounds.Destroy(); // before the steps below that can throw: a failed release left its audio object on the gun
             if (_magHidden)
             {
-                RestoreMagazine();
+                Log.Guard("Release: magazine shown again", RestoreMagazine);
             }
-            ForgetMagazineCuts();
+            Log.Guard("Release: magazine cuts", ForgetMagazineCuts);
             if (Rig.Slide != null)
             {
                 Rig.Slide.localPosition = Rig.Data.SlideRestLocal;
