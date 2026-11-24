@@ -1484,6 +1484,14 @@ namespace RavenfieldVR.Weapons
             }
             if (_refilledAt >= 0f)
             {
+                if (ammo.SlideLocked)
+                {
+                    // (Kept until the slide is released or racked: sent to the loaded pose while it is locked, HoldSlideLockPose held
+                    // the animator's "loaded ammo" at 0, it went straight back to the empty pose, and with the refill used up nothing
+                    // sent it out again at the release: on guns whose animator leaves that pose only by the fire clip the slide stayed
+                    // back until the first shot; the user, 2026-11-24: "sometimes it even stays back till the first shot after reloading".)
+                    return;
+                }
                 bool magazineShown = ammo.UsesDetachableMag && ammo.MagInserted;
                 if (!magazineShown && Time.unscaledTime - _refilledAt < 0.3f)
                 {

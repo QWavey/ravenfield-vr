@@ -672,7 +672,7 @@ namespace RavenfieldVR.Weapons
                         break;
                     }
                     PumpCue(off);
-                    if (Manual && Ammo.UsesChamber && !IsPump && !GripData.IsPistol)
+                    if (Manual && Ammo.UsesChamber && !IsPump) // (pistols too: a cupping hand slid up onto the slide, grip closed, took nothing; slide scout)
                     {
                         // Slid back along the gun onto the charging handle with the grip still closed: the hand takes the handle. It
                         // stayed on the handguard (it lets go only at 60 cm of stretch) and the rack never started, a rack being taken
@@ -813,8 +813,13 @@ namespace RavenfieldVR.Weapons
                 // emptied M1 GARRET clip lay there and was handed back (user, 2026-10-16: "I grab an empty mag from the pouch").
                 caught = null;
             }
-            if (caught != null)
+            // The slide's or handle's zone, for the others to give way to where it is clearly nearer.
+            float dRackZone = Manual && Ammo.UsesChamber && !IsPump ? RackZoneDistance(palm) : float.MaxValue;
+            bool rackInReach = dRackZone < radius * 1.3f;
+            if (caught != null && !(rackInReach && !Ours(caught) && dRackZone < caught.DistanceTo(palm)))
             {
+                // (Not another gun's magazine lying by where the slide is nearer: it took the squeeze at a pistol's slide, which then
+                // "sometimes works and sometimes doesn't"; slide scout, 2026-11-24.)
                 Consider(1, caught.DistanceTo(palm) / 0.13f * 0.4f, ref choice, ref best);
             }
             if (Manual && Ammo.UsesChamber && !IsPump) // a pump is worked by the support hand's trigger (PumpByTrigger)
@@ -894,7 +899,8 @@ namespace RavenfieldVR.Weapons
             if (Manual && _sys.Zones.InPouch(palm) && !(caught != null && Ours(caught)) // (a magazine of this gun in reach wins, as said above: by the scores a pouch 5 cm off took a squeeze 8 cm from it)
                 && !(Ammo.UsesDetachableMag && Ammo.MagInserted && Vector3.Distance(palm, SeatedMagBaseWorld) < radius * 1.1f)
                 && (off.GrabPressed || Vector3.Distance(_pressPalm, _sys.Zones.Pouch) < BodyZones.PouchRadius + 0.05f)
-                && !_sys.Zones.HolsterNearerThanPouch(palm, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1))
+                && !_sys.Zones.HolsterNearerThanPouch(palm, _held.Weapon.user != null ? _held.Weapon.user.activeWeaponSlot : -1)
+                && !(GripData.IsPistol && rackInReach && dRackZone < 0.6f * Vector3.Distance(palm, _sys.Zones.Pouch))) // (a pistol racked low by the hip)
             {
                 // A pistol held low beside the hip puts its slide and its cupping zone within reach of the pouch: a
                 // squeeze in the pouch takes a magazine unless a part of the gun is clearly closer.
@@ -907,7 +913,8 @@ namespace RavenfieldVR.Weapons
                 // A palm within the charging handle's zone is the handle's unless it is clearly nearer the handguard (half the rack
                 // distance): the CZ Bren 2's knob sits at the front of the receiver where the handguard line starts, and about 6 cm
                 // off the knob's tip toward the support point the handguard won (Bren hunt, 2026-10-19, task 302).
-                float dRack = !GripData.IsPistol && Manual && Ammo.UsesChamber && !IsPump ? RackZoneDistance(palm) : float.MaxValue;
+                // (Pistols too: the cup's 12 cm zone reaches over the slide's back, and a squeeze there took the cup; slide scout.)
+                float dRack = dRackZone;
                 bool handleHolds = dRack < radius * 1.3f;
                 if (d < r && (!handleHolds || d < 0.5f * dRack))
                 {
