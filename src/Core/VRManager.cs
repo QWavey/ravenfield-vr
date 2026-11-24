@@ -296,7 +296,7 @@ namespace RavenfieldVR.Core
             // Up while the cursor is free (the menus: its buttons can be clicked there); in a match, where the cursor is locked,
             // for 40 s, and F6 still tries again after that.
             string notice = _active ? _activeNotice : _flatNotice;
-            if (notice == null || (_active || Cursor.lockState == CursorLockMode.Locked) && Time.unscaledTime > _flatNoticeUntil)
+            if (notice == null || ((_active || Cursor.lockState == CursorLockMode.Locked) && Time.unscaledTime > _flatNoticeUntil))
             {
                 if (_active)
                 {
