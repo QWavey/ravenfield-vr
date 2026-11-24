@@ -198,12 +198,13 @@ namespace RavenfieldVR.Weapons
             {
                 // (Not another PC's soldier in a shared match: his gun is on his own PC. The user's friend pulled the magazine out of the
                 // user's rifle on his PC, "he reloads", while the user's own gun never knew; his log, 2026-11-11.)
-                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled || Net.NetGame.IsRemote(a))
+                if (a == null || a == player || a.dead || a.fallenOver || !a.aiControlled)
                 {
                     continue;
                 }
                 Vector3 at = a.transform.position;
-                if ((at - mid).sqrMagnitude > within * within || a.IsSeated() || a.ragdoll != null && a.ragdoll.IsRagdoll()) // (the seat asked only of those in reach: it was asked of every soldier of the match each frame)
+                // (The match's remote soldiers asked only of those in reach: a dictionary look-up for every soldier each frame; scout.)
+                if ((at - mid).sqrMagnitude > within * within || Net.NetGame.IsRemote(a) || a.IsSeated() || a.ragdoll != null && a.ragdoll.IsRagdoll()) // (the seat asked only of those in reach: it was asked of every soldier of the match each frame)
                 {
                     continue; // (down: the gun is not in his hands)
                 }
