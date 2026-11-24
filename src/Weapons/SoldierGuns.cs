@@ -485,7 +485,12 @@ namespace RavenfieldVR.Weapons
             Vector3 across = Vector3.ProjectOnPlane(push, aim);
             if (across.sqrMagnitude < 1e-4f)
             {
-                return;
+                // A push along his aim: thrown off to his left all the same (no knock, a gun held off still let him aim and fire; scout).
+                across = Vector3.ProjectOnPlane(-soldier.transform.right, aim);
+                if (across.sqrMagnitude < 1e-4f)
+                {
+                    return;
+                }
             }
             Vector3 axis = Vector3.Cross(aim, across).normalized;
             float strength = Mathf.Clamp01(across.magnitude / 4f);
