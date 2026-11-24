@@ -1015,7 +1015,8 @@ namespace RavenfieldVR.Sandbox
             }
         }
 
-        /// <summary>This map's saved set made again where it stood.</summary>
+        /// <summary>This map's saved set made again where it stood, in place of what the sandbox has standing (loaded over it, every placement
+        /// stood twice, and saving then kept both; sandbox scout, 2026-11-24).</summary>
         internal static string LoadSet()
         {
             string[] lines;
@@ -1032,6 +1033,7 @@ namespace RavenfieldVR.Sandbox
             {
                 return "Not loaded: " + e.Message;
             }
+            int cleared = RemoveAll();
             int made = 0, failed = 0;
             {
                 foreach (string line in lines)
@@ -1064,7 +1066,7 @@ namespace RavenfieldVR.Sandbox
                 }
             }
             // (What was loaded is part of this match's set, each as the pull it was: saved again, it is kept.)
-            return $"Loaded: {made} placement(s)" + (failed > 0 ? $", {failed} could not be made here." : ".");
+            return $"Loaded: {made} placement(s)" + (failed > 0 ? $", {failed} could not be made here" : "") + (cleared > 0 ? $" ({cleared} standing taken off first)." : ".");
         }
 
         /// <summary>The player's health full, every weapon's ammunition filled (the game's own resupply). False when not on the feet.</summary>
