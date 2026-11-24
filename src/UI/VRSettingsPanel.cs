@@ -354,7 +354,6 @@ namespace RavenfieldVR.UI
         // also in a shared match: the graphics preset, the render scale and the rest are never sent to the others.
         private void Choice<T>(string label, ConfigEntry<T> entry, T[] values, string[] names, System.Func<bool> greyed)
         {
-            int before = _refreshers.Count;
             Choice(label, entry, values, names);
             RectTransform row = _lastRow;
             _refreshers.Add(() =>
