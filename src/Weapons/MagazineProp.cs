@@ -903,6 +903,16 @@ namespace RavenfieldVR.Weapons
         {
             insertGun = -d.MagEjectAxis;
             frontGun = d.AimAxis;
+            if (kind == PropKind.Shell && d.Action == ActionType.ShellFed && d.Hinge != HingeKind.BreakAction
+                && Vector3.Dot(insertGun.normalized, d.Up.normalized) < -0.2f)
+            {
+                // A tube's shell goes in nose forward, pushed up into the port under the receiver and on into the tube. The reload's
+                // first shell motion ran down through the top of the BRYSON 800's receiver, and a hand pushing a shell up from under it,
+                // as a tube is loaded, came from the far side of that line: never taken (the user, 2026-11-23/24: "still cant reload
+                // shells"; the autotest's hand, pushed along the line, loaded 8/8 from above the gun).
+                insertGun = (d.AimAxis.normalized * 0.94f + d.Up.normalized * 0.34f).normalized;
+                frontGun = Vector3.ProjectOnPlane(d.Up, insertGun).normalized;
+            }
             if (kind == PropKind.Rocket)
             {
                 // Along the bore (a slightly oblique animated axis kept a rail whose depth is measured along the bore), or
