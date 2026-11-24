@@ -1895,6 +1895,11 @@ namespace RavenfieldVR.Weapons
                 {
                     yield return null;
                 }
+                // (A box still gliding onto its seat: the gun's own shows once it is there; ShellSlideIn.Glide.)
+                for (int wait = 0; wait < 30 && Time.unscaledTime < _held.MagazineShowAfter + 0.02f; wait++)
+                {
+                    yield return null;
+                }
                 yield return new WaitForEndOfFrame();
                 bool seated = Ammo.MagInserted;
                 string back = !ownDrawn ? "(not measured: nothing of its own)"
