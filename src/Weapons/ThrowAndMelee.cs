@@ -414,7 +414,7 @@ namespace RavenfieldVR.Weapons
         /// car at 60 m/s left at about 84 along the car's heading (throw hunt, 2026-10-20).
         /// </summary>
         internal static Vector3 Released(VRHand hand) =>
-            hand.ThrowVelocity() + hand.BodyThrowVelocity() * (VRConfig.ThrowVelocityMultiplier.Value - 1f);
+            Capped(hand, hand.ThrowVelocity() + hand.BodyThrowVelocity() * (VRConfig.ThrowVelocityMultiplier.Value - 1f));
 
         /// <summary>
         /// As <see cref="Released"/>, never slower than the swing itself: backing away as it is thrown, the walk cancelled the hand's speed, and a
@@ -423,7 +423,18 @@ namespace RavenfieldVR.Weapons
         internal static Vector3 ReleasedSwing(VRHand hand)
         {
             Vector3 v = Released(hand), body = hand.BodyThrowVelocity() * VRConfig.ThrowVelocityMultiplier.Value;
-            return v.magnitude < body.magnitude * 0.7f ? body : v;
+            return Capped(hand, v.magnitude < body.magnitude * 0.7f ? body : v);
+        }
+
+        /// <summary>The fastest a throw leaves the hand (m/s): a hard human throw's 25 by the throw setting, so one bad tracking frame in the
+        /// swing's history does not send a grenade across the map (melee scout, 2026-11-24).</summary>
+        private static float MaxReleaseSpeed => 25f * Mathf.Max(1f, VRConfig.ThrowVelocityMultiplier.Value);
+
+        /// <summary>A release held to <see cref="MaxReleaseSpeed"/> against the body's own motion (a grenade from a fast car keeps the car's speed).</summary>
+        private static Vector3 Capped(VRHand hand, Vector3 v)
+        {
+            Vector3 body = hand.BodyThrowVelocity();
+            return body + Vector3.ClampMagnitude(v - body, MaxReleaseSpeed);
         }
 
         /// <summary>Fused grenades get a pin; bags, kits, charges and other throwables do not.</summary>
@@ -1170,7 +1181,10 @@ namespace RavenfieldVR.Weapons
             melee.SphereCast(ray, radius, distance, GameMeleeMask, out RaycastHit hitWall, out MeleeWeapon.RaycastHitHitbox hitEnemy,
                 out MeleeWeapon.RaycastHitHitbox hitAlly, out RaycastHit hitVehicle);
             hitWall = NearestBlockingWall(ray, distance, radius, hitWall);
-            float blocking = Mathf.Min(hitWall.collider == null || BlocksBlow(hitWall.collider) ? hitWall.distance : float.MaxValue, hitVehicle.distance);
+            // (A miss is no block whatever distance the game's cast leaves in it: at a default 0, nothing past the blade was ever hit; melee scout.)
+            float wallAt = hitWall.collider != null && BlocksBlow(hitWall.collider) ? hitWall.distance : float.MaxValue;
+            float vehicleAt = hitVehicle.collider != null ? hitVehicle.distance : float.MaxValue;
+            float blocking = Mathf.Min(wallAt, vehicleAt);
             if (hitEnemy.hitInfo.collider != null && hitEnemy.hitInfo.distance < blocking)
             {
                 melee.DamageHitbox(direction, hitEnemy);

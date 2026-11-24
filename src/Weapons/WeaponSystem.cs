@@ -1589,6 +1589,9 @@ namespace RavenfieldVR.Weapons
             Log.Guard("Scene: gun volumes", GunVolume.OnSceneLoaded);
             Log.Guard("Scene: hand bodies", HandBody.OnSceneLoaded);
             Log.Guard("Retired hull meshes", ShapeFit.ReleaseRetired); // (replaced content's, now that the old scene's drops are gone)
+            // (The holsters' copies live across loads: one at a spot empty in the new level stayed, hidden, for the session; holster scout.
+            // Built again at the next frame they show.)
+            Log.Guard("Scene: holsters", () => _holsters?.Destroy());
             if (Held != null)
             {
                 ReleaseHeld();

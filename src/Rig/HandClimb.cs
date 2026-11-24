@@ -41,6 +41,7 @@ namespace RavenfieldVR.Rig
 
         /// <summary>Whether a hand holds on to the level now: the game's movement step is held off (<see cref="ClimbHoldsMovementPatch"/>).</summary>
         internal static bool Climbing => Holding[0] || Holding[1];
+        private static readonly float[] RecheckAt = new float[2];
 
         /// <summary>Once a frame, after the weapons.</summary>
         internal static void Update(VRRig rig)
@@ -54,6 +55,8 @@ namespace RavenfieldVR.Rig
                 VRHand hand = rig != null ? rig.Hands[i] : null;
                 if (hand == null)
                 {
+                    // (No rig, no hand: a hold kept here kept the body out of the game's movement, no gravity, hanging; climb scout.)
+                    Holding[i] = false;
                     continue;
                 }
                 bool sameSoldier = player != null && ReferenceEquals(player.actor, _holder);
@@ -66,6 +69,16 @@ namespace RavenfieldVR.Rig
                 }
                 if (Holding[i])
                 {
+                    // The level still there under the hand, looked at four times a second: a hold on something gone (blown away, moved)
+                    // hung the body from the air (climb scout, 2026-11-24).
+                    if (Time.unscaledTime >= RecheckAt[i])
+                    {
+                        RecheckAt[i] = Time.unscaledTime + 0.25f;
+                        if (!TouchesLevel(Grip[i], out _))
+                        {
+                            LetGo(i, hand, player, false);
+                        }
+                    }
                     continue;
                 }
                 if (!can || !hand.Tracked || !hand.GrabHeld || hand.Role != HandRole.Free || hand.Held != null)
@@ -89,6 +102,7 @@ namespace RavenfieldVR.Rig
                         _holder = player.actor;
                     }
                     Holding[i] = true;
+                    RecheckAt[i] = Time.unscaledTime + 0.25f;
                     Anchor[i] = hand.Raw.position;
                     Grip[i] = onSurface;
                     LastRel[i] = hand.Raw.position - player.transform.position;
