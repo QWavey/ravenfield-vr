@@ -293,6 +293,14 @@ namespace RavenfieldVR.Net
             float a = Unpack10(packed >> 20), b = Unpack10(packed >> 10), c = Unpack10(packed);
             float rest = 1f - a * a - b * b - c * c;
             float d = rest > 0f ? (float)Math.Sqrt(rest) : 0f;
+            if (rest < 0f)
+            {
+                // The three small parts longer than one together (no sender packs that: a broken word): held to one, a whole turn.
+                float n = (float)Math.Sqrt(a * a + b * b + c * c);
+                a /= n;
+                b /= n;
+                c /= n;
+            }
             switch (largest)
             {
                 case 0: return new Quaternion(d, a, b, c);

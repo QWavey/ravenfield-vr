@@ -706,7 +706,9 @@ namespace RavenfieldVR.Rig
             _crouchLowered = false;
             _crouchCompensation = 0f;
             _crouchReleasedAt = -1f;
-            bool cut = from != RigMode.None;
+            // (Not into the held view of a death in a seat: its dark red fade, started the same frame, was replaced by the cut's black
+            // and gone a tenth of a second later; rig scout, 2026-11-24.)
+            bool cut = from != RigMode.None && !ReferenceEquals(key, DeathHold);
             if (from == RigMode.Anchored || to == RigMode.Anchored)
             {
                 // Into or out of a seat or onto a ladder: a crouch or prone toggled on foot before it kept the player
@@ -773,7 +775,7 @@ namespace RavenfieldVR.Rig
             {
                 return;
             }
-            bool allowed = Mode == RigMode.OnFoot || (Mode == RigMode.Anchored && !VehicleInput.BlocksTurning(GameContext.SeatKind));
+            bool allowed = Mode == RigMode.OnFoot || (Mode == RigMode.Anchored && !ReferenceEquals(_anchorKey, DeathHold) && !VehicleInput.BlocksTurning(GameContext.SeatKind));
             // Not while a hand holds a car's wheel or a flight stick: the turn swings the hand round the head (a 30 degree
             // snap about 30 cm), which read as tens of degrees of steering and held the car at full lock (85-agent review).
             allowed &= !(Hands[0] != null && Hands[0].Role == HandRole.Cockpit || Hands[1] != null && Hands[1].Role == HandRole.Cockpit);
