@@ -74,6 +74,8 @@ namespace RavenfieldVR.Rig
         private Vector3 _lastRigMeasured;
         /// <summary>The frame before was taken as a jump of the rig (its measure not kept as the one to compare with).</summary>
         private bool _lastRigJumped;
+        /// <summary>A rig measure is held to compare with (none on the first frame after a reset: no jump test then).</summary>
+        private bool _rigMeasuredSeeded;
         private Matrix4x4 _lastRigMatrix = Matrix4x4.identity;
         private bool _hasLastRig;
         private RigidPose _lastRawLocal;
@@ -377,7 +379,9 @@ namespace RavenfieldVR.Rig
                 // stays, for one frame. A second change as large in a row is the rig's new motion, kept from then on.
                 // (The second is kept, not zeroed and then kept: two frames of a steady new motion were lost; round-6 scout.)
                 Vector3 measured = rigVelocity;
-                if ((measured - _lastRigMeasured).sqrMagnitude > 400f && !_lastRigJumped)
+                // (Not on the first measure after a reset: compared with the zero seeded then, a car's 20 m/s read as a jump and its
+                // motion was dropped from the throw for a frame; hands scout, 2026-11-24.)
+                if (_rigMeasuredSeeded && (measured - _lastRigMeasured).sqrMagnitude > 400f && !_lastRigJumped)
                 {
                     rigVelocity = Vector3.zero;
                     rigSpin = Vector3.zero;
@@ -387,12 +391,14 @@ namespace RavenfieldVR.Rig
                 {
                     _lastRigMeasured = measured;
                     _lastRigJumped = false;
+                    _rigMeasuredSeeded = true;
                 }
             }
             else
             {
                 _lastRigMeasured = Vector3.zero;
                 _lastRigJumped = false;
+                _rigMeasuredSeeded = false;
             }
             _lastRigRotation = steadyRotation;
             _lastRigMatrix = steadyRoot;
