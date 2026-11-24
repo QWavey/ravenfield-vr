@@ -198,18 +198,20 @@ namespace RavenfieldVR.Weapons
                 FailCounts[key] = (FailCounts.TryGetValue(key, out int tries) ? tries : 0) + 1;
             }
             _muzzleIsGeometric = geometricBefore; // (an analysis within another's leaves the outer one's as it was)
-            WeaponOverrides.Apply(w, data);
+            // Each step after the analysis on its own: one that threw left the gun out of the cache, analysed again at every draw (a hitch
+            // each time), and the steps after it undone (analyser scout, 2026-11-24).
+            Log.Guard("weapon overrides " + key, () => WeaponOverrides.Apply(w, data));
             if (data.ExportGlb != null)
             {
-                SandboxExport.Write(data, w.transform, w, data.ExportGlb, data.ExportNote);
+                Log.Guard("sandbox export " + key, () => SandboxExport.Write(data, w.transform, w, data.ExportGlb, data.ExportNote));
                 data.ExportGlb = null;
             }
-            MagLineTable.Apply(data); // after the export: the offline scans measure the analysed line
-            SandboxPoses.Apply(data); // hands saved in the sandbox (tools/sandbox) for this weapon
+            Log.Guard("magazine line table " + key, () => MagLineTable.Apply(data)); // after the export: the offline scans measure the analysed line
+            Log.Guard("sandbox poses " + key, () => SandboxPoses.Apply(data)); // hands saved in the sandbox (tools/sandbox) for this weapon
             Cache[key] = data;
             if (!Failed.Contains(key))
             {
-                ParkedPartsCache.Put(key, w, data.SparePartPaths); // a prefab's: its first drop next session needs no analysis
+                Log.Guard("parked parts " + key, () => ParkedPartsCache.Put(key, w, data.SparePartPaths)); // a prefab's: its first drop next session needs no analysis
             }
             if (VRConfig.DumpWeaponRigs.Value)
             {

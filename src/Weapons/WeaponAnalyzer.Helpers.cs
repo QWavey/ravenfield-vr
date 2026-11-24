@@ -865,6 +865,10 @@ namespace RavenfieldVR.Weapons
             }
             Vector3 down = gunIdle.InverseTransformDirection(sampler.Idle(little).position - sampler.Idle(index).position);
             Vector3 side = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            if (side.sqrMagnitude < 1e-6f)
+            {
+                return Vector3.zero; // (up along the barrel: no side to take the line off, and any line passed; analyser scout)
+            }
             down = Vector3.ProjectOnPlane(down, side);
             if (down.sqrMagnitude < 1e-6f)
             {

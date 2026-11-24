@@ -1315,8 +1315,9 @@ namespace RavenfieldVR.Weapons
                 {
                     continue;
                 }
-                dropped++;
-                bool expired = Time.time - p._dropTime > lifetime || p.Go.transform.position.y < -500f || dropped > max;
+                // (Counted toward the cap only when it stays: one going for its age or out of the world took a slot, and a live one
+                // went early in its place; magazine scout, 2026-11-24.)
+                bool expired = Time.time - p._dropTime > lifetime || p.Go.transform.position.y < -500f || ++dropped > max;
                 if (expired)
                 {
                     p.Despawn();

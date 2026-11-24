@@ -441,6 +441,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         public void ShowOnRail(RigidPose railPose)
         {
+            if (Go == null)
+            {
+                return; // (gone with the scene before the clean-up freed the hand: its transform read threw every frame; magazine scout)
+            }
             ShapeHand();
             TakeRenderedShape();
             ShowAt(railPose);
