@@ -1202,6 +1202,20 @@ namespace RavenfieldVR.Weapons
                 // (they were still marked ignored and got shoved), and nothing is passing through any more.
                 _restIgnored.Clear();
                 _passing.Clear();
+                if (_enabled)
+                {
+                    // And a held soldier's pairs: still on the lists, forgotten by Unity, so he collided with the gun again (rig scout).
+                    _ignoredColliders.RemoveAll(IsGone);
+                    _ignoredBodies.RemoveAll(IsGoneBody);
+                    foreach (GameObject root in _ignoredBodies)
+                    {
+                        SetIgnored(root, true);
+                    }
+                    foreach (Collider c in _ignoredColliders)
+                    {
+                        SetIgnored(c, true);
+                    }
+                }
             }
             if (seated)
             {
