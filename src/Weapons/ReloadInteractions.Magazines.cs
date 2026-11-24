@@ -1253,6 +1253,13 @@ namespace RavenfieldVR.Weapons
                     {
                         _held.ChamberFull[_seatChamber] = true; // drawn in the chamber it went into, not the first empty one
                     }
+                    if (!Breaks && prop.Go != null && Rig.GunBody != null)
+                    {
+                        // Into the tube for its whole length (ShellSlideIn): taken away where its short way in ended, a third of it was
+                        // still out of the port and it vanished beside the gun.
+                        float shellLength = Mathf.Abs(Vector3.Dot(prop.TipLocal - prop.BaseLocal, prop.InsertDirLocal));
+                        ShellSlideIn.Start(prop.Go, Rig.GunBody, SeatPose.TransformDirection(prop.InsertDirLocal), shellLength * 0.9f);
+                    }
                     if (prop.Rounds > 1 && Ammo.TubeRoom > 1 && ReferenceEquals(off.Held, prop))
                     {
                         // More than one in the hand (ShellsPerReach): this one goes in, the hand keeps the rest and pushes the next
