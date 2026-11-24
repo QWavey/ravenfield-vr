@@ -115,7 +115,7 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
-            string key = rig.Data.Key ?? "";
+            string key = rig.Data.Key ?? "#" + rig.Magazine.GetInstanceID(); // (no key: its own part's, not one shell for every keyless gun; scout)
             if (OwnShells.TryGetValue(key, out OwnShell known) && (known == null || known.Mesh != null))
             {
                 return known; // (made again when a content reload destroyed its mesh)
