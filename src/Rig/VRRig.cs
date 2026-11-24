@@ -1502,7 +1502,7 @@ namespace RavenfieldVR.Rig
                 cam = overrideCam;
                 // Take the camera's position but the vehicle's orientation: turret cameras rotate with the turret,
                 // and following that rotation would make head-aimed turrets chase their own view.
-                Seat seatOfCam = player != null && player.actor.IsSeated() ? player.actor.seat : null;
+                Seat seatOfCam = player != null && player.actor != null && player.actor.IsSeated() ? player.actor.seat : null; // (no actor in the respawn gap; rig scout)
                 Quaternion rot = seatOfCam != null ? seatOfCam.transform.rotation : overrideCam.transform.rotation;
                 Vector3 rest = SeatCameraRest(overrideCam);
                 _eyesAtSeat = false;
