@@ -382,7 +382,7 @@ namespace RavenfieldVR.Weapons
             get
             {
                 Vector3 mouth = BeltStartWorld;
-                Bounds b = Data.MagBounds;
+                Bounds b = BoxBounds;
                 // Across the gun, toward the side of the box the mouth is on (the left where it is in the middle: most feed trays).
                 Vector3 across = Rig.DirToWorld(Vector3.Cross(Data.AimAxis, Data.Up));
                 Vector3 local = SeatPose.InverseTransformPoint(mouth) - b.center;
@@ -396,6 +396,76 @@ namespace RavenfieldVR.Weapons
                 float half = Mathf.Abs(acrossLocal.x) * b.extents.x + Mathf.Abs(acrossLocal.y) * b.extents.y + Mathf.Abs(acrossLocal.z) * b.extents.z;
                 float clear = Mathf.Max(0f, half - Vector3.Dot(local, acrossLocal)) + 0.03f;
                 return mouth + across * clear;
+            }
+        }
+
+        private Bounds? _drawnBox;
+        private WeaponRig _drawnBoxRig;
+
+        /// <summary>
+        /// The seated box as it is drawn, in the seat's frame: its own shown meshes (not parked or spare pieces, not the model's belt),
+        /// measured once a hold while it is in. The analysed box reaches past the drawn one on some guns, and the belt started in the air
+        /// 3 cm over the MK46's box and ran down its back, out of the box rather than its opening (the user, 2026-11-24: "coming from
+        /// the canister and not from the mag opening"). The analysed box when nothing is drawn.
+        /// </summary>
+        private Bounds BoxBounds
+        {
+            get
+            {
+                if (!Ammo.MagInserted || !ReferenceEquals(_drawnBoxRig, Rig))
+                {
+                    _drawnBox = null;
+                    _drawnBoxRig = Rig;
+                }
+                if (_drawnBox == null && Ammo.MagInserted && Rig.Magazine != null && Rig.GunBody != null)
+                {
+                    RigidPose seat = SeatPose;
+                    Vector3 source = Rig.Magazine.position;
+                    bool any = false;
+                    var box = new Bounds();
+                    foreach (Transform part in Rig.MagazineParts)
+                    {
+                        if (part == null)
+                        {
+                            continue;
+                        }
+                        foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(false))
+                        {
+                            var mr = mf.GetComponent<MeshRenderer>();
+                            if (mf.sharedMesh == null || mr == null || !mr.enabled || mf.transform.lossyScale.sqrMagnitude < 1e-8f
+                                || (mf.transform.position - source).sqrMagnitude > 0.6f * 0.6f
+                                || Rig.SpareParts != null && PoseSampler.UnderAny(mf.transform, Rig.SpareParts))
+                            {
+                                continue;
+                            }
+                            Bounds m = mf.sharedMesh.bounds;
+                            for (int i = 0; i < 8; i++)
+                            {
+                                Vector3 corner = new Vector3((i & 1) == 0 ? m.min.x : m.max.x, (i & 2) == 0 ? m.min.y : m.max.y, (i & 4) == 0 ? m.min.z : m.max.z);
+                                Vector3 p = seat.InverseTransformPoint(mf.transform.TransformPoint(corner));
+                                if (!any)
+                                {
+                                    box = new Bounds(p, Vector3.zero);
+                                    any = true;
+                                }
+                                else
+                                {
+                                    box.Encapsulate(p);
+                                }
+                            }
+                        }
+                    }
+                    // (Kept only when it is a box's size and near the analysed one: a skinned or empty box keeps the analysed bounds.)
+                    Bounds analysed = Data.MagBounds;
+                    bool fits = any && box.size.x > 0.02f && box.size.y > 0.02f && box.size.z > 0.02f && (box.center - analysed.center).magnitude < 0.08f;
+                    _drawnBox = fits ? box : analysed;
+                    if (fits)
+                    {
+                        Log.InfoOnce("beltbox:" + Data.Key, $"{Data.Key}: the belt goes by the box as drawn, {box.size.x * 100f:0.0} x {box.size.y * 100f:0.0} x {box.size.z * 100f:0.0} cm "
+                                                          + $"(analysed {analysed.size.x * 100f:0.0} x {analysed.size.y * 100f:0.0} x {analysed.size.z * 100f:0.0}, centres {(box.center - analysed.center).magnitude * 100f:0.0} cm apart).");
+                    }
+                }
+                return _drawnBox ?? Data.MagBounds;
             }
         }
 
@@ -415,7 +485,7 @@ namespace RavenfieldVR.Weapons
             {
                 Quaternion seatInv = Runtime.RigidPose.Conjugate(Data.MagSeat.rotation);
                 Vector3 insertLocal = (seatInv * -Data.MagEjectAxis).normalized;
-                Bounds b = Data.MagBounds;
+                Bounds b = BoxBounds;
                 // The insertion face is the one the box is pushed through: the axis its insert direction has most of. Only that axis
                 // is pinned to the box's face; the others run free across it, clamped to the box, so the belt starts at the point of
                 // that face nearest the tray (taken in the seat's rest frame, where the box's bounds are). Pinning every axis the
@@ -632,8 +702,8 @@ namespace RavenfieldVR.Weapons
             // A nearly empty box has only a few rounds of belt: held, they end in the hand; hanging or laid, they start at the
             // box mouth (counted from the hand, they began in the air, 22 cm off the box for ten rounds; sweep round 2).
             // Over the box's side when it hangs, or when the hand holds it where the straight line runs through the box (below it).
-            Vector3? via = _beltHanging || _beltHeld && BeltStrip.Crosses(from, to, SeatPose, Data.MagBounds) ? BeltSideExit : (Vector3?)null;
-            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: Data.MagBounds, via: via);
+            Vector3? via = _beltHanging || _beltHeld && BeltStrip.Crosses(from, to, SeatPose, BoxBounds) ? BeltSideExit : (Vector3?)null;
+            _belt.Place(from, to, Rig.AimWorld, Ammo.MagRounds, fromMouth: !_beltHeld, keepOut: SeatPose, keepOutBox: BoxBounds, via: via);
         }
     }
 
