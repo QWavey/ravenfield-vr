@@ -164,10 +164,13 @@ namespace RavenfieldVR.UI
             // In a vehicle: its speed, its height over the ground in the air, and its health (the flat game's vehicle HUD, hidden in VR).
             // Rounded to 5 km/h and 5 m so the text is rebuilt only now and then.
             int vehicleInfo = VehicleInfo(actor, out string vehicleLine);
+            // The sandbox's soldiers paused: said here too, where the panel closed no longer shows it (sandbox scout, 2026-11-24).
+            bool npcsPaused = RavenfieldVR.Sandbox.Sandbox.Paused;
             // Rebuilt only when what it shows changes: no string garbage every frame.
             if (hpWhole != _shownHp || !ReferenceEquals(counter, _shownCounter) || spare != _shownSpare || rate != _shownRate || gpu != _shownGpu || holdSteps != _shownHeld
-                || !ReferenceEquals(a, _shownAmmo) || vehicleInfo != _shownVehicle)
+                || !ReferenceEquals(a, _shownAmmo) || vehicleInfo != _shownVehicle || npcsPaused != _shownPaused)
             {
+                _shownPaused = npcsPaused;
                 _shownVehicle = vehicleInfo;
                 _shownHeld = holdSteps;
                 _shownAmmo = a;
@@ -184,6 +187,7 @@ namespace RavenfieldVR.UI
                              + (gpu >= 0 && FrameBudget.RecentPercent < 85 && FrameBudget.RecentHz > 0
                                 && !GraphicsPresets.RenderScaleHelps(gpu / 10f, 1000f / FrameBudget.RecentHz, false) ? "  \u00b7  CPU-bound" : "")
                              + (vehicleLine != null ? "\n" + vehicleLine : "")
+                             + (npcsPaused ? "\nSoldiers paused (sandbox)" : "")
                              + (holdSteps > 0 ? "\nGraphics held down " + holdSteps + " step" + (holdSteps > 1 ? "s" : "") + " for the frame rate" : "");
                 _refitFrames = 2; // this frame and the next: the text's size is known only once it has been laid out
             }
@@ -211,6 +215,7 @@ namespace RavenfieldVR.UI
 
         private int _shownHp = int.MinValue;
         private int _shownVehicle = int.MinValue;
+        private bool _shownPaused;
         private string _vehicleLine;
 
         /// <summary>The vehicle line's numbers packed into one int (-1: not in a vehicle) and its text (made again only when they change).</summary>

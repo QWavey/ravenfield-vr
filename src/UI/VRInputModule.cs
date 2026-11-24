@@ -70,6 +70,9 @@ namespace RavenfieldVR.UI
                 }
                 HandlePointerExitAndEnter(_data, null);
             }
+            // (Process does not run while off: the pointer's last "over a menu" kept blocking the trigger in play; UI scout, 2026-11-24.)
+            HasHit = false;
+            VRGameInput.PointerOverUI = false;
             base.DeactivateModule();
         }
 
@@ -121,6 +124,10 @@ namespace RavenfieldVR.UI
             }
 
             Vector2 screen = EventCamera.WorldToScreenPoint(target);
+            if (float.IsNaN(screen.x) || float.IsNaN(screen.y) || float.IsInfinity(screen.x) || float.IsInfinity(screen.y))
+            {
+                return; // (a window of no size, minimised: no point on it to give a slider's drag; UI scout)
+            }
             _data.delta = screen - _data.position;
             _data.position = screen;
             _data.button = PointerEventData.InputButton.Left;
@@ -167,6 +174,21 @@ namespace RavenfieldVR.UI
             if (over != null && !_pressed && VRInput.GetPressed(DigitalAction.MagRelease) && (GameContext.GameMenuOpen || !GameContext.InGame))
             {
                 RightClick(over);
+            }
+            if (_pressed && !ReferenceEquals(_data.pointerPress, null) && _data.pointerPress == null)
+            {
+                // What was pressed is gone under the held trigger (a list rebuilt, a menu changed): the press ends with no click and
+                // nothing sent to it; a list still being dragged is let go as a release would (UI scout, 2026-11-24).
+                if (_data.pointerDrag != null && _data.dragging)
+                {
+                    ExecuteEvents.Execute(_data.pointerDrag, _data, ExecuteEvents.endDragHandler);
+                }
+                _data.pointerPress = null;
+                _data.rawPointerPress = null;
+                _data.pointerDrag = null;
+                _data.dragging = false;
+                _data.eligibleForClick = false;
+                _pressed = false;
             }
             if (_pressed && (_triggerReleased[(int)_pressHand] || !_triggerDown[(int)_pressHand]))
             {

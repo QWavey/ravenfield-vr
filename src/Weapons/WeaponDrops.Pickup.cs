@@ -510,7 +510,10 @@ namespace RavenfieldVR.Weapons
             {
                 Net.NetGame.OnDeathDropTaken(drop.DiedWith, drop.Entry.name); // (the other PCs' copies of it go)
             }
-            Remove(drop);
+            if (_drops.Contains(drop))
+            {
+                Remove(drop); // (a swap's put-down gun, spawned over the cap, can have culled this one already: removed twice, the other PCs told twice; scout)
+            }
             _sys.Zones.LoadoutChanged(); // (its holster at once: asked earlier this frame, the slot had none until the next)
             if (beside && SecondWeapon.CanPair(_sys.Held.Weapon, equipped))
             {
