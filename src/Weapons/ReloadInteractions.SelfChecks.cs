@@ -2868,7 +2868,7 @@ namespace RavenfieldVR.Weapons
         internal IEnumerator SupportSlideSelfCheck(System.Action<string> report)
         {
             VRHand off = _sys.Rig.Off;
-            if (!Manual || !Ammo.UsesChamber || IsPump || GripData.IsPistol || !GripData.HasSupportPoint)
+            if (!Manual || !Ammo.UsesChamber || IsPump || !GripData.HasSupportPoint && !GripData.IsPistol) // (pistols too: a cup slid onto the slide, 2026-11-24)
             {
                 yield break;
             }
