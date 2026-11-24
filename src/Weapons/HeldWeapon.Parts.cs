@@ -90,7 +90,7 @@ namespace RavenfieldVR.Weapons
             {
                 // While the magazine is out a prop represents it (sliding in or out, in the hand, on the ground).
                 // Scaling hides mesh-renderer and skinned magazines alike.
-                bool hide = !Ammo.MagInserted;
+                bool hide = !Ammo.MagInserted || Time.unscaledTime < MagazineShowAfter; // (or a box gliding onto its seat: ShellSlideIn.Glide)
                 if (hide)
                 {
                     if (!_magHidden)

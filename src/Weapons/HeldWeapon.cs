@@ -114,6 +114,8 @@ namespace RavenfieldVR.Weapons
         private Quaternion[] _chamberLocalRot;
         private Vector3[] _magOriginalScales;
         private bool _magHidden;
+        /// <summary>The seated magazine waits until then (unscaled): a box still gliding onto its seat is drawn by its copy.</summary>
+        internal float MagazineShowAfter = -1f;
         private BoltPiece _boltPiece;
 
         /// <summary>

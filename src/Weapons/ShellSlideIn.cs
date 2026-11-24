@@ -33,12 +33,12 @@ namespace RavenfieldVR.Weapons
         /// own showing there: it popped from where the hand had it onto the seat in one frame (the user, 2026-11-24, machine guns: "when
         /// grabbed and put in there should be a transitioning animation because rn its just teleporting in").
         /// </summary>
-        internal static void Glide(GameObject mag, Transform gun, Runtime.RigidPose seat, float seconds = 0.1f)
+        internal static bool Glide(GameObject mag, Transform gun, Runtime.RigidPose seat, float seconds = 0.1f)
         {
             if (mag == null || gun == null || (mag.transform.position - seat.position).sqrMagnitude < 0.008f * 0.008f
                 && Quaternion.Angle(mag.transform.rotation, seat.rotation) < 3f)
             {
-                return;
+                return false;
             }
             ShellSlideIn slide = DrawnCopy(mag, gun);
             slide._to = gun.InverseTransformPoint(seat.position);
@@ -46,6 +46,7 @@ namespace RavenfieldVR.Weapons
             slide._toTurn = Quaternion.Inverse(gun.rotation) * seat.rotation;
             slide._turns = true;
             slide._seconds = seconds;
+            return true;
         }
 
         private static ShellSlideIn DrawnCopy(GameObject shell, Transform gun)

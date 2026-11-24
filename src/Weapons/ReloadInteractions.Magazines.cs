@@ -1222,7 +1222,10 @@ namespace RavenfieldVR.Weapons
                     Ammo.InsertMagazine(prop.Rounds);
                     if (Data.IsMachineGun && prop.Go != null && Rig.GunBody != null)
                     {
-                        ShellSlideIn.Glide(prop.Go, Rig.GunBody, SeatPose); // (a box's short hook-on slide: it popped onto its seat)
+                        if (ShellSlideIn.Glide(prop.Go, Rig.GunBody, SeatPose)) // (a box's short hook-on slide: it popped onto its seat)
+                        {
+                            _held.MagazineShowAfter = Time.unscaledTime + 0.1f; // (the gun's own box shows once the copy is on the seat)
+                        }
                     }
                     if (!_quietSeat)
                     {
