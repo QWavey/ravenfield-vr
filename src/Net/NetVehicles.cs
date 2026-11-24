@@ -35,6 +35,8 @@ namespace RavenfieldVR.Net
             public string Key = "";
             public byte Owner;
             public bool Copy, WasKinematic, HasState;
+            /// <summary>When it was last brought back here (a revive the game left dead was tried again at every state, 15 a second; scout).</summary>
+            public float ReviveTriedAt = -10f;
             public Vector3 Pos, Vel, AngVel;
             public Quaternion Rot = Quaternion.identity;
             public float Heard = -10f, Health = -1f, OwnerSince;
@@ -665,6 +667,7 @@ namespace RavenfieldVR.Net
                     catch (Exception e)
                     {
                         Log.WarnOnce("net-seat", "Multiplayer: a stand-in could not be seated: " + e);
+                        r.SeatRetryAt = Time.unscaledTime + 2f; // (as a refused seat: it threw and was tried again every frame; scout)
                     }
                     finally
                     {
@@ -720,6 +723,10 @@ namespace RavenfieldVR.Net
                         {
                             continue;
                         }
+                        // (Held to what an owner sends, 400 m/s and 50 rad/s: a larger told speed went into the copy's lead and, taken
+                        // over, into its rigidbody; scout.)
+                        vel = Vector3.ClampMagnitude(vel, 400f);
+                        ang = Vector3.ClampMagnitude(ang, 50f);
                         // (A passenger feels its crashes and landings from the told speeds: its own rigidbody stands still here.)
                         float told = Time.unscaledTime - s.Heard;
                         if (s.HasState && told > 0.03f && told < 0.3f && Finite(vel))
@@ -1114,7 +1121,7 @@ namespace RavenfieldVR.Net
                 return;
             }
             NetGame.Remote by = NetGame.RemoteOf(shooterPc, shooter);
-            var info = new DamageInfo((DamageInfo.DamageSourceType)type, by != null ? by.Actor : null, null)
+            var info = new DamageInfo(Enum.IsDefined(typeof(DamageInfo.DamageSourceType), type) ? (DamageInfo.DamageSourceType)type : DamageInfo.DamageSourceType.Unknown, by != null ? by.Actor : null, null)
             {
                 healthDamage = Mathf.Clamp(health, 0f, 100000f),
                 balanceDamage = float.IsNaN(balance) || float.IsInfinity(balance) ? 0f : balance,
@@ -1153,10 +1160,11 @@ namespace RavenfieldVR.Net
         /// </summary>
         private static void ReviveHere(Shared s)
         {
-            if (Ressurect == null)
+            if (Ressurect == null || Time.unscaledTime - s.ReviveTriedAt < 1f)
             {
                 return;
             }
+            s.ReviveTriedAt = Time.unscaledTime;
             _applyingHit = true;
             try
             {
