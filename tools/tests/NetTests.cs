@@ -493,6 +493,24 @@ namespace RavenfieldVR.Tests
             seats.Remove(back);
             Step(1.0);
 
+            // A whole hello from a playing player's address that the host refuses (his game build changed): he is not dropped first,
+            // only refused (session scout, 2026-11-24: dropped before the checks, a refused hello took him out of the game).
+            Seat stay = Client(212, "Stay");
+            Step(5.0); // (past the 4 s in which a hello again is his welcome's echo)
+            byte stayId = stay.Session.LocalId;
+            int withStay = host.Session.PlayerCount;
+            var refusedHello = new NetWriter();
+            refusedHello.Byte(1);
+            refusedHello.VarInt(NetSession.ProtocolVersion);
+            Info("Stay", 30).Write(refusedHello);
+            stay.Transport.Send(100, refusedHello.Buffer, refusedHello.Length, true);
+            Step(0.5);
+            Check(host.Session.PlayerCount == withStay && host.Session.Player(stayId) != null && host.Session.Player(stayId).Info.Name == "Stay",
+                  $"a refused hello from a playing player's address does not drop him ({host.Session.PlayerCount} of {withStay})");
+            seats.Remove(stay);
+            host.Session.Kick(stayId);
+            Step(1.0);
+
             // A client leaves: the others hear it; its number is free for the next.
             byte bens = b.Session.LocalId;
             b.Session.Leave();

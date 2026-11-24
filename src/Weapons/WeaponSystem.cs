@@ -311,7 +311,17 @@ namespace RavenfieldVR.Weapons
         /// <summary>The free hand takes this holstered weapon as a second one beside the gun in the other hand.</summary>
         internal void BeginSecond(Weapon weapon, VRHand hand)
         {
-            Second = new SecondWeapon(this, weapon, RigFor(weapon), StateFor(weapon, create: true), hand);
+            try
+            {
+                Second = new SecondWeapon(this, weapon, RigFor(weapon), StateFor(weapon, create: true), hand);
+            }
+            catch (System.Exception e)
+            {
+                // (Its setup set the hand's role before the work that can throw: the hand stayed "holding" nothing, unable to grab; holster scout.)
+                hand.Role = HandRole.Free;
+                Core.Log.Warn($"Second weapon: {(weapon != null ? weapon.name : "?")} could not be taken into the free hand: {e}");
+                return;
+            }
             _secondUntrackedAt = -1f;
             Sounds.Play(MechSound.Holster, hand.Palm.position, 0.7f);
             hand.Haptic(0.05f, 100f, 0.6f);

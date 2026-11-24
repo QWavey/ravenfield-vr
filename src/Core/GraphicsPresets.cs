@@ -173,6 +173,7 @@ namespace RavenfieldVR.Core
             _gpuHeavyWindows = 0;
             _scaleNeeds = 2;
             _gpuEverTimed = false;
+            _cabinBoost = false; // (a closed cabin's sharper eyes from the last VR session drew the next start's at 1.2x; graphics scout)
         }
 
         /// <summary>
@@ -559,6 +560,7 @@ namespace RavenfieldVR.Core
             RestoreTerrains();
             RestoreGameQuality();
             _gameQuality = null;
+            _cabinBoost = false;
         }
 
         private static void RestoreTerrains()

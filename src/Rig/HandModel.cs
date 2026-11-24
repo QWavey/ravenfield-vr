@@ -1556,7 +1556,8 @@ namespace RavenfieldVR.Rig
         /// pose. Used as how far each finger may open while holding, so the hand wraps this gun the way its author
         /// animated it while the tracked fingers keep moving on top.
         /// </summary>
-        public float[] WeaponGripCurls;
+        public float[] WeaponGripCurls { get => _weaponGripCurls; set => _weaponGripCurls = FiveOrNone(value); }
+        private float[] _weaponGripCurls;
         /// <summary>
         /// The gun hand's thumb as posed in the sandbox for this weapon (-1: not posed there; the thumb rule below): its
         /// base turned this far to the fist, and its curl (the tracked thumb still moves it a little).
@@ -1579,7 +1580,12 @@ namespace RavenfieldVR.Rig
         public bool Suppressed;
         /// <summary>What the hand holds is carried without a visible hand (an ammo or medic bag).</summary>
         public bool HiddenByHeld;
-        public float[] WeaponSupportCurls;
+        /// <summary>As <see cref="WeaponGripCurls"/>, for the support hand's grip on the handguard.</summary>
+        public float[] WeaponSupportCurls { get => _weaponSupportCurls; set => _weaponSupportCurls = FiveOrNone(value); }
+        private float[] _weaponSupportCurls;
+
+        /// <summary>A pose of all five fingers, or none: a shorter one (a saved or made rig's) was read past its end every frame (glove scout).</summary>
+        private static float[] FiveOrNone(float[] curls) => curls != null && curls.Length >= 5 ? curls : null;
 
         /// <summary>
         /// A shot was fired with this hand: the trigger finger presses visibly for a moment (a controller that reports the

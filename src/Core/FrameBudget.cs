@@ -135,7 +135,7 @@ namespace RavenfieldVR.Core
                     return;
                 }
                 var t = new Compositor_FrameTiming { m_nSize = TimingSize };
-                if (!comp.GetFrameTiming(ref t, 0) || t.m_nFrameIndex == _lastTimedFrame || t.m_flTotalRenderGpuMs <= 0f)
+                if (!comp.GetFrameTiming(ref t, 0) || t.m_nFrameIndex == _lastTimedFrame || !(t.m_flTotalRenderGpuMs > 0f && t.m_flTotalRenderGpuMs < 1000f))
                 {
                     return;
                 }

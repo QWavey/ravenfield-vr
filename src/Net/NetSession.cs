@@ -283,6 +283,7 @@ namespace RavenfieldVR.Net
                 // 2026-11-12); now it throws before, and he stays.
                 int protocol = r.VarInt();
                 NetPlayerInfo info = NetPlayerInfo.Read(ref r);
+                NetPlayer rejoining = null;
                 if (_byPeer.TryGetValue(from, out byte known) && _players.TryGetValue(known, out NetPlayer was))
                 {
                     if (!was.Spoke && _now - was.JoinedAt < 4.0) // (his hellos come every 2 s until the welcome reaches him)
@@ -291,8 +292,9 @@ namespace RavenfieldVR.Net
                     }
                     // A hello from one who was already playing: he left (his goodbye lost as his game closed the line) and joins again.
                     // Ignored, he waited until the old one timed out, 12 s, or gave up first ("no answer from the host"; scout,
-                    // 2026-11-11). The old one goes now and the new one is taken in below.
-                    Drop(was, "joined again", close: false); // (his line stays open: the same address is the newcomer's)
+                    // 2026-11-11). The old one goes once the new one is taken in below (dropped first, a hello then refused, a build or a
+                    // version changed, took him out of the game for nothing; session scout, 2026-11-24).
+                    rejoining = was;
                 }
                 string refuse = protocol != ProtocolVersion ? $"the host plays protocol {ProtocolVersion}, you have {protocol}: both need the same version of the mod"
                     : info.GameBuild != LocalInfo.GameBuild ? $"the host runs game build {LocalInfo.GameBuild}, you run {info.GameBuild}: update the game on both PCs"
@@ -301,7 +303,7 @@ namespace RavenfieldVR.Net
                     // shared match on two versions went its own way on each PC with nothing said. 2026-11-11.)
                     : !string.IsNullOrEmpty(LocalInfo.ModVersion) && !string.IsNullOrEmpty(info.ModVersion) && info.ModVersion != LocalInfo.ModVersion
                         ? $"the host has Ravenfield VR {LocalInfo.ModVersion}, you have {info.ModVersion}: install the same version on both PCs"
-                    : _players.Count >= MaxPlayers ? "the game is full"
+                    : _players.Count - (rejoining != null ? 1 : 0) >= MaxPlayers ? "the game is full"
                     : Admit?.Invoke(info, from);
                 if (refuse != null)
                 {
@@ -318,6 +320,10 @@ namespace RavenfieldVR.Net
                     _out.String(refuse, 256);
                     _transport.Send(from, _out.Buffer, _out.Length, true);
                     return;
+                }
+                if (rejoining != null)
+                {
+                    Drop(rejoining, "joined again", close: false); // (his line stays open: the same address is the newcomer's)
                 }
                 byte id = 1;
                 while (_players.ContainsKey(id))
