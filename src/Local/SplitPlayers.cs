@@ -703,7 +703,6 @@ namespace RavenfieldVR.Local
             return new Rect(x, y, 0.5f, 0.5f);
         }
 
-        /// <summary>After the game moved the soldiers: each camera at its soldier's eyes.</summary>
         /// <summary>Where a player starts beside the game's own one (SplitLife's respawn as well).</summary>
         internal static Vector3 GroundBeside(Vector3 me, float yaw, int index, out string where) => OnGroundBeside(me, yaw, index, out where);
 
@@ -727,6 +726,7 @@ namespace RavenfieldVR.Local
             return null;
         }
 
+        /// <summary>After the game moved the soldiers: each camera at its soldier's eyes.</summary>
         internal static void LateTick()
         {
             foreach (SplitPlayer p in Players)

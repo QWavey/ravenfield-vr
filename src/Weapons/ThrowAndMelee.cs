@@ -188,11 +188,6 @@ namespace RavenfieldVR.Weapons
         private static readonly AccessTools.FieldRef<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>> ChargesOf =
             AccessTools.FieldRefAccess<RemoteDetonatorWeapon, List<RemoteDetonatedProjectile>>("registeredProjectiles");
 
-        /// <summary>
-        /// The C4's detonator: A sets off every charge it threw. The flat game sets them off with aim and fire (<c>RemoteDetonatorWeapon.Fire</c>
-        /// while aiming); in VR the trigger only throws, so a charge thrown by hand never went off (scout on throwables, 2026-11-08). Its own
-        /// way, the detonate animation and every charge after its delay; each charge at once on a detonator with no animator.
-        /// </summary>
         /// <summary>Every charge a detonator has out set off at once (another PC's player set his off: his copies here). How many.</summary>
         internal static int DetonateAll(RemoteDetonatorWeapon detonator)
         {
@@ -214,6 +209,11 @@ namespace RavenfieldVR.Weapons
             return count;
         }
 
+        /// <summary>
+        /// The C4's detonator: A sets off every charge it threw. The flat game sets them off with aim and fire (<c>RemoteDetonatorWeapon.Fire</c>
+        /// while aiming); in VR the trigger only throws, so a charge thrown by hand never went off (scout on throwables, 2026-11-08). Its own
+        /// way, the detonate animation and every charge after its delay; each charge at once on a detonator with no animator.
+        /// </summary>
         private void Detonate(RemoteDetonatorWeapon detonator, VRHand hand)
         {
             List<RemoteDetonatedProjectile> charges = ChargesOf(detonator);

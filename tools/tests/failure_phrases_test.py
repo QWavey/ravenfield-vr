@@ -21,6 +21,7 @@ LABEL_FILES = {'src/Weapons/AmmoState.cs', 'src/Weapons/MagLineTable.cs', 'src/W
 NOT_BY_PATTERN = {
     'THE EMPTY POSE': 'a diagnostic: which animator state the gun is in',
     'LOAD SHELL': "the closed vehicle's readout (a label): the gun waits for its loader",
+    'LOAD AMMO': "the closed vehicle's readout (a label): a gun with no breech of its own waits for its ammunition",
     'DID NOT': "AutoTest's own test of a line (line.Contains), not a report",
     'OPEN OVER THE GAME': "a log line on SteamVR's dashboard at the start, not a check's result",
     'WITH SHADOWS': 'AutoTest.RenderingStateCheck raises it with Problem(...)',

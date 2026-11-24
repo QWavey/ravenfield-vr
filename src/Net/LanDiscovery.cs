@@ -30,7 +30,6 @@ namespace RavenfieldVR.Net
         private static UdpClient _sender, _listener;
         private static float _nextBeacon;
         private static readonly Dictionary<string, LanGame> Heard = new Dictionary<string, LanGame>();
-        private static readonly byte[] Buffer = new byte[0];
 
         /// <summary>The LAN page is open: listen for hosts (set by the page each frame it shows; off after 2 s without).</summary>
         public static void Listen() => _listenUntil = Time.unscaledTime + 2f;

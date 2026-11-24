@@ -206,10 +206,10 @@ namespace RavenfieldVR.Sandbox
 
         private static bool HoldSquad() => !Quiet;
 
-        /// <summary>The battlefield made quiet (its soldiers taken off, none coming) or given back to the match (the next wave brings them).</summary>
         /// <summary>In a shared match this PC is not the host's: the field and its soldiers are his to change.</summary>
         internal static bool HostsField => !Net.Multiplayer.Active || Net.Multiplayer.Hosting;
 
+        /// <summary>The battlefield made quiet (its soldiers taken off, none coming) or given back to the match (the next wave brings them).</summary>
         internal static string SetQuiet(bool quiet)
         {
             if (!HostsField)

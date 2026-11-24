@@ -35,7 +35,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         internal static bool Glide(GameObject mag, Transform gun, Runtime.RigidPose seat, float seconds = 0.1f)
         {
-            if (mag == null || gun == null || (mag.transform.position - seat.position).sqrMagnitude < 0.008f * 0.008f
+            if (mag == null || gun == null || !mag.activeInHierarchy || !gun.gameObject.activeInHierarchy || (mag.transform.position - seat.position).sqrMagnitude < 0.008f * 0.008f
                 && Quaternion.Angle(mag.transform.rotation, seat.rotation) < 3f)
             {
                 return false;
@@ -45,7 +45,7 @@ namespace RavenfieldVR.Weapons
             slide._fromTurn = slide.transform.localRotation;
             slide._toTurn = Quaternion.Inverse(gun.rotation) * seat.rotation;
             slide._turns = true;
-            slide._seconds = seconds;
+            slide._seconds = Mathf.Max(seconds, 0.01f);
             return true;
         }
 
@@ -75,12 +75,18 @@ namespace RavenfieldVR.Weapons
             copy.transform.SetParent(gun, true);
             var slide = copy.AddComponent<ShellSlideIn>();
             slide._from = copy.transform.localPosition;
+            if (!copy.activeInHierarchy)
+            {
+                Object.Destroy(copy); // (a hidden prop or gun: nothing to see go in, and a hidden copy never ran its LateUpdate to go; scout)
+            }
             return slide;
         }
 
         private void LateUpdate()
         {
-            _t += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            // (Wall time, uncapped: the gun's own magazine shows again 0.1 s of wall time after the glide began, HeldWeapon.MagazineShowAfter;
+            // capped at 50 ms a frame, on a slow frame the copy was still on its way when it showed, two magazines; scout.)
+            _t += Time.unscaledDeltaTime;
             float u = Mathf.Clamp01(_t / _seconds);
             transform.localPosition = Vector3.Lerp(_from, _to, u * u); // (sped up as it goes in, as the thumb pushes it home)
             if (_turns)
@@ -91,6 +97,12 @@ namespace RavenfieldVR.Weapons
             {
                 Destroy(gameObject);
             }
+        }
+
+        /// <summary>The gun put away or dropped under it mid-way: the copy goes then (else it showed again with the gun drawn next).</summary>
+        private void OnDisable()
+        {
+            Destroy(gameObject);
         }
     }
 }

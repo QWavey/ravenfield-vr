@@ -354,6 +354,10 @@ namespace RavenfieldVR.Net
             Pose p = remote.Pose ?? (remote.Pose = new Pose());
             p.Flags = r.Byte();
             p.HeadForward = r.SmallVector();
+            if (p.HeadForward.sqrMagnitude < 1e-6f)
+            {
+                p.HeadForward = Vector3.forward; // (a zero told: his aim point and the head's turn want a direction; scout)
+            }
             p.Left = r.SmallVector();
             p.LeftRot = r.Rotation();
             p.Right = r.SmallVector();

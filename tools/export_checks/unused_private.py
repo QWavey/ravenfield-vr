@@ -14,7 +14,7 @@ SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'src')
 DECL = re.compile(r'^\s*private\s+(?:static\s+|readonly\s+|unsafe\s+|override\s+)*(?:[\w<>\[\],.? ]+?)\s+(\w+)\s*(\(|=>|\{|;|=)', re.M)
 UNITY = {'Awake', 'Start', 'Update', 'LateUpdate', 'FixedUpdate', 'OnEnable', 'OnDisable', 'OnDestroy', 'OnGUI', 'OnPreCull', 'OnPreRender',
          'OnPostRender', 'OnWillRenderObject', 'OnRenderImage', 'OnApplicationQuit', 'OnTriggerEnter', 'OnTriggerStay', 'OnTriggerExit',
-         'OnCollisionEnter', 'OnCollisionStay', 'OnCollisionExit', 'Main'}
+         'OnCollisionEnter', 'OnCollisionStay', 'OnCollisionExit', 'OnAudioFilterRead', 'Main'}
 HARMONY = {'Prefix', 'Postfix', 'Transpiler', 'Finalizer', 'TargetMethod', 'TargetMethods', 'Prepare', 'Cleanup'}
 WORDS = {'get', 'set', 'value', 'return', 'new', 'class', 'struct', 'enum', 'delegate', 'event'}
 
@@ -34,10 +34,13 @@ found = []
 for path in files:
     text = texts[path]
     code = strip(text)
+    own = len(code)  # (a member is listed at its own file only: the other files of its partial class are searched for its uses)
     for name in re.findall(r'partial\s+class\s+(\w+)', text):
         code += '\n'.join(strip(texts[q]) for q in partials[name] if q != path)
     for m in DECL.finditer(code):
         name = m.group(1)
+        if m.start() >= own:
+            continue
         if name in UNITY or name in HARMONY or name in WORDS:
             continue
         if re.search(r'\[[^\]]*Harmony[^\]]*\]\s*$', code[max(0, m.start() - 200):m.start()]):

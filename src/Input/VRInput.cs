@@ -885,10 +885,10 @@ namespace RavenfieldVR.Input
             }
         }
 
-        /// <summary>Oculus Touch controllers (Quest 1-3, Rift S), as SteamVR reports them, or before any type is known.</summary>
         /// <summary>Whether that hand's controller is a Touch (Quest, Rift): its haptics have a floor of strength and one pitch.</summary>
         internal static bool HandIsTouch(Hand h) => IsTouch(h);
 
+        /// <summary>Oculus Touch controllers (Quest 1-3, Rift S), as SteamVR reports them, or before any type is known.</summary>
         private static bool IsTouch(Hand h)
         {
             string type = ControllerTypes[(int)h];

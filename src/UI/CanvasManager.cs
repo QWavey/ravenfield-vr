@@ -349,15 +349,15 @@ namespace RavenfieldVR.UI
             KeepFlat(t);
         }
 
+        /// <summary>The game's masks this turned into rect clips, given back in <see cref="Dispose"/> (a reload of the mod (F6) left them
+        /// off for the session; UI scout).</summary>
+        private static readonly List<(Mask mask, RectMask2D added, Graphic graphic, float alpha)> ChangedMasks = new List<(Mask, RectMask2D, Graphic, float)>();
+
         /// <summary>
         /// Stencil masks (a scroll list's viewport) clip by a stencil the headset's picture may not keep: everything in the
         /// list vanished (the options' pages showed nothing under their tabs). Each becomes a rectangle clip, which needs
         /// no stencil; the mask's own image, drawn only as the stencil before, stays unseen (it still takes the laser).
         /// </summary>
-        /// <summary>The game's masks this turned into rect clips, given back in <see cref="Dispose"/> (a reload of the mod (F6) left them
-        /// off for the session; UI scout).</summary>
-        private static readonly List<(Mask mask, RectMask2D added, Graphic graphic, float alpha)> ChangedMasks = new List<(Mask, RectMask2D, Graphic, float)>();
-
         private static void ClipWithoutStencil(Transform root)
         {
             foreach (Mask m in root.GetComponentsInChildren<Mask>(true))

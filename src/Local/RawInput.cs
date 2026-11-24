@@ -58,25 +58,6 @@ namespace RavenfieldVR.Local
             public IntPtr Device, WParam;
         }
 
-        [StructLayout(LayoutKind.Explicit)]
-        private struct RAWMOUSE
-        {
-            [FieldOffset(0)] public ushort Flags;
-            [FieldOffset(4)] public ushort ButtonFlags;
-            [FieldOffset(6)] public short ButtonData;
-            [FieldOffset(8)] public uint RawButtons;
-            [FieldOffset(12)] public int LastX;
-            [FieldOffset(16)] public int LastY;
-            [FieldOffset(20)] public uint Extra;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RAWKEYBOARD
-        {
-            public ushort MakeCode, Flags, Reserved, VKey;
-            public uint Message, Extra;
-        }
-
         private delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", SetLastError = true)]

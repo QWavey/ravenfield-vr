@@ -528,6 +528,7 @@ namespace RavenfieldVR.Weapons
 
         private AudioSource _pingSource;
         private bool _pingLooked;
+        private int _pingTries;
         /// <summary>
         /// Each gun's ping clip, kept as the clip itself: its source is a sound bank whose clip changes with what it plays next, so
         /// from the second clip on (and on a gun drawn again) the ping was another sound or none (the user, 2026-11-24: "the garret
@@ -559,9 +560,13 @@ namespace RavenfieldVR.Weapons
             Vector3 up = Rig.UpWorld, right = Rig.DirToWorld(Vector3.Cross(Data.Up, Data.AimAxis).normalized);
             clip.Drop(_sys.Rig.Dominant.Velocity + up * Random.Range(2.6f, 3.4f) + right * Random.Range(0.2f, 0.6f) - Rig.AimWorld * 0.4f,
                 Random.insideUnitSphere * 12f + right * 15f);
-            if (!_pingLooked)
+            if (!_pingLooked || !PingClips.ContainsKey(Data.Key) && _pingTries < 4)
             {
+                // (Looked for again on the next throws while not found: the bank's source holds the ping only while it plays it, so a
+                // first look while it held another clip left the gun without its ping for good.)
                 _pingLooked = true;
+                _pingTries++;
+                _pingSource = null;
                 foreach (AudioSource a in _held.Weapon.GetComponentsInChildren<AudioSource>(true))
                 {
                     if (a.clip != null && System.Text.RegularExpressions.Regex.IsMatch(a.clip.name, @"ping|_clip$|clip.?(eject|out|ping)|enbloc", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
@@ -578,7 +583,20 @@ namespace RavenfieldVR.Weapons
                 {
                     _pingSource = _held.Weapon.GetComponentsInChildren<AudioSource>(true)[0]; // (its routing, for a ping kept from before)
                 }
-                Log.Info($"{Data.Key}: the empty clip's ping is {(_pingSource != null ? $"the gun's own '{_pingSource.clip.name}'" : "not found (a plain eject sound)")}.");
+                Log.Info($"{Data.Key}: the empty clip's ping is {(PingClips.ContainsKey(Data.Key) ? $"the gun's own '{PingClips[Data.Key].name}'" : "not found (a plain eject sound)")}.");
+                if (!PingClips.ContainsKey(Data.Key) && _pingTries == 4)
+                {
+                    // The last look: any loaded clip named as the Garand's clip ping (the vanilla bank's garand_clip is loaded with the gun).
+                    foreach (AudioClip c in Resources.FindObjectsOfTypeAll<AudioClip>())
+                    {
+                        if (c != null && System.Text.RegularExpressions.Regex.IsMatch(c.name, @"garand.?clip|clip.?ping|enbloc.?ping", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        {
+                            PingClips[Data.Key] = c;
+                            Log.Info($"{Data.Key}: the empty clip's ping found among the loaded sounds: '{c.name}'.");
+                            break;
+                        }
+                    }
+                }
             }
             // (Through the mod's own source: on the gun's own it came only sometimes, see WeaponSounds.PlayOwn.)
             PingClips.TryGetValue(Data.Key, out AudioClip ping);

@@ -217,8 +217,6 @@ namespace RavenfieldVR.Local
         internal static string Loading => _hosting && !_go ? LoadingLines()
             : StartsSplit && !_hosting && !_everHosted ? "Loading ..." : null;
 
-        /// <summary>The copies check: a copy's process ended as a crash would end it (the host must start it again).</summary>
-        /// <summary>For the check: whether player (index + 1)'s copy has a window on the screen (a rejoined copy stayed hidden once).</summary>
         /// <summary>For the check: this game's window (visible, minimised).</summary>
         internal static string HostWindowState()
         {
@@ -257,6 +255,7 @@ namespace RavenfieldVR.Local
             return shown;
         }
 
+        /// <summary>The copies check: a copy's process ended as a crash would end it (the host must start it again).</summary>
         internal static bool KillCopyForCheck(int index)
         {
             Copy c = Copies.FirstOrDefault(x => x.Index == index);
@@ -1257,10 +1256,6 @@ namespace RavenfieldVR.Local
         private static float _probeWAt = -1f, _probeMAt = -1f, _probeMouseX, _probeMouseStill, _probeYaw;
         private static int _probeWFrame, _probeMFrame, _probeWAge, _probeMAge, _probes;
 
-        /// <summary>
-        /// Once a frame on a copy: how long its own part of the way takes (the user, 2026-11-15: "very very delayed" though the input
-        /// packets come within 5 ms): W pressed to the soldier walking, the mouse moved to the camera turning, in ms and frames.
-        /// </summary>
         /// <summary>The steps a copy's frame rate comes down by: the screen's rate first (player 1's game draws at it), never under 60.</summary>
         private static readonly int[] RateSteps = { 144, 120, 90, 60 };
         private static int _copyRate = 60, _adaptCount, _adaptSlow, _adaptWindows;
@@ -1358,6 +1353,10 @@ namespace RavenfieldVR.Local
             Note($"probe: frame pacing over {FrameTimes.Length} frames: median {sorted[sorted.Length / 2]:0.0} ms, 99% {sorted[sorted.Length * 99 / 100]:0.0} ms, longest {sorted[sorted.Length - 1]:0.0} ms, {over25} frames over 25 ms");
         }
 
+        /// <summary>
+        /// Once a frame on a copy: how long its own part of the way takes (the user, 2026-11-15: "very very delayed" though the input
+        /// packets come within 5 ms): W pressed to the soldier walking, the mouse moved to the camera turning, in ms and frames.
+        /// </summary>
         private static void Probe()
         {
             Pacing();
@@ -1576,7 +1575,6 @@ namespace RavenfieldVR.Local
             SetWindowLongPtr(hwnd, GWLP_HWNDPARENT, new IntPtr(OwnerWindow));
         }
 
-        /// <summary>This game's window borderless over part i of n of the screen (as the soldiers' parts: halves, or quarters for 3-4).</summary>
         /// <summary>
         /// Keeps this game's window over part i of n of the screen (halves, or quarters for 3-4): looked at a few times after it starts
         /// and after each map's load (Window), then left alone. Forced once a second it jumped between the middle and its half: Unity

@@ -52,6 +52,8 @@ namespace RavenfieldVR.Net
             public float NextSlotCheck, NextCarriedCheck;
             /// <summary>No respawn before this (a spawn the map refused left him dead, and it was tried again every frame; scout).</summary>
             public float NextRespawnAt;
+            /// <summary>When a stand-in that could not be made is tried again (each frame it threw again, a log and a half-made soldier a frame; scout).</summary>
+            public float NextCreateAt;
             public int Flags;
             public Vector3 Position, Velocity;
             /// <summary>The stand-in is walking toward its told place (it stands within 12 cm then, not 25: see RemoteVelocity).</summary>
@@ -936,7 +938,6 @@ namespace RavenfieldVR.Net
         /// <summary>The copies shown of other players' dropped guns (key: the sender's number and the drop's).</summary>
         private static readonly Dictionary<int, Weapons.DroppedWeapon> ShownDrops = new Dictionary<int, Weapons.DroppedWeapon>();
 
-        /// <summary>A shown copy of another PC's gun gone here (taken away, its time over): its entry goes from <see cref="ShownDrops"/>.</summary>
         /// <summary>
         /// This PC's player took another player's dropped gun (the user, 2026-11-14, co-op: a gun put down for the friend is his to take):
         /// its owner is told, and his PC takes his own copy away (its going is then told to everyone as his drop's).
@@ -1104,6 +1105,7 @@ namespace RavenfieldVR.Net
             Log.Info($"Sandbox: {name} asked for a {(VehicleSpawner.VehicleSpawnType)type}: {(made != null ? "placed" : "not placed (" + problem + ")")}.");
         }
 
+        /// <summary>A shown copy of another PC's gun gone here (taken away, its time over): its entry goes from <see cref="ShownDrops"/>.</summary>
         internal static void OnShownDropGone(Weapons.DroppedWeapon drop)
         {
             foreach (KeyValuePair<int, Weapons.DroppedWeapon> kv in ShownDrops)
@@ -1584,6 +1586,13 @@ namespace RavenfieldVR.Net
                             remote.Flags = r.Byte();
                             remote.Flags |= r.Byte() << 8;
                             Vector3 told = r.Vector();
+                            if (!Finite(told) || told.sqrMagnitude > 1e10f)
+                            {
+                                // A place no map has (a broken or forged word): its entry read to its end and left out, his last place kept;
+                                // a NaN went on into his spawn, his stand-up ray and every frame's placing (multiplayer scout, 2026-11-24).
+                                r.Byte(); r.Byte(); r.Byte(); r.Byte(); r.Byte();
+                                continue;
+                            }
                             // (What he is shown at against the new word: faded out while he is carried, see the ladder and jump placing.)
                             // (Only while he is carried: a walking stand-in's lag behind the word went into the air with him at a jump,
                             // and glided out at 30 m/s; held to 0.6 m; scout.)
@@ -2916,7 +2925,7 @@ namespace RavenfieldVR.Net
                         Out.Reset();
                         _session.SendTo(r.Owner, NeedInfo, Out, true);
                     }
-                    if (!alive || !r.HasInfo)
+                    if (!alive || !r.HasInfo || now < r.NextCreateAt)
                     {
                         continue;
                     }
@@ -2942,6 +2951,7 @@ namespace RavenfieldVR.Net
                     catch (Exception e)
                     {
                         Log.WarnOnce("net-standin", "Multiplayer: a stand-in could not be made: " + e);
+                        r.NextCreateAt = now + 1f;
                         continue;
                     }
                 }

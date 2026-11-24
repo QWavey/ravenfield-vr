@@ -358,18 +358,8 @@ namespace RavenfieldVR.Core.Showcase
         /// frame: x right, y up, z ahead), the muzzle turned <paramref name="yaw"/> degrees from straight ahead (minus: to the left,
         /// across a right-handed player's body) and <paramref name="pitch"/> (minus: up), and the gun's top tipped
         /// <paramref name="tiltAway"/> (0-1) away from the eyes, so its underside, its magazine well and the hands at it face the
-        /// head. For the scenes that show the hands (a reload, a look over the gun).
+        /// head. For the scenes that show the hands (a reload, a look over the gun), placed with <see cref="PlaceGun"/>.
         /// </summary>
-        private static void HoldGunAt(Vector3 local, float yaw, float pitch, float tiltAway, bool support)
-        {
-            if (VRRig.Instance != null)
-            {
-                GunPose g = InFront(local, yaw, pitch, tiltAway);
-                PlaceGun(g.At, g.Aim, support);
-            }
-        }
-
-        /// <summary>The pose of <see cref="HoldGunAt"/>.</summary>
         private static GunPose InFront(Vector3 local, float yaw, float pitch, float tiltAway)
         {
             Transform head = VRRig.Instance.Head;
@@ -387,11 +377,6 @@ namespace RavenfieldVR.Core.Showcase
             return v.sqrMagnitude > 1e-6f ? v.normalized : Vector3.forward;
         }
 
-        /// <summary>
-        /// The gun's sight put at <paramref name="target"/> with its sight frame turned to <paramref name="aimRot"/> (forward along the
-        /// sight, up the gun's top): the gun hand placed from its grip as first measured, the other hand on the handguard where it is to
-        /// be when <paramref name="support"/>.
-        /// </summary>
         /// <summary>For <see cref="ShowcaseGunLife"/>: <see cref="PlaceGun"/> from outside the director.</summary>
         internal static void PlaceGunAt(Vector3 target, Quaternion aimRot, bool support) => PlaceGun(target, aimRot, support);
 
@@ -407,6 +392,11 @@ namespace RavenfieldVR.Core.Showcase
         private static Vector3 AimedDirection(Weapon active) =>
             Time.frameCount - _aimedFrame <= 1 && _aimedAlong.sqrMagnitude > 0.5f ? _aimedAlong : active.CurrentMuzzle().forward;
 
+        /// <summary>
+        /// The gun's sight put at <paramref name="target"/> with its sight frame turned to <paramref name="aimRot"/> (forward along the
+        /// sight, up the gun's top): the gun hand placed from its grip as first measured, the other hand on the handguard where it is to
+        /// be when <paramref name="support"/>.
+        /// </summary>
         private static void PlaceGun(Vector3 target, Quaternion aimRot, bool support)
         {
             _aimedAlong = aimRot * Vector3.forward;
@@ -618,13 +608,6 @@ namespace RavenfieldVR.Core.Showcase
                 return e.name;
             }
             return null;
-        }
-
-        /// <summary>Somewhere open to film: off a wall or a vehicle (the autotest's own spot finder). Its note, or null when it stayed.</summary>
-        private static string OpenGround()
-        {
-            Actor actor = LocalPlayer.actor;
-            return actor != null && VRRig.Instance != null ? AutoTest.MoveOffVehicles(actor, VRRig.Instance) : null;
         }
 
         /// <summary>
