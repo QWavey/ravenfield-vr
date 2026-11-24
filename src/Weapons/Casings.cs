@@ -606,6 +606,7 @@ namespace RavenfieldVR.Weapons
                     // Its hand holds something else now (a gun drawn into it, its role reset by the reload): it falls from where it
                     // was, rather than hanging there for good, out of the pool.
                     LetGo(c, Vector3.zero, Vector3.zero);
+                    continue; // (LetGo moves it to the list's end: index i is another case now, which the clean-up below took instead; casings scout)
                 }
                 if (!c.Held && (now - c.Born > Lifetime || (checkFall && c.Go.transform.position.y < -500f)))
                 {
