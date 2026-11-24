@@ -13,7 +13,9 @@ namespace RavenfieldVR.Weapons
     {
         private const float Seconds = 0.09f;
         private Vector3 _from, _to;
-        private float _t;
+        private Quaternion _fromTurn, _toTurn;
+        private float _t, _seconds = Seconds;
+        private bool _turns;
 
         /// <summary>A drawn copy of <paramref name="shell"/> slid <paramref name="distance"/> on along <paramref name="insertWorld"/> into <paramref name="gun"/>.</summary>
         internal static void Start(GameObject shell, Transform gun, Vector3 insertWorld, float distance)
@@ -22,6 +24,32 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            ShellSlideIn slide = DrawnCopy(shell, gun);
+            slide._to = slide._from + gun.InverseTransformVector(insertWorld.normalized * distance);
+        }
+
+        /// <summary>
+        /// A magazine or box let in short of its seat glides the rest of the way onto it (<paramref name="seat"/>, world) and goes, the gun's
+        /// own showing there: it popped from where the hand had it onto the seat in one frame (the user, 2026-11-24, machine guns: "when
+        /// grabbed and put in there should be a transitioning animation because rn its just teleporting in").
+        /// </summary>
+        internal static void Glide(GameObject mag, Transform gun, Runtime.RigidPose seat, float seconds = 0.1f)
+        {
+            if (mag == null || gun == null || (mag.transform.position - seat.position).sqrMagnitude < 0.008f * 0.008f
+                && Quaternion.Angle(mag.transform.rotation, seat.rotation) < 3f)
+            {
+                return;
+            }
+            ShellSlideIn slide = DrawnCopy(mag, gun);
+            slide._to = gun.InverseTransformPoint(seat.position);
+            slide._fromTurn = slide.transform.localRotation;
+            slide._toTurn = Quaternion.Inverse(gun.rotation) * seat.rotation;
+            slide._turns = true;
+            slide._seconds = seconds;
+        }
+
+        private static ShellSlideIn DrawnCopy(GameObject shell, Transform gun)
+        {
             GameObject copy = Object.Instantiate(shell, shell.transform.position, shell.transform.rotation);
             copy.name = "RavenfieldVR Shell Going In";
             foreach (Collider c in copy.GetComponentsInChildren<Collider>(true))
@@ -46,14 +74,18 @@ namespace RavenfieldVR.Weapons
             copy.transform.SetParent(gun, true);
             var slide = copy.AddComponent<ShellSlideIn>();
             slide._from = copy.transform.localPosition;
-            slide._to = slide._from + gun.InverseTransformVector(insertWorld.normalized * distance);
+            return slide;
         }
 
         private void LateUpdate()
         {
             _t += Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            float u = Mathf.Clamp01(_t / Seconds);
+            float u = Mathf.Clamp01(_t / _seconds);
             transform.localPosition = Vector3.Lerp(_from, _to, u * u); // (sped up as it goes in, as the thumb pushes it home)
+            if (_turns)
+            {
+                transform.localRotation = Quaternion.Slerp(_fromTurn, _toTurn, u * u);
+            }
             if (u >= 1f)
             {
                 Destroy(gameObject);

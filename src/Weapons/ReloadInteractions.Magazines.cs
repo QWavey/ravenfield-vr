@@ -1220,6 +1220,10 @@ namespace RavenfieldVR.Weapons
                         Log.InfoOnce("sistermag:" + prop.WeaponKey + ">" + Data.Key, $"{Data.Key}: took a sister gun's magazine ({prop.WeaponKey}).");
                     }
                     Ammo.InsertMagazine(prop.Rounds);
+                    if (Data.IsMachineGun && prop.Go != null && Rig.GunBody != null)
+                    {
+                        ShellSlideIn.Glide(prop.Go, Rig.GunBody, SeatPose); // (a box's short hook-on slide: it popped onto its seat)
+                    }
                     if (!_quietSeat)
                     {
                         _held.Sounds.Play(MechSound.MagIn, at);
