@@ -903,9 +903,13 @@ namespace RavenfieldVR.Weapons
         {
             insertGun = -d.MagEjectAxis;
             frontGun = d.AimAxis;
+            Vector3 across = Vector3.Cross(d.Up, d.AimAxis).normalized;
+            bool pump = d.CyclesByHand && Vector3.Dot(d.RackPoint - d.GripPoint, d.AimAxis.normalized) > 0.12f; // (its pump well ahead of the grip: no lever)
             if (kind == PropKind.Shell && d.Action == ActionType.ShellFed && d.Hinge != HingeKind.BreakAction
-                && Vector3.Dot(insertGun.normalized, d.Up.normalized) < -0.2f)
+                && (Vector3.Dot(insertGun.normalized, d.Up.normalized) < -0.2f || pump && Mathf.Abs(Vector3.Dot(insertGun.normalized, across)) > 0.5f))
             {
+                // (And a pump whose reload pushes its shell in sideways, taken by the analysis for a lever action's side gate: the BRYSON 800,
+                // 65 degrees off the bore across the gun, the hand over the receiver's top. A pump is loaded from under the receiver.)
                 // A tube's shell goes in nose forward, pushed up into the port under the receiver and on into the tube. The reload's
                 // first shell motion ran down through the top of the BRYSON 800's receiver, and a hand pushing a shell up from under it,
                 // as a tube is loaded, came from the far side of that line: never taken (the user, 2026-11-23/24: "still cant reload
