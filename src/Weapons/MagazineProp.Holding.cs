@@ -52,6 +52,12 @@ namespace RavenfieldVR.Weapons
             }
             _attachTime = AttachBlend;
             _fresh = false;
+            if (HeldBy != null && !ReferenceEquals(HeldBy, hand) && ReferenceEquals(HeldBy.Held, this))
+            {
+                // Taken from the other hand's fingers: that hand lets go (it kept pointing at this magazine as held; magazine scout).
+                HeldBy.Held = null;
+                HeldBy.Role = HandRole.Free;
+            }
             HeldBy = hand;
             _keptOut = Vector3.zero; // a fresh grip: no offset left over from the last time it met the gun
             _touchingGun = false; // nor a touch: let go pressed on the gun, the next grab's first touch was felt as a scrape
