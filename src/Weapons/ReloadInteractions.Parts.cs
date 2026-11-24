@@ -502,6 +502,8 @@ namespace RavenfieldVR.Weapons
         }
 
         private bool _beltNearTicked;
+        /// <summary>How long a laid belt's end eases from the hand onto the tray.</summary>
+        private const float BeltLayEase = 0.2f;
 
         private void CompleteBelt(VRHand off)
         {
@@ -511,6 +513,9 @@ namespace RavenfieldVR.Weapons
                 // The end eases onto the tray from where it was drawn (taken from 7 cm, it jumped there in one frame).
                 _beltLaidFrom = Rig.ToGun(BeltStartWorld + Vector3.ClampMagnitude(off.Palm.position + off.Palm.Forward * 0.02f - BeltStartWorld, BeltHeldReach));
                 _beltLaidAt = Time.unscaledTime;
+                // (A model with its own belt: it shows once the hand's strip has eased onto the tray. It was swapped in at once, the strip
+                // gone from the hand and the belt on the tray in the same frame; the user, 2026-11-24: "its just teleporting in".)
+                _held.BeltShowAfter = _held.BeltPartCount > 0 ? Time.unscaledTime + BeltLayEase : -1f;
                 _held.Sounds.Play(MechSound.BeltOn, MechSound.ShellIn, FeedTrayWorld);
                 off.Haptic(0.04f, 120f, 0.6f);
                 _sys.Rig.Dominant.Haptic(0.03f, 120f, 0.4f);
@@ -583,8 +588,10 @@ namespace RavenfieldVR.Weapons
             // clears it, so a box put back is never drawn with the old belt (274). Read from the state, so a belt laid at the
             // spawn, or still laid when the gun is drawn again, shows too; for hand-laid belts only (without BeltByHand the belt
             // was never shown on the tray), and a gun whose model has its own belt shows that instead. A box fired empty has no belt left.
-            bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.MagRounds > 0 && Ammo.HasCover && VRConfig.BeltByHand.Value && _held.BeltPartCount == 0
-                              && !Data.BeltDrawnByAnimator // (drawn over the model's own, two belts lay there: one through the other as the gun turned)
+            bool easing = Ammo.BeltLaid && _beltLaidAt >= 0f && Time.unscaledTime - _beltLaidAt < BeltLayEase && _beltLaidThisLift;
+            bool laidOnTray = Ammo.BeltLaid && Ammo.MagInserted && Ammo.MagRounds > 0 && Ammo.HasCover && VRConfig.BeltByHand.Value
+                              && (_held.BeltPartCount == 0 && !Data.BeltDrawnByAnimator // (drawn over the model's own, two belts lay there: one through the other as the gun turned)
+                                  || easing) // (the model's own belt waits for it, HeldWeapon.BeltShowAfter)
                               && (!Ammo.CoverOpen || _beltLaidThisLift);
             bool show = _beltHeld || _beltHanging || laidOnTray;
             if (laidOnTray && _belt == null)
@@ -616,7 +623,7 @@ namespace RavenfieldVR.Weapons
             else
             {
                 to = FeedTrayWorld;
-                float eased = _beltLaidAt < 0f ? 1f : (Time.unscaledTime - _beltLaidAt) / 0.12f;
+                float eased = _beltLaidAt < 0f ? 1f : (Time.unscaledTime - _beltLaidAt) / BeltLayEase;
                 if (eased < 1f)
                 {
                     to = Vector3.Lerp(Rig.ToWorld(_beltLaidFrom), to, Mathf.SmoothStep(0f, 1f, eased));

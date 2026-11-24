@@ -468,6 +468,9 @@ namespace RavenfieldVR.Weapons
         /// <summary>How many belt parts the model has (0: the mod's own strip shows a laid belt).</summary>
         internal int BeltPartCount => Rig.Data.BeltPartPaths.Count;
 
+        /// <summary>The model's belt waits until then (unscaled) after a belt laid by hand: the hand's strip eases onto the tray first.</summary>
+        internal float BeltShowAfter = -1f;
+
         /// <summary>
         /// Where the model's own belt feeds (the gun's frame): its link nearest the bore, ahead of the grip, measured once as the
         /// parts are first taken (before they are hidden). The belt is laid by bringing its end there; the guess from the cover's
@@ -543,7 +546,7 @@ namespace RavenfieldVR.Weapons
             }
             // (A box fired empty has no belt left to show. With belts not laid by hand nothing else draws one, so a box put in under the open
             // cover shows its belt at once, as a full gun's stays when the cover is opened.)
-            bool hide = !ammo.MagInserted || !ammo.BeltLaid && VRConfig.BeltByHand.Value || ammo.MagRounds <= 0;
+            bool hide = !ammo.MagInserted || !ammo.BeltLaid && VRConfig.BeltByHand.Value || ammo.MagRounds <= 0 || Time.unscaledTime < BeltShowAfter;
             // Written each frame while hidden: clips animate these parts' scale too (all of the MG3's do), and written once it was undone
             // by the next frame's pose.
             if (hide == _beltHidden && !hide)
