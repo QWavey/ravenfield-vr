@@ -142,6 +142,7 @@ namespace RavenfieldVR.UI
                         VRConfig.SmoothTurnSpeed.Value = Mathf.Clamp(VRConfig.SmoothTurnSpeed.Value + d * 30f, 30f, 360f);
                     }
                 });
+            Greyed(_lastRow, () => VRConfig.Turn.Value == TurnMode.Off); // (with turning off its buttons did nothing, and looked live; settings scout)
             Choice("Move with", VRConfig.MoveDirection, new[] { MoveReference.Head, MoveReference.OffHand }, new[] { "Head", "Off hand" });
             Stepper("Vignette", () => $"{VRConfig.Vignette.Value * 100f:0}%", d => VRConfig.Vignette.Value = Mathf.Clamp01((d > 0 ? Mathf.Floor(VRConfig.Vignette.Value * 10f + 1e-4f) + 1f : Mathf.Ceil(VRConfig.Vignette.Value * 10f - 1e-4f) - 1f) / 10f));
             Choice("Tunnel in vehicles", VRConfig.VehicleVignette, new[] { true, false }, new[] { "On fast turns", "Off" });
@@ -359,7 +360,12 @@ namespace RavenfieldVR.UI
         private void Choice<T>(string label, ConfigEntry<T> entry, T[] values, string[] names, System.Func<bool> greyed)
         {
             Choice(label, entry, values, names);
-            RectTransform row = _lastRow;
+            Greyed(_lastRow, greyed);
+        }
+
+        /// <summary>A row greyed out and its buttons off while <paramref name="greyed"/> holds (looked at with the panel's refresh).</summary>
+        private void Greyed(RectTransform row, System.Func<bool> greyed)
+        {
             // (The row's buttons taken once: looked up at every refresh, an array each, every 2 s and after each click; settings scout.)
             Button[] buttons = row != null ? row.GetComponentsInChildren<Button>(true) : new Button[0];
             AddRefresher(() =>
@@ -445,6 +451,7 @@ namespace RavenfieldVR.UI
         private void Stepper(string label, Func<string> value, Action<int> step)
         {
             RectTransform row = LabeledRow(label);
+            _lastRow = row;
             MakeButton(row, "+", 34f, 56f, () => step(1), out _);
             Text v = MakeText(row, value(), 22, FontStyle.Normal, TextColor, TextAnchor.MiddleCenter);
             RectTransform vr = v.rectTransform;
