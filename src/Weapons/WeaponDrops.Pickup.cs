@@ -423,6 +423,7 @@ namespace RavenfieldVR.Weapons
             }
             int slot = drop.OwnerSlot >= 0 && drop.OwnerSlot < actor.weapons.Length ? drop.OwnerSlot : SlotFor(drop.Entry, actor);
             Weapon current = actor.weapons[slot];
+            DroppedWeapon swappedAway = null;
             if (current != null && current.weaponEntry != null && current.weaponEntry.prefab != null)
             {
                 // Swap: what you had in that slot goes where the picked-up weapon was. Made first: a weapon without a
@@ -447,6 +448,7 @@ namespace RavenfieldVR.Weapons
                 {
                     _sys.Second.TakeReloadRounds(); // now the drop's
                 }
+                swappedAway = swapped;
                 swapped.SubAmmo = SubAmmoOf(current);
                 swapped.Keep = true; // your rifle, swapped for a fallen enemy's shotgun, was deleted 90 s later (85-agent review)
                 swapped.PlayerOwned = true;
@@ -499,6 +501,12 @@ namespace RavenfieldVR.Weapons
                 // (drops hunt, 2026-10-20).
                 Log.WarnOnce("pickupfailed:" + drop.Entry.name, $"Picking up {drop.Entry.name}: the game spawned nothing; it stays on the ground.");
                 VRInput.SetGunHand(gunHandBefore); // (the gun held before is taken up again in its own hand, not the one that reached)
+                if (swappedAway != null && _drops.Contains(swappedAway) && current != null && actor.weapons[slot] == current)
+                {
+                    // Nothing was taken, so nothing was put down: the gun still in its slot is not also left lying at the feet, two of it
+                    // (drops scout, 2026-11-24).
+                    Remove(swappedAway);
+                }
                 return;
             }
             RestoreAmmo(equipped, drop);

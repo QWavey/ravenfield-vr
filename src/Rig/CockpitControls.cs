@@ -914,6 +914,10 @@ namespace RavenfieldVR.Rig
                     {
                         h.Role = HandRole.Free;
                     }
+                    if (h.Model != null)
+                    {
+                        h.Model.CockpitStick = false; // (as VehicleInterior's release: the fist round a stick stayed set; cockpit scout)
+                    }
                 }
                 _onWheel[i] = false;
             }
@@ -926,7 +930,8 @@ namespace RavenfieldVR.Rig
                 }
             }
             _throttleHand = null; // (the lever's setting stays: a menu or a pause does not move it)
-            if (_stickHand.HasValue && VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && VehicleInput.FlightStick.HasValue
+            // (Not for a plane destroyed under the held stick: its seat equals null then, and the trim was left set on foot; cockpit scout.)
+            if (_stickHand.HasValue && _seat != null && VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && VehicleInput.FlightStick.HasValue
                 && VehicleInput.FlightStick.Value.sqrMagnitude > 0.08f * 0.08f)
             {
                 VehicleInput.Trim = VehicleInput.FlightStick; // (a menu opened with the stick held: it stays where it was, as let go)
