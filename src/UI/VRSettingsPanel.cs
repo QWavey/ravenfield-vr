@@ -356,6 +356,8 @@ namespace RavenfieldVR.UI
         {
             Choice(label, entry, values, names);
             RectTransform row = _lastRow;
+            // (The row's buttons taken once: looked up at every refresh, an array each, every 2 s and after each click; settings scout.)
+            Button[] buttons = row != null ? row.GetComponentsInChildren<Button>(true) : new Button[0];
             _refreshers.Add(() =>
             {
                 bool dim = greyed();
@@ -363,8 +365,12 @@ namespace RavenfieldVR.UI
                 {
                     return;
                 }
-                foreach (Button b in row.GetComponentsInChildren<Button>(true))
+                foreach (Button b in buttons)
                 {
+                    if (b == null)
+                    {
+                        continue;
+                    }
                     if (b.interactable == dim)
                     {
                         b.interactable = !dim;

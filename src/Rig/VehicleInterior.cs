@@ -2966,6 +2966,12 @@ namespace RavenfieldVR.Rig
                 _scopeScreen = null;
             }
             _scope = null;
+            if (_block != null)
+            {
+                // (The driver's block view the same: it drew every third frame into its released texture until the frame's end; cabin scout.)
+                _block.enabled = false;
+                _block.targetTexture = null;
+            }
             if (_blockTexture != null)
             {
                 _blockTexture.Release();
