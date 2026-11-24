@@ -60,6 +60,10 @@ namespace RavenfieldVR.Weapons
             {
                 go = ProjectileCopy(rig, insertLocal, frontLocal, out bounds);
             }
+            if (go == null && kind == PropKind.Shell)
+            {
+                go = Casings.HeldOwnShell(rig, insertLocal, frontLocal, out bounds);
+            }
             bool standIn = go == null;
             if (go == null)
             {

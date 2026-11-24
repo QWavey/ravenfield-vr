@@ -75,6 +75,40 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private static OwnShell OwnShellOf(HeldWeapon held, Kind kind) => OwnShellOf(held.ActiveRig, kind);
 
+        /// <summary>
+        /// The gun's own shell (as it throws them) for the hand, its length along <paramref name="insertLocal"/>, centred on the
+        /// root; null where it has none. The hand's copy of the shell part drew nothing where the part waits switched off (the BRYSON
+        /// 800's), and the made 12-gauge one was held (the user, 2026-11-23: "shells (which are not the same as the guns model btw)").
+        /// </summary>
+        internal static GameObject HeldOwnShell(WeaponRig rig, Vector3 insertLocal, Vector3 frontLocal, out Bounds bounds)
+        {
+            bounds = default;
+            OwnShell own = rig != null ? OwnShellOf(rig, Kind.Shell) : null;
+            if (own == null || own.Mesh == null)
+            {
+                return null;
+            }
+            var root = new GameObject("RavenfieldVR Shell");
+            var piece = new GameObject("shell");
+            piece.transform.SetParent(root.transform, false);
+            piece.AddComponent<MeshFilter>().sharedMesh = own.Mesh;
+            piece.AddComponent<MeshRenderer>().sharedMaterials = own.Materials;
+            Vector3 scale = new Vector3(Mathf.Abs(own.Scale.x), Mathf.Abs(own.Scale.y), Mathf.Abs(own.Scale.z));
+            // Its long axis (own.Turn takes it onto z) along the way in, its front as the prop's front.
+            Vector3 up = Mathf.Abs(Vector3.Dot(insertLocal.normalized, frontLocal.normalized)) > 0.95f ? Vector3.up : frontLocal;
+            Quaternion rot = Quaternion.LookRotation(insertLocal, up) * own.Turn;
+            piece.transform.localRotation = rot;
+            piece.transform.localScale = scale;
+            piece.transform.localPosition = -(rot * Vector3.Scale(own.Mesh.bounds.center, scale));
+            Vector3 size = Vector3.Scale(own.Mesh.bounds.size, scale);
+            float length = size[own.Axis];
+            float width = (size.x + size.y + size.z - length) * 0.5f;
+            Quaternion along = Quaternion.LookRotation(insertLocal, up);
+            Vector3 b = along * new Vector3(width, width, length);
+            bounds = new Bounds(Vector3.zero, new Vector3(Mathf.Abs(b.x), Mathf.Abs(b.y), Mathf.Abs(b.z)));
+            return root;
+        }
+
         private static OwnShell OwnShellOf(WeaponRig rig, Kind kind)
         {
             if (kind != Kind.Shell || rig.Magazine == null || !WeaponAnalyzer.ShellSized(rig.Data.MagBounds))
