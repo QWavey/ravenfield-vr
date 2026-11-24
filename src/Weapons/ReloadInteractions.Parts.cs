@@ -469,6 +469,9 @@ namespace RavenfieldVR.Weapons
             }
         }
 
+        /// <summary>How far from the middle of the box's face toward its edge the belt's mouth may be (of the half size).</summary>
+        private const float MouthInFace = 0.4f;
+
         /// <summary>How far outside the box's face the belt starts and its rounds are kept (a round is 12 mm across).</summary>
         private const float BeltClear = 0.008f;
 
@@ -506,7 +509,10 @@ namespace RavenfieldVR.Weapons
                 {
                     mouth[axis] = axis == lead
                         ? b.center[axis] + Mathf.Sign(insertLocal[axis]) * (b.extents[axis] + BeltClear)
-                        : Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis], b.center[axis] + b.extents[axis]);
+                        // (Toward the tray, but within the face's middle part, where a box's opening is: clamped to its edge the MG3's
+                        // belt came off the top's back edge and hung down the box's back, out of the canister and not its opening; the
+                        // user, 2026-11-24.)
+                        : Mathf.Clamp(tray[axis], b.center[axis] - b.extents[axis] * MouthInFace, b.center[axis] + b.extents[axis] * MouthInFace);
                 }
                 return SeatPose.TransformPoint(mouth);
             }
