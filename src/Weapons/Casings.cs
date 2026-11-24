@@ -744,6 +744,15 @@ namespace RavenfieldVR.Weapons
             }
             foreach (Case c in Alive)
             {
+                if (c.Held && c.Holder != null && ReferenceEquals(c.Holder.Held, c))
+                {
+                    // (A round in the fingers: the hand lets go of it with the object, else it held a destroyed one; casings scout.)
+                    c.Holder.Held = null;
+                    if (c.Holder.Role == Rig.HandRole.Magazine)
+                    {
+                        c.Holder.Role = Rig.HandRole.Free;
+                    }
+                }
                 GiveBack(c); // (a live round out of a reserve still carried: back into it, as when it is put away for its age)
                 if (c.Go != null)
                 {
