@@ -1023,12 +1023,12 @@ namespace RavenfieldVR.Input
         public static Vector2 ApplyDeadzone(Vector2 v, float deadzone)
         {
             float m = v.magnitude;
-            if (m <= deadzone || m < 1e-4f)
+            if (!(m > deadzone) || m < 1e-4f) // (a NaN stick is no push: it passed "m <= deadzone" and came back NaN; input scout)
             {
                 return Vector2.zero;
             }
             // Rescale so output starts at 0 right after the dead zone instead of jumping.
-            float scaled = Mathf.Clamp01((m - deadzone) / (1f - deadzone));
+            float scaled = Mathf.Clamp01((m - deadzone) / Mathf.Max(1e-4f, 1f - deadzone));
             return v / m * scaled;
         }
 
@@ -1129,6 +1129,11 @@ namespace RavenfieldVR.Input
             System.Array.Clear(Held, 0, Held.Length);
             System.Array.Clear(WasHeld, 0, WasHeld.Length);
             _useHeldThroughSwap = false;
+            // (The support hand's trigger, set and cleared by the weapon system's update: a launcher trigger held as VR stopped or the
+            // scene changed kept Fire held into the next session's first frames; input scout, 2026-11-24.)
+            SupportFire = false;
+            SupportTriggerOwned = false;
+            SupportTriggerLightsOnly = false;
         }
 
         /// <summary>Resets toggles when the player respawns, gets into or out of a seat, or onto or off a ladder.</summary>

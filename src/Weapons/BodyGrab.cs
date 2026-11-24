@@ -2043,7 +2043,7 @@ namespace RavenfieldVR.Weapons
             if (hb != null && hb.parent is Actor hit && hit != _owner && hit != _by && !hit.dead)
             {
                 Hurt(hit, damage, speed, point, -dir, null);
-                if (hit.ragdoll != null && !hit.ragdoll.IsRagdoll())
+                if (!hit.dead && hit.ragdoll != null && !hit.ragdoll.IsRagdoll()) // (killed by this blow: the game's death has him)
                 {
                     hit.KnockOver(-dir * Mathf.Min(speed, 15f) * 20f);
                 }

@@ -2734,6 +2734,9 @@ namespace RavenfieldVR.Tests
                   "Dead zone (flight stick): full on one axis, none in the zone, continuous after it");
             UnityEngine.Vector2 half = Square(0.5f, 0.5f, 0.075f);
             Check(half.x > 0.4f && half.x < 0.75f && Math.Abs(half.x - half.y) < 1e-4f, $"Dead zone (flight stick): half a corner is in between ({half.x:0.000})");
+            // A stick read as NaN (a dropped device) is no push, not a NaN on to the game's movement.
+            UnityEngine.Vector2 nan = Round(float.NaN, 0f, 0.1f);
+            Check(nan.x == 0f && nan.y == 0f, $"Dead zone (thumbstick): a NaN stick is no push ({nan.x}, {nan.y})");
         }
 
         private static void SteeringTests(System.Reflection.Assembly mod)
