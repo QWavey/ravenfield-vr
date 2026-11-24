@@ -26,6 +26,8 @@ namespace RavenfieldVR.Weapons
         private readonly Vector3[] _verts, _normals;
         // The last placement, so a still belt (hanging or laid) is not rebuilt and re-uploaded every frame.
         private Vector3 _lastFrom, _lastTo, _lastBarrel;
+        private Bounds _lastBox;
+        private bool _lastHadBox;
         private int _lastRounds = -1, _lastCount;
         private bool _lastFromMouth;
         private bool _built;
@@ -97,7 +99,9 @@ namespace RavenfieldVR.Weapons
             // move of the gun in the hand rebuilt and re-uploaded the whole strip every frame (255.P1.6).
             if (_built && rounds == _lastRounds && fromMouth == _lastFromMouth && ((to - from) - (_lastTo - _lastFrom)).sqrMagnitude < 1e-6f
                 && (bend - _lastBend).sqrMagnitude < 1e-6f
-                && Vector3.Dot(barrel.normalized, _lastBarrel.normalized) > 0.99996f)
+                && Vector3.Dot(barrel.normalized, _lastBarrel.normalized) > 0.99996f
+                // (And the box it keeps out of: measured again as drawn, the belt kept its shape round the old one; belt scout.)
+                && keepOut.HasValue == _lastHadBox && (keepOutBox.size - _lastBox.size).sqrMagnitude < 1e-6f && (keepOutBox.center - _lastBox.center).sqrMagnitude < 1e-6f)
             {
                 if (!Same(from, _lastFrom))
                 {
@@ -112,6 +116,8 @@ namespace RavenfieldVR.Weapons
             _built = true;
             _lastFrom = from;
             _lastTo = to;
+            _lastHadBox = keepOut.HasValue;
+            _lastBox = keepOutBox;
             _lastBarrel = barrel;
             _lastRounds = rounds;
             _lastFromMouth = fromMouth;
