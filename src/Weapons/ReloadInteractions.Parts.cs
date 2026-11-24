@@ -336,7 +336,7 @@ namespace RavenfieldVR.Weapons
 
         /// <summary>Where the held strip's end was (in the gun's frame) when it was laid, eased onto the tray from there.</summary>
         private Vector3 _beltLaidFrom;
-        /// <summary>When the belt was laid (Time.time), for that ease; -1 for none.</summary>
+        /// <summary>When the belt was laid (Time.unscaledTime, as HeldWeapon.BeltShowAfter), for that ease; -1 for none.</summary>
         private float _beltLaidAt = -1f;
 
         /// <summary>
