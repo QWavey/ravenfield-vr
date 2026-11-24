@@ -31,7 +31,7 @@ namespace RavenfieldVR.Rig
         private static readonly Vector3[] Grip = new Vector3[2];       // where the glove closes (world, on the surface)
         private static readonly Vector3[] LastRel = new Vector3[2];    // the hand against the body last frame, for the let-go speed
         private static Vector3 _pullVelocity;
-        private static readonly Collider[] Hits = new Collider[16];
+        private static readonly Collider[] Hits = new Collider[48];
         /// <summary>The soldier the hands hold on for: another one (a takeover, a new life with no dead frame) ends the hold.</summary>
         private static Actor _holder;
         /// <summary>When each hand's squeeze on the level began (-1: none): it holds on only after <see cref="TakeHoldAfter"/>, if nothing

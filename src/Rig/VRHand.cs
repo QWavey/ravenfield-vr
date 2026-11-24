@@ -149,16 +149,18 @@ namespace RavenfieldVR.Rig
                 : (_slowPose.position - local.position).sqrMagnitude < 0.002f * 0.002f && Quaternion.Angle(_slowPose.rotation, local.rotation) < 0.5f;
             bool jumped = _slowActive && (local.position - _slowTarget).sqrMagnitude > 0.5f * 0.5f;
             _slowTarget = local.position;
-            if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 0f || jumped)
+            if (s <= 0f || s >= 0.999f && (!_slowActive || caughtUp) || dt <= 1e-4f || jumped)
             {
                 _slowActive = _catching = false;
                 return false;
             }
-            // (A long frame, a hitch or a load, is taken as a tenth of a second: it dropped the hand to the controller before.)
+            // (A long frame, a hitch or a load, is taken as a tenth of a second: it dropped the hand to the controller before. The speed
+            // is over the real frame: the move covers all of it, and over the clamped tenth a hitch read five times the speed; hands scout.)
+            float realDt = dt;
             dt = Mathf.Min(dt, 0.1f);
             if (s >= 0.999f)
             {
-                CatchUp(ref local, dt, out velocity, out spin);
+                CatchUp(ref local, dt, realDt, out velocity, out spin);
                 return true;
             }
             if (!_slowActive || _catching)
@@ -206,7 +208,7 @@ namespace RavenfieldVR.Rig
         /// let go only once the hand was held still: the slow motion stayed on the hands a little after it went off (user,
         /// 2026-11-03). Its velocity and spin: the drawn hand's own over the frame, the controller's and the offset's together.
         /// </summary>
-        private void CatchUp(ref RigidPose local, float dt, out Vector3 velocity, out Vector3 spin)
+        private void CatchUp(ref RigidPose local, float dt, float realDt, out Vector3 velocity, out Vector3 spin)
         {
             if (!_catching)
             {
@@ -219,13 +221,13 @@ namespace RavenfieldVR.Rig
             CatchStep(ref _catchOff, ref _catchVelocity, ref _catchTurn, dt);
             RigidPose was = _slowPose;
             _slowPose = new RigidPose(local.position + _catchOff, local.rotation * _catchTurn);
-            velocity = (_slowPose.position - was.position) / dt;
+            velocity = (_slowPose.position - was.position) / realDt;
             (_slowPose.rotation * Runtime.RigidPose.Conjugate(was.rotation)).ToAngleAxis(out float turned, out Vector3 axis);
             if (turned > 180f)
             {
                 turned -= 360f;
             }
-            spin = Mathf.Abs(turned) > 1e-4f && !float.IsNaN(axis.x) && !float.IsInfinity(axis.x) ? axis * (turned * Mathf.Deg2Rad / dt) : Vector3.zero;
+            spin = Mathf.Abs(turned) > 1e-4f && !float.IsNaN(axis.x) && !float.IsInfinity(axis.x) ? axis * (turned * Mathf.Deg2Rad / realDt) : Vector3.zero;
             _slowVelocity = velocity;
             _slowSpin = spin;
             local = _slowPose;

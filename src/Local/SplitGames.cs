@@ -321,6 +321,7 @@ namespace RavenfieldVR.Local
         internal static readonly bool StartsSplit = Args.Any(a => a.Equals("-rfvr-splittry", StringComparison.OrdinalIgnoreCase));
 
         private static bool _everHosted, _earlyDone;
+        private static float _portTakenSince = -1f;
 
         /// <summary>Called as the mod starts: a game that starts straight into splitscreen goes full screen and shows "Loading" at once.</summary>
         internal static void Early()
@@ -748,6 +749,8 @@ namespace RavenfieldVR.Local
 
         private static void HostStart()
         {
+            // (Tried, even if it goes no further: a start that failed before it hosted kept the "Loading ..." screen up for good; split scout.)
+            _everHosted = true;
             if (Multiplayer.Active && !Multiplayer.LanHosting)
             {
                 Multiplayer.Notice("Splitscreen with game copies needs a LAN game: leave the online game first (or use Soldiers splitscreen).");
@@ -1046,6 +1049,16 @@ namespace RavenfieldVR.Local
                 {
                     // (The port still held by the copy this one replaces: tried again next frame, the setup not marked done without it.)
                     Log.WarnOnce("split-copy-port", "Splitscreen: this copy's input port is taken, trying again: " + e.Message);
+                    // Held for 30 s: something else has it, and this copy waited for ever, its own quits being past the setup (split scout).
+                    if (_portTakenSince < 0f)
+                    {
+                        _portTakenSince = Time.unscaledTime;
+                    }
+                    else if (Time.unscaledTime - _portTakenSince > 30f)
+                    {
+                        Log.Warn("Splitscreen: this copy's input port stayed taken for 30 s: the copy quits (the host starts it again).");
+                        Application.Quit();
+                    }
                     return;
                 }
                 _clientSetUp = true;

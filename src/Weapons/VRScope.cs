@@ -6,6 +6,14 @@ using UnityEngine.Rendering;
 
 namespace RavenfieldVR.Weapons
 {
+    /// <summary>On a lens's own object: the lens's picture and materials given back when the object goes without <see cref="VRScope.Destroy"/>.</summary>
+    internal sealed class ScopeLensOwner : MonoBehaviour
+    {
+        internal VRScope Scope;
+
+        private void OnDestroy() => Scope?.Destroy();
+    }
+
     /// <summary>
     /// Picture-in-picture lens for scoped weapons that only had a 2D scope overlay in flat mode. A camera
     /// on the sight line renders the magnified view into a texture shown on a disc at the ocular lens, with a
@@ -14,6 +22,7 @@ namespace RavenfieldVR.Weapons
     /// </summary>
     public sealed class VRScope
     {
+        private bool _destroyed;
         private const float LensRadius = 0.017f;
         private const float EyeRelief = 0.09f;
         private const int IgnoreLayers = (1 << 5) | (1 << 18);
@@ -400,6 +409,9 @@ namespace RavenfieldVR.Weapons
                 _texture = TakeTexture(VRConfig.ScopeResolution.Value);
 
                 _root = new GameObject("RavenfieldVR Scope");
+                // (Its picture and materials are not the object's: destroyed with the gun and no release, they stayed for the session;
+                // scope scout, 2026-11-24.)
+                _root.AddComponent<ScopeLensOwner>().Scope = this;
                 // On the scope's own ocular glass when its model was measured; else eye relief ahead of the eye point.
                 // An ocular is 1-2.5 cm across the glass: a measured "lens" much bigger (a K13 ACOG's took the whole housing) was
                 // a dark disc as wide as the receiver beside the sight.
@@ -803,6 +815,11 @@ namespace RavenfieldVR.Weapons
 
         public void Destroy()
         {
+            if (_destroyed)
+            {
+                return;
+            }
+            _destroyed = true;
             if (_root != null)
             {
                 Object.Destroy(_root);
