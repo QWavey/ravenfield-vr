@@ -125,8 +125,10 @@ namespace RavenfieldVR.Weapons
                 // Each hand's own trigger: the gun hand's is Fire, the other's Use (VRInput.Slot); read as Fire alone, the off
                 // hand's trigger never let a round out.
                 DigitalAction trigger = h.Side == VRInput.GunHand ? DigitalAction.Fire : DigitalAction.Use;
-                if (sys.Held != null && h == sys.Rig.Dominant || !h.Tracked || !(h.Held is MagazineProp mag) || mag.Go == null
-                    || mag.Kind != PropKind.Magazine)
+                if ((sys.Held != null && h == sys.Rig.Dominant) || !h.Tracked || !(h.Held is MagazineProp mag) || mag.Go == null
+                    || mag.Kind != PropKind.Magazine
+                    // (Not a belt box's or an en-bloc clip's rounds, which loading by hand leaves alone everywhere else: Applies; scout.)
+                    || mag.Owner != null && mag.Owner.Rig != null && (mag.Owner.Rig.IsMachineGun || mag.Owner.Rig.EnBloc))
                 {
                     continue;
                 }
@@ -302,7 +304,7 @@ namespace RavenfieldVR.Weapons
                     // Once a session: whether a camera really drew it (the user saw none; the line made at the take could not tell).
                     _roundSeenCheckAt = -1f;
                     _roundSeenChecked = true;
-                    Log.Info($"Round in the {h.Side} hand a moment on: {(c.Renderer.isVisible ? "drawn by a camera" : "NOT drawn by any camera")}, "
+                    Log.Info($"Round in the {h.Side} hand a moment on: {(c.Renderer != null && c.Renderer.isVisible ? "drawn by a camera" : "NOT drawn by any camera")}, "
                              + $"layer {c.Go.layer}, {Vector3.Distance(sys.Rig.Head.position, c.Go.transform.position):0.00} m from the eye.");
                 }
                 if (!h.GrabHeld || !Enabled && !ChamberEnabled)
