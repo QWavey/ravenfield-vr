@@ -140,7 +140,18 @@ namespace RavenfieldVR.Weapons
             Vector3 down = Vector3.down;
 
             Stretched = false;
-            if (_right.Valid && _left.Valid && (_sys.HeldWhereTaken(_held.Weapon) || Input.VRInput.GunHandSwapped))
+            bool whereTaken = _sys.HeldWhereTaken(_held.Weapon);
+            if (whereTaken && !_keptTaken)
+            {
+                // The pass itself: the support arm's hand where it held the gun is kept, in the gun's frame.
+                _keptArmInGun = _supportOnGun ? _lastSupportInGun : (RigidPose?)null;
+            }
+            _keptTaken = whereTaken;
+            if (!whereTaken)
+            {
+                _keptArmInGun = null;
+            }
+            if (_right.Valid && _left.Valid && (whereTaken || Input.VRInput.GunHandSwapped))
             {
                 SolveWhereTaken(neck, zones, down);
                 return;
@@ -284,6 +295,12 @@ namespace RavenfieldVR.Weapons
                 _onGunBlend = _onGunBlend < 0f ? want : Mathf.MoveTowards(_onGunBlend, want, easeDt * 10f);
                 float e = _onGunBlend * _onGunBlend * (3f - 2f * _onGunBlend); // eased in and out
                 RigidPose target = new RigidPose(Vector3.Lerp(free.position, grip.position, e), Quaternion.Slerp(free.rotation, grip.rotation, e));
+                // (Where the support arm's hand is on the gun, for a pass: see _keptArmInGun.)
+                _supportOnGun = e > 0.5f && side > 0f;
+                if (_supportOnGun)
+                {
+                    _lastSupportInGun = _held.Rig.GunBodyPose.Inverse().Multiply(target);
+                }
                 Vector3 pole = offShoulder + down * 0.6f - zones.TorsoRight * (0.35f * side) - zones.TorsoForward * 0.2f;
                 SolveArm(_left, offShoulder, target, pole);
                 OffHandError = Vector3.Distance(_left.Hand.position, target.position);
@@ -327,6 +344,13 @@ namespace RavenfieldVR.Weapons
                 // (A magazine in it kept out of the gun: moved with it in the same frame, as in Solve.)
                 MagazineProp mag = hand.Role == HandRole.Magazine ? hand.Held as MagazineProp : null;
                 RigidPose target = FreeTarget(hand, arm.Chain, mag != null && mag.Go != null && !mag.OnRail ? mag.KeptOut : (Vector3?)null);
+                if (_keptArmInGun.HasValue && ReferenceEquals(arm, _left) && hand.Role == HandRole.Weapon && _held.Rig.GunBody != null)
+                {
+                    // The support arm keeping the gun the trigger hand let go of: its hand stays where it held the gun (the animation's support
+                    // grip), not moved onto the glove's pinned place, which is not where the weapon's arm had it (the user, 2026-11-24, weapon
+                    // arms: "the hand that is not on the trigger, when let go the trigger finger/arm, the hand changes positions").
+                    target = _held.Rig.GunBodyPose.Multiply(_keptArmInGun.Value);
+                }
                 SolveArm(arm, shoulder, target, pole);
                 float error = Vector3.Distance(arm.Hand.position, target.position);
                 if (hand == _sys.Rig.Dominant)
@@ -356,6 +380,10 @@ namespace RavenfieldVR.Weapons
         }
 
         private bool _saidGunOff, _saidSupportOff;
+        /// <summary>The support arm's hand on the gun at the last frame it held it (gun body frame), whether it did, and the pass's copy.</summary>
+        private RigidPose _lastSupportInGun;
+        private bool _supportOnGun, _keptTaken;
+        private RigidPose? _keptArmInGun;
 
         /// <summary>The game's own reload is playing (the assisted reload): the hands go where its animation takes them, off the gun too.</summary>
         private bool GameReloading => _held.ActiveWeapon != null && _held.ActiveWeapon.reloading;
