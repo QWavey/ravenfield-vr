@@ -336,7 +336,7 @@ namespace RavenfieldVR.Weapons
                     Throw(v);
                 }
             }
-            if (Armed && !Done && Weapon is ThrowableWeapon kept)
+            if (Armed && !Done && Weapon != null && Weapon is ThrowableWeapon kept) // (a destroyed grenade passes "is": Unity null; scout)
             {
                 _sys.Throwables?.PutAwayPulled(kept); // its pin stays out
             }
@@ -802,7 +802,7 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void KeepPulledPin()
         {
-            if (Armed && !Done && Weapon is ThrowableWeapon kept)
+            if (Armed && !Done && Weapon != null && Weapon is ThrowableWeapon kept) // (a destroyed grenade passes "is": Unity null; scout)
             {
                 _sys.Throwables?.PutAwayPulled(kept);
             }
