@@ -50,11 +50,16 @@ namespace RavenfieldVR.Weapons
             {
                 return;
             }
+            if (_running && _runOwner == null)
+            {
+                _running = false; // (its runner destroyed under it, no end reached: the warm-up never ran again; warmup scout, 2026-11-25)
+            }
             if (_running)
             {
                 _rescan = true; // more content loaded mid-run: go over the weapon list again when this pass ends
                 return;
             }
+            _runOwner = VRManager.Instance;
             VRManager.Instance.StartCoroutine(Run());
         }
 
@@ -314,9 +319,28 @@ namespace RavenfieldVR.Weapons
 
         private static bool InMatch() => GameManager.IsIngame(out bool noGameplay) && !noGameplay;
 
+        private static VRManager _runOwner;
+
+        /// <summary>The warm-up, its flag cleared however it ends (a step that threw past its guard left it set, and nothing ran again).</summary>
         private static IEnumerator Run()
         {
             _running = true;
+            try
+            {
+                IEnumerator steps = RunSteps();
+                while (steps.MoveNext())
+                {
+                    yield return steps.Current;
+                }
+            }
+            finally
+            {
+                _running = false;
+            }
+        }
+
+        private static IEnumerator RunSteps()
+        {
             // The scope lens's textures first (one frame, once a game): no weapon's, and the first scoped draw made them.
             VRScope.WarmAssets();
             yield return null;
