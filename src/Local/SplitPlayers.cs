@@ -31,6 +31,8 @@ namespace RavenfieldVR.Local
         public Vector3 HurtFrom;
         /// <summary>A weapon slot picked by its number key (-1: none this frame).</summary>
         public int SlotPick = -1;
+        /// <summary>Fire or jump pressed while down: brought back once the wait is over (SplitLife.WhileDown).</summary>
+        public bool RespawnQueued;
         public int LastWheel;
     }
 
@@ -435,6 +437,7 @@ namespace RavenfieldVR.Local
                 {
                     p.Deaths++;
                     p.DiedAt = Time.time;
+                    p.RespawnQueued = false;
                     p.Crouch = p.Sprint = false; // (comes back standing, as the game's own player does)
                 }
                 p.WasDead = a.dead;

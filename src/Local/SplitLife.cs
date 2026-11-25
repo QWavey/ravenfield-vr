@@ -27,8 +27,15 @@ namespace RavenfieldVR.Local
             {
                 p.SpawnAtFlag = !p.SpawnAtFlag;
             }
-            if (Time.time - p.DiedAt >= RespawnDelay && (p.FirePressed || p.Jump))
+            // A press during the wait is kept for its end (dropped before: pressed again after it); not one in the first half second, the
+            // shot the player was firing as he went down (split scout, 2026-11-25).
+            if ((p.FirePressed || p.Jump) && Time.time - p.DiedAt >= 0.5f)
             {
+                p.RespawnQueued = true;
+            }
+            if (Time.time - p.DiedAt >= RespawnDelay && p.RespawnQueued)
+            {
+                p.RespawnQueued = false;
                 Respawn(p);
             }
         }
