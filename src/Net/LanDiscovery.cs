@@ -31,6 +31,8 @@ namespace RavenfieldVR.Net
         private static float _nextBeacon;
         private static readonly Dictionary<string, LanGame> Heard = new Dictionary<string, LanGame>();
         private static float _bindRetryAt;
+        private static List<LanGame> _games;
+        private static float _gamesAt = -10f;
 
         /// <summary>A beacon's text held to 40 characters (one large datagram filled the list).</summary>
         private static string Cut(string s) => s == null ? "" : s.Length > 40 ? s.Substring(0, 40) : s;
@@ -46,6 +48,12 @@ namespace RavenfieldVR.Net
         {
             get
             {
+                // (Made again four times a second at most: the panels read it every frame, a new sorted list each; LAN scout, 2026-11-25.
+                // A new list each time it is made, so a reader holding the last one is not changed under it.)
+                if (_games != null && Time.unscaledTime - _gamesAt < 0.25f)
+                {
+                    return _games;
+                }
                 var list = new List<LanGame>();
                 foreach (LanGame g in Heard.Values)
                 {
@@ -55,6 +63,8 @@ namespace RavenfieldVR.Net
                     }
                 }
                 list.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+                _games = list;
+                _gamesAt = Time.unscaledTime;
                 return list;
             }
         }
@@ -169,6 +179,7 @@ namespace RavenfieldVR.Net
             _listener?.Close();
             _listener = null;
             Heard.Clear();
+            _games = null;
         }
     }
 }
