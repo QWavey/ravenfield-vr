@@ -234,6 +234,10 @@ namespace RavenfieldVR.Weapons
         /// <summary>Puts the grenade back with <paramref name="actor"/>'s matching weapon; false when there is no room.</summary>
         public bool Refund(Actor actor)
         {
+            if (!Alive.Contains(this))
+            {
+                return false; // (refunded already: a second call on a destroyed dud credited it again; dud scout)
+            }
             Weapon target = _source != null && _source.user == actor ? _source : null;
             if (target == null && actor != null && actor.weapons != null)
             {
