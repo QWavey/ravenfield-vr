@@ -340,7 +340,9 @@ namespace RavenfieldVR.Input
                         // per action was 17 of the 51 calls a frame (performance review 2026-10-19, measured 2026-10-21).
                         state = HandState[0] || HandState[1];
                         bool back = recovering && HeldBeforeOutage[a, 2] || HandRecovering[0] && HeldBeforeOutage[a, 0] || HandRecovering[1] && HeldBeforeOutage[a, 1];
-                        pressed = state && !was && !back;
+                        // A press on either hand is a press here, the other hand already holding it too: from the combined state alone,
+                        // a tap with the second hand while the first held the action was lost to "either hand" readers (input scout, 2026-11-25).
+                        pressed = (state && !was || Pressed[a, 0] || Pressed[a, 1]) && !back;
                         released = !state && was;
                     }
                     Held[a, slot] = state;

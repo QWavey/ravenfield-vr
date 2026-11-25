@@ -1307,7 +1307,13 @@ namespace RavenfieldVR.Weapons
                 if (p.Go == null)
                 {
                     // Its object went with the scene: the hand holding it is freed too (it kept pointing at the dead prop,
-                    // threw every frame and held nothing else again).
+                    // threw every frame and held nothing else again). Its rounds back as a despawn gives them (lost here: an ejected or
+                    // palmed magazine destroyed under the reload took them with it; reload scout, 2026-11-25).
+                    if (p.Rounds > 0 && VRConfig.ReturnRoundsOnMagDrop.Value && WeaponSystem.Instance != null)
+                    {
+                        WeaponSystem.Instance.ReturnRounds(p, p.Rounds);
+                        p.Rounds = 0;
+                    }
                     p.Destroy();
                     continue;
                 }

@@ -148,8 +148,10 @@ namespace RavenfieldVR.UI
 
         public void Update()
         {
+            // First, and on its own: the loading screen's canvases are drawn into its picture, not converted; and with the laser's module
+            // throwing every frame before it, the load's blackout was never lifted (UI scout, 2026-11-25).
+            Log.Guard("UI.Loading", Loading.Update);
             EnsureModule();
-            Loading.Update(); // first: the loading screen's canvases are drawn into its picture, not converted
             Canvases.Update();
             Canvases.UpdateMatchBar();
             _keyboard.Update();
@@ -420,6 +422,7 @@ namespace RavenfieldVR.UI
             // Each step on its own and only what was made: also the teardown of a constructor that threw part way, whose laser
             // and squad markers (DontDestroyOnLoad) stayed with Instance still set, one more set on every F6 retry (UI scout).
             Log.Guard("UI.RestoreModules", RestoreModules);
+            VRRig.Blackout = false; // (the UI gone mid-load: no loading view left to lift it)
             Log.Guard("UI.Loading.Dispose", () => Loading?.Dispose());
             Log.Guard("UI.Canvases.Dispose", () => Canvases?.Dispose());
             Log.Guard("UI.Settings.Dispose", () => Settings?.Dispose());

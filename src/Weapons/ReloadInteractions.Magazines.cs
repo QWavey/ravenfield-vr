@@ -255,9 +255,9 @@ namespace RavenfieldVR.Weapons
         {
             MagazineProp prop = _ejecting;
             _ejecting = null;
-            if (prop == null || prop.Go == null)
+            if (prop == null || prop.Go == null || prop.HeldBy != null)
             {
-                return;
+                return; // (one taken by a hand this frame is the hand's: not dropped out of it; reload scout)
             }
             // The weapon may already be gone (replaced or destroyed by the game): the prop's own axis then.
             Vector3 insert = Rig.GunBody != null ? SeatPose.TransformDirection(prop.InsertDirLocal) : prop.InsertDirWorld;
