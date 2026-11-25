@@ -57,9 +57,17 @@ namespace RavenfieldVR.Net
                 return;
             }
             NetPlayer who = session.Player(sender);
-            string name = who != null && who.Info != null && !string.IsNullOrEmpty(who.Info.Name) ? who.Info.Name : "Player " + sender;
+            if (who == null)
+            {
+                return; // (a late spot from one who left: a mark was made after his were forgotten, for the next to take his number; pings scout)
+            }
+            string name = who.Info != null && !string.IsNullOrEmpty(who.Info.Name) ? who.Info.Name : "Player " + sender;
             if (!Marks.TryGetValue(sender, out Mark m) || m.Go == null)
             {
+                if (m != null)
+                {
+                    Destroy(m); // (its object gone some other way: its plate's material too)
+                }
                 m = Make();
                 Marks[sender] = m;
             }

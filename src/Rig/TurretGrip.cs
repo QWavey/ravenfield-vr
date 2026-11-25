@@ -47,7 +47,7 @@ namespace RavenfieldVR.Rig
         private readonly Vector3[] _palmInFrame = new Vector3[2];
         private readonly Quaternion[] _palmTurnInFrame = { Quaternion.identity, Quaternion.identity };
         private Transform _palmFrame;
-        private int _heldCount = -1;
+        private int _heldCount = -1, _heldMask;
         private Vector3 _gripAtGrab;
         private Quaternion _turnAtGrab = Quaternion.identity;
         private Vector3 _aimAtGrab;
@@ -309,10 +309,14 @@ namespace RavenfieldVR.Rig
             }
             grip /= held;
             Vector3 pivot = InFrame(_pivotT.position);
-            if (held != _heldCount)
+            // Which hands, not how many: one letting go as the other took the handle in the same frame kept the old hand's grab, and the
+            // gun jumped to the new hand (turret scout, 2026-11-25).
+            int heldMask = (_holding[0] ? 1 : 0) | (_holding[1] ? 2 : 0);
+            if (held != _heldCount || heldMask != _heldMask)
             {
                 // Taken (or a hand added or let go): from the gun's aim as it is, no jump.
                 _heldCount = held;
+                _heldMask = heldMask;
                 _aimAtGrab = AimNow();
                 _gripAtGrab = grip - pivot;
                 _turnAtGrab = PalmTurnInFrame(first);
