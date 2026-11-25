@@ -2,6 +2,10 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-25 later (work-until-limit 70, the game not run, Tasks 411; **1.19.37 INSTALLED**, hash checked, Defender clean; not on GitHub yet)
+
+- 1.19.37 = 1.19.36 plus Tasks 411: LAN discovery (send and listen apart, bind retry, beacon checks, list cached), the soldiers' splitscreen (pads given back, slot pick, destroyed soldier made again, no second kill, HUD styles once), a quarter-second press guard on every panel button. Offline 565, net 5067.
+
 ## State 2026-11-25 (work-until-limit 50, the game not run, Tasks 410; **1.19.36 INSTALLED**, hash checked, Defender clean; not on GitHub yet)
 
 - 1.19.36 = 1.19.35 plus Tasks 410: scouts' fixes in OpenVR start/settings, sounds, input (either-hand presses), the loading blackout, reload rounds, voice, overrides, vehicle feel, cockpit pins, pings, turrets (no flip past half a turn), empty hands, logs. Offline 565 pass, net 5067. Open for the user: the hand-loading reserve round (Tasks 409); nothing seen in the game.
