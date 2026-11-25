@@ -325,6 +325,14 @@ namespace RavenfieldVR.Rig
             // upright axis swung some guns the wrong way and others hardly at all; the vehicle check, 2026-11-15.)
             Vector3 up = (Quaternion.Inverse(_frame.rotation) * _seat.vehicle.transform.up).normalized;
             _aim = Swing(_aimAtGrab, _gripAtGrab, grip - pivot, PalmTurnInFrame(first) * Quaternion.Inverse(_turnAtGrab), up);
+            // Swept far round from where it was taken: taken again from here (the aim the same this frame, so no jump). The swing is read
+            // from the grab, -180 to 180 degrees: past half a turn in one hold the gun flipped round the other way (turret scout, 2026-11-25).
+            if (_aim.HasValue && Vector3.Angle(Vector3.ProjectOnPlane(_aimAtGrab, up), Vector3.ProjectOnPlane(_aim.Value, up)) > 120f)
+            {
+                _aimAtGrab = _aim.Value;
+                _gripAtGrab = grip - pivot;
+                _turnAtGrab = PalmTurnInFrame(first);
+            }
         }
 
         /// <summary>

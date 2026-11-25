@@ -237,6 +237,10 @@ namespace RavenfieldVR.Weapons
                     {
                         continue;
                     }
+                    if (pushed.y < 0f && body.velocity.y >= -0.1f)
+                    {
+                        pushed.y = 0f; // (a magazine lying there is pushed along the ground, not down into it: a swipe onto it sank it; hands scout)
+                    }
                     body.velocity = pushed;
                     body.WakeUp();
                     if (Time.unscaledTime - PushedAt[i] > 0.15f)
