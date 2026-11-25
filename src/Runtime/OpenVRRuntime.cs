@@ -168,18 +168,14 @@ namespace RavenfieldVR.Runtime
         {
             if (QualitySettings.vSyncCount != 0)
             {
-                if (_gameVSync < 0)
-                {
-                    _gameVSync = QualitySettings.vSyncCount;
-                }
+                // (The newest the game set: only the game sets it other than 0, so this is the player's own choice, made in the options while
+                // VR ran too; the first one kept, VR's stop put back the value from its start; runtime scout.)
+                _gameVSync = QualitySettings.vSyncCount;
                 QualitySettings.vSyncCount = 0;
             }
             if (Application.targetFrameRate != -1)
             {
-                if (_gameFrameRate == int.MinValue)
-                {
-                    _gameFrameRate = Application.targetFrameRate;
-                }
+                _gameFrameRate = Application.targetFrameRate;
                 Application.targetFrameRate = -1;
             }
             if (Time.maximumDeltaTime > MaxCatchUp + 1e-4f)
