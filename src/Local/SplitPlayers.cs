@@ -74,6 +74,13 @@ namespace RavenfieldVR.Local
             try
             {
                 Patch();
+                for (int i = Players.Count - 1; i >= 0; i--)
+                {
+                    if (Players[i].Actor == null)
+                    {
+                        Remove(Players[i]); // (his soldier destroyed: made again below, his quarter's view frozen otherwise; split scout)
+                    }
+                }
                 EnsurePlayers(Splitscreen.Players - 1);
                 AssignDevices();
                 foreach (SplitPlayer p in Players)
