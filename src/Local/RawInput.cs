@@ -489,9 +489,10 @@ namespace RavenfieldVR.Local
                 d.Keys[vkey] = down;
                 // The left and right Shift, Ctrl and Alt as the plain ones too (the game's bindings name LeftShift and LeftControl; some
                 // keyboards tell the sided keys: Sprint and Crouch would never be held; input scout, 2026-11-14).
-                if (vkey == 0xA0 || vkey == 0xA1) d.Keys[0x10] = down;
-                if (vkey == 0xA2 || vkey == 0xA3) d.Keys[0x11] = down;
-                if (vkey == 0xA4 || vkey == 0xA5) d.Keys[0x12] = down;
+                // (Either side still down keeps the plain one down: one of two held Shifts let go dropped Sprint; raw input scout, 2026-11-25.)
+                if (vkey == 0xA0 || vkey == 0xA1) d.Keys[0x10] = d.Keys[0xA0] || d.Keys[0xA1];
+                if (vkey == 0xA2 || vkey == 0xA3) d.Keys[0x11] = d.Keys[0xA2] || d.Keys[0xA3];
+                if (vkey == 0xA4 || vkey == 0xA5) d.Keys[0x12] = d.Keys[0xA4] || d.Keys[0xA5];
             }
         }
     }
