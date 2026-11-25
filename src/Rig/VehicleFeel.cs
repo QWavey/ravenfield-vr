@@ -12,6 +12,7 @@ namespace RavenfieldVR.Rig
     /// </summary>
     internal static class VehicleFeel
     {
+        private static bool _averageSeeded;
         private static Vehicle _of;
         private static Vector3 _lastVelocity;
         private static float _nextBump, _nextHum;
@@ -119,6 +120,7 @@ namespace RavenfieldVR.Rig
                 _of = v;
                 _lastVelocity = velocity;
                 _accelAverage = Vector3.zero;
+                _averageSeeded = false;
                 return;
             }
             if (velocity == _lastVelocity)
@@ -133,6 +135,14 @@ namespace RavenfieldVR.Rig
             // (counted whole, it rumbled every 0.12 s for as long as the turn lasted; vehicle scout, 2026-11-11).
             Vector3 accel = (velocity - _lastVelocity) / dt;
             _lastVelocity = velocity;
+            if (!_averageSeeded)
+            {
+                // The first step in the seat seeds the average: from zero, a ride already in a steady turn bumped once as you sat down
+                // (vehicle feel scout, 2026-11-25).
+                _averageSeeded = true;
+                _accelAverage = accel;
+                return;
+            }
             float jolt = (accel - _accelAverage).magnitude;
             _accelAverage = Vector3.Lerp(_accelAverage, accel, 1f - Mathf.Exp(-dt / 0.3f));
             if (jolt > 25f && Time.unscaledTime >= _nextBump)

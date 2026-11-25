@@ -79,8 +79,10 @@ namespace RavenfieldVR.Weapons
                     return;
                 }
                 bool changed = _file != null;
-                _loadedStamp = stamp; // (a broken file is not read again until it is saved again)
+                // (Taken once the file is read: set before, a read refused for a moment (an editor or a virus scan holding the file) left no
+                // overrides for the session; overrides scout. A file read but broken is still not read again until it is saved again.)
                 string text = File.ReadAllText(path);
+                _loadedStamp = stamp;
                 WeaponOverrideFile read;
                 try
                 {
@@ -112,7 +114,7 @@ namespace RavenfieldVR.Weapons
             catch (Exception e)
             {
                 Log.WarnOnce("overrides", "Could not read " + FilePath + ": " + e.Message);
-                _file = new WeaponOverrideFile();
+                _file = _file ?? new WeaponOverrideFile(); // (the overrides read before kept, as for a broken save)
             }
         }
 

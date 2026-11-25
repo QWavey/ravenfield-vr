@@ -119,6 +119,7 @@ namespace RavenfieldVR.Net
             {
                 Log.WarnOnce("voice-mic", "Voice: the microphone could not be opened: " + e.Message);
                 _mic = null;
+                _nextMicTry = Time.unscaledTime + 5f; // (as when it gives nothing: tried again every frame before; voice scout)
             }
         }
 
@@ -346,7 +347,9 @@ namespace RavenfieldVR.Net
                     _packed[i] = r.Byte();
                 }
                 // (A frame from before the last one, come late over the unreliable line: dropped, not played out of order.)
-                if (_lastSeq >= 0 && (byte)(seq - _lastSeq) > 128)
+                // (And the last one again, the line's duplicate: played twice, 20 ms of the voice doubled; voice scout.)
+                int ahead = (byte)(seq - _lastSeq);
+                if (_lastSeq >= 0 && (ahead == 0 || ahead > 128))
                 {
                     return;
                 }

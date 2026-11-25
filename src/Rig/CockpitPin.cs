@@ -45,7 +45,9 @@ namespace RavenfieldVR.Rig
             }
             if (point.HasValue && hand.Tracked)
             {
-                if (Owner[i] != null && !ReferenceEquals(Owner[i], owner))
+                // (An owner destroyed while it held the pin, with no clean-up run: it held the hand for good; pins scout, 2026-11-25.)
+                bool ownerGone = Owner[i] is Object unityOwner && unityOwner == null;
+                if (Owner[i] != null && !ownerGone && !ReferenceEquals(Owner[i], owner))
                 {
                     return; // (held by another system's control this frame: it keeps the hand)
                 }
