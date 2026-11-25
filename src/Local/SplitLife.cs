@@ -97,7 +97,7 @@ namespace RavenfieldVR.Local
         /// After any soldier takes damage: a splitscreen player's hit on an enemy shows its marker (a kill a larger one, counted), and a
         /// splitscreen player hit flashes its view's edge on the side the hit came from.
         /// </summary>
-        public static void OnDamage(Actor victim, DamageInfo info)
+        public static void OnDamage(Actor victim, DamageInfo info, bool wasAlive = true)
         {
             if (victim == null || info.healthDamage <= 0f)
             {
@@ -107,6 +107,10 @@ namespace RavenfieldVR.Local
             SplitPlayer shooter = info.sourceActor != null ? SplitPlayers.PlayerOf(info.sourceActor) : null;
             if (shooter != null && info.sourceActor != victim && victim.team != info.sourceActor.team)
             {
+                if (victim.dead && !wasAlive)
+                {
+                    return; // (a hit on one already down: no second kill counted, splash or another's shot)
+                }
                 if (victim.dead)
                 {
                     shooter.Kills++;

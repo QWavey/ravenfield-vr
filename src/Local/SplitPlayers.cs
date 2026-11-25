@@ -829,12 +829,21 @@ namespace RavenfieldVR.Local
             One(ai, nameof(AiActorController.BoatInput), nameof(SplitDrive), false);
             One(typeof(Actor), nameof(Actor.SwitchWeapon), nameof(SplitSwitch), true);
             One(typeof(Actor), nameof(Actor.EnterSeat), nameof(SplitSeat), true);
+            One(typeof(Actor), nameof(Actor.Damage), nameof(SplitBeforeDamage), true);
             One(typeof(Actor), nameof(Actor.Damage), nameof(SplitDamaged), false);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueSteam), nameof(MuteSteamPads), false);
             One(typeof(SteelInput.Axis), nameof(SteelInput.Axis.GetValueUnity), nameof(MuteUnityPads), false);
         }
 
         private static bool _switching, _seating;
+
+        /// <summary>Before the damage: whether the soldier was alive (a hit on one already dead is no kill; split scout, 2026-11-25).</summary>
+        private static void SplitBeforeDamage(Actor __instance)
+        {
+            _victimWasAlive = __instance != null && !__instance.dead;
+        }
+
+        private static bool _victimWasAlive;
 
         /// <summary>Hit markers, kills and hurt flashes for the splitscreen players (SplitLife).</summary>
         private static void SplitDamaged(Actor __instance, DamageInfo info)
@@ -845,7 +854,7 @@ namespace RavenfieldVR.Local
             }
             try
             {
-                SplitLife.OnDamage(__instance, info);
+                SplitLife.OnDamage(__instance, info, _victimWasAlive);
             }
             catch (Exception e)
             {
