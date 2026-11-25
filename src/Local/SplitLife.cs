@@ -133,7 +133,7 @@ namespace RavenfieldVR.Local
 
         // ---- the display ------------------------------------------------------------------------------------------------------
 
-        private static GUIStyle _big, _small, _center;
+        private static GUIStyle _big, _small, _center, _killMark, _hitMark, _bigRight, _smallRight;
 
         private static void Styles()
         {
@@ -144,6 +144,11 @@ namespace RavenfieldVR.Local
             _big = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold };
             _small = new GUIStyle(GUI.skin.label) { fontSize = 14 };
             _center = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            // (Made once with the rest: new ones for each player each frame were garbage the whole match; split scout, 2026-11-25.)
+            _killMark = new GUIStyle(_center) { fontSize = 30 };
+            _hitMark = new GUIStyle(_center) { fontSize = 22 };
+            _bigRight = new GUIStyle(_big) { alignment = TextAnchor.MiddleRight };
+            _smallRight = new GUIStyle(_small) { alignment = TextAnchor.MiddleRight };
         }
 
         private static void Box(Rect r, Color c)
@@ -190,7 +195,7 @@ namespace RavenfieldVR.Local
             {
                 GUI.color = p.KillMark ? new Color(1f, 0.25f, 0.2f) : Color.white;
                 float s = p.KillMark ? 34f : 24f;
-                GUI.Label(new Rect(r.center.x - s, r.center.y - s, s * 2f, s * 2f), "X", new GUIStyle(_center) { fontSize = p.KillMark ? 30 : 22 });
+                GUI.Label(new Rect(r.center.x - s, r.center.y - s, s * 2f, s * 2f), "X", p.KillMark ? _killMark : _hitMark);
                 GUI.color = Color.white;
             }
             if (p.KeysPair >= 0 && Runtime.OpenVRRuntime.Running)
@@ -209,8 +214,8 @@ namespace RavenfieldVR.Local
             {
                 string rounds = w.reloading ? "reloading" : w.ammo < 0 ? "inf" : $"{w.ammo}";
                 string spare = w.spareAmmo < 0 ? "" : $" / {w.spareAmmo}";
-                GUI.Label(new Rect(r.xMax - 236f, r.yMax - 72f, 220f, 30f), rounds + spare, new GUIStyle(_big) { alignment = TextAnchor.MiddleRight });
-                GUI.Label(new Rect(r.xMax - 336f, r.yMax - 44f, 320f, 22f), w.name.Replace("(Clone)", "").Trim(), new GUIStyle(_small) { alignment = TextAnchor.MiddleRight });
+                GUI.Label(new Rect(r.xMax - 236f, r.yMax - 72f, 220f, 30f), rounds + spare, _bigRight);
+                GUI.Label(new Rect(r.xMax - 336f, r.yMax - 44f, 320f, 22f), w.name.Replace("(Clone)", "").Trim(), _smallRight);
             }
             if (a.weapons != null)
             {
