@@ -141,6 +141,10 @@ namespace RavenfieldVR.Local
             // Walking bob: the step cycle from the distance walked (the game's FirstPersonController step), its size from the speed.
             Vector3 moved = a.Position() - _lastPos;
             _lastPos = a.Position();
+            if (moved.sqrMagnitude > 4f)
+            {
+                moved = Vector3.zero; // (a jump of 2 m in a frame is a respawn or a seat, not a walk: its bob spiked; split scout)
+            }
             float speed = Vector3.ProjectOnPlane(moved, Vector3.up).magnitude / dt;
             _stepPhase += speed * dt * 1.3f;
             float target = a.IsSeated() ? 0f : Mathf.Clamp01(speed * speed / 60f) * (_p.Aim ? 0.003f : 0.04f);
