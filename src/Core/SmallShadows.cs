@@ -26,7 +26,16 @@ namespace RavenfieldVR.Core
         private static bool On => Bench ?? VRConfig.SmallObjectsNoShadows.Value;
 
         /// <summary>How many objects have their shadow off now (said in the frame rate line, so a session's log shows it took).</summary>
-        internal static int Count => Trimmed.Count;
+        internal static int Count
+        {
+            get
+            {
+                Trimmed.RemoveAll(IsGone); // (read once a minute: one destroyed mid-level counted as still trimmed; scout)
+                return Trimmed.Count;
+            }
+        }
+
+        private static bool IsGone(Renderer r) => r == null;
 
         /// <summary>
         /// A level loaded: its objects scanned a few seconds in (they are still being made), the old level's forgotten; one that

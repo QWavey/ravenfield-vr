@@ -10,6 +10,7 @@ namespace RavenfieldVR.UI
     internal sealed class TextPlate
     {
         private static Texture2D _texture;
+        private static Shader _spriteShader;
         private static Mesh _quad;
 
         private readonly Renderer _textRenderer;
@@ -34,7 +35,11 @@ namespace RavenfieldVR.UI
             plate.transform.SetParent(_text, false);
             plate.AddComponent<MeshFilter>().sharedMesh = _quad;
             // Drawn just before the text (the font's material is in the transparent queue).
-            _material = new Material(Shader.Find("Sprites/Default")) { mainTexture = _texture, renderQueue = textMaterial.renderQueue - 1 };
+            if (_spriteShader == null)
+            {
+                _spriteShader = Shader.Find("Sprites/Default"); // (looked up once: by name at every counter and plate made; scout)
+            }
+            _material = new Material(_spriteShader) { mainTexture = _texture, renderQueue = textMaterial.renderQueue - 1 };
             var r = plate.AddComponent<MeshRenderer>();
             r.sharedMaterial = _material;
             r.shadowCastingMode = ShadowCastingMode.Off;

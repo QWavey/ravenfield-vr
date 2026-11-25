@@ -831,6 +831,10 @@ namespace RavenfieldVR.Weapons
             bool anyShown = false;
             foreach (Transform part in rig.MagazineParts)
             {
+                if (rig.MagazineHideOnly.Contains(part))
+                {
+                    continue; // (as below: a hide-only part showing counted as shown, and the copy then took nothing; look scout)
+                }
                 foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true))
                 {
                     anyShown |= r.enabled && r.gameObject.activeInHierarchy && !(r is ParticleSystemRenderer);

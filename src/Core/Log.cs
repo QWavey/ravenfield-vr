@@ -39,7 +39,9 @@ namespace RavenfieldVR.Core
         public static void ExceptionOnce(string context, Exception e)
         {
             bool first;
-            string key = "guard:" + context + ":" + e.GetType().Name + ":" + e.Message;
+            // (By the context and the exception's type: with its message, one that names a per-frame value added a key every frame to a set
+            // never emptied; util scout, 2026-11-25. The first one's message is still logged.)
+            string key = "guard:" + context + ":" + e.GetType().Name;
             lock (Once)
             {
                 first = Once.Add(key);
@@ -122,16 +124,17 @@ namespace RavenfieldVR.Core
         /// </summary>
         public static void Guard(string context, Action action)
         {
-            if (PerfProbe.Enabled)
-            {
-                PerfProbe.Begin(context);
-            }
-            else
-            {
-                FramePhases.SectionBegin(context); // (time only, always: the frame rate line's costliest mod sections)
-            }
             try
             {
+                // (Inside the guard: a probe that threw here went past it, out of the frame it was to protect; util scout.)
+                if (PerfProbe.Enabled)
+                {
+                    PerfProbe.Begin(context);
+                }
+                else
+                {
+                    FramePhases.SectionBegin(context); // (time only, always: the frame rate line's costliest mod sections)
+                }
                 action();
             }
             catch (Exception e)

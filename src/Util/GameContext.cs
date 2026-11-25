@@ -69,8 +69,9 @@ namespace RavenfieldVR.Util
                     }
                     return IngameMenuUi.instance != null && IngameMenuUi.IsOpen();
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    Core.Log.ExceptionOnce("GameContext.GameMenuOpen", e); // (said once: it was silent every frame it threw; util scout)
                     return false;
                 }
             }
@@ -169,8 +170,9 @@ namespace RavenfieldVR.Util
                     }
                     return GameManager.GetMainCamera();
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    Core.Log.ExceptionOnce("GameContext.GameMainCamera", e);
                     return Camera.main;
                 }
             }
