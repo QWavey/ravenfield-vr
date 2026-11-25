@@ -260,9 +260,15 @@ namespace RavenfieldVR.Core
                 }
             }
             int hidden = 0;
-            for (int i = 0; i < Tracked.Count; i++)
+            for (int i = Tracked.Count - 1; i >= 0; i--)
             {
                 Entry e = Tracked[i];
+                if (e.Renderer == null)
+                {
+                    // Gone mid-level (destroyed, broken): off the list, which the re-measure above went through in turn, slots and all (scout).
+                    Tracked.RemoveAt(i);
+                    continue;
+                }
                 bool hide = !scoped && NextHidden(e.Hidden, e.Size, Vector3.Distance(e.Centre, head));
                 if (hide != e.Hidden)
                 {
