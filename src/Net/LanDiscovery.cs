@@ -30,6 +30,10 @@ namespace RavenfieldVR.Net
         private static UdpClient _sender, _listener;
         private static float _nextBeacon;
         private static readonly Dictionary<string, LanGame> Heard = new Dictionary<string, LanGame>();
+        private static float _bindRetryAt;
+
+        /// <summary>A beacon's text held to 40 characters (one large datagram filled the list).</summary>
+        private static string Cut(string s) => s == null ? "" : s.Length > 40 ? s.Substring(0, 40) : s;
 
         /// <summary>The LAN page is open: listen for hosts (set by the page each frame it shows; off after 2 s without).</summary>
         public static void Listen() => _listenUntil = Time.unscaledTime + 2f;
@@ -57,9 +61,17 @@ namespace RavenfieldVR.Net
 
         public static void Update()
         {
+            // (Each on its own: a beacon that could not go out (the Wi-Fi gone) stopped the listening too, every frame; LAN scout, 2026-11-25.)
             try
             {
                 Announce();
+            }
+            catch (Exception e)
+            {
+                Log.WarnOnce("lan-send", "LAN discovery, telling this game: " + e.Message);
+            }
+            try
+            {
                 Hear();
             }
             catch (Exception e)
@@ -105,18 +117,33 @@ namespace RavenfieldVR.Net
             }
             if (_listener == null)
             {
-                _listener = new UdpClient();
-                _listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                _listener.Client.Bind(new IPEndPoint(IPAddress.Any, BeaconPort));
+                if (Time.unscaledTime < _bindRetryAt)
+                {
+                    return;
+                }
+                var listener = new UdpClient();
+                try
+                {
+                    listener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    listener.Client.Bind(new IPEndPoint(IPAddress.Any, BeaconPort));
+                }
+                catch (Exception)
+                {
+                    // (Kept unbound before, the page heard nothing for its whole visit: tried again in 2 s; LAN scout.)
+                    listener.Close();
+                    _bindRetryAt = Time.unscaledTime + 2f;
+                    throw;
+                }
+                _listener = listener;
             }
             for (int i = 0; i < 32 && _listener.Available > 0; i++)
             {
                 var from = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data = _listener.Receive(ref from);
                 string[] f = Encoding.UTF8.GetString(data).Split('|');
-                if (f.Length < 9 || f[0] != Tag || !int.TryParse(f[6], out int port))
+                if (f.Length < 9 || f[0] != Tag || !int.TryParse(f[6], out int port) || port < 1 || port > 65535)
                 {
-                    continue;
+                    continue; // (and a port no game is on: an unjoinable entry)
                 }
                 string address = (IPAddress.IsLoopback(from.Address) ? "127.0.0.1" : from.Address.ToString()) + ":" + port;
                 if (!Heard.TryGetValue(address, out LanGame g))
@@ -124,9 +151,9 @@ namespace RavenfieldVR.Net
                     g = new LanGame { Address = address };
                     Heard[address] = g;
                 }
-                g.Name = f[1];
-                g.Map = f[2];
-                g.Mode = f[3];
+                g.Name = Cut(f[1]);
+                g.Map = Cut(f[2]);
+                g.Mode = Cut(f[3]);
                 int.TryParse(f[4], out g.Players);
                 int.TryParse(f[5], out g.MaxPlayers);
                 g.Port = port;

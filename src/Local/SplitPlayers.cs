@@ -210,9 +210,12 @@ namespace RavenfieldVR.Local
         private static void Remove(SplitPlayer p)
         {
             Players.Remove(p);
+            if (!ReferenceEquals(p.Actor, null))
+            {
+                ByActor.Remove(p.Actor); // (also for a destroyed one: kept as a key otherwise, from match to match; split scout)
+            }
             if (p.Actor != null)
             {
-                ByActor.Remove(p.Actor);
                 try
                 {
                     if (!p.Actor.dead)
@@ -254,6 +257,8 @@ namespace RavenfieldVR.Local
             HudBack();
             SplitView.UnhookBodies();
             FlatPlayerInput.Active = false;
+            // (The pads given back to the game: muted for the soldiers' split, the menu and a single game after it had none; split scout.)
+            GamePadsMuted = false;
             RawInput.Stop();
             if (_host != null)
             {
@@ -334,6 +339,7 @@ namespace RavenfieldVR.Local
 
         private static void ReadInput(SplitPlayer p)
         {
+            p.SlotPick = -1; // (a keyboard's pick of a weapon slot not kept for a pad: it forced that slot at every switch after; split scout)
             if (p.KeysPair >= 0)
             {
                 ReadKeys(p);
