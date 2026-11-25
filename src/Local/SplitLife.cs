@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using RavenfieldVR.Core;
 using RavenfieldVR.Util;
@@ -141,6 +142,21 @@ namespace RavenfieldVR.Local
         // ---- the display ------------------------------------------------------------------------------------------------------
 
         private static GUIStyle _big, _small, _center, _killMark, _hitMark, _bigRight, _smallRight;
+        private static readonly Dictionary<Weapon, string> ShownNames = new Dictionary<Weapon, string>();
+
+        /// <summary>A weapon's name as shown, made once a weapon (with "(Clone)" off: two new strings a player each frame before).</summary>
+        private static string ShownName(Weapon w)
+        {
+            if (!ShownNames.TryGetValue(w, out string name))
+            {
+                if (ShownNames.Count > 64)
+                {
+                    ShownNames.Clear(); // (weapons of old lives and maps)
+                }
+                name = ShownNames[w] = w.name.Replace("(Clone)", "").Trim();
+            }
+            return name;
+        }
 
         private static void Styles()
         {
@@ -222,7 +238,7 @@ namespace RavenfieldVR.Local
                 string rounds = w.reloading ? "reloading" : w.ammo < 0 ? "inf" : $"{w.ammo}";
                 string spare = w.spareAmmo < 0 ? "" : $" / {w.spareAmmo}";
                 GUI.Label(new Rect(r.xMax - 236f, r.yMax - 72f, 220f, 30f), rounds + spare, _bigRight);
-                GUI.Label(new Rect(r.xMax - 336f, r.yMax - 44f, 320f, 22f), w.name.Replace("(Clone)", "").Trim(), _smallRight);
+                GUI.Label(new Rect(r.xMax - 336f, r.yMax - 44f, 320f, 22f), ShownName(w), _smallRight);
             }
             if (a.weapons != null)
             {
