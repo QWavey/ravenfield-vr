@@ -130,6 +130,12 @@ namespace RavenfieldVR.Tests
                 Check(one.Length == 4, "a rotation is 4 bytes");
             }
             Check(worst < 0.3, $"a rotation comes back within 0.3 degrees (worst {worst:0.000})");
+            // A broken word: every small part at its largest (no sender packs that). It comes back a whole turn, not scaled.
+            var broken = new NetWriter(8);
+            broken.UInt32(0xFFFFFFFFu);
+            Quaternion junk = new NetReader(broken.Buffer, 0, broken.Length).Rotation();
+            double junkNorm = Math.Sqrt((double)junk.x * junk.x + (double)junk.y * junk.y + (double)junk.z * junk.z + (double)junk.w * junk.w);
+            Check(Math.Abs(junkNorm - 1.0) < 1e-4, $"a broken rotation word comes back of unit length ({junkNorm:0.0000})");
 
             // A message cut short is refused, wherever it is cut.
             int refused = 0;
