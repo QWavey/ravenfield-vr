@@ -211,6 +211,7 @@ namespace RavenfieldVR.Local
             cam.fieldOfView = 70f;
             cam.depth = 50 + p.Index;
             cam.enabled = true;
+            p.View?.Destroy(); // (a second setup for the same player: the old view, DontDestroyOnLoad, stayed drawing; split scout)
             p.View = new SplitView(p);
             SplitView.HookBodies();
             return cam;
