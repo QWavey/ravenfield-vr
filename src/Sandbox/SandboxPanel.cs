@@ -369,7 +369,7 @@ namespace RavenfieldVR.Sandbox
             ActionRow("The mod's own settings.", "VR settings", () =>
             {
                 Close();
-                UISystem.Instance?.Settings.Open();
+                UISystem.Instance?.Settings?.Open();
             });
         }
 
