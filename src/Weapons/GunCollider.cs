@@ -14,7 +14,9 @@ namespace RavenfieldVR.Weapons
     internal static class PropPhysics
     {
         // Layers Projectile.HIT_MASK leaves out (Ignore Raycast first); level geometry is on layers 0 and 15.
-        private static readonly int[] Candidates = { 2, 9, 11, 22, 24 };
+        // (Not 22, the stand-in's own hiding layer (HiddenFromPlayerLayer), which the hands' layer search leaves out as well: loose props
+        // on it would share the hiding; hands scout, 2026-11-25.)
+        private static readonly int[] Candidates = { 2, 9, 11, 24 };
         private const int LevelLayerA = 0, LevelLayerB = 15;
 
         /// <summary>
@@ -187,7 +189,7 @@ namespace RavenfieldVR.Weapons
             return PlayerColliderSet.Contains(c);
         }
 
-        private static readonly RaycastHit[] SurfaceHits = new RaycastHit[32];
+        private static readonly RaycastHit[] SurfaceHits = new RaycastHit[128]; // (32 dropped hits past it through foliage and fences, unsorted: a farther surface or no ground taken; hands scout)
 
         /// <summary>
         /// Level geometry for a thing let go (not one of its own <paramref name="own"/> pieces, the player, the player's weapons,
