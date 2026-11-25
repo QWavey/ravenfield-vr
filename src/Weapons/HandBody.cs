@@ -190,7 +190,7 @@ namespace RavenfieldVR.Weapons
         private const float PushApproach = 0.5f;
         /// <summary>What a pushed magazine keeps of the hand's motion along its surface (a hand sweeping over it drags it a little).</summary>
         private const float PushDrag = 0.3f;
-        private static readonly Collider[] PushScratch = new Collider[16];
+        private static readonly Collider[] PushScratch = new Collider[48]; // (16: a hand in a pile of magazines and shells pushed only the first ones found; hands scout)
         private static readonly float[] PushedAt = new float[2];
 
         /// <summary>
