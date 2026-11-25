@@ -196,6 +196,8 @@ namespace RavenfieldVR.Weapons
         private const float ScanEvery = 30f;
         private static float _nextScan;
 
+        private static int _scanScene = -1, _scansThisScene;
+
         /// <summary>A game clip by name, if it is loaded (the weapons' sounds are from the start, with their prefabs).</summary>
         private static AudioClip Named(string name)
         {
@@ -207,6 +209,19 @@ namespace RavenfieldVR.Weapons
             {
                 return null;
             }
+            // Three looks a level at most, then again at the next: a clip this level never loads was looked for every 30 s, a walk over
+            // every loaded sound in the middle of a shot (sounds scout, 2026-11-25).
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            if (scene != _scanScene)
+            {
+                _scanScene = scene;
+                _scansThisScene = 0;
+            }
+            if (_scansThisScene >= 3)
+            {
+                return null;
+            }
+            _scansThisScene++;
             _nextScan = Time.unscaledTime + ScanEvery;
             if (_wanted == null)
             {

@@ -80,6 +80,10 @@ namespace RavenfieldVR.Weapons
             {
                 Log.WarnOnce("racksplit-x:" + clip.name, $"Sound '{clip.name}' could not be read for its strokes: {e.Message}");
             }
+            if (clip.loadState == AudioDataLoadState.Loading)
+            {
+                return at; // (not kept while it still loads: read then, a clip loading at the first pull stayed unread for the session; sounds scout)
+            }
             Known[id] = at;
             Log.InfoOnce("racksplit:" + clip.name, at > 0f
                 ? $"Sound '{clip.name}' ({clip.length:0.00} s) holds both strokes of a rack: back to {at:0.00} s, home after."
@@ -290,7 +294,8 @@ namespace RavenfieldVR.Weapons
             {
                 return -1f;
             }
-            long key = ((long)clip.GetInstanceID() << 24) ^ Mathf.RoundToInt(start * 1000f);
+            // (And its length: the same clip sliced from the same start for another length took the first one's cut; sounds scout.)
+            long key = ((long)clip.GetInstanceID() << 32) ^ ((long)Mathf.RoundToInt(start * 1000f) << 12) ^ Mathf.RoundToInt(length * 1000f);
             if (KnownSlices.TryGetValue(key, out float at))
             {
                 return at;
@@ -315,7 +320,10 @@ namespace RavenfieldVR.Weapons
             {
                 Log.WarnOnce("racksplit-sx:" + clip.name, $"Sound '{clip.name}' could not be read for its strokes: {e.Message}");
             }
-            KnownSlices[key] = at;
+            if (clip.loadState != AudioDataLoadState.Loading)
+            {
+                KnownSlices[key] = at;
+            }
             Log.InfoOnce($"racksplit-s:{clip.name}@{start:0.00}", at > 0f
                 ? $"Sound '{clip.name}' {start:0.00}+{length:0.00} s holds both strokes of a rack: back to {at:0.00} s, home after."
                 : $"Sound '{clip.name}' {start:0.00}+{length:0.00} s: {(Readable(clip) ? "one stroke" : $"its samples cannot be read ({clip.loadType})")}.");

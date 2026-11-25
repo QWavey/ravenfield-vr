@@ -110,9 +110,9 @@ namespace RavenfieldVR.Runtime
                 // controllers follow whichever space it ends up in (VRInput.Universe).
                 OpenVR.Compositor?.SetTrackingSpace(ETrackingUniverseOrigin.TrackingUniverseStanding);
 
+                Running = true; // (before the settings: they apply only while VR runs)
                 ApplyLiveSettings();
                 IdentifyAsVRApp();
-                Running = true;
                 LastError = null;
                 // SteamVR's own figures: Unity's eye size and refresh rate read 0x0 and 0 Hz this early (the user's log through
                 // Link), and the frame-rate estimates need the pixels the headset really asks for.
@@ -144,12 +144,16 @@ namespace RavenfieldVR.Runtime
         /// <summary>Settings that can change while running (render scale, mirror, frame pacing).</summary>
         public static void ApplyLiveSettings()
         {
+            if (!Running)
+            {
+                return; // (played flat after a failed start: a render scale changed there turned the game's VSync and frame cap off; scout)
+            }
             XRSettings.eyeTextureResolutionScale = GraphicsPresets.EffectiveRenderScale(); // (the setting's, less at the frame rate hold's last step)
             try
             {
                 SetMirrorViewMode((ushort)VRConfig.Mirror.Value);
             }
-            catch (EntryPointNotFoundException)
+            catch (Exception e) when (e is EntryPointNotFoundException || e is DllNotFoundException)
             {
                 // Older provider builds lack the runtime mirror switch; the start-up value still applies.
             }
@@ -348,18 +352,25 @@ namespace RavenfieldVR.Runtime
             if (_metaLink < 0)
             {
                 string system = "";
+                bool read = false;
                 try
                 {
                     var sb = new System.Text.StringBuilder(64);
                     ETrackedPropertyError err = ETrackedPropertyError.TrackedProp_Success;
                     OpenVR.System?.GetStringTrackedDeviceProperty(OpenVR.k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty.Prop_TrackingSystemName_String, sb, 64, ref err);
                     system = sb.ToString();
+                    read = OpenVR.System != null && err == ETrackedPropertyError.TrackedProp_Success;
                 }
                 catch (System.Exception e)
                 {
                     Log.Warn("The headset's tracking system not read: " + e.Message);
                 }
-                _metaLink = system.IndexOf("oculus", System.StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0;
+                int link = system.IndexOf("oculus", System.StringComparison.OrdinalIgnoreCase) >= 0 ? 1 : 0;
+                if (!read)
+                {
+                    return link == 1; // (not kept: a failed first read was taken as "not Meta Link" for the session; runtime scout)
+                }
+                _metaLink = link;
                 Log.Info($"Headset tracking system: '{system}'{(_metaLink == 1 ? " (Meta Link: SteamVR's dashboard is not closed by vrcmd at the start, it froze the picture)" : "")}.");
             }
             return _metaLink == 1;

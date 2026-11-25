@@ -1285,7 +1285,17 @@ namespace RavenfieldVR.Rig
             if (reference != null)
             {
                 CopyCameraSettings(reference, player);
+                _lastCopiedMask = Camera.cullingMask;
+                _lastCopiedClear = Camera.clearFlags;
             }
+            else if (_wasBlackout && !Blackout && _lastCopiedMask != 0)
+            {
+                // The load over with no camera to copy from yet (a respawn gap): what was drawn before it, not the blackout's nothing
+                // until a camera turns up (rig scout, 2026-11-24).
+                Camera.cullingMask = _lastCopiedMask;
+                Camera.clearFlags = _lastCopiedClear;
+            }
+            _wasBlackout = Blackout;
             if (Blackout)
             {
                 // Loading: a dark room around the loading screen (whatever the scenes' cameras clear to stays unseen).
@@ -1297,6 +1307,9 @@ namespace RavenfieldVR.Rig
 
         /// <summary>Draw nothing of the world (set while a map loads; see UI.LoadingView).</summary>
         public static bool Blackout;
+        private bool _wasBlackout;
+        private int _lastCopiedMask;
+        private CameraClearFlags _lastCopiedClear = CameraClearFlags.Skybox;
 
         /// <summary>The main menu (build index 1), whose background camera drifts and turns over a map.</summary>
         private static bool InMainMenu => UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex == 1;
