@@ -179,7 +179,9 @@ namespace RavenfieldVR.Core
             }
             long now = Stopwatch.GetTimestamp();
             t.Ticks += now - t.Start;
-            t.Start = now; // (a second eye's post-render adds its own part)
+            // (Closed: each eye's pre-cull starts it again. Kept open, a stray post-render with no pre-cull added the time since the camera's
+            // last one, across frames; timing scout, 2026-11-25.)
+            t.Start = 0;
         }
 
         /// <summary>The window's breakdown (ms a frame per phase, the costliest cameras), then counted afresh.</summary>
