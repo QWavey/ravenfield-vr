@@ -183,8 +183,16 @@ namespace RavenfieldVR.UI
         /// <summary>A button in a row, <paramref name="x"/> from the row's right edge; a press marks the panel changed after its own work.</summary>
         protected Button ButtonIn(RectTransform row, string label, float x, float width, Action onClick, bool chosen = false)
         {
+            float pressedAt = -10f;
             Button b = UiKit.MakeButton(row, label, x, width, () =>
             {
+                // (The same button pressed again within a quarter second, before the panel was built anew: a second host or join that
+                // ended the first one; panel scout, 2026-11-25.)
+                if (Time.unscaledTime - pressedAt < 0.25f)
+                {
+                    return;
+                }
+                pressedAt = Time.unscaledTime;
                 onClick();
                 Changed = true; // (the laser's hand has its own buzz for the press: a second one here went to the gun hand)
             }, out Text text);
