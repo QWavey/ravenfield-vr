@@ -2,6 +2,10 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-25 (work-until-limit 50, the game not run, Tasks 410; **1.19.36 INSTALLED**, hash checked, Defender clean; not on GitHub yet)
+
+- 1.19.36 = 1.19.35 plus Tasks 410: scouts' fixes in OpenVR start/settings, sounds, input (either-hand presses), the loading blackout, reload rounds, voice, overrides, vehicle feel, cockpit pins, pings, turrets (no flip past half a turn), empty hands, logs. Offline 565 pass, net 5067. Open for the user: the hand-loading reserve round (Tasks 409); nothing seen in the game.
+
 ## State 2026-11-24 evening (work-until-limit 85, the game not run: offline only, Tasks 409; **1.19.35 INSTALLED** 2026-11-24 night, hash checked, Defender clean; not on GitHub yet)
 
 - 1.19.35 = 1.19.34 plus Tasks 409: the weapon arms' kept support hand in left-handed play, the Garand ping looked for again, scouts' fixes across multiplayer (NaN places, vehicle speeds and seat/revive retries), the sandbox (Load replaces, paused said on the wrist), drops, the menu laser, cockpit controls, input, climbing, throws and melee, holsters; the offline checks back at 0 (docs and unused members). Offline 565 pass, net 5066 pass (a new check: a refused rejoin hello does not drop the player). None of it seen in the game: the user's next play is the test.
