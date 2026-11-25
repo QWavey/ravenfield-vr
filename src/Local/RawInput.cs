@@ -268,6 +268,15 @@ namespace RavenfieldVR.Local
             {
                 return;
             }
+            // The window's own procedure back first, on its own: after the devices' registration threw, it still pointed here, and the next
+            // start took this one for the original and called itself (raw input scout, 2026-11-25).
+            try
+            {
+                SetWindowLongPtr(_window, GWLP_WNDPROC, _previous);
+            }
+            catch (Exception)
+            {
+            }
             try
             {
                 BlockLegacy(false);
@@ -278,7 +287,6 @@ namespace RavenfieldVR.Local
                     _hadKeyboard ?? new RAWINPUTDEVICE { UsagePage = 1, Usage = 6, Flags = RIDEV_REMOVE, Target = IntPtr.Zero },
                 };
                 RegisterRawInputDevices(devices, 2, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
-                SetWindowLongPtr(_window, GWLP_WNDPROC, _previous);
             }
             catch (Exception)
             {
