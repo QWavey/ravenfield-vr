@@ -995,6 +995,7 @@ namespace RavenfieldVR.Rig
             {
                 VRConfig.EyeHeight.Value = Mathf.Round(y * 100f) / 100f;
                 Log.Info($"Eye height set to {VRConfig.EyeHeight.Value:0.00} m");
+                EndCalibration(); // (the player's own: a first spawn's automatic one still going wrote over it seconds later; calibration scout)
             }
             else
             {

@@ -441,6 +441,10 @@ namespace RavenfieldVR.Weapons
                 }
                 return; // no flash on this shot (none on this weapon, or its particles skipped this one)
             }
+            if (_rig.Camera == null)
+            {
+                return; // (as at the pend: the rig's camera gone first in a teardown; lens scout)
+            }
             Transform head = _rig.Camera.transform;
             // flash_sim.py fire(): the plume's centre a little ahead of the muzzle, its uneven spread, its size and starburst.
             // The plume's bright part in front of the muzzle (10-25 cm for a rifle): at flash_sim.py's 2-7 cm an aimed rifle's
@@ -599,6 +603,10 @@ namespace RavenfieldVR.Weapons
             // barrel ahead of the eyes kept a fading glow with nothing firing (sweep, 2026-10-29).
             bool stillHeld = _gun != null && WeaponSystem.Instance != null && WeaponSystem.Instance.Held != null && WeaponSystem.Instance.Held.Weapon == _gun;
             Transform muzzle = stillHeld && VRConfig.LensFlash.Value ? _gunMuzzle != null ? _gunMuzzle : _gun.CurrentMuzzle() : null;
+            if (_rig.Camera == null)
+            {
+                return;
+            }
             Transform head = _rig.Camera.transform;
             // At the plume, where its core in the world and the shot's flash are (8-21 cm ahead): at the muzzle itself the lens glow
             // sat apart from its own core while the barrel was off the eye's line (visual hunt, 2026-10-20).
