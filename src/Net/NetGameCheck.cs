@@ -18,7 +18,46 @@ namespace RavenfieldVR.Net
     {
         private const int Port = 7141;
 
+        /// <summary>
+        /// The steps run with a way out: one that threw (a soldier with no weapon to draw, a packet cut short) left the game hosted or
+        /// joined, and every later run reported NOT HOSTING; now reported and the session left (check scout, 2026-11-26).
+        /// </summary>
         internal static IEnumerator Run(Action<string> report)
+        {
+            IEnumerator steps = RunSteps(report);
+            bool finished = false;
+            try
+            {
+                while (true)
+                {
+                    object current;
+                    try
+                    {
+                        if (!steps.MoveNext())
+                        {
+                            finished = true;
+                            break;
+                        }
+                        current = steps.Current;
+                    }
+                    catch (Exception e)
+                    {
+                        report("multiplayer check: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")");
+                        break;
+                    }
+                    yield return current;
+                }
+            }
+            finally
+            {
+                if (!finished)
+                {
+                    Log.Guard("Multiplayer check: leave", Multiplayer.Leave);
+                }
+            }
+        }
+
+        private static IEnumerator RunSteps(Action<string> report)
         {
             Actor player = LocalPlayer.actor;
             if (player == null || player.dead || ActorManager.instance == null)

@@ -271,8 +271,10 @@ namespace RavenfieldVR.Weapons
             }
             float off = Vector3.Angle(muzzle.forward, aim);
             Projectile bullet = w.configuration.projectilePrefab != null ? w.configuration.projectilePrefab.GetComponent<Projectile>() : null;
-            Log.InfoOnce("shot:" + rig.Data.Key, $"{rig.Data.Key}: first shot: its muzzle part '{muzzle.name}' (under '{(muzzle.parent != null ? muzzle.parent.name : "nothing")}') points {off:0.0} deg off the gun's aim line; "
-                                              + $"its bullet {(bullet != null && bullet.configuration != null ? $"{bullet.configuration.speed:0} m/s, gravity x{bullet.configuration.gravityMultiplier:0.00}" : "unknown")}; {w.configuration.muzzles.Length} muzzle(s).");
+            string shotKey = "shot:" + rig.Data.Key;
+            if (!Log.Logged(shotKey)) // (the line built only for the first shot: at every shot before, then thrown away; patches scout)
+            Log.InfoOnce(shotKey, $"{rig.Data.Key}: first shot: its muzzle part '{muzzle.name}' (under '{(muzzle.parent != null ? muzzle.parent.name : "nothing")}') points {off:0.0} deg off the gun's aim line; "
+                                              + $"its bullet {(bullet != null && bullet.configuration != null ? $"{bullet.configuration.speed:0} m/s, gravity x{bullet.configuration.gravityMultiplier:0.00}" : "unknown")}; {(w.configuration.muzzles != null ? w.configuration.muzzles.Length : 0)} muzzle(s).");
             bool one = !w.configuration.fireFromAllMuzzles && w.configuration.muzzles != null && w.configuration.muzzles.Length == 1;
             if (!one || off < 1f || off > 40f)
             {
@@ -418,7 +420,7 @@ namespace RavenfieldVR.Weapons
                     }
                     __instance.showScopeObject = false;
                 }
-                if (__instance.configuration.scopeAimObject != null && __instance.configuration.scopeAimObject.activeSelf)
+                if (__instance.configuration != null && __instance.configuration.scopeAimObject != null && __instance.configuration.scopeAimObject.activeSelf)
                 {
                     __instance.configuration.scopeAimObject.SetActive(false);
                 }
@@ -549,6 +551,10 @@ namespace RavenfieldVR.Weapons
                 // aims along its barrel.
                 WeaponRig rig = held.ActiveRig;
                 Weapon firing = held.ActiveWeapon;
+                if (rig == null || rig.Data == null || firing == null)
+                {
+                    return; // (no rig made for it yet: an exception a frame before; patches scout)
+                }
                 // A grenade, a blade or a tool has no barrel to aim along: the body keeps looking where the head does. An
                 // infinite-ammo gun is classed NoAmmo too, but it has a barrel (HeldWeapon measures it the same way: ammo == -1).
                 ActionType action = rig.Data.Action;
