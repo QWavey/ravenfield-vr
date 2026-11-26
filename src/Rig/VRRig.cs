@@ -747,7 +747,7 @@ namespace RavenfieldVR.Rig
                 // Face the direction the game spawned / dropped us in (or, up from a fall, the way he looked while lying).
                 Yaw = fromFall ? fallHeading : player.transform.eulerAngles.y - Camera.transform.localEulerAngles.y;
                 _yawFromUntrackedHead = !HeadTracked;
-                if (_calibrationStart < 0f && VRConfig.EyeHeight.Value <= 0f)
+                if (_calibrationStart < 0f && VRConfig.EyeHeight.Value <= 0.3f) // (as every reader takes it: a typed 0.2 counted as no calibration everywhere but here; config scout)
                 {
                     _calibrationStart = Time.unscaledTime + 1.5f;
                 }

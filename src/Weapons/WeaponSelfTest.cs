@@ -168,12 +168,54 @@ namespace RavenfieldVR.Weapons
         public static bool Requested =>
             VRConfig.WeaponSelfTest.Value || Environment.GetCommandLineArgs().Any(a => string.Equals(a, "-rfvr-selftest", StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// The steps run with a way out: one that threw past the per-weapon guard (a drop's preparing, the hand preview, the pose
+        /// sheet) left Running set, so every later run returned at once, and the window kept running in the background; now logged
+        /// and let go (self-test scout, 2026-11-26).
+        /// </summary>
         public static IEnumerator Run()
         {
             if (Running)
             {
                 yield break;
             }
+            bool background = Application.runInBackground;
+            IEnumerator steps = RunSteps();
+            bool finished = false;
+            try
+            {
+                while (true)
+                {
+                    object current;
+                    try
+                    {
+                        if (!steps.MoveNext())
+                        {
+                            finished = true;
+                            break;
+                        }
+                        current = steps.Current;
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Exception("Weapon self-test stopped", e);
+                        break;
+                    }
+                    yield return current;
+                }
+            }
+            finally
+            {
+                if (!finished)
+                {
+                    Running = false;
+                    Application.runInBackground = background;
+                }
+            }
+        }
+
+        private static IEnumerator RunSteps()
+        {
             Running = true;
             // An unfocused game window would otherwise stop advancing frames and stall the run.
             bool runInBackground = Application.runInBackground;
