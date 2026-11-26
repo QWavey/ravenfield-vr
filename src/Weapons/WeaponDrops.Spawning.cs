@@ -1398,7 +1398,17 @@ namespace RavenfieldVR.Weapons
                         }
                         if (fit.Pieces.Length > 0)
                         {
-                            SwapShape(d, fit.Pieces);
+                            // (Each on its own: one copy whose swap threw left every other copy of that gun on its box for the match,
+                            // its fit already taken off the list; drops scout.)
+                            try
+                            {
+                                SwapShape(d, fit.Pieces);
+                            }
+                            catch (System.Exception e)
+                            {
+                                d.LateFitKey = null;
+                                Core.Log.ExceptionOnce("WeaponDrops.SwapShape", e);
+                            }
                         }
                         else
                         {

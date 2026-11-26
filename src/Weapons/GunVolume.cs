@@ -277,7 +277,7 @@ namespace RavenfieldVR.Weapons
                 View v = views[n];
                 float fx = (v.WorldRot.M00 * dx + v.WorldRot.M01 * dy + v.WorldRot.M02 * dz - v.MinX) * v.InvTexel;
                 float fy = (v.WorldRot.M10 * dx + v.WorldRot.M11 * dy + v.WorldRot.M12 * dz - v.MinY) * v.InvTexel;
-                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
+                if (!(fx >= 0f && fy >= 0f && fx < v.W && fy < v.H)) // (written so a NaN point is outside too: a negative index otherwise)
                 {
                     return false;
                 }
@@ -312,7 +312,7 @@ namespace RavenfieldVR.Weapons
                 float[] near = v.ClosedNear ?? v.Near, far = v.ClosedFar ?? v.Far;
                 float fx = (v.WorldRot.M00 * dx + v.WorldRot.M01 * dy + v.WorldRot.M02 * dz - v.MinX) * v.InvTexel;
                 float fy = (v.WorldRot.M10 * dx + v.WorldRot.M11 * dy + v.WorldRot.M12 * dz - v.MinY) * v.InvTexel;
-                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
+                if (!(fx >= 0f && fy >= 0f && fx < v.W && fy < v.H)) // (written so a NaN point is outside too: a negative index otherwise)
                 {
                     return false;
                 }
@@ -485,7 +485,7 @@ namespace RavenfieldVR.Weapons
                 View v = views[n];
                 float fx = (v.ToRot.M00 * p.x + v.ToRot.M01 * p.y + v.ToRot.M02 * p.z - v.MinX) * v.InvTexel;
                 float fy = (v.ToRot.M10 * p.x + v.ToRot.M11 * p.y + v.ToRot.M12 * p.z - v.MinY) * v.InvTexel;
-                if (fx < 0f || fy < 0f || fx >= v.W || fy >= v.H)
+                if (!(fx >= 0f && fy >= 0f && fx < v.W && fy < v.H)) // (written so a NaN point is outside too: a negative index otherwise)
                 {
                     return false;
                 }
@@ -779,7 +779,7 @@ namespace RavenfieldVR.Weapons
                 }
             }
             box.SetMinMax(Vector3.Max(box.min, envMin), Vector3.Min(box.max, envMax));
-            if (box.size.x <= 0f || box.size.y <= 0f || box.size.z <= 0f)
+            if (!(box.size.x > 0f && box.size.y > 0f && box.size.z > 0f)) // (NaN bounds too: a renderer's broken vertex data; volume scout)
             {
                 return null;
             }
@@ -1496,6 +1496,12 @@ namespace RavenfieldVR.Weapons
             try
             {
                 cam.RenderWithShader(shader, "");
+            }
+            catch
+            {
+                cam.targetTexture = null;
+                RenderTexture.ReleaseTemporary(rt); // (a render that threw kept its temporary target; volume scout)
+                throw;
             }
             finally
             {
