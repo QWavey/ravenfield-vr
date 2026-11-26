@@ -349,6 +349,10 @@ namespace RavenfieldVR.Rig
                 {
                     _throttleHand = null; // (let go: the lever stays where it is, VehicleInput.Throttle kept)
                     hand.Role = HandRole.Free;
+                    if (hand.Model != null)
+                    {
+                        hand.Model.CockpitStick = false; // (the fist round the lever stayed set until the seat was left; cockpit scout)
+                    }
                 }
                 else
                 {
@@ -419,6 +423,10 @@ namespace RavenfieldVR.Rig
                 {
                     _stickHand = null;
                     hand.Role = HandRole.Free;
+                    if (hand.Model != null)
+                    {
+                        hand.Model.CockpitStick = false;
+                    }
                     // A plane's stick let go holds where it was (the trim), a small throw excepted (the hand's own drift as it opens).
                     Vector2? last = VehicleInput.FlightStick;
                     VehicleInput.Trim = VRConfig.StickHoldsTrim.Value && GameContext.SeatKind == VehicleKind.Airplane && last.HasValue
@@ -927,6 +935,10 @@ namespace RavenfieldVR.Rig
                 if (h.Role == HandRole.Cockpit)
                 {
                     h.Role = HandRole.Free;
+                }
+                if (h.Model != null)
+                {
+                    h.Model.CockpitStick = false;
                 }
             }
             _throttleHand = null; // (the lever's setting stays: a menu or a pause does not move it)
