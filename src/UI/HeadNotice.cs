@@ -71,6 +71,10 @@ namespace RavenfieldVR.UI
             {
                 _until = -1f;
                 _shown = null;
+                if (head == null)
+                {
+                    _queue.Clear(); // (no view: the waiting notices belong to the seat or scene left, not shown later; notice scout)
+                }
                 if (_queue.Count > 0 && head != null)
                 {
                     KeyValuePair<string, float> next = _queue[0];

@@ -58,7 +58,7 @@ namespace RavenfieldVR.UI
         {
             Actor actor = GameContext.PlayerActor;
             Seat seat = actor != null && !actor.dead && actor.IsSeated() ? actor.seat : null;
-            if (seat != _seat)
+            if (!ReferenceEquals(seat, _seat)) // (a destroyed vehicle's seat equals null to Unity: its hidden sights never given back; sights scout)
             {
                 Restore();
                 _seat = seat;

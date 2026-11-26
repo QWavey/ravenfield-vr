@@ -149,8 +149,13 @@ namespace RavenfieldVR.UI
         private void Commit()
         {
             _open = false;
+            if (OpenVR.Overlay == null)
+            {
+                Deselect(); // (no overlay to read: the field was emptied with the "" read; keyboard scout)
+                return;
+            }
             var sb = new StringBuilder(1024);
-            OpenVR.Overlay?.GetKeyboardText(sb, (uint)sb.Capacity);
+            OpenVR.Overlay.GetKeyboardText(sb, (uint)sb.Capacity);
             string text = sb.ToString();
             if (_target != null)
             {
