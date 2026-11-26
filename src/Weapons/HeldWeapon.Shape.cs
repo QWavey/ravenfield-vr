@@ -599,6 +599,8 @@ namespace RavenfieldVR.Weapons
             SlideSides.Clear();
             SlideMeasuring.Clear();
             RenderedShapeBetter.Clear();
+            MagLineFitted.Clear(); // (the reloaded weapons' data and meshes: the old ones were kept alive by these; shape scout)
+            WeightedBoneCache.Clear();
         }
         private bool _knobChecked;
         /// <summary>Set by <see cref="Release"/>: a measurement that comes back after it adds nothing to this hold.</summary>
@@ -1297,8 +1299,9 @@ namespace RavenfieldVR.Weapons
             _partRestPos = worked.position - Rig.DirToWorld(travel);
             _partRestInv = Runtime.RigidPose.Conjugate(worked.rotation);
             _rackGunHand = main.Model != null && main.Role == HandRole.Weapon ? main.Model : null;
-            return _rackSolid ?? (_rackSolid = p => _partSolid(p)
-                                                     || ClosedGunSolid(p) && !_partVolume.SolidAt(p, _partRestPos, _partRestInv)
+            // (Each read as it is now: a slide measure tried again empties both, and a hand still holding this test threw at each ask; shape scout.)
+            return _rackSolid ?? (_rackSolid = p => _partSolid != null && _partSolid(p)
+                                                     || ClosedGunSolid(p) && (_partVolume == null || !_partVolume.SolidAt(p, _partRestPos, _partRestInv))
                                                      || _rackGunHand != null && _rackGunHand.NearSkin(p, GunVolume.Grow));
         }
 
