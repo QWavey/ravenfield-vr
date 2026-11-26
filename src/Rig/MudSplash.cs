@@ -31,7 +31,7 @@ namespace RavenfieldVR.Rig
             get
             {
                 Measure();
-                return _halfWidth;
+                return _halfWidth > 0f ? _halfWidth : QuestHalfWidth;
             }
         }
 
@@ -40,7 +40,7 @@ namespace RavenfieldVR.Rig
             get
             {
                 Measure();
-                return _halfHeight;
+                return _halfHeight > 0f ? _halfHeight : QuestHalfHeight;
             }
         }
 
@@ -57,6 +57,8 @@ namespace RavenfieldVR.Rig
                 Valve.VR.CVRSystem system = Valve.VR.OpenVR.System;
                 if (system == null)
                 {
+                    // (Not kept: asked before OpenVR was up, the Quest's guess stayed for the session on every headset; splash scout.)
+                    _halfWidth = _halfHeight = -1f;
                     return;
                 }
                 float left = 0f, right = 0f, top = 0f, bottom = 0f;
