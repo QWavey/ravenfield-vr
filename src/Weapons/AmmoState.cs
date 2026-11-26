@@ -338,7 +338,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Called every frame: adopts outside changes to weapon.ammo, then re-asserts our value.</summary>
         public void Reconcile()
         {
-            if (!Participates)
+            if (!Participates || Weapon == null) // (a weapon destroyed under its state: every frame's exception otherwise; ammo scout)
             {
                 return;
             }
@@ -676,7 +676,8 @@ namespace RavenfieldVR.Weapons
 
         public void TakeSpare(int rounds)
         {
-            if (!InfiniteSpare)
+            // (Not from the game's -1, a gun never resupplied: written as 0 it lost that mark, and an ammo bag filled it after; ammo scout.)
+            if (!InfiniteSpare && rounds > 0 && Weapon.spareAmmo >= 0)
             {
                 SpareAmmo -= rounds;
             }

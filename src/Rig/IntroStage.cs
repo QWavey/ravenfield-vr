@@ -65,7 +65,6 @@ namespace RavenfieldVR.Rig
             {
                 _sceneHandle = scene.handle;
                 Walkers.Clear();
-                PlacedTitles.Clear();
                 TitlesWithoutGround.Clear();
                 _nextTitleScan = 0f;
                 _hasGround = false;
@@ -274,7 +273,6 @@ namespace RavenfieldVR.Rig
 
         private const float TitleDistance = 12f;
         private const int WorldLayer = 0;
-        private static readonly List<Canvas> PlacedTitles = new List<Canvas>();
         private static readonly List<Canvas> TitlesWithoutGround = new List<Canvas>();
         private static float _nextTitleScan;
 
@@ -331,7 +329,6 @@ namespace RavenfieldVR.Rig
                 {
                     t.gameObject.layer = WorldLayer;
                 }
-                PlacedTitles.Add(c);
                 if (!_hasGround)
                 {
                     TitlesWithoutGround.Add(c);

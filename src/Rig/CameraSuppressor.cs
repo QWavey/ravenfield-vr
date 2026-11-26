@@ -54,8 +54,39 @@ namespace RavenfieldVR.Rig
             Camera.onPostRender += OnPostRender;
         }
 
-        /// <summary>Cameras created by the mod (scope lenses, UI event cameras) that must keep rendering.</summary>
-        public void Ignore(Camera c) => _ignored.Add(c);
+        /// <summary>
+        /// Cameras created by the mod (scope lenses, UI event cameras) that must keep rendering. One already taken by a pass before it
+        /// was named is given back (kept with no eye and no tracking, it drew nothing for its whole life; camera scout).
+        /// </summary>
+        public void Ignore(Camera c)
+        {
+            _ignored.Add(c);
+            if (c == null || !_suppressed.Remove(c))
+            {
+                return;
+            }
+            if (_originalEye.TryGetValue(c, out StereoTargetEyeMask eye))
+            {
+                c.stereoTargetEye = eye;
+                _originalEye.Remove(c);
+            }
+            XRDevice.DisableAutoXRCameraTracking(c, false);
+            PostProcessLayer pp = c.GetComponent<PostProcessLayer>();
+            if (pp != null && _ppLayers.TryGetValue(pp, out bool was))
+            {
+                pp.enabled = was;
+                _ppLayers.Remove(pp);
+            }
+            c.GetComponents(Behaviours);
+            foreach (MonoBehaviour mb in Behaviours)
+            {
+                if (mb != null && _effects.TryGetValue(mb, out bool on))
+                {
+                    mb.enabled = on;
+                    _effects.Remove(mb);
+                }
+            }
+        }
 
         // A camera's name read once (Camera.name makes a new string at each read: one a camera a frame; allocation scout).
         private readonly Dictionary<Camera, bool> _splitCamera = new Dictionary<Camera, bool>();
