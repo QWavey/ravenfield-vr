@@ -2,9 +2,9 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-26 late (work-until-limit 80, the game not run, Tasks 413; **1.19.41 INSTALLED**, hash checked, Defender clean; released on GitHub as v1.19.41)
+## State 2026-11-26 late (work-until-limit 80, the game not run, Tasks 413; **1.19.42 INSTALLED**, hash checked, Defender clean; GitHub has v1.19.41)
 
-- 1.19.41 = 1.19.39 plus Tasks 413 (scout fixes: lens teardown, vehicle/multiplayer/self-test checks let go on a throw, drop shape swaps, gun volume NaN, rig rest scales, export names, calibration threshold, twin names, launcher trigger with a lost hand). 1.19.40 was its first part. Release notes: dist/notes-release-draft.md.
+- 1.19.41 = 1.19.39 plus Tasks 413 (scout fixes: lens teardown, vehicle/multiplayer/self-test checks let go on a throw, drop shape swaps, gun volume NaN, rig rest scales, export names, calibration threshold, twin names, launcher trigger with a lost hand). 1.19.40 was its first part. Release notes: dist/notes-release-draft.md. 1.19.42 (local only, not pushed) adds the rack solid test after a re-measure, shape caches cleared at reload, the snap-jump buffer growth.
 
 ## Before: State 2026-11-26 (work-until-limit 45, Tasks 412; 1.19.39)
 
