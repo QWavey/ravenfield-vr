@@ -2819,6 +2819,7 @@ namespace RavenfieldVR.Weapons
             {
                 Rig.Handle.localPosition = Rig.Data.HandleRestLocal;
             }
+            Log.Guard("Release: bolt turn", UnturnBolt);
             if (Rig.Bolt != null)
             {
                 Rig.Bolt.localPosition = Rig.Data.BoltRestLocal; // a bolt left locked back stayed back (255.B1-2, B7-1)

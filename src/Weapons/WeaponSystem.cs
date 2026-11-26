@@ -31,6 +31,7 @@ namespace RavenfieldVR.Weapons
         /// <summary>Self-test: the pouch as shown (where its magazine stands).</summary>
         internal PouchDisplay Pouch => _pouch;
         private readonly HolsterDisplay _holsters;
+        private System.Action _takeEmptyArms;
 
         /// <summary>Showcase only: the holstered weapons' copies (hidden for one camera's render).</summary>
         internal HolsterDisplay Holsters => _holsters;
@@ -692,7 +693,7 @@ namespace RavenfieldVR.Weapons
                 {
                     _lastFedWeapon = Held.Weapon; // (the pouch goes on showing what it feeds from while it is away)
                 }
-                Log.Guard("EmptyArms.TakeFrom", () => _emptyArms.TakeFrom(Held)); // its arms for the empty hands, in this frame's pose
+                Log.Guard("EmptyArms.TakeFrom", _takeEmptyArms ?? (_takeEmptyArms = () => _emptyArms.TakeFrom(Held))); // its arms for the empty hands, in this frame's pose (one delegate, not a new one each frame)
                 Log.Guard("ReleaseHeld", () => Held.Release()); // a seat's drawn weapon with no held rig called it on nothing (lifecycle hunt)
             }
             _throwables.Release();

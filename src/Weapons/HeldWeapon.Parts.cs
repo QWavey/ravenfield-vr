@@ -150,6 +150,10 @@ namespace RavenfieldVR.Weapons
 
         private RocketShown Shown()
         {
+            if (ReferenceEquals(Weapon, null))
+            {
+                return null; // (no weapon to key by: the dictionary threw each frame; parts scout)
+            }
             if (RocketsShown.TryGetValue(Weapon, out RocketShown s))
             {
                 return s;
@@ -181,6 +185,10 @@ namespace RavenfieldVR.Weapons
         /// </summary>
         private void ShowLoadedRocket(bool loaded)
         {
+            if (ReferenceEquals(Weapon, null))
+            {
+                return;
+            }
             if (loaded)
             {
                 for (int i = 0; i < Rig.MagazineParts.Length && i < Rig.MagazinePartScales.Length; i++)
@@ -625,6 +633,25 @@ namespace RavenfieldVR.Weapons
                 }
             }
             _boltTurned = turned;
+        }
+
+        /// <summary>The release: a bolt left turned up goes back to its turn at rest (only its place was given back; parts scout, 2026-11-26).</summary>
+        private void UnturnBolt()
+        {
+            if (!_turnRestTaken)
+            {
+                return;
+            }
+            if (Rig.Slide != null)
+            {
+                Rig.Slide.localRotation = _slideTurnRest;
+            }
+            if (Rig.Handle != null)
+            {
+                Rig.Handle.localRotation = _handleTurnRest;
+            }
+            _boltTurned = false;
+            _turnRestTaken = false;
         }
 
         /// <summary>The gun's skinned meshes and the copies of them without the magazine, while the magazine is out.</summary>

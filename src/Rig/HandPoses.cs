@@ -106,7 +106,7 @@ namespace RavenfieldVR.Rig
             return byId;
         }
 
-        public static GripPose Get(HandPoseId id) => ById[(int)id] ?? All[0];
+        public static GripPose Get(HandPoseId id) => (int)id >= 0 && (int)id < ById.Length ? ById[(int)id] ?? All[0] : All[0]; // (an id with no row yet: the first pose, not a throw)
 
         /// <summary>Every pose (self-test pictures).</summary>
         public static GripPose[] Library => All;
