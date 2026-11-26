@@ -680,7 +680,7 @@ namespace RavenfieldVR.Weapons
         private Quaternion _lastRigTurn = Quaternion.identity;
         private bool _hasRigTurn;
         private bool _snapJumped;
-        private static readonly Collider[] _jumpScratch = new Collider[32];
+        private static Collider[] _jumpScratch = new Collider[32];
         private bool _placed;
         private bool _enabled = true;
 
@@ -1273,6 +1273,12 @@ namespace RavenfieldVR.Weapons
                     _snapJumped = false;
                     int layer = PropPhysics.Layer;
                     int n = layer >= 0 ? Physics.OverlapSphereNonAlloc(pos, 0.7f, _jumpScratch, 1 << layer, QueryTriggerInteraction.Ignore) : 0;
+                    // (Grown as the bodies' buffer is: a pile of more than 32 props kept the rest shoved out at depenetration speed; collider scout.)
+                    while (n == _jumpScratch.Length && _jumpScratch.Length < 1024)
+                    {
+                        _jumpScratch = new Collider[_jumpScratch.Length * 2];
+                        n = Physics.OverlapSphereNonAlloc(pos, 0.7f, _jumpScratch, 1 << layer, QueryTriggerInteraction.Ignore);
+                    }
                     for (int i = 0; i < n; i++)
                     {
                         Collider c = _jumpScratch[i];
