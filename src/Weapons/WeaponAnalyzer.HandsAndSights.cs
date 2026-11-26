@@ -72,11 +72,13 @@ namespace RavenfieldVR.Weapons
             int hash = d.Key.IndexOf('#');
             string name = hash > 0 ? d.Key.Substring(0, hash) : d.Key;
             string baseName = TwinSuffix.Replace(name, "");
-            if (baseName.Length == 0 || baseName == name)
+            if (baseName.Length == 0 || baseName == name || WeaponManager.instance == null || WeaponManager.instance.allWeapons == null)
             {
                 return;
             }
-            WeaponManager.WeaponEntry twin = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null && e.name == baseName);
+            // (Case aside: a mod's variant named "AK-47 scoped" beside its "Ak-47" found no twin; analyzer scout.)
+            WeaponManager.WeaponEntry twin = WeaponManager.instance.allWeapons.FirstOrDefault(e => e != null && e.prefab != null
+                && string.Equals(e.name, baseName, System.StringComparison.OrdinalIgnoreCase));
             Weapon tw = twin != null ? twin.prefab.GetComponent<Weapon>() : null;
             if (tw == null)
             {
@@ -225,7 +227,7 @@ namespace RavenfieldVR.Weapons
                 return;
             }
             Weapon clone = root.GetComponent<Weapon>();
-            Transform overlay = clone != null && clone.configuration.scopeAimObject != null ? clone.configuration.scopeAimObject.transform : null;
+            Transform overlay = clone != null && clone.configuration != null && clone.configuration.scopeAimObject != null ? clone.configuration.scopeAimObject.transform : null;
             Quaternion frame = Quaternion.LookRotation(d.AimAxis, d.Up);
             Quaternion inv = Quaternion.Inverse(frame);
             RigidPose gunInv = gunIdle.Inverse();

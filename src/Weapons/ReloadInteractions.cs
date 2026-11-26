@@ -599,6 +599,14 @@ namespace RavenfieldVR.Weapons
                 {
                     LetBeltHang(off); // the belt too: held on, it stayed drawn to where the lost hand was (review, 2026-10-24)
                 }
+                if (_launcherFrom.HasValue)
+                {
+                    // The launcher's trigger let go with the hand: held on, it kept firing the launcher until the hand came back
+                    // (the release below runs only for a tracked hand; reload scout).
+                    VRGameInput.SupportFire = false;
+                    _launcherReturn = _launcherFrom;
+                    _launcherFrom = null;
+                }
                 return;
             }
             if (_offLostTracking)
