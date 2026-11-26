@@ -128,7 +128,7 @@ namespace RavenfieldVR.Weapons
             // that reaches for it (the weapon may have been passed to the other hand).
             float gunSide = VRInput.GunHand == Hand.Left ? -1f : 1f;
             float height = 1.65f;
-            if (VRConfig.EyeHeight.Value > 0.3f)
+            if (VRConfig.EyeHeight.Value > 0.3f && VRConfig.EyeHeight.Value < 2.3f) // (a bad sample past any eye: the belt 70 cm below the neck; zones scout)
             {
                 // A seated calibration is lower than standing anatomy. Only a calibrated height: the 1.65 m default is a standing one
                 // already, and scaled it put the spots for a 2.23 m body, the pouch at the shins, until (or, for a seated head under

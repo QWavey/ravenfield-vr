@@ -455,6 +455,9 @@ namespace RavenfieldVR.UI
             _objectives.Clear();
             SquadHandSigns.Reset();
             Objective = null;
+            _orderSpawn = null; // (the old level's: kept, they were read as the next order's target; squad scout)
+            _orderEnemy = null;
+            _orderVehicle = null;
         }
 
         public void Destroy()

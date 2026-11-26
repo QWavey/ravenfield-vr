@@ -250,7 +250,10 @@ namespace RavenfieldVR.UI
             squad.Ungroup();
             foreach (AiActorController member in squad.aiMembers)
             {
-                member.CancelPath();
+                if (member != null)
+                {
+                    member.CancelPath(); // (one destroyed this frame threw past the order's marker, halt and sound; squad scout)
+                }
             }
             StrategyUi.HideSquadOrderMarker();
             ActorController leader = squad.Leader();

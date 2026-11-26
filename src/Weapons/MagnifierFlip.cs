@@ -66,10 +66,16 @@ namespace RavenfieldVR.Weapons
         {
             get
             {
-                if (!_searched)
+                // (Looked for again when the part found is gone, a model rebuilt; and a look that threw is not counted as done: the
+                // magnifier stayed dead for the hold; optics scout, 2026-11-26.)
+                if (_searched && ReferenceEquals(_part, null) == false && _part == null)
                 {
-                    _searched = true;
+                    _searched = false;
+                }
+                if (!_searched && _held.Weapon != null)
+                {
                     _part = Find(_held.Weapon, _held.Rig);
+                    _searched = true;
                 }
                 return _part;
             }
