@@ -82,7 +82,21 @@ namespace RavenfieldVR.Weapons
             {
                 sb.Append(char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == '.' ? c : '_');
             }
-            return sb.ToString().Trim('_');
+            // (Dots trimmed too and an empty or reserved name given a stand-in: a key of symbols alone wrote into the export folder
+            // itself, and ".." went above it; export scout.)
+            string name = sb.ToString().Trim('_', '.');
+            if (name.Length == 0)
+            {
+                name = "weapon_" + ((uint)key.GetHashCode()).ToString("x8");
+            }
+            string upper = name.ToUpperInvariant();
+            int dot = upper.IndexOf('.');
+            string stem = dot >= 0 ? upper.Substring(0, dot) : upper;
+            if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || (stem.Length == 4 && (stem.StartsWith("COM") || stem.StartsWith("LPT")) && char.IsDigit(stem[3])))
+            {
+                name = "_" + name;
+            }
+            return name;
         }
 
         // ---- the model ----------------------------------------------------------------------------------------------

@@ -468,6 +468,12 @@ namespace RavenfieldVR.Weapons
         public readonly Transform[] ChamberShells;
         public readonly Vector3[] ChamberShellScales;
 
+        /// <summary>
+        /// A part's scale to give back: one already shrunk away by a rig of the held gun (1e-4) counts as its full size, or the new
+        /// rig gave the tiny scale back for good (a rig made on a weapon in the hand; rig scout).
+        /// </summary>
+        private static Vector3 RestScale(Vector3 s) => s == Vector3.one * 1e-4f ? Vector3.one : s; // (only the mod's own mark: a part a mod scaled to 0 stays so)
+
         public WeaponRig(Weapon weapon, WeaponRigData data)
         {
             Weapon = weapon;
@@ -542,14 +548,14 @@ namespace RavenfieldVR.Weapons
             MagazinePartScales = new Vector3[MagazineParts.Length];
             for (int i = 0; i < MagazineParts.Length; i++)
             {
-                MagazinePartScales[i] = MagazineParts[i].localScale;
+                MagazinePartScales[i] = RestScale(MagazineParts[i].localScale);
             }
             SpareParts = new Transform[data.SparePartPaths.Count];
             SpareScales = new Vector3[SpareParts.Length];
             for (int i = 0; i < SpareParts.Length; i++)
             {
                 SpareParts[i] = Resolve(root, data.SparePartPaths[i]);
-                SpareScales[i] = SpareParts[i] != null ? SpareParts[i].localScale : Vector3.one;
+                SpareScales[i] = SpareParts[i] != null ? RestScale(SpareParts[i].localScale) : Vector3.one;
             }
             BeltParts = new Transform[data.BeltPartPaths.Count];
             for (int i = 0; i < BeltParts.Length; i++)
