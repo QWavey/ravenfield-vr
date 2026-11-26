@@ -586,8 +586,19 @@ namespace RavenfieldVR.Weapons
         /// <summary>Posed in its hand, the hand's grip on the weapon's grip, with its kick.</summary>
         public void BeforeRender()
         {
-            if (Weapon == null || Rig.GunBody == null || !Hand.HasPose)
+            if (Weapon == null || Rig.GunBody == null)
             {
+                return;
+            }
+            if (!Hand.HasPose)
+            {
+                // (Its kick settled while the hand is not tracked: shots in the gap stored it, and it all came out in one jolt with the
+                // pose; recoil scout, 2026-11-26.)
+                float idle = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+                _kickPosVel *= Mathf.Exp(-20f * idle);
+                _kickRotVel *= Mathf.Exp(-20f * idle);
+                _kickPos *= Mathf.Exp(-20f * idle);
+                _kickRot *= Mathf.Exp(-20f * idle);
                 return;
             }
             // Out of the gun while its timed reload runs (it stayed in, and the gun was full at the end with nothing going in or out). Written each
