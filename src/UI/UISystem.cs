@@ -447,6 +447,8 @@ namespace RavenfieldVR.UI
             }
             VRGameInput.PointerOverUI = false;
             VRGameInput.PanelOpen = false;
+            VRGameInput.WristLooking = false; // (a wrist look held as VR stopped kept the scoreboard peek set into the next session; UI scout)
+            VRGameInput.WristLookGesture = false;
             if (Instance == this)
             {
                 Instance = null;
