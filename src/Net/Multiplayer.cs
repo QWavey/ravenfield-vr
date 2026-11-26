@@ -241,11 +241,9 @@ namespace RavenfieldVR.Net
             {
                 if (request != _request)
                 {
-                    // (Left or started something else while Steam was answering: this lobby is nobody's any more.)
-                    if (lobby != 0 && !Active)
-                    {
-                        _lobbies?.Leave();
-                    }
+                    // (Left or started something else while Steam was answering: this lobby is nobody's any more. Also with a LAN or
+                    // address game begun meanwhile: kept, it stayed listed with no game behind it; Steam scout.)
+                    _lobbies?.LeaveStale(lobby);
                     return;
                 }
                 _busy = false;
@@ -308,9 +306,9 @@ namespace RavenfieldVR.Net
             {
                 if (request != _request)
                 {
-                    if (host != 0 && !Active)
+                    if (host != 0)
                     {
-                        _lobbies?.Leave();
+                        _lobbies?.LeaveStale(_lobbies.Current); // (the lobby just entered; as for hosting, also with another game begun)
                     }
                     return;
                 }

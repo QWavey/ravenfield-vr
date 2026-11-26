@@ -295,7 +295,7 @@ namespace RavenfieldVR.Weapons
         internal static float BeginGroup(Rigidbody[] bodies)
         {
             float s = Time.timeScale;
-            if (bodies == null || s <= 0f || s >= 0.999f || Core.VRConfig.SlowedHands)
+            if (bodies == null || s < 0.01f || s >= 0.999f || Core.VRConfig.SlowedHands) // (under 0.01 is paused, as the steps read it)
             {
                 return 1f;
             }
@@ -324,7 +324,9 @@ namespace RavenfieldVR.Weapons
             float s = Time.timeScale;
             // (Slowed hands: the hand lives in the slowed world, its velocity is in game units already, and what it lets go of
             // moves at the world's pace.)
-            if (body == null || body.isKinematic || s <= 0f || s >= 0.999f || Core.VRConfig.SlowedHands)
+            // (Under 0.01 as paused, as the steps read it: from just above 0 a throw was multiplied by a thousand and its gravity by a
+            // million; flight scout.)
+            if (body == null || body.isKinematic || s < 0.01f || s >= 0.999f || Core.VRConfig.SlowedHands)
             {
                 return 1f; // (paused: let go with no time passing, it waits as the world does)
             }

@@ -22,6 +22,7 @@ namespace RavenfieldVR.Net
         private readonly IntPtr[] _incoming = new IntPtr[64];
         private readonly HashSet<ulong> _peers = new HashSet<ulong>();
         private readonly List<ulong> _lost = new List<ulong>();
+        private static readonly List<ulong> LostNow = new List<ulong>();
         private byte[] _buffer = new byte[4096];
         private bool _disposed;
 
@@ -102,11 +103,22 @@ namespace RavenfieldVR.Net
             }
             if (_lost.Count > 0)
             {
-                foreach (ulong peer in _lost)
-                {
-                    lost(peer);
-                }
+                // (Taken off first, each on its own: a handler that threw left the peer queued, and every later poll threw before any
+                // message was read; the session heard nothing more; Steam scout.)
+                LostNow.Clear();
+                LostNow.AddRange(_lost);
                 _lost.Clear();
+                foreach (ulong peer in LostNow)
+                {
+                    try
+                    {
+                        lost(peer);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.ExceptionOnce("SteamTransport.lost", e);
+                    }
+                }
             }
             int n;
             do
@@ -435,6 +447,28 @@ namespace RavenfieldVR.Net
             if (Current != 0)
             {
                 SteamFriends.ActivateGameOverlayInviteDialog(new CSteamID(Current));
+            }
+        }
+
+        /// <summary>A lobby an answer came in for after its request was given up: left, the one in use kept if it is another.</summary>
+        public void LeaveStale(ulong lobby)
+        {
+            if (lobby == 0)
+            {
+                return;
+            }
+            if (lobby == Current)
+            {
+                Leave();
+                return;
+            }
+            try
+            {
+                SteamMatchmaking.LeaveLobby(new CSteamID(lobby));
+            }
+            catch (InvalidOperationException)
+            {
+                // (Steam already shut down: the lobby went with it.)
             }
         }
 

@@ -102,6 +102,10 @@ namespace RavenfieldVR.Weapons
                     continue;
                 }
                 WeaponRig rig = sys.RigFor(w);
+                if (rig == null || rig.Data == null)
+                {
+                    continue; // (no rig made for it yet: the exception left the look-up every 2 s; arms scout)
+                }
                 if (rig.Data.ArmRight != null && rig.Data.ArmLeft != null && rig.ArmRenderers.Length > 0)
                 {
                     Copy(w, rig);
