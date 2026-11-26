@@ -125,7 +125,7 @@ namespace RavenfieldVR.UI
                 Flag flag = _flags[i];
                 if (flag.Root == null)
                 {
-                    continue; // its scene has gone
+                    continue; // destroyed by something else (cleared flags leave the list)
                 }
                 SpawnPoint spawn = flag.Spawn;
                 bool on = show && spawn != null && !spawn.isGhostSpawn && spawn.squadOrderPoint != null;

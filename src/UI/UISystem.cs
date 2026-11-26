@@ -410,10 +410,11 @@ namespace RavenfieldVR.UI
             {
                 StartChoice.Close();
             }
-            Sandbox.Sandbox.OnSceneChanged();
-            _sandboxTool.OnSceneChanged();
-            Canvases.OnSceneChanged();
-            _squad.OnSceneChanged(); // the capture points' flags and any hand sign in progress belong to the old scene
+            // (Each on its own: one that threw kept the old scene's capture flags, their materials and plates, past the change; markers scout.)
+            Log.Guard("Scene change: sandbox", Sandbox.Sandbox.OnSceneChanged);
+            Log.Guard("Scene change: sandbox tool", _sandboxTool.OnSceneChanged);
+            Log.Guard("Scene change: canvases", Canvases.OnSceneChanged);
+            Log.Guard("Scene change: squad", _squad.OnSceneChanged); // the capture points' flags and any hand sign in progress belong to the old scene
             _eventSystem = null;
         }
 

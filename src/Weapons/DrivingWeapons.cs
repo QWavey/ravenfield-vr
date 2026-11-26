@@ -25,7 +25,7 @@ namespace RavenfieldVR.Weapons
                 return false;
             }
             Seat seat = actor.seat;
-            if (HasGun(seat))
+            if (seat == null || HasGun(seat)) // (seated with no seat left: every frame's NRE otherwise; driving scout)
             {
                 return false;
             }
@@ -54,13 +54,21 @@ namespace RavenfieldVR.Weapons
 
         public static void Draw(Actor actor, Weapon weapon)
         {
-            Armed = true;
-            if (actor.activeWeapon != null && actor.activeWeapon != weapon)
+            Armed = true; // (first: the game asks the seat whether it allows the weapon while drawing it)
+            try
             {
-                actor.HolsterActiveWeapon();
+                if (actor.activeWeapon != null && actor.activeWeapon != weapon)
+                {
+                    actor.HolsterActiveWeapon();
+                }
+                actor.Unholster(weapon);
+                weapon.Show();
             }
-            actor.Unholster(weapon);
-            weapon.Show();
+            catch
+            {
+                Armed = false; // (a draw that threw left the seat allowing personal weapons with none drawn; driving scout)
+                throw;
+            }
         }
 
         public static void PutAway(Actor actor)
@@ -70,7 +78,7 @@ namespace RavenfieldVR.Weapons
                 actor.HolsterActiveWeapon();
             }
             Armed = false;
-            if (actor != null && actor.IsSeated() && actor.seat.HasAnyMountedWeapons() && actor.seat.weapons[0] != null) // (a mod's seat can leave its first slot empty)
+            if (actor != null && actor.IsSeated() && actor.seat != null && actor.seat.HasAnyMountedWeapons() && actor.seat.weapons[0] != null) // (a mod's seat can leave its first slot empty)
             {
                 actor.Unholster(actor.seat.weapons[0]);
             }
