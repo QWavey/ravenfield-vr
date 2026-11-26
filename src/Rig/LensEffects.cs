@@ -571,6 +571,7 @@ namespace RavenfieldVR.Rig
 
         public void Destroy()
         {
+            _ok = false; // (a Present after the teardown touched the destroyed quads and textures: an exception a frame; lens scout)
             _stop = true;
             _wake.Set();
             for (int b = 1; b < Bands; b++)
@@ -589,7 +590,7 @@ namespace RavenfieldVR.Rig
                     MeshFilter f = q.GetComponent<MeshFilter>();
                     if (f != null && f.sharedMesh != null)
                     {
-                        UnityEngine.Object.Destroy(f.sharedMesh); // one mesh shared by the three: destroyed once, then null
+                        UnityEngine.Object.Destroy(f.sharedMesh); // one mesh shared by the three (the destroy is deferred: asked three times, harmless)
                     }
                     UnityEngine.Object.Destroy(q);
                 }

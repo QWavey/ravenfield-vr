@@ -126,7 +126,60 @@ namespace RavenfieldVR.Core
             return bars != null ? $"NO STEERING WHEEL linked (the model has '{bars}')" : "no wheel or stick (sticks and keys)";
         }
 
+        /// <summary>
+        /// The steps run with a way out: a vehicle or seat destroyed under a step threw out of the run, and the player stayed seated,
+        /// a hand stayed scripted with its grab held and the spin watch ran on; now reported and let go (vehicle check scout, 2026-11-26).
+        /// </summary>
         internal static IEnumerator Run(Action<string> report)
+        {
+            _spinMax = 0f; // (a second run reported the first one's biggest turn)
+            _spinAt = "";
+            IEnumerator steps = RunSteps(report);
+            bool finished = false;
+            try
+            {
+                while (true)
+                {
+                    object current;
+                    try
+                    {
+                        if (!steps.MoveNext())
+                        {
+                            finished = true;
+                            break;
+                        }
+                        current = steps.Current;
+                    }
+                    catch (Exception e)
+                    {
+                        report("vehicles: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")");
+                        break;
+                    }
+                    yield return current;
+                }
+            }
+            finally
+            {
+                if (!finished)
+                {
+                    _watching = false;
+                    for (int side = 0; side < 2; side++)
+                    {
+                        Rig.VRHand.Scripted[side] = null;
+                        Input.VRInput.SimulatedGrab[side] = false;
+                    }
+                    Log.Guard("Vehicle check: leave the seat", () =>
+                    {
+                        if (LocalPlayer.actor != null && LocalPlayer.actor.IsSeated())
+                        {
+                            LocalPlayer.actor.LeaveSeat(false);
+                        }
+                    });
+                }
+            }
+        }
+
+        private static IEnumerator RunSteps(Action<string> report)
         {
             Actor player = LocalPlayer.actor;
             Rig.VRRig rig0 = Rig.VRRig.Instance;
@@ -198,6 +251,10 @@ namespace RavenfieldVR.Core
                 catch (Exception e)
                 {
                     report($"vehicle {n} {prefab.name}: could not be made: {e.Message}");
+                    if (v != null)
+                    {
+                        Remove(v); // (made, then the placing threw: left standing for the session)
+                    }
                     continue;
                 }
                 yield return new WaitForSecondsRealtime(0.5f);
