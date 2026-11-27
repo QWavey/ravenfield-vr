@@ -246,7 +246,7 @@ namespace RavenfieldVR.Weapons
             return gun != null;
         }
 
-        private static readonly Collider[] Near = new Collider[32];
+        private static Collider[] Near = new Collider[32];
 
         /// <summary>
         /// How far a point is from the nearest of any soldier's own colliders (his body, arms, hands; not the player's), or infinity past the
@@ -259,6 +259,12 @@ namespace RavenfieldVR.Weapons
             float best = float.PositiveInfinity;
             Actor player = Util.GameContext.PlayerActor;
             int n = Physics.OverlapSphereNonAlloc(point, Reach + 0.05f, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
+            // (Grown until all fit: a squad close together is about 20 hitboxes each, and the nearest body could be past the first 32.)
+            while (n == Near.Length && Near.Length < 1024)
+            {
+                Near = new Collider[Near.Length * 2];
+                n = Physics.OverlapSphereNonAlloc(point, Reach + 0.05f, Near, Hitbox.ALL_HITBOX_LAYER_MASK, QueryTriggerInteraction.Collide);
+            }
             for (int k = 0; k < n; k++)
             {
                 Collider c = Near[k];

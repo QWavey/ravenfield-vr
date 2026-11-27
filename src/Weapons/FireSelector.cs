@@ -61,9 +61,19 @@ namespace RavenfieldVR.Weapons
                 MoveLever(w, SwitchSemi);
                 return "SEMI";
             }
-            if (SemiByPlayer.Remove(w))
+            if (SemiByPlayer.Contains(w))
             {
-                w.SetAutoFire();
+                try
+                {
+                    w.SetAutoFire();
+                }
+                catch (System.Exception e)
+                {
+                    // (As Clear: the mode alone. Taken off the list first, a switch that threw left the gun semi for the match; selector scout.)
+                    w.configuration.auto = true;
+                    Core.Log.ExceptionOnce("FireSelector.Toggle", e);
+                }
+                SemiByPlayer.Remove(w);
                 MoveLever(w, SwitchAuto);
                 return "AUTO";
             }
