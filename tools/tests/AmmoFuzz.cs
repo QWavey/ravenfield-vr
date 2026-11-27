@@ -33,6 +33,11 @@ namespace UnityEngine
         public static int Min(int a, int b) => a < b ? a : b;
         public static int Clamp(int v, int lo, int hi) => v < lo ? lo : v > hi ? hi : v;
     }
+
+    public static class Time
+    {
+        public static float unscaledTime;
+    }
 }
 
 namespace RavenfieldVR.Core
@@ -173,6 +178,12 @@ namespace RavenfieldVR.Tests
                 faults++;
                 Console.WriteLine("FAIL belt under the cover: " + belt2);
             }
+            string stroke = PumpMidStroke();
+            if (stroke != null)
+            {
+                faults++;
+                Console.WriteLine("FAIL a pump mid-stroke: " + stroke);
+            }
             string variant = VariantSharesMagazine();
             if (variant != null)
             {
@@ -181,6 +192,39 @@ namespace RavenfieldVR.Tests
             }
             Console.WriteLine($"ammo fuzz: {actions} random actions in {runs} runs, {faults} failed");
             return faults == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// A pump with a round in, its stroke on its way (ReloadInteractions.Slide renews ActionMovingUntil each frame past its
+        /// closing line): the trigger cannot fire it (2026-11-27: held half way back, the shot went and left the case in); the mark
+        /// ends by itself and the gun fires again.
+        /// </summary>
+        private static string PumpMidStroke()
+        {
+            VRConfig.ReloadNow = ReloadMode.Manual;
+            var rig = new WeaponRigData { Action = ActionType.Manual, CyclesByHand = true };
+            var gun = new Weapon { ammo = 6, spareAmmo = 20 };
+            gun.configuration.ammo = 6;
+            gun.configuration.spareAmmo = 100;
+            var a = new AmmoState(gun, rig);
+            a.RackBack();
+            a.RackForward();
+            UnityEngine.Time.unscaledTime = 10f;
+            if (!a.CanFire)
+            {
+                return "racked with rounds, it cannot fire";
+            }
+            a.ActionMovingUntil = 10.1f;
+            if (a.CanFire)
+            {
+                return "the stroke on its way, the trigger still fires";
+            }
+            UnityEngine.Time.unscaledTime = 10.2f;
+            if (!a.CanFire)
+            {
+                return "the stroke over, it still cannot fire";
+            }
+            return null;
         }
 
         private static readonly System.Reflection.MethodInfo BuildText =

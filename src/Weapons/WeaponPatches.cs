@@ -199,7 +199,10 @@ namespace RavenfieldVR.Weapons
                 if (state != null && !state.CanFire)
                 {
                     __result = false;
-                    WeaponSystem.Instance.OnDryFire(__instance);
+                    if (UnityEngine.Time.unscaledTime >= state.ActionMovingUntil)
+                    {
+                        WeaponSystem.Instance.OnDryFire(__instance); // (not mid-stroke: the trigger is blocked there, no hammer falls)
+                    }
                 }
             }
             catch (System.Exception e)

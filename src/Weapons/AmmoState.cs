@@ -280,6 +280,12 @@ namespace RavenfieldVR.Weapons
         /// <summary>The trigger pull that sent the slide forward does not also fire: held until the trigger is let go.</summary>
         public bool HoldFireUntilTriggerUp;
 
+        /// <summary>
+        /// Until when a hand-worked action (a pump, a bolt) counts as on its way: renewed by each frame of a stroke past its closing line,
+        /// so it ends by itself however the stroke ends (let go, dropped, switched).
+        /// </summary>
+        public float ActionMovingUntil = -1f;
+
         /// <summary>Whether the trigger can drop the hammer on a round right now.</summary>
         public bool CanFire
         {
@@ -289,7 +295,7 @@ namespace RavenfieldVR.Weapons
                 {
                     return true;
                 }
-                if (HoldFireUntilTriggerUp)
+                if (HoldFireUntilTriggerUp || Time.unscaledTime < ActionMovingUntil)
                 {
                     return false;
                 }

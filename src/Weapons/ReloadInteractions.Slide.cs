@@ -287,6 +287,12 @@ namespace RavenfieldVR.Weapons
             float fraction = Mathf.Clamp01(_rackBase + pull / StrokeLength);
             _strokeOut |= fraction > 0.25f;
             _held.SlideOffset = fraction * Travel;
+            if (HandDriven && fraction > 0.1f)
+            {
+                // A pump or bolt on its way, past the closing line: unlocked, the hammer cannot fall. Held half way back with a
+                // round in, the trigger fired it and left the case in (pump scout, 2026-11-27). Renewed each frame of the stroke.
+                Ammo.ActionMovingUntil = Time.unscaledTime + 0.1f;
+            }
 
             float stroke = fraction * StrokeLength;
             // The pull tugs the gun toward the hand (and a push home toward the muzzle), a few millimetres, as in Boneworks.
