@@ -15,7 +15,55 @@ namespace RavenfieldVR.Local
     /// </summary>
     internal static class SplitCheck
     {
+        /// <summary>
+        /// The steps run with a way out: one that threw (a soldier destroyed in a wait) left splitscreen on with the check's player
+        /// count and layout, the extra players alive; now reported and put back (split check scout, 2026-11-27).
+        /// </summary>
         public static IEnumerator Run(Action<string> report)
+        {
+            int players = Splitscreen.Players;
+            SplitLayout layout = Splitscreen.Layout;
+            bool full = Splitscreen.FullGames;
+            IEnumerator steps = RunSteps(report);
+            bool finished = false;
+            try
+            {
+                while (true)
+                {
+                    object current;
+                    try
+                    {
+                        if (!steps.MoveNext())
+                        {
+                            finished = true;
+                            break;
+                        }
+                        current = steps.Current;
+                    }
+                    catch (Exception e)
+                    {
+                        report("local: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")");
+                        break;
+                    }
+                    yield return current;
+                }
+            }
+            finally
+            {
+                if (!finished)
+                {
+                    Log.Guard("Split check: put back", () =>
+                    {
+                        Splitscreen.On = false;
+                        Splitscreen.Players = players;
+                        Splitscreen.Layout = layout;
+                        Splitscreen.FullGames = full;
+                    });
+                }
+            }
+        }
+
+        private static IEnumerator RunSteps(Action<string> report)
         {
             // 1. The Steam status.
             yield return Wait(4f);
@@ -55,6 +103,8 @@ namespace RavenfieldVR.Local
                 if (all.Count != players - 1)
                 {
                     report($"local: splitscreen with {players}: {all.Count} extra player(s) made, NOT {players - 1}");
+                    Splitscreen.On = false; // (the next kind is made from none: on, its count came on top of these)
+                    yield return Wait(1.5f);
                     continue;
                 }
                 if (name == "quarters")
@@ -156,7 +206,7 @@ namespace RavenfieldVR.Local
                     SplitPlayer d = all[0];
                     d.Actor.KillSilently();
                     yield return Wait(0.3f);
-                    bool down = d.Actor.dead;
+                    bool down = d.Actor != null && d.Actor.dead;
                     yield return Wait(SplitLife.RespawnDelay + 0.3f);
                     string downShot = Shots.FileFor("split-down");
                     System.IO.Directory.CreateDirectory(Shots.Dir);
