@@ -224,6 +224,23 @@ namespace RavenfieldVR.Tests
             {
                 return "the stroke over, it still cannot fire";
             }
+            // A port load (ReloadInteractions.TryPortLoad): fired empty in the chamber, the pump held open, a shell through the port
+            // goes into the chamber; closing it feeds none from the tube.
+            gun.ammo--;
+            a.OnShot();
+            a.RackBack();
+            a.BoltOpen = true;
+            int tube = a.MagRounds;
+            if (!a.ChamberOpenEmpty || !a.ChamberByHand())
+            {
+                return "open on an empty chamber, a shell by hand did not go in";
+            }
+            a.BoltOpen = false;
+            a.RackForward();
+            if (!a.Chambered || a.MagRounds != tube)
+            {
+                return $"closed on the hand's shell, the tube went {tube} -> {a.MagRounds} (chambered {a.Chambered})";
+            }
             return null;
         }
 
