@@ -546,7 +546,7 @@ namespace RavenfieldVR.Weapons
                 off.Haptic(0.03f, 90f, 0.4f);
                 return;
             }
-            if (TryMagKick(off, prop))
+            if (TryMagKick(off, prop) || TryPortLoad(off, prop))
             {
                 return;
             }
@@ -1044,6 +1044,46 @@ namespace RavenfieldVR.Weapons
                 Vector3 magCentre = d.MagSeat.TransformPoint(d.MagBounds.center);
                 return d.IsPistol || Mathf.Abs(Vector3.Dot(magCentre - d.GripPoint, d.AimAxis)) < 0.05f;
             }
+        }
+
+        /// <summary>
+        /// A shell dropped through the ejection port of a pump or bolt held open on an empty chamber goes straight into the chamber, as a
+        /// real shotgun is loaded when it ran dry (a port load: the user, 2026-11-27, "improve the shotguns"). Closing the action then
+        /// fires that shell and feeds none from the tube (RackForward leaves a chambered round as it is). Only a shell held clear of the
+        /// tube's own way in (not on its rail), within 5 cm of a gun's real port. True when it went in.
+        /// </summary>
+        private bool TryPortLoad(VRHand off, MagazineProp prop)
+        {
+            if (prop.Kind != PropKind.Shell || Breaks || prop.OnRail || prop.Go == null || !Ours(prop) || !HandLoading.ChamberEnabled
+                || !Data.CyclesByHand || !Ammo.ChamberOpenEmpty || !Ammo.ChamberHasRoom || prop.Rounds <= 0)
+            {
+                return false;
+            }
+            // (Only a real port: the rack point a gun with none falls back to is a pump's grip, where the hand works the pump and loads the tube.)
+            if (!Casings.TryPort(_held.ActiveWeapon, out Vector3 port))
+            {
+                return false;
+            }
+            Vector3 centre = prop.Go.transform.TransformPoint((prop.TipLocal + prop.BaseLocal) * 0.5f);
+            if ((centre - port).sqrMagnitude > 0.05f * 0.05f || !Ammo.ChamberByHand())
+            {
+                return false;
+            }
+            prop.Rounds--;
+            _held.Sounds.Play(MechSound.ShellIn, port, 0.7f);
+            _held.Nudge(-Rig.UpWorld * 0.03f);
+            off.Haptic(0.04f, 140f, 0.6f);
+            _sys.Rig.Dominant.Haptic(0.02f, 140f, 0.35f);
+            Log.InfoOnce("port-load:" + Data.Key, $"{Data.Key}: a shell put through the ejection port into the open chamber.");
+            if (prop.Rounds > 0)
+            {
+                prop.ShowShellCount(); // (two a reach: the other stays in the hand, for the tube or the next port load)
+            }
+            else
+            {
+                prop.Destroy();
+            }
+            return true;
         }
 
         /// <summary>
