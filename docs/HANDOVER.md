@@ -2,6 +2,10 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
+## State 2026-11-27 (work-until-limit 90, shotguns + bug hunt, the game not run, Tasks 414; **1.19.44 INSTALLED**, hash checked, Defender clean; GitHub has v1.19.41)
+
+- 1.19.44 = 1.19.43 plus Tasks 414: a pump or bolt on its way cannot fire, shotgun shells look like shells everywhere, the port load (a shell through the ejection port of an open pump), fire selector and overlap guards. New tools/check-game-update.ps1: run it after a Ravenfield update (the 2026-11-27 bot update was not installed by Steam yet; baseline build 26324504 accepted).
+
 ## State 2026-11-26 late (work-until-limit 80, the game not run, Tasks 413; **1.19.43 INSTALLED**, hash checked, Defender clean; GitHub has v1.19.41 with its three files)
 
 - 1.19.41 = 1.19.39 plus Tasks 413 (scout fixes: lens teardown, vehicle/multiplayer/self-test checks let go on a throw, drop shape swaps, gun volume NaN, rig rest scales, export names, calibration threshold, twin names, launcher trigger with a lost hand). 1.19.40 was its first part. Release notes: dist/notes-release-draft.md. 1.19.42 and 1.19.43 (local only, not pushed) add the cockpit levers' fist release, the rack solid test after a re-measure, shape caches cleared at reload, the snap-jump buffer growth.
