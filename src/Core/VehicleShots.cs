@@ -134,49 +134,19 @@ namespace RavenfieldVR.Core
         {
             _spinMax = 0f; // (a second run reported the first one's biggest turn)
             _spinAt = "";
-            IEnumerator steps = RunSteps(report);
-            bool finished = false;
-            try
+            return Util.GuardedSteps.Run(RunSteps(report), e => report("vehicles: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")"), () =>
             {
-                while (true)
+                _watching = false;
+                for (int side = 0; side < 2; side++)
                 {
-                    object current;
-                    try
-                    {
-                        if (!steps.MoveNext())
-                        {
-                            finished = true;
-                            break;
-                        }
-                        current = steps.Current;
-                    }
-                    catch (Exception e)
-                    {
-                        report("vehicles: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")");
-                        break;
-                    }
-                    yield return current;
+                    Rig.VRHand.Scripted[side] = null;
+                    Input.VRInput.SimulatedGrab[side] = false;
                 }
-            }
-            finally
-            {
-                if (!finished)
+                if (LocalPlayer.actor != null && LocalPlayer.actor.IsSeated())
                 {
-                    _watching = false;
-                    for (int side = 0; side < 2; side++)
-                    {
-                        Rig.VRHand.Scripted[side] = null;
-                        Input.VRInput.SimulatedGrab[side] = false;
-                    }
-                    Log.Guard("Vehicle check: leave the seat", () =>
-                    {
-                        if (LocalPlayer.actor != null && LocalPlayer.actor.IsSeated())
-                        {
-                            LocalPlayer.actor.LeaveSeat(false);
-                        }
-                    });
+                    LocalPlayer.actor.LeaveSeat(false);
                 }
-            }
+            });
         }
 
         private static IEnumerator RunSteps(Action<string> report)

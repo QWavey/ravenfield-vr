@@ -177,41 +177,19 @@ namespace RavenfieldVR.Weapons
         {
             if (Running)
             {
-                yield break;
+                return Empty();
             }
             bool background = Application.runInBackground;
-            IEnumerator steps = RunSteps();
-            bool finished = false;
-            try
+            return Util.GuardedSteps.Run(RunSteps(), e => Log.Exception("Weapon self-test stopped", e), () =>
             {
-                while (true)
-                {
-                    object current;
-                    try
-                    {
-                        if (!steps.MoveNext())
-                        {
-                            finished = true;
-                            break;
-                        }
-                        current = steps.Current;
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Exception("Weapon self-test stopped", e);
-                        break;
-                    }
-                    yield return current;
-                }
-            }
-            finally
-            {
-                if (!finished)
-                {
-                    Running = false;
-                    Application.runInBackground = background;
-                }
-            }
+                Running = false;
+                Application.runInBackground = background;
+            });
+        }
+
+        private static IEnumerator Empty()
+        {
+            yield break;
         }
 
         private static IEnumerator RunSteps()

@@ -24,43 +24,13 @@ namespace RavenfieldVR.Local
             int players = Splitscreen.Players;
             SplitLayout layout = Splitscreen.Layout;
             bool full = Splitscreen.FullGames;
-            IEnumerator steps = RunSteps(report);
-            bool finished = false;
-            try
+            return Util.GuardedSteps.Run(RunSteps(report), e => report("local: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")"), () =>
             {
-                while (true)
-                {
-                    object current;
-                    try
-                    {
-                        if (!steps.MoveNext())
-                        {
-                            finished = true;
-                            break;
-                        }
-                        current = steps.Current;
-                    }
-                    catch (Exception e)
-                    {
-                        report("local: NOT FINISHED (" + e.GetType().Name + ": " + e.Message + ")");
-                        break;
-                    }
-                    yield return current;
-                }
-            }
-            finally
-            {
-                if (!finished)
-                {
-                    Log.Guard("Split check: put back", () =>
-                    {
-                        Splitscreen.On = false;
-                        Splitscreen.Players = players;
-                        Splitscreen.Layout = layout;
-                        Splitscreen.FullGames = full;
-                    });
-                }
-            }
+                Splitscreen.On = false;
+                Splitscreen.Players = players;
+                Splitscreen.Layout = layout;
+                Splitscreen.FullGames = full;
+            });
         }
 
         private static IEnumerator RunSteps(Action<string> report)
