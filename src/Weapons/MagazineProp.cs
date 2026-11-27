@@ -309,6 +309,7 @@ namespace RavenfieldVR.Weapons
             }
             if (!any)
             {
+                _extraShown = 0; // (nothing drawn to copy yet: asked again, made then; it stayed one shell in the hand; shell scout)
                 return;
             }
             // Beside it across its long side: along the shorter of its two short axes' directions, a shell's width apart.
