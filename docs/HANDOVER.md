@@ -4,7 +4,7 @@ Where the work stands, for whoever picks it up next, a compacted session include
 
 ## State 2026-11-27 (work-until-limit 90, shotguns + bug hunt, Tasks 414; **1.19.45 INSTALLED** on Ravenfield EA40 (Steam build 26976655), hash checked, Defender clean; GitHub has v1.19.41)
 
-- EA40 checked: tools/check-game-update.ps1 all targets found, the mod compiles; autotest 14 (13 known + the game's Destructible.Die NRE, now guarded), netcheck 0. 1.19.45 = 1.19.44 plus the guard, the split check's way out, Util.GuardedSteps.
+- EA40 checked: tools/check-game-update.ps1 all targets found, the mod compiles; autotest 14 (13 known + the game's Destructible.Die NRE, now guarded), netcheck 0; shotguns 0 problems (76 EAGLE, DOUBLE-BARREL, mw-m870, six M1878). 1.19.45 = 1.19.44 plus the guard, the split check's way out, Util.GuardedSteps. FIRST next time: PATRIOT TAC's h3vr tactical reload (fresh magazine NOT SEATED, 61 -> 31) from the deep run, reports/shots/weapons/autotest.txt.
 
 - 1.19.44 = 1.19.43 plus Tasks 414: a pump or bolt on its way cannot fire, shotgun shells look like shells everywhere, the port load (a shell through the ejection port of an open pump), fire selector and overlap guards. New tools/check-game-update.ps1: run it after a Ravenfield update (the 2026-11-27 bot update was not installed by Steam yet; baseline build 26324504 accepted).
 
