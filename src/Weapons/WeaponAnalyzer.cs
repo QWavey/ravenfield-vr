@@ -375,7 +375,8 @@ namespace RavenfieldVR.Weapons
 
         private static WeaponRigData Fallback(Weapon w, string key, int slot)
         {
-            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), InfiniteAmmo = InfiniteMagazine(w), Notes = "fallback", Slot = slot };
+            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), InfiniteAmmo = InfiniteMagazine(w), Notes = "fallback", Slot = slot,
+                Pellets = w.configuration != null ? w.configuration.projectilesPerShot : 1 };
             // AuthoredAuto as the full analysis (a gun the player switched to semi is still an automatic one; scout, 2026-10-24).
             d.CyclesByHand = d.Action == ActionType.Manual || d.Action == ActionType.ShellFed && !AuthoredAuto(w) && w.configuration.cooldown >= 0.45f;
             Transform muzzle = FindMuzzle(w, null, out _);
@@ -426,7 +427,8 @@ namespace RavenfieldVR.Weapons
         private static WeaponRigData Analyze(Weapon w, string key, int slot)
         {
             Transform root = w.transform;
-            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), InfiniteAmmo = InfiniteMagazine(w), Slot = slot };
+            var d = new WeaponRigData { Key = key, Action = ClassifyAction(w), InfiniteAmmo = InfiniteMagazine(w), Slot = slot,
+                Pellets = w.configuration != null ? w.configuration.projectilesPerShot : 1 };
 
             Transform[] all = root.GetComponentsInChildren<Transform>(true);
             var index = new Dictionary<Transform, int>(all.Length);

@@ -151,7 +151,8 @@ namespace RavenfieldVR.Weapons
                     along[axis] = 1f;
                     own = new OwnShell
                     {
-                        Mesh = best.sharedMesh, Materials = best.GetComponent<MeshRenderer>().sharedMaterials, Scale = lossy,
+                        Mesh = best.sharedMesh, Materials = best.GetComponent<MeshRenderer>().sharedMaterials,
+                        Scale = new Vector3(Mathf.Abs(lossy.x), Mathf.Abs(lossy.y), Mathf.Abs(lossy.z)), // (a mirrored gun's: inside out otherwise)
                         Turn = Quaternion.FromToRotation(along, Vector3.forward), Axis = axis,
                     };
                 }
@@ -332,6 +333,14 @@ namespace RavenfieldVR.Weapons
             if (d == null)
             {
                 return Kind.Rifle;
+            }
+            // A shotgun's: as KindOf(rig, weapon) reads it from the gun (a shell made in the hand for the chamber, a magazine's round
+            // let out, the pouch's look were 5.56 rounds on a shotgun; casings scout, 2026-11-27).
+            if ((d.Pellets > 1 || d.MagazinePath != null && WeaponAnalyzer.ShellSized(d.AnalysedMagBounds))
+                && (d.Action == ActionType.ShellFed || d.Action == ActionType.BreakOpen || d.Action == ActionType.Manual)
+                || d.Pellets > 2 && !d.Handgun)
+            {
+                return Kind.Shell;
             }
             if (d.Handgun)
             {
@@ -535,6 +544,10 @@ namespace RavenfieldVR.Weapons
             c.Body.angularVelocity = spin;
             RealTimeFlight.Begin(c.Body); // (the hand's speed is real time: in slow motion a round let go dropped at the fingers)
             PropPhysics.IgnorePlayer(c.Collider); // (switched off and on, the collider forgot its ignored pairs)
+            if (c.Sound != null)
+            {
+                c.Sound.Rearm(); // (a case thrown from the hand tinks again where it lands; casings scout)
+            }
             c.Born = Time.time;
             // (To the list's end: it is in order of age, and the next shot with the pool full took a case thrown a moment ago from where it first lay.)
             Alive.Remove(c);

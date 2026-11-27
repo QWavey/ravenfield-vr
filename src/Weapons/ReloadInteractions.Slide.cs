@@ -158,6 +158,10 @@ namespace RavenfieldVR.Weapons
             {
                 return false;
             }
+            if (_held.BoltTurn > 0.25f)
+            {
+                Ammo.ActionMovingUntil = Time.unscaledTime + 0.1f; // (its handle up, unlocked: the firing pin cannot fall, as on the stroke)
+            }
             if (_lifting)
             {
                 // Either way about the bore: at home the handle can only go up, and the way up is worked out from the model, never

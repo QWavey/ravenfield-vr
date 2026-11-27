@@ -272,6 +272,9 @@ namespace RavenfieldVR.Weapons
         public bool SeatOnHinge;
         /// <summary>Automatic with a big box, drum or belt (or a feed cover): heavier handling, longer box insertion.</summary>
         public bool IsMachineGun;
+
+        /// <summary>The weapon's pellets a shot (its configuration's projectilesPerShot): a shotgun's round is a shell, also where only this is known.</summary>
+        public int Pellets;
         /// <summary>
         /// The action is worked by hand after every shot (bolt, lever, pump, including pump shotguns that load shell
         /// by shell); otherwise it cycles itself (self-loading rifles, pistols, semi-automatic shotguns).
