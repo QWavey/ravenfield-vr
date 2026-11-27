@@ -2,7 +2,9 @@
 
 Where the work stands, for whoever picks it up next, a compacted session included. Kept current during a run; the detail is in `docs/Tasks.md` (the newest numbered entry) and the mechanisms in `docs/PROJECT_DOCUMENTATION.md`.
 
-## State 2026-11-27 (work-until-limit 90, shotguns + bug hunt, the game not run, Tasks 414; **1.19.44 INSTALLED**, hash checked, Defender clean; GitHub has v1.19.41)
+## State 2026-11-27 (work-until-limit 90, shotguns + bug hunt, Tasks 414; **1.19.45 INSTALLED** on Ravenfield EA40 (Steam build 26976655), hash checked, Defender clean; GitHub has v1.19.41)
+
+- EA40 checked: tools/check-game-update.ps1 all targets found, the mod compiles; autotest 14 (13 known + the game's Destructible.Die NRE, now guarded), netcheck 0. 1.19.45 = 1.19.44 plus the guard, the split check's way out, Util.GuardedSteps.
 
 - 1.19.44 = 1.19.43 plus Tasks 414: a pump or bolt on its way cannot fire, shotgun shells look like shells everywhere, the port load (a shell through the ejection port of an open pump), fire selector and overlap guards. New tools/check-game-update.ps1: run it after a Ravenfield update (the 2026-11-27 bot update was not installed by Steam yet; baseline build 26324504 accepted).
 
