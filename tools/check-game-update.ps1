@@ -73,8 +73,13 @@ if ($failures -gt 0) {
     exit 1
 }
 if ($Accept) {
-    Remove-Item -Recurse -Force (Join-Path $ref 'decompiled')
-    Rename-Item $new 'decompiled'
+    # Only the two it made: the rest of .ref/decompiled (postprocessing) kept.
+    foreach ($part in 'Assembly-CSharp', 'firstpass') {
+        $to = Join-Path $ref "decompiled\$part"
+        if (Test-Path $to) { Remove-Item -Recurse -Force $to }
+        Move-Item (Join-Path $new $part) $to
+    }
+    Remove-Item -Recurse -Force $new
     Set-Content -Path $hashFile -Value $hash -Encoding ascii
     Write-Step 'Accepted: .ref/decompiled is the new game now, its hash kept.'
 }
