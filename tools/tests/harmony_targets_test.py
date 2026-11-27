@@ -8,7 +8,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DECOMPILED = os.path.join(ROOT, '.ref', 'decompiled')
+# (RFVR_DECOMPILED: another decompile to check against, a game update's: tools/check-game-update.ps1)
+DECOMPILED = os.environ.get('RFVR_DECOMPILED') or os.path.join(ROOT, '.ref', 'decompiled')
 PATCH = re.compile(r'HarmonyPatch\(\s*typeof\(\s*([A-Za-z0-9_.]+)\s*\)\s*,\s*"([A-Za-z0-9_]+)"')
 # Members read by name through reflection (a field ref, a method looked up): the same, and worse when wrong. A FieldRefAccess is built in a
 # static initializer, so a renamed field throws TypeInitializationException from every use of its class (the real-time grenades' and
@@ -31,7 +32,7 @@ def game_file(type_name):
 
 def main():
     if not os.path.isdir(DECOMPILED):
-        print('skipped: no decompiled game in .ref/decompiled')
+        print('skipped: no decompiled game in ' + DECOMPILED)
         return 0
     failed = passed = skipped = 0
     for path in glob.glob(os.path.join(ROOT, 'src', '**', '*.cs'), recursive=True):

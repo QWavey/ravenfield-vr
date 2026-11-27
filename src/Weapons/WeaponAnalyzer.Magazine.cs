@@ -281,7 +281,7 @@ namespace RavenfieldVR.Weapons
                     // logged since 2026-10-24). Near the grip only: a gun with no reload has no seat correction after this, so a part
                     // far off would be seated where it rests.
                     Transform next = NextMagByName(all, root, gunBody, muzzle, armRelated, gunBones, d.Action == ActionType.SingleShot, beltFed, firstByName, slide, sampler);
-                    if (next != null)
+                    if (next != null && gunBody != null) // (no body: Idle(null) is a null dictionary key, the analysis threw; magazine scout)
                     {
                         Vector3 atGun = sampler.Idle(gunBody).Inverse().TransformPoint(sampler.Idle(next).position);
                         if ((atGun - d.GripPoint).magnitude <= 0.45f)
